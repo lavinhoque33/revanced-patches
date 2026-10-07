@@ -5,6 +5,11 @@ internal enum class PatchList(
     val summary: String,
     var included: Boolean? = false
 ) {
+    // modified by lavinhoque33, 2026-10-06: Android Auto playlists patch.
+    ANDROID_AUTO_PLAYLISTS(
+        "Restore Android Auto playlists",
+        "Fills the empty Library → Playlists page in Android Auto with your playlists and their tracks."
+    ),
     APP_REFRESH_RATE(
         "App refresh rate",
         "Adds an option to change the app refresh rate."

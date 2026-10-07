@@ -1,3 +1,10 @@
+# [1.2.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.1.1...v1.2.0) (2026-10-07)
+
+
+### Features
+
+* **YouTube Music - Restore Android Auto playlists:** Add artwork and update pages after changes on the phone ([634d713](https://github.com/lavinhoque33/revanced-patches/commit/634d7135bd559de56cca29ee0cb927bff5b49e97))
+
 ## [1.1.1](https://github.com/lavinhoque33/revanced-patches/compare/v1.1.0...v1.1.1) (2026-10-07)
 
 

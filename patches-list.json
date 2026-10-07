@@ -1,5 +1,5 @@
 {
-  "version": "1.1.1",
+  "version": "1.2.0",
   "patches": [
     {
       "name": "Alternative thumbnails",
@@ -2015,7 +2015,7 @@
     },
     {
       "name": "Restore Android Auto playlists",
-      "description": "Fills the empty Library → Playlists page in Android Auto with your playlists and their tracks.",
+      "description": "Fills the empty Library → Playlists page in Android Auto with your playlists and their tracks, with artwork. Changes made on the phone show up in the car.",
       "use": true,
       "dependencies": [
         "ResourcePatch",

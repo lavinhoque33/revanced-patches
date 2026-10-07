@@ -1,5 +1,5 @@
 {
-  "version": "4.3.1-dev.1",
+  "version": "1.1.0",
   "patches": [
     {
       "name": "Alternative thumbnails",
@@ -1925,6 +1925,24 @@
         "com.google.android.youtube": [
           "21.13.164",
           "20.05.46"
+        ]
+      },
+      "options": []
+    },
+    {
+      "name": "Restore Android Auto playlists",
+      "description": "Fills the empty Library → Playlists page in Android Auto with your playlists and their tracks.",
+      "use": true,
+      "dependencies": [
+        "ResourcePatch",
+        "BytecodePatch"
+      ],
+      "compatiblePackages": {
+        "com.google.android.apps.youtube.music": [
+          "8.12.54",
+          "8.28.54",
+          "8.30.54",
+          "9.15.51"
         ]
       },
       "options": []

@@ -1,7 +1,6 @@
 {
-  "created_at": "2026-09-28T12:51:18",
-  "description": "## [4.3.1-dev.1](https://github.com/anddea/revanced-patches/compare/v4.3.0...v4.3.1-dev.1) (2026-09-28)\n\n\n### Bug Fixes\n\n* **YouTube - Voice over translation:** Prevent translated audio from starting while video is paused ([#1832](https://github.com/anddea/revanced-patches/issues/1832)) ([7522fe2](https://github.com/anddea/revanced-patches/commit/7522fe2dbb20474b210048a97940ebf123a04e4a))",
-  "download_url": "https://github.com/anddea/revanced-patches/releases/download/v4.3.1-dev.1/patches-4.3.1-dev.1.mpp",
-  "signature_download_url": "https://github.com/anddea/revanced-patches/releases/download/v4.3.1-dev.1/patches-4.3.1-dev.1.mpp.asc",
-  "version": "4.3.1-dev.1"
+  "created_at": "2026-10-07T03:27:14",
+  "description": "# [1.1.0](https://github.com/lavinhoque33/revanced-patches/compare/v4.3.1-dev.1-lavin.1...v1.1.0) (2026-10-07)\n\n\n### Features\n\n* **YouTube Music - Restore Android Auto playlists:** Add patch ([cc751a5](https://github.com/lavinhoque33/revanced-patches/commit/cc751a5e07babf3751a1e42597f0e84b7c4c3c30))",
+  "download_url": "https://github.com/lavinhoque33/revanced-patches/releases/download/v1.1.0/patches-1.1.0.mpp",
+  "version": "1.1.0"
 }

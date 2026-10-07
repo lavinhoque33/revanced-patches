@@ -1,3 +1,20 @@
+# [1.1.0](https://github.com/lavinhoque33/revanced-patches/compare/v4.3.1-dev.1-lavin.1...v1.1.0) (2026-10-07)
+
+
+### Features
+
+* **YouTube Music - Restore Android Auto playlists:** Add patch ([cc751a5](https://github.com/lavinhoque33/revanced-patches/commit/cc751a5e07babf3751a1e42597f0e84b7c4c3c30))
+
+# [1.0.0](https://github.com/lavinhoque33/revanced-patches/releases/tag/v4.3.1-dev.1-lavin.1) (2026-10-06)
+
+First release of the lavinhoque33 fork, based on anddea 4.3.1-dev.1 (published as `v4.3.1-dev.1-lavin.1`).
+
+
+### Bug Fixes
+
+* **YouTube:** Support YouTube 21.39.525 ([d95145b](https://github.com/lavinhoque33/revanced-patches/commit/d95145b))
+* **YouTube Music:** Support YouTube Music 9.40.51 ([0bdbd84](https://github.com/lavinhoque33/revanced-patches/commit/0bdbd84))
+
 ## [4.3.1-dev.1](https://github.com/anddea/revanced-patches/compare/v4.3.0...v4.3.1-dev.1) (2026-09-28)
 
 

@@ -127,6 +127,7 @@
 | `PoToken provider` | Adds option to get PoToken using the built-in PoToken provider. | 8.12.54 ~ 9.15.51 |
 | `Remove background playback restrictions` | Removes restrictions on background playback, including for kids videos. | 8.12.54 ~ 9.15.51 |
 | `Remove viewer discretion dialog` | Adds an option to remove the dialog that appears when opening a video that has been age-restricted by accepting it automatically. This does not bypass the age restriction. | 8.12.54 ~ 9.15.51 |
+| `Restore Android Auto playlists` | Fills the empty Library → Playlists page in Android Auto with your playlists and their tracks. | 8.12.54 ~ 9.15.51 |
 | `Restore old style library shelf` | Adds an option to return the Library tab to the old style. | 8.12.54 ~ 9.15.51 |
 | `Return YouTube Dislike` | Adds an option to show the dislike count of songs using the Return YouTube Dislike API. | 8.12.54 ~ 9.15.51 |
 | `Return YouTube Username` | Adds an option to replace YouTube handles with usernames in comments using YouTube Data API v3. | 8.12.54 ~ 9.15.51 |

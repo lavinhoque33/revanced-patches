@@ -1,3 +1,10 @@
+## [1.1.1](https://github.com/lavinhoque33/revanced-patches/compare/v1.1.0...v1.1.1) (2026-10-07)
+
+
+### Bug Fixes
+
+* Declare support for YouTube 21.39.525 and YouTube Music 9.40.51 ([f257c2b](https://github.com/lavinhoque33/revanced-patches/commit/f257c2be906ab0c6576fbd083eeb2fe81672cfe2))
+
 # [1.1.0](https://github.com/lavinhoque33/revanced-patches/compare/v4.3.1-dev.1-lavin.1...v1.1.0) (2026-10-07)
 
 

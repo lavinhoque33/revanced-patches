@@ -6,6 +6,7 @@
  *
  * Licensed under the GNU General Public License v3.0.
  * Written by lavinhoque33, 2026-10-06.
+ * modified by lavinhoque33, 2026-10-07: performLoadChildren fingerprint for page reloads.
  */
 
 package app.morphe.patches.music.misc.androidauto
@@ -27,6 +28,16 @@ internal object MediaBrowserResultDetachFingerprint : Fingerprint(
     returnType = "V",
     parameters = listOf(),
     strings = listOf("detach() called when detach() had already been called for: "),
+)
+
+/**
+ * androidx {@code MediaBrowserServiceCompat.performLoadChildren(String, ConnectionRecord, Bundle)}:
+ * loads one page for one Android Auto connection. Public in 9.40.51, package-private in 9.15.51.
+ */
+internal object MediaBrowserServicePerformLoadChildrenFingerprint : Fingerprint(
+    returnType = "V",
+    parameters = listOf("Ljava/lang/String;", "L", "Landroid/os/Bundle;"),
+    strings = listOf("onLoadChildren must call detach() or sendResult() before returning for package="),
 )
 
 /** {@code MusicBrowserService.onLoadChildren(String parentId, Result, Bundle options)}. */

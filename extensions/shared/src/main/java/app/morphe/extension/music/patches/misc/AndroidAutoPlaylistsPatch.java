@@ -6,6 +6,8 @@
  *
  * Licensed under the GNU General Public License v3.0.
  * Written by lavinhoque33, 2026-10-06.
+ * modified by lavinhoque33, 2026-10-07: artwork, reload after phone changes and after login, keep loaded lists on failure,
+ * keep Playlists node ids across restarts.
  */
 
 package app.morphe.extension.music.patches.misc;
@@ -16,6 +18,8 @@ import android.media.browse.MediaBrowser;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.os.Parcel;
 import android.os.Parcelable;
 
@@ -29,6 +33,7 @@ import org.json.JSONObject;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.lang.ref.WeakReference;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLEncoder;
@@ -55,6 +60,11 @@ import app.morphe.extension.shared.utils.Utils;
  * the phone's Library shows) with the app's own login, shows each playlist as a folder, lists its
  * tracks ({@code VL<playlistId>}), and plays a track by handing a
  * {@code music.youtube.com/watch?v=…&list=…} link to the app's {@code onPlayFromUri}.
+ * <p>
+ * When the phone app adds a playlist, edits one, or likes a song, the open Android Auto pages
+ * reload after a few seconds (the same request list Morphe's Android Auto patch reacts to).
+ * If a later page fails to load, the pages loaded so far are shown. If the whole load fails,
+ * the previous list is shown.
  */
 @SuppressWarnings("unused")
 public final class AndroidAutoPlaylistsPatch {
@@ -72,7 +82,8 @@ public final class AndroidAutoPlaylistsPatch {
 
     private static final String BROWSE_URL = "https://youtubei.googleapis.com/youtubei/v1/browse?prettyPrint=false";
     private static final String ITEM_FIELDS =
-            "contents.musicTwoColumnItemRenderer(title,subtitle,navigationEndpoint(watchEndpoint(videoId,playlistId),browseEndpoint.browseId)),continuations";
+            "contents.musicTwoColumnItemRenderer(title,subtitle,thumbnail.musicThumbnailRenderer.thumbnail.thumbnails(url,width),"
+                    + "navigationEndpoint(watchEndpoint(videoId,playlistId),browseEndpoint.browseId)),continuations";
     /** Response field mask; without it a library page is ~3 MB of menus. */
     private static final String FIELDS =
             "contents.singleColumnBrowseResultsRenderer.tabs.tabRenderer.content.sectionListRenderer.contents("
@@ -88,6 +99,17 @@ public final class AndroidAutoPlaylistsPatch {
     private static final int MAX_TRACKS = 500;
     private static final int MAX_PAGES = 20;
     private static final long CACHE_TTL_MILLISECONDS = 5 * 60 * 1000;
+    /** After this, show what has loaded instead of following more pages. */
+    private static final long MAX_LOAD_MILLISECONDS = 25_000;
+
+    /** Wait for the server (and new playlist artwork) to reflect a change before reloading. */
+    private static final long REFRESH_DELAY_MILLISECONDS = 5_000;
+    /** Android Auto pages reloaded after a change: the Playlists page plus the most recently opened playlists. */
+    private static final int MAX_SUBSCRIPTIONS = 6;
+    /** InnerTube requests that change the Library or a playlist. */
+    private static final String[] LIBRARY_CHANGE_ENDPOINTS = {
+            "/browse/edit_playlist", "/like/like", "/like/removelike", "/playlist/create", "/playlist/delete"
+    };
 
     // Values of androidx.media.utils.MediaConstants.
     private static final String CONTENT_STYLE_BROWSABLE_HINT = "android.media.browse.CONTENT_STYLE_BROWSABLE_HINT";
@@ -97,7 +119,10 @@ public final class AndroidAutoPlaylistsPatch {
 
     private static final String COMPAT_MEDIA_ITEM_CLASS = "android.support.v4.media.MediaBrowserCompat$MediaItem";
 
-    /** Media ids of the app's "Playlists" nodes seen in results. Ids carry a per-session UUID, so keep a few. */
+    /**
+     * Media ids of the app's "Playlists" nodes seen in results. Ids carry a per-session UUID, so keep a few,
+     * and keep them across app restarts: Android Auto asks for the open page again with the old id.
+     */
     @GuardedBy("itself")
     private static final Set<String> playlistsNodeIds = Collections.newSetFromMap(new LinkedHashMap<>() {
         @Override
@@ -105,6 +130,11 @@ public final class AndroidAutoPlaylistsPatch {
             return size() > 16;
         }
     });
+    private static final String PREFERENCES_NAME = "morphe_android_auto_playlists";
+    private static final String PREFERENCE_PLAYLISTS_NODE_IDS = "playlists_node_ids";
+    /** Set by the first page request, before any result can name a Playlists node. */
+    @Nullable
+    private static volatile Context applicationContext;
 
     @GuardedBy("itself")
     private static final Map<String, CachedChildren> childrenCache = new LinkedHashMap<>() {
@@ -114,13 +144,43 @@ public final class AndroidAutoPlaylistsPatch {
         }
     };
 
+    /**
+     * A page failed because the app had not sent a logged-in request yet (Android Auto starts the app
+     * and asks for pages right away). The next logged-in request reloads the open pages.
+     */
+    private static volatile boolean waitingForAuthorization;
+
     @Nullable
     private static volatile Parcelable.Creator<?> compatMediaItemCreator;
+
+    /** Android Auto page loads answered by this patch, by parent id, so they can be repeated after a change. */
+    @GuardedBy("itself")
+    private static final Map<String, Subscription> subscriptions = new LinkedHashMap<>(8, 0.75f, true) {
+        @Override
+        protected boolean removeEldestEntry(Map.Entry<String, Subscription> eldest) {
+            return size() > MAX_SUBSCRIPTIONS;
+        }
+    };
+
+    /** Cached lists older than this are reloaded (but still shown if reloading fails). */
+    private static volatile long cacheInvalidatedAtMillis;
+
+    private static final Handler mainHandler = new Handler(Looper.getMainLooper());
+    private static final Runnable REFRESH_SUBSCRIPTIONS = AndroidAutoPlaylistsPatch::refreshSubscriptions;
 
     private record CachedChildren(long timeMillis, List<Entry> entries) {
     }
 
-    private record Entry(String mediaId, String title, @Nullable String subtitle, boolean browsable) {
+    private record Entry(String mediaId, String title, @Nullable String subtitle,
+                         @Nullable String artworkUrl, boolean browsable) {
+    }
+
+    /**
+     * One Android Auto page load: the compat browser service, Android Auto's connection record, and
+     * the load options. Weak, so a disconnected Android Auto is not kept alive.
+     */
+    private record Subscription(String parentId, WeakReference<Object> service,
+                                WeakReference<Object> connection, @Nullable Bundle options) {
     }
 
     private AndroidAutoPlaylistsPatch() {
@@ -156,6 +216,7 @@ public final class AndroidAutoPlaylistsPatch {
                 synchronized (playlistsNodeIds) {
                     if (playlistsNodeIds.add(mediaId)) {
                         Logger.printDebug(() -> "Playlists node found: " + mediaId);
+                        savePlaylistsNodeIds();
                     }
                 }
             }
@@ -169,7 +230,10 @@ public final class AndroidAutoPlaylistsPatch {
      *
      * @return true if {@link #loadChildren} answers this parent id.
      */
-    public static boolean shouldLoadChildren(@Nullable String parentId) {
+    public static boolean shouldLoadChildren(@NonNull Context context, @Nullable String parentId) {
+        if (applicationContext == null) {
+            loadPlaylistsNodeIds(context.getApplicationContext());
+        }
         if (parentId == null) {
             return false;
         }
@@ -178,6 +242,116 @@ public final class AndroidAutoPlaylistsPatch {
         }
         synchronized (playlistsNodeIds) {
             return playlistsNodeIds.contains(parentId);
+        }
+    }
+
+    private static void loadPlaylistsNodeIds(Context context) {
+        String saved = context.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
+                .getString(PREFERENCE_PLAYLISTS_NODE_IDS, "");
+        synchronized (playlistsNodeIds) {
+            // Saved ids are older than any seen in this process.
+            List<String> seen = new ArrayList<>(playlistsNodeIds);
+            playlistsNodeIds.clear();
+            for (String id : saved.split("\n")) {
+                if (!id.isEmpty()) {
+                    playlistsNodeIds.add(id);
+                }
+            }
+            playlistsNodeIds.addAll(seen);
+        }
+        applicationContext = context;
+    }
+
+    @GuardedBy("playlistsNodeIds")
+    private static void savePlaylistsNodeIds() {
+        Context context = applicationContext;
+        if (context == null) {
+            return;
+        }
+        context.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE).edit()
+                .putString(PREFERENCE_PLAYLISTS_NODE_IDS, String.join("\n", playlistsNodeIds))
+                .apply();
+    }
+
+    /**
+     * Injection point: start of {@code MediaBrowserServiceCompat.performLoadChildren(String, ConnectionRecord, Bundle)}.
+     * Remembers loads of pages this patch answers so {@link #refreshSubscriptions} can repeat them.
+     */
+    public static void onPerformLoadChildren(Object service, @Nullable String parentId,
+                                             Object connection, @Nullable Bundle options) {
+        if (!(service instanceof Context context) || !shouldLoadChildren(context, parentId)) {
+            return;
+        }
+        synchronized (subscriptions) {
+            subscriptions.put(parentId, new Subscription(parentId, new WeakReference<>(service),
+                    new WeakReference<>(connection), options));
+        }
+    }
+
+    /**
+     * Injection point: the app builds an InnerTube request.
+     * Requests that change the Library or a playlist reload the open Android Auto pages,
+     * as does the first logged-in request after a page failed for lack of one.
+     */
+    public static void onBuildRequest(@Nullable String url, @Nullable Map<String, String> headers) {
+        if (url == null || !url.contains("/youtubei/v1/")) {
+            return;
+        }
+        try {
+            if (waitingForAuthorization && !AuthUtils.getAuthorization().isEmpty()) {
+                waitingForAuthorization = false;
+                scheduleRefresh("login headers available", 0);
+            }
+            String path = Uri.parse(url).getPath();
+            if (path == null) {
+                return;
+            }
+            for (String endpoint : LIBRARY_CHANGE_ENDPOINTS) {
+                if (path.endsWith(endpoint)) {
+                    cacheInvalidatedAtMillis = System.currentTimeMillis();
+                    scheduleRefresh(endpoint, REFRESH_DELAY_MILLISECONDS);
+                    return;
+                }
+            }
+        } catch (Exception ex) {
+            Logger.printException(() -> "onBuildRequest failure", ex);
+        }
+    }
+
+    /** Several changes in a row (liking songs one after another) cause one reload. */
+    private static void scheduleRefresh(String reason, long delayMillis) {
+        synchronized (subscriptions) {
+            if (subscriptions.isEmpty()) {
+                return;
+            }
+        }
+        Logger.printDebug(() -> "Reloading Android Auto pages in " + delayMillis + " ms: " + reason);
+        mainHandler.removeCallbacks(REFRESH_SUBSCRIPTIONS);
+        mainHandler.postDelayed(REFRESH_SUBSCRIPTIONS, delayMillis);
+    }
+
+    /** Runs on the main thread, like the browser service's own page loads. */
+    private static void refreshSubscriptions() {
+        // Lists loaded during the delay may predate the change.
+        cacheInvalidatedAtMillis = System.currentTimeMillis();
+        List<Subscription> loads;
+        synchronized (subscriptions) {
+            loads = new ArrayList<>(subscriptions.values());
+        }
+        for (Subscription load : loads) {
+            Object service = load.service.get();
+            Object connection = load.connection.get();
+            if (service == null || connection == null) {
+                synchronized (subscriptions) {
+                    subscriptions.remove(load.parentId);
+                }
+                continue;
+            }
+            try {
+                reloadFolder(service, load.parentId, connection, load.options);
+            } catch (RuntimeException ex) {
+                Logger.printException(() -> "Could not reload Android Auto page: " + load.parentId, ex);
+            }
         }
     }
 
@@ -243,6 +417,14 @@ public final class AndroidAutoPlaylistsPatch {
         throw new IllegalStateException("Not patched");
     }
 
+    /**
+     * Replaced by the patch with a call to {@code MediaBrowserServiceCompat.performLoadChildren}.
+     * The service sends the new list only if Android Auto's connection is still registered.
+     */
+    private static void reloadFolder(Object service, String parentId, Object connection, @Nullable Bundle options) {
+        throw new IllegalStateException("Not patched");
+    }
+
     private static boolean isPlaylistsNode(MediaDescription description) {
         Uri icon = description.getIconUri();
         if (icon == null || !ANDROID_RESOURCE_SCHEME.equals(icon.getScheme())) {
@@ -253,18 +435,27 @@ public final class AndroidAutoPlaylistsPatch {
     }
 
     private static List<Entry> getChildren(Context context, String parentId) throws IOException, JSONException {
+        CachedChildren cached;
         synchronized (childrenCache) {
-            CachedChildren cached = childrenCache.get(parentId);
-            if (cached != null && System.currentTimeMillis() - cached.timeMillis < CACHE_TTL_MILLISECONDS) {
-                return cached.entries;
-            }
+            cached = childrenCache.get(parentId);
+        }
+        if (cached != null && cached.timeMillis > cacheInvalidatedAtMillis
+                && System.currentTimeMillis() - cached.timeMillis < CACHE_TTL_MILLISECONDS) {
+            return cached.entries;
         }
 
         final List<Entry> entries;
-        if (parentId.startsWith(PLAYLIST_ID_PREFIX)) {
-            entries = loadTracks(context, parentId.substring(PLAYLIST_ID_PREFIX.length()));
-        } else {
-            entries = loadPlaylists(context);
+        try {
+            entries = parentId.startsWith(PLAYLIST_ID_PREFIX)
+                    ? loadTracks(context, parentId.substring(PLAYLIST_ID_PREFIX.length()))
+                    : loadPlaylists(context);
+        } catch (IOException | JSONException | RuntimeException ex) {
+            if (cached == null) {
+                throw ex;
+            }
+            // An outdated list is more useful than an empty page.
+            Logger.printException(() -> "Loading " + parentId + " failed, showing the previous list", ex);
+            return cached.entries;
         }
 
         synchronized (childrenCache) {
@@ -285,7 +476,7 @@ public final class AndroidAutoPlaylistsPatch {
                 continue;
             }
             entries.add(new Entry(PLAYLIST_ID_PREFIX + browseId, title,
-                    getText(renderer.optJSONObject("subtitle")), true));
+                    getText(renderer.optJSONObject("subtitle")), getThumbnailUrl(renderer), true));
         }
         Logger.printDebug(() -> "Loaded " + entries.size() + " playlists");
         return entries;
@@ -306,7 +497,8 @@ public final class AndroidAutoPlaylistsPatch {
             String mediaId = TRACK_ID_PREFIX + entries.size()
                     + TRACK_ID_SEPARATOR + videoId
                     + TRACK_ID_SEPARATOR + (playlistId == null ? "" : playlistId);
-            entries.add(new Entry(mediaId, title, getText(renderer.optJSONObject("subtitle")), false));
+            entries.add(new Entry(mediaId, title, getText(renderer.optJSONObject("subtitle")),
+                    getThumbnailUrl(renderer), false));
         }
         Logger.printDebug(() -> "Loaded " + entries.size() + " tracks of " + browseId);
         return entries;
@@ -321,8 +513,24 @@ public final class AndroidAutoPlaylistsPatch {
             throws IOException, JSONException {
         List<JSONObject> renderers = new ArrayList<>();
         String continuation = null;
+        final long deadline = System.currentTimeMillis() + MAX_LOAD_MILLISECONDS;
         for (int page = 0; page < MAX_PAGES && renderers.size() < maxItems; page++) {
-            JSONObject response = browse(context, browseId, continuation);
+            if (page > 0 && System.currentTimeMillis() > deadline) {
+                Logger.printInfo(() -> "Loading " + browseId + " is slow, showing the first " + renderers.size() + " items");
+                break;
+            }
+            final JSONObject response;
+            try {
+                response = browse(context, browseId, continuation);
+            } catch (IOException | JSONException | RuntimeException ex) {
+                if (page == 0) {
+                    throw ex;
+                }
+                // Keep the pages that loaded.
+                Logger.printException(() -> "Loading more of " + browseId + " failed, showing "
+                        + renderers.size() + " items", ex);
+                break;
+            }
             String[] next = new String[1];
             collectItems(response, renderers, next);
             continuation = next[0];
@@ -347,6 +555,7 @@ public final class AndroidAutoPlaylistsPatch {
     private static JSONObject browse(Context context, String browseId, @Nullable String continuation,
                                      boolean useFieldMask) throws IOException, JSONException {
         if (AuthUtils.getAuthorization().isEmpty()) {
+            waitingForAuthorization = true;
             throw new IOException("No authorization header captured yet");
         }
         String clientVersion = getClientVersion(context);
@@ -469,6 +678,38 @@ public final class AndroidAutoPlaylistsPatch {
         return builder.length() == 0 ? null : builder.toString();
     }
 
+    /**
+     * The largest thumbnail of an item. The app itself gives Android Auto plain https artwork URLs.
+     */
+    @Nullable
+    private static String getThumbnailUrl(JSONObject renderer) {
+        JSONObject thumbnail = renderer.optJSONObject("thumbnail");
+        JSONObject musicThumbnail = thumbnail == null ? null : thumbnail.optJSONObject("musicThumbnailRenderer");
+        JSONObject details = musicThumbnail == null ? null : musicThumbnail.optJSONObject("thumbnail");
+        JSONArray thumbnails = details == null ? null : details.optJSONArray("thumbnails");
+        if (thumbnails == null) {
+            return null;
+        }
+        String best = null;
+        int bestWidth = -1;
+        for (int i = 0; i < thumbnails.length(); i++) {
+            JSONObject candidate = thumbnails.optJSONObject(i);
+            if (candidate == null) {
+                continue;
+            }
+            String url = candidate.optString("url");
+            int width = candidate.optInt("width");
+            if (!url.isEmpty() && width > bestWidth) {
+                best = url;
+                bestWidth = width;
+            }
+        }
+        if (best != null && best.startsWith("//")) {
+            best = "https:" + best;
+        }
+        return best;
+    }
+
     @Nullable
     private static String optString(JSONObject object, String... path) {
         JSONObject current = object;
@@ -540,6 +781,7 @@ public final class AndroidAutoPlaylistsPatch {
                 .setMediaId(entry.mediaId)
                 .setTitle(entry.title)
                 .setSubtitle(entry.subtitle)
+                .setIconUri(entry.artworkUrl == null ? null : Uri.parse(entry.artworkUrl))
                 .setExtras(extras)
                 .build();
         MediaBrowser.MediaItem mediaItem = new MediaBrowser.MediaItem(description,

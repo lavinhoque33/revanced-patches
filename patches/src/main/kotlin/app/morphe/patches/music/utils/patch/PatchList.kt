@@ -6,9 +6,10 @@ internal enum class PatchList(
     var included: Boolean? = false
 ) {
     // modified by lavinhoque33, 2026-10-06: Android Auto playlists patch.
+    // modified by lavinhoque33, 2026-10-07: artwork and phone sync in the summary.
     ANDROID_AUTO_PLAYLISTS(
         "Restore Android Auto playlists",
-        "Fills the empty Library → Playlists page in Android Auto with your playlists and their tracks."
+        "Fills the empty Library → Playlists page in Android Auto with your playlists and their tracks, with artwork. Changes made on the phone show up in the car."
     ),
     APP_REFRESH_RATE(
         "App refresh rate",

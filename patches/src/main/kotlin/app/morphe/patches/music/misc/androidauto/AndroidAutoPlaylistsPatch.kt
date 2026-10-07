@@ -6,6 +6,7 @@
  *
  * Licensed under the GNU General Public License v3.0.
  * Written by lavinhoque33, 2026-10-06.
+ * modified by lavinhoque33, 2026-10-07: page reloads (performLoadChildren hook, request hook).
  */
 
 package app.morphe.patches.music.misc.androidauto
@@ -26,6 +27,7 @@ import app.morphe.patches.music.utils.settings.settingsPatch
 import app.morphe.patches.shared.extension.Constants.EXTENSION_PATH
 import app.morphe.patches.shared.misc.request.buildRequestPatch
 import app.morphe.patches.shared.misc.request.hookBuildRequest
+import com.android.tools.smali.dexlib2.AccessFlags
 
 private const val EXTENSION_CLASS_DESCRIPTOR =
     "$MISC_PATH/AndroidAutoPlaylistsPatch;"
@@ -54,6 +56,10 @@ val androidAutoPlaylistsPatch = bytecodePatch(
         hookBuildRequest(
             "$EXTENSION_AUTH_UTILS_CLASS_DESCRIPTOR->setRequestHeaders(Ljava/lang/String;Ljava/util/Map;)V"
         )
+        // Library and playlist changes made in the phone app reload the open Android Auto pages.
+        hookBuildRequest(
+            "$EXTENSION_CLASS_DESCRIPTOR->onBuildRequest(Ljava/lang/String;Ljava/util/Map;)V"
+        )
 
         val sendResultMethod = MediaBrowserResultSendResultFingerprint.method
         val resultClass = sendResultMethod.definingClass
@@ -78,6 +84,37 @@ val androidAutoPlaylistsPatch = bytecodePatch(
                 """
             )
 
+        // Remember page loads (service, Android Auto connection, options) and let the extension repeat them.
+        // R8 removed notifyChildrenChanged from the app, so repeating performLoadChildren is the way to update a page.
+        MediaBrowserServicePerformLoadChildrenFingerprint.method.apply {
+            val connectionType = parameterTypes[1].toString()
+            val performLoadChildrenReference =
+                "$definingClass->$name(Ljava/lang/String;${connectionType}Landroid/os/Bundle;)V"
+
+            // Older versions (9.15.51) keep the method and the connection class package-private;
+            // the extension calls and casts from another package.
+            setAccessFlags(toPublic(accessFlags))
+            mutableClassDefBy { it.type == connectionType }.apply { accessFlags = toPublic(accessFlags) }
+
+            addInstruction(
+                0,
+                "invoke-static/range { p0 .. p3 }, $EXTENSION_CLASS_DESCRIPTOR->onPerformLoadChildren(" +
+                        "Ljava/lang/Object;Ljava/lang/String;Ljava/lang/Object;Landroid/os/Bundle;)V"
+            )
+
+            mutableClassDefBy { it.type == EXTENSION_CLASS_DESCRIPTOR }.methods
+                .single { it.name == "reloadFolder" }
+                .addInstructions(
+                    0,
+                    """
+                        check-cast p0, $definingClass
+                        check-cast p2, $connectionType
+                        invoke-virtual { p0, p1, p2, p3 }, $performLoadChildrenReference
+                        return-void
+                    """
+                )
+        }
+
         // Answer the "Playlists" node and the playlists inside it.
         MusicBrowserServiceOnLoadChildrenFingerprint.method.apply {
             if (parameterTypes[1].toString() != resultClass) {
@@ -89,12 +126,12 @@ val androidAutoPlaylistsPatch = bytecodePatch(
                 0,
                 """
                     move-object/from16 v0, p1
-                    invoke-static { v0 }, $EXTENSION_CLASS_DESCRIPTOR->shouldLoadChildren(Ljava/lang/String;)Z
+                    move-object/from16 v2, p0
+                    invoke-static { v2, v0 }, $EXTENSION_CLASS_DESCRIPTOR->shouldLoadChildren(Landroid/content/Context;Ljava/lang/String;)Z
                     move-result v1
                     if-eqz v1, :original
                     move-object/from16 v1, p2
                     invoke-virtual { v1 }, $detachReference
-                    move-object/from16 v2, p0
                     invoke-static { v2, v0, v1 }, $EXTENSION_CLASS_DESCRIPTOR->loadChildren(Landroid/content/Context;Ljava/lang/String;Ljava/lang/Object;)V
                     return-void
                 """,
@@ -141,3 +178,6 @@ private fun MutableMethod.requireFreeRegisters(count: Int) {
         throw PatchException("$definingClass->$name has $locals locals, $count needed")
     }
 }
+
+private fun toPublic(accessFlags: Int) =
+    (accessFlags and (AccessFlags.PRIVATE.value or AccessFlags.PROTECTED.value).inv()) or AccessFlags.PUBLIC.value

@@ -1,3 +1,10 @@
+## [1.3.1](https://github.com/lavinhoque33/revanced-patches/compare/v1.3.0...v1.3.1) (2026-10-07)
+
+
+### Bug Fixes
+
+* **Litho filter:** Use the looser legacy buffer fingerprint only as a fallback. Fixes 8 failing patches on YouTube Music 8.30 and older ([175f6a7](https://github.com/lavinhoque33/revanced-patches/commit/175f6a70d64c2f866ca1c2d542d18b110d65508c))
+
 # [1.3.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.2.0...v1.3.0) (2026-10-07)
 
 

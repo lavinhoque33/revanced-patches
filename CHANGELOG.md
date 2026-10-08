@@ -1,3 +1,10 @@
+# [1.3.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.2.0...v1.3.0) (2026-10-07)
+
+
+### Features
+
+* Restore features skipped on YouTube 21.39.525 and YouTube Music 9.40.51: Disable DRC audio, fullscreen large seekbar, miniplayer width, rounded corners, drag and drop and horizontal drag, Hide song / video toggle, crossfade media session fix ([7b9f171](https://github.com/lavinhoque33/revanced-patches/commit/7b9f171a934453d883db0e9909042c5a7313eb83))
+
 # [1.2.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.1.1...v1.2.0) (2026-10-07)
 
 

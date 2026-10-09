@@ -1,3 +1,11 @@
+## [1.3.2](https://github.com/lavinhoque33/revanced-patches/compare/v1.3.1...v1.3.2) (2026-10-08)
+
+
+### Bug Fixes
+
+* **YouTube:** Overlay buttons were always visible and did nothing on YouTube 21.39. Hide cast button, Disable ambient mode, Hide PiP mode menu and two internal fixes were only partly applied on 21.39 ([901afe4](https://github.com/lavinhoque33/revanced-patches/commit/901afe43dd032f5674e178ae1f7f767b88091d16))
+* Use user-facing wording for patch warnings, and hide settings that cannot work in the patched version ([b63395a](https://github.com/lavinhoque33/revanced-patches/commit/b63395a6123c08fec3f0982ff983ee3c09d8d895))
+
 ## [1.3.1](https://github.com/lavinhoque33/revanced-patches/compare/v1.3.0...v1.3.1) (2026-10-07)
 
 

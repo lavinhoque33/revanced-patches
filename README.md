@@ -55,7 +55,7 @@
 | `Hide player buttons` | Adds options to hide buttons in the video player, and to hide or change the opacity of the player control buttons background. | 21.39.525 ~ 20.05.46 |
 | `Hide player flyout menu` | Adds options to hide player flyout menu components. | 21.39.525 ~ 20.05.46 |
 | `Hide shortcuts` | Remove, at compile time, the app shortcuts that appears when the app icon is long pressed. | 21.39.525 ~ 20.05.46 |
-| `Hook download actions` | Adds support to download videos with an external downloader app using the in-app download button. | 21.39.525 ~ 20.05.46 |
+| `Hook download actions` | Adds support to download videos with the built-in downloader or an external downloader app, and an offline library for downloaded videos. | 21.39.525 ~ 20.05.46 |
 | `Miniplayer` | Adds options to change the in-app minimized player, and if patching target 19.16+ adds options to use modern miniplayers. | 21.39.525 ~ 20.05.46 |
 | `Navigation bar components` | Adds options to hide or change components related to the navigation bar. | 21.39.525 ~ 20.05.46 |
 | `Open channel of live avatar` | Adds an option to prevent a channel's current live video from opening when tapping its avatar. | 21.39.525 ~ 20.05.46 |

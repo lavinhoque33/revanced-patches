@@ -1,5 +1,5 @@
 {
-  "version": "1.3.2",
+  "version": "1.4.0",
   "patches": [
     {
       "name": "Alternative thumbnails",
@@ -1574,7 +1574,7 @@
     },
     {
       "name": "Hook download actions",
-      "description": "Adds support to download videos with an external downloader app using the in-app download button.",
+      "description": "Adds support to download videos with the built-in downloader or an external downloader app, and an offline library for downloaded videos.",
       "use": true,
       "dependencies": [
         "ResourcePatch",

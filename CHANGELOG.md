@@ -1,3 +1,10 @@
+# [1.4.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.3.2...v1.4.0) (2026-10-10)
+
+
+### Features
+
+* **YouTube - Hook download actions:** Add built-in video downloader, offline library and player, and a Downloads button in the You tab ([13d1d26](https://github.com/lavinhoque33/revanced-patches/commit/13d1d260d999a5e2c6ce1d356663d02511dc5e3a))
+
 ## [1.3.2](https://github.com/lavinhoque33/revanced-patches/compare/v1.3.1...v1.3.2) (2026-10-08)
 
 

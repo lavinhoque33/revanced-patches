@@ -26,6 +26,8 @@ env:
   UPSTREAM_BRANCH: dev
   SYNC_BRANCH: sync/anddea-dev
   ISSUE_TITLE: 'Upstream sync: merge conflicts with anddea/dev'
+  # Pin gh to this repository; without it gh can pick the fork's parent (anddea) as the target.
+  GH_REPO: ${{ github.repository }}
 
 jobs:
   sync:
@@ -46,8 +48,11 @@ jobs:
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git remote add upstream "https://github.com/$UPSTREAM_REPO.git"
-          git fetch --no-tags upstream "$UPSTREAM_BRANCH"
+          # Upstream commits gradlew.bat with CRLF stored while .gitattributes asks for eol=crlf,
+          # which leaves a phantom worktree change that blocks merges. Merge blobs as-is.
+          echo '* -text' > .git/info/attributes
+          git reset -q --hard HEAD
+          git fetch --no-tags "https://github.com/$UPSTREAM_REPO.git" "$UPSTREAM_BRANCH"
           UPSTREAM_SHA=$(git rev-parse FETCH_HEAD)
           echo "upstream_sha=$UPSTREAM_SHA" >> "$GITHUB_OUTPUT"
 
@@ -83,7 +88,7 @@ jobs:
               echo 'EOF'
             } >> "$GITHUB_OUTPUT"
             echo "result=conflict" >> "$GITHUB_OUTPUT"
-            git merge --abort
+            git reset -q --hard HEAD
             exit 0
           fi
 

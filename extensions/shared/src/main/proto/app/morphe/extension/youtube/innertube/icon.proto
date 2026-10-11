@@ -22,4 +22,6 @@ enum YTIconType {
     TAB_HOME_CAIRO = 1154;
     SEARCH_CAIRO = 1160;
     SETTINGS_CAIRO = 1162;
+    // modified by lavinhoque33, 2026-10-10: Downloads button of the offline library.
+    OFFLINE_DOWNLOAD = 147;
 }

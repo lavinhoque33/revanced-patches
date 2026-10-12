@@ -1,6 +1,6 @@
 {
-  "created_at": "2026-10-10T23:30:00",
-  "description": "# [1.4.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.3.2...v1.4.0) (2026-10-10)\n\n\n### Features\n\n* **YouTube - Hook download actions:** Add built-in video downloader, offline library and player, and a Downloads button in the You tab ([13d1d26](https://github.com/lavinhoque33/revanced-patches/commit/13d1d260d999a5e2c6ce1d356663d02511dc5e3a))",
-  "download_url": "https://github.com/lavinhoque33/revanced-patches/releases/download/v1.4.0/patches-1.4.0.mpp",
-  "version": "1.4.0"
+  "created_at": "2026-10-11T23:30:00",
+  "description": "## [1.4.1](https://github.com/lavinhoque33/revanced-patches/compare/v1.4.0...v1.4.1) (2026-10-11)\n\n\n### Bug Fixes\n\n* **YouTube - Overlay buttons:** Keep the player controls above the seekbar on YouTube 21.39 ([47f6b46](https://github.com/lavinhoque33/revanced-patches/commit/47f6b467e37dd49dee6d81fb85c93042f5947674))\n* **YouTube - Playback speed:** Apply the Shorts default playback speed on YouTube 21.39 ([ce9212e](https://github.com/lavinhoque33/revanced-patches/commit/ce9212e4e557e06cd44fdb30e713f16e4efd0836))\n* **YouTube - Spoof video streams:** Fix playback with the visionOS and Android VR clients and add the Wii U TV fallback ([a5f8e92](https://github.com/lavinhoque33/revanced-patches/commit/a5f8e92ddeca8d2bdd2792d6ddcc3c9f7edbadd0))\n* **YouTube Music - Dark theme:** Apply the theme to the stock and RVX settings screens on YouTube Music 9.40.51 ([8e4ee97](https://github.com/lavinhoque33/revanced-patches/commit/8e4ee9790d4dced453e9e7078c50bb42deaeae5a))\n* **YouTube:** Fix the miniplayer autoplay end screen on YouTube 21.36+ ([91af0a0](https://github.com/lavinhoque33/revanced-patches/commit/91af0a000b3b557739921d72abdf57b70435407d))\n* **YouTube:** Keep custom flyout menu items when the anchored 3-dots menu is enabled ([292dbd8](https://github.com/lavinhoque33/revanced-patches/commit/292dbd8fbc050c0de9e1063fe0dcdeb45300f73a))",
+  "download_url": "https://github.com/lavinhoque33/revanced-patches/releases/download/v1.4.1/patches-1.4.1.mpp",
+  "version": "1.4.1"
 }

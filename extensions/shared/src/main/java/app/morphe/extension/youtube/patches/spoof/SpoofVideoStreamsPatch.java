@@ -1,5 +1,8 @@
 package app.morphe.extension.youtube.patches.spoof;
 
+import static app.morphe.extension.shared.spoof.SpoofVideoStreamsPatch.setClientsToUse;
+import static app.morphe.extension.shared.spoof.SpoofVideoStreamsPatch.setForceAVC;
+
 import java.util.List;
 
 import app.morphe.extension.shared.settings.Setting;
@@ -53,8 +56,8 @@ public class SpoofVideoStreamsPatch {
         }
 
         // modified by lavinhoque33, 2026-10-11: Pass Force AVC so VP9 formats are stripped (Morphe bb3e3ff0).
-        app.morphe.extension.shared.spoof.SpoofVideoStreamsPatch.setForceAVC(Settings.FORCE_AVC_CODEC.get());
-        app.morphe.extension.shared.spoof.SpoofVideoStreamsPatch.setClientsToUse(
-                AVAILABLE_CLIENTS, client);
+        setForceAVC(Settings.FORCE_AVC_CODEC.get());
+        // modified by lavinhoque33, 2026-10-12: static imports instead of fully qualified calls.
+        setClientsToUse(AVAILABLE_CLIENTS, client);
     }
 }

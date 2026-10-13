@@ -1,3 +1,20 @@
+## [1.4.2](https://github.com/lavinhoque33/revanced-patches/compare/v1.4.1...v1.4.2) (2026-10-12)
+
+
+### Bug Fixes
+
+* **YouTube - Return YouTube Dislike:** Show the separator and dislikes on the old video action bar on YouTube 21.39 ([d9957cf](https://github.com/lavinhoque33/revanced-patches/commit/d9957cf3b1a2f9a50b5c06de7b7364e7a121d52b))
+* **YouTube - Voice over translation:** Unblock finished livestreams and resume video when translation is unavailable ([9b2b192](https://github.com/anddea/revanced-patches/commit/9b2b19296a963c1eea346c8cb63519c7833bbace))
+
+
+### Features
+
+* **YouTube:** Add `Playback buffer` patch ([c13a079](https://github.com/anddea/revanced-patches/commit/c13a0793b88e04d66e609a5f393d80cb7d39c7f8))
+* **YouTube:** Add `Restore original titles` patch ([4578bf9](https://github.com/anddea/revanced-patches/commit/4578bf974b3ab1dedf4ca9d5373f74c9a927c93c))
+* **YouTube:** Enable `Spoof video streams` and disable `PoToken provider` by default ([e132606](https://github.com/anddea/revanced-patches/commit/e132606016c2ef3b46c32cf297fcbff5063979d4))
+* **YouTube - Seekbar components:** Add double tap gesture to show remaining time with timestamp info enabled ([18810e4](https://github.com/anddea/revanced-patches/commit/18810e45372236f97311bbfccd0597fc5b315528))
+* **YouTube Music - Third-party lyrics:** Search and prompt ([55aa921](https://github.com/anddea/revanced-patches/commit/55aa9210f76392aab29b1765915410fb5641fdcc))
+
 ## [1.4.1](https://github.com/lavinhoque33/revanced-patches/compare/v1.4.0...v1.4.1) (2026-10-11)
 
 

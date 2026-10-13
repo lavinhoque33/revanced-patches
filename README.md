@@ -62,6 +62,7 @@
 | `Open links externally` | Adds an option to always open links in your browser instead of the in-app browser. | 21.39.525 ~ 20.05.46 |
 | `Overlay buttons` | Adds options to display useful overlay buttons in the video player. | 21.39.525 ~ 20.05.46 |
 | `Override YouTube Music buttons` | Overrides YouTube Music buttons to open RVX Music or any compatible third-party client. | 21.39.525 ~ 20.05.46 |
+| `Playback buffer` | Adds an option to change the video playback buffer size. | 21.39.525 ~ 20.05.46 |
 | `Playback in feeds` | Adds the 'Playback in feeds' setting of YouTube to the RVX settings, where it is always available even if YouTube hides it. | 21.39.525 ~ 20.05.46 |
 | `Player components` | Adds options to hide or change components related to the video player. | 21.39.525 ~ 20.05.46 |
 | `PoToken provider` | Adds option to get PoToken using the built-in PoToken provider. | 21.39.525 ~ 20.05.46 |
@@ -69,6 +70,7 @@
 | `Remember livestream playback position` | Adds an option to remember the playback position of ongoing livestreams and resume from there when reopening a livestream. | 21.39.525 ~ 20.05.46 |
 | `Remove background playback restrictions` | Removes restrictions on background playback, including for music and kids videos. | 21.39.525 ~ 20.05.46 |
 | `Remove viewer discretion dialog` | Adds an option to remove the dialog that appears when opening a video that has been age-restricted by accepting it automatically. This does not bypass the age restriction. | 21.39.525 ~ 20.05.46 |
+| `Restore original titles` | Adds an option to show the original video titles and descriptions instead of the auto-translated ones. | 21.39.525 ~ 20.05.46 |
 | `Return YouTube Dislike` | Adds an option to show the dislike count of videos using the Return YouTube Dislike API. | 21.39.525 ~ 20.05.46 |
 | `Return YouTube Username` | Adds an option to replace YouTube handles with usernames in comments using YouTube Data API v3. | 21.39.525 ~ 20.05.46 |
 | `Sanitize sharing links` | Adds an option to sanitize sharing links by removing tracking query parameters. | 21.39.525 ~ 20.05.46 |
@@ -98,53 +100,53 @@
 
 | 💊 Patch | 📜 Description | 🏹 Target Version |
 |:--------:|:--------------:|:-----------------:|
-| `App refresh rate` | Adds an option to change the app refresh rate. | 8.12.54 ~ 9.40.51 |
-| `Bitrate default value` | Sets the audio quality to 'Always High' when you first install the app. | 8.12.54 ~ 9.40.51 |
-| `Bypass image region restrictions` | Adds an option to use a different host for static images, so that images blocked in some countries can be received. | 8.12.54 ~ 9.40.51 |
-| `Certificate spoof` | Enables YouTube Music to work with Android Auto by spoofing the YouTube Music certificate. | 8.12.54 ~ 9.40.51 |
-| `Change share sheet` | Adds an option to change the in-app share sheet to the system share sheet. | 8.12.54 ~ 9.40.51 |
-| `Change start page` | Adds an option to set which page the app opens in instead of the homepage. | 8.12.54 ~ 9.40.51 |
-| `Custom branding for YouTube Music` | Adds in-app app-name, launcher-icon, header, splash, and settings-icon selection. | 8.12.54 ~ 9.40.51 |
-| `Disable Cairo splash animation` | Adds an option to disable Cairo splash animation. | 8.12.54 ~ 9.40.51 |
-| `Disable QUIC protocol` | Adds an option to disable CronetEngine's QUIC protocol. | 8.12.54 ~ 9.40.51 |
-| `Disable dislike redirection` | Adds an option to disable redirection to the next track when clicking the Dislike button. | 8.12.54 ~ 9.40.51 |
-| `Disable forced auto captions` | Adds an option to disable captions from being automatically enabled. | 8.12.54 ~ 9.40.51 |
-| `Disable music video in album` | Adds option to redirect music videos from albums for non-premium users. | 8.12.54 ~ 9.40.51 |
-| `Downloads` | Adds support to download songs for offline playback inside YouTube Music. | 8.12.54 ~ 9.40.51 |
-| `Enable debug logging` | Adds an option for debugging. | 8.12.54 ~ 9.40.51 |
-| `Enable landscape mode` | Adds an option to enable landscape mode when rotating the screen on phones. | 8.12.54 ~ 9.40.51 |
-| `Flyout menu components` | Adds options to hide or change flyout menu components. | 8.12.54 ~ 9.40.51 |
-| `Force original audio` | Adds an option to disable audio tracks from being automatically enabled. | 8.12.54 ~ 9.40.51 |
-| `GmsCore support` | Allows the app to work without root by using a different package name when patched using a GmsCore instead of Google Play Services. | 8.12.54 ~ 9.40.51 |
-| `Hide account components` | Adds options to hide components related to the account menu. | 8.12.54 ~ 9.40.51 |
-| `Hide action bar components` | Adds options to hide action bar components and replace the offline download button with an external download button. | 8.12.54 ~ 9.40.51 |
-| `Hide ads` | Adds options to hide ads. | 8.12.54 ~ 9.40.51 |
-| `Hide layout components` | Adds options to hide general layout components. | 8.12.54 ~ 9.40.51 |
-| `Hide overlay filter` | Removes, at compile time, the dark overlay that appears when player flyout menus are open. | 8.12.54 ~ 9.40.51 |
-| `Hide player overlay filter` | Removes, at compile time, the dark overlay that appears when single-tapping in the player. | 8.12.54 ~ 9.40.51 |
-| `Navigation bar components` | Adds options to hide or change components related to the navigation bar. | 8.12.54 ~ 9.40.51 |
-| `Player components` | Adds options to hide or change components related to the player. | 8.12.54 ~ 9.40.51 |
-| `PoToken provider` | Adds option to get PoToken using the built-in PoToken provider. | 8.12.54 ~ 9.40.51 |
-| `Remove background playback restrictions` | Removes restrictions on background playback, including for kids videos. | 8.12.54 ~ 9.40.51 |
-| `Remove viewer discretion dialog` | Adds an option to remove the dialog that appears when opening a video that has been age-restricted by accepting it automatically. This does not bypass the age restriction. | 8.12.54 ~ 9.40.51 |
-| `Restore Android Auto playlists` | Fills the empty Library → Playlists page in Android Auto with your playlists and their tracks, with artwork. Changes made on the phone show up in the car. | 8.12.54 ~ 9.40.51 |
-| `Restore old style library shelf` | Adds an option to return the Library tab to the old style. | 8.12.54 ~ 9.40.51 |
-| `Return YouTube Dislike` | Adds an option to show the dislike count of songs using the Return YouTube Dislike API. | 8.12.54 ~ 9.40.51 |
-| `Return YouTube Username` | Adds an option to replace YouTube handles with usernames in comments using YouTube Data API v3. | 8.12.54 ~ 9.40.51 |
-| `Sanitize sharing links` | Adds an option to sanitize sharing links by removing tracking query parameters. | 8.12.54 ~ 9.40.51 |
-| `Settings for YouTube Music` | Applies mandatory patches to implement ReVanced Extended settings into the application. | 8.12.54 ~ 9.40.51 |
-| `Settings menu filter` | Adds an option to hide items on the standard YouTube Music settings screen by their visible name. | 8.12.54 ~ 9.40.51 |
-| `SponsorBlock` | Adds options to enable and configure SponsorBlock, which can skip undesired video segments, such as non-music sections. | 8.12.54 ~ 9.40.51 |
-| `Spoof app version` | Adds options to spoof the YouTube Music client version. This can be used to restore old UI elements and features. | 8.12.54 ~ 9.40.51 |
-| `Spoof app version for lyrics` | Adds options to spoof the YouTube Music client version. This can be used to restore old lyrics UI. | 8.12.54 ~ 9.40.51 |
-| `Spoof video streams` | Adds options to spoof the client video streams to fix playback. | 8.12.54 ~ 9.40.51 |
-| `Theme` | Changes the app's dark theme to the values specified in patch options. | 8.12.54 ~ 9.40.51 |
-| `Third-party lyrics` | Adds an option to show synced lyrics with experience enhancement from 15+ providers in the lyrics panel. | 9.15.51 ~ 9.40.51 |
-| `Track crossfade` | Adds a true dual-player crossfade between consecutive tracks. Requires YouTube Music 9.00 or newer; on older versions the patch is a no-op. | 8.12.54 ~ 9.40.51 |
-| `Translations for YouTube Music` | Add translations or remove string resources. | 8.12.54 ~ 9.40.51 |
-| `Video playback` | Adds options to customize settings related to video playback, such as default video quality and playback speed. | 8.12.54 ~ 9.40.51 |
-| `Visual preferences icons for YouTube Music` | Adds icons to specific preferences in the settings. | 8.12.54 ~ 9.40.51 |
-| `Watch history` | Adds an option to change the domain of the watch history or check its status. | 8.12.54 ~ 9.40.51 |
+| `App refresh rate` | Adds an option to change the app refresh rate. | 9.40.51 ~ 8.12.54 |
+| `Bitrate default value` | Sets the audio quality to 'Always High' when you first install the app. | 9.40.51 ~ 8.12.54 |
+| `Bypass image region restrictions` | Adds an option to use a different host for static images, so that images blocked in some countries can be received. | 9.40.51 ~ 8.12.54 |
+| `Certificate spoof` | Enables YouTube Music to work with Android Auto by spoofing the YouTube Music certificate. | 9.40.51 ~ 8.12.54 |
+| `Change share sheet` | Adds an option to change the in-app share sheet to the system share sheet. | 9.40.51 ~ 8.12.54 |
+| `Change start page` | Adds an option to set which page the app opens in instead of the homepage. | 9.40.51 ~ 8.12.54 |
+| `Custom branding for YouTube Music` | Adds in-app app-name, launcher-icon, header, splash, and settings-icon selection. | 9.40.51 ~ 8.12.54 |
+| `Disable Cairo splash animation` | Adds an option to disable Cairo splash animation. | 9.40.51 ~ 8.12.54 |
+| `Disable QUIC protocol` | Adds an option to disable CronetEngine's QUIC protocol. | 9.40.51 ~ 8.12.54 |
+| `Disable dislike redirection` | Adds an option to disable redirection to the next track when clicking the Dislike button. | 9.40.51 ~ 8.12.54 |
+| `Disable forced auto captions` | Adds an option to disable captions from being automatically enabled. | 9.40.51 ~ 8.12.54 |
+| `Disable music video in album` | Adds option to redirect music videos from albums for non-premium users. | 9.40.51 ~ 8.12.54 |
+| `Downloads` | Adds support to download songs for offline playback inside YouTube Music. | 9.40.51 ~ 8.12.54 |
+| `Enable debug logging` | Adds an option for debugging. | 9.40.51 ~ 8.12.54 |
+| `Enable landscape mode` | Adds an option to enable landscape mode when rotating the screen on phones. | 9.40.51 ~ 8.12.54 |
+| `Flyout menu components` | Adds options to hide or change flyout menu components. | 9.40.51 ~ 8.12.54 |
+| `Force original audio` | Adds an option to disable audio tracks from being automatically enabled. | 9.40.51 ~ 8.12.54 |
+| `GmsCore support` | Allows the app to work without root by using a different package name when patched using a GmsCore instead of Google Play Services. | 9.40.51 ~ 8.12.54 |
+| `Hide account components` | Adds options to hide components related to the account menu. | 9.40.51 ~ 8.12.54 |
+| `Hide action bar components` | Adds options to hide action bar components and replace the offline download button with an external download button. | 9.40.51 ~ 8.12.54 |
+| `Hide ads` | Adds options to hide ads. | 9.40.51 ~ 8.12.54 |
+| `Hide layout components` | Adds options to hide general layout components. | 9.40.51 ~ 8.12.54 |
+| `Hide overlay filter` | Removes, at compile time, the dark overlay that appears when player flyout menus are open. | 9.40.51 ~ 8.12.54 |
+| `Hide player overlay filter` | Removes, at compile time, the dark overlay that appears when single-tapping in the player. | 9.40.51 ~ 8.12.54 |
+| `Navigation bar components` | Adds options to hide or change components related to the navigation bar. | 9.40.51 ~ 8.12.54 |
+| `Player components` | Adds options to hide or change components related to the player. | 9.40.51 ~ 8.12.54 |
+| `PoToken provider` | Adds option to get PoToken using the built-in PoToken provider. | 9.40.51 ~ 8.12.54 |
+| `Remove background playback restrictions` | Removes restrictions on background playback, including for kids videos. | 9.40.51 ~ 8.12.54 |
+| `Remove viewer discretion dialog` | Adds an option to remove the dialog that appears when opening a video that has been age-restricted by accepting it automatically. This does not bypass the age restriction. | 9.40.51 ~ 8.12.54 |
+| `Restore Android Auto playlists` | Fills the empty Library → Playlists page in Android Auto with your playlists and their tracks, with artwork. Changes made on the phone show up in the car. | 9.40.51 ~ 8.12.54 |
+| `Restore old style library shelf` | Adds an option to return the Library tab to the old style. | 9.40.51 ~ 8.12.54 |
+| `Return YouTube Dislike` | Adds an option to show the dislike count of songs using the Return YouTube Dislike API. | 9.40.51 ~ 8.12.54 |
+| `Return YouTube Username` | Adds an option to replace YouTube handles with usernames in comments using YouTube Data API v3. | 9.40.51 ~ 8.12.54 |
+| `Sanitize sharing links` | Adds an option to sanitize sharing links by removing tracking query parameters. | 9.40.51 ~ 8.12.54 |
+| `Settings for YouTube Music` | Applies mandatory patches to implement ReVanced Extended settings into the application. | 9.40.51 ~ 8.12.54 |
+| `Settings menu filter` | Adds an option to hide items on the standard YouTube Music settings screen by their visible name. | 9.40.51 ~ 8.12.54 |
+| `SponsorBlock` | Adds options to enable and configure SponsorBlock, which can skip undesired video segments, such as non-music sections. | 9.40.51 ~ 8.12.54 |
+| `Spoof app version` | Adds options to spoof the YouTube Music client version. This can be used to restore old UI elements and features. | 9.40.51 ~ 8.12.54 |
+| `Spoof app version for lyrics` | Adds options to spoof the YouTube Music client version. This can be used to restore old lyrics UI. | 9.40.51 ~ 8.12.54 |
+| `Spoof video streams` | Adds options to spoof the client video streams to fix playback. | 9.40.51 ~ 8.12.54 |
+| `Theme` | Changes the app's dark theme to the values specified in patch options. | 9.40.51 ~ 8.12.54 |
+| `Third-party lyrics` | Adds an option to show synced lyrics with experience enhancement from 15+ providers in the lyrics panel. | 9.40.51 ~ 9.15.51 |
+| `Track crossfade` | Adds a true dual-player crossfade between consecutive tracks. Requires YouTube Music 9.00 or newer; on older versions the patch is a no-op. | 9.40.51 ~ 8.12.54 |
+| `Translations for YouTube Music` | Add translations or remove string resources. | 9.40.51 ~ 8.12.54 |
+| `Video playback` | Adds options to customize settings related to video playback, such as default video quality and playback speed. | 9.40.51 ~ 8.12.54 |
+| `Visual preferences icons for YouTube Music` | Adds icons to specific preferences in the settings. | 9.40.51 ~ 8.12.54 |
+| `Watch history` | Adds an option to change the domain of the watch history or check its status. | 9.40.51 ~ 8.12.54 |
 </details>
 
 

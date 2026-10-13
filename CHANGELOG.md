@@ -1,3 +1,10 @@
+## Unreleased
+
+<!-- modified by lavinhoque33, 2026-10-12 -->
+### Bug Fixes
+
+* **YouTube - Theme:** Apply custom palettes to newer baseline menu, text and chip colors while preserving stock foreground shades when foreground theming is disabled.
+
 ## [1.4.2](https://github.com/lavinhoque33/revanced-patches/compare/v1.4.1...v1.4.2) (2026-10-12)
 
 

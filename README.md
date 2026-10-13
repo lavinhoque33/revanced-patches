@@ -7,6 +7,25 @@
 [![Static Badge](https://img.shields.io/badge/Telegram-Community-gray?logo=telegram&color=%2326A5E4)](https://t.me/AnddeaChat)   [![Static Badge](https://img.shields.io/badge/Reddit-YTAdvanced-gray?logo=reddit&color=red)](https://www.reddit.com/r/YTadvanced)
 </div>
 
+<!-- modified by lavinhoque33, 2026-10-12: Morphe Manager source instructions. -->
+## Morphe Manager
+
+To add this fork as an updatable patch source:
+
+1. Open **Sources** on Morphe Manager's home screen, tap **+**, and choose **Remote**.
+2. Paste this [patch source URL](https://raw.githubusercontent.com/lavinhoque33/revanced-patches/refs/heads/rvx-latest/patches-bundle.json):
+
+   ```text
+   https://raw.githubusercontent.com/lavinhoque33/revanced-patches/refs/heads/rvx-latest/patches-bundle.json
+   ```
+
+3. Tap **Add**. The source appears as **RVX Patches** (tested with Morphe Manager 1.35.0 and bundle 1.4.2).
+4. When patching YouTube or YouTube Music, select this source. Do not combine its patches with Morphe's patches for the same app.
+
+Use the source's **Update** button to fetch newer bundles, then patch and install the app again; updating the source alone does not update an installed app.
+
+Use the full URL above, not the repository URL or a repository-only add-source link: Manager resolves those through `main`, which still contains upstream metadata rather than this fork's releases. The `refs/heads/rvx-latest` URL keeps Manager on this fork's release branch.
+
 ## 📋 List of patches in this repository
 
 ### [📦 YouTube](https://play.google.com/store/apps/details?id=com.google.android.youtube)

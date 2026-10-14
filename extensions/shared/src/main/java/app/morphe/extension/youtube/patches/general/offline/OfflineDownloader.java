@@ -38,11 +38,14 @@ import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ExecutorCompletionService;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.regex.Pattern;
 
@@ -61,8 +64,9 @@ public final class OfflineDownloader {
     private static final Pattern VIDEO_ID = Pattern.compile("[A-Za-z0-9_-]{11}");
     private static final String THUMBNAIL_URL = "https://i.ytimg.com/vi/%s/hqdefault.jpg";
 
+    // modified by lavinhoque33, 2026-10-13: measured 16 MiB response throttling; six connections saturate below it.
     private static final long CHUNK_SIZE = 8L * 1024 * 1024;
-    private static final int PARALLEL_CONNECTIONS = 3;
+    private static final int PARALLEL_CONNECTIONS = 6;
     private static final int CHUNK_ATTEMPTS = 3;
     private static final int BUFFER_SIZE = 64 * 1024;
     private static final int CONNECT_TIMEOUT_MS = 15_000;
@@ -76,6 +80,10 @@ public final class OfflineDownloader {
         final String title;
         final String qualityLabel;
         final AtomicLong done = new AtomicLong();
+        // modified by lavinhoque33, 2026-10-13: abort blocking reads and retain displayed progress across client restarts.
+        final Set<HttpURLConnection> connections = ConcurrentHashMap.newKeySet();
+        final AtomicInteger percent = new AtomicInteger(-1);
+        volatile boolean transferStopped;
         volatile long total;
         volatile State state = State.QUEUED;
         volatile boolean cancelled;
@@ -98,11 +106,12 @@ public final class OfflineDownloader {
             return state;
         }
 
-        /** @return 0-100, or -1 if the size is not known yet. */
+        /** @return 0-100 without retreating during fallback, or -1 until a size is known. */
         int getPercent() {
             long totalBytes = total;
-            if (totalBytes <= 0) return -1;
-            return (int) Math.min(100, done.get() * 100 / totalBytes);
+            if (totalBytes <= 0) return percent.get();
+            int current = (int) Math.min(100, done.get() * 100 / totalBytes);
+            return percent.accumulateAndGet(current, Math::max);
         }
     }
 
@@ -233,6 +242,8 @@ public final class OfflineDownloader {
         if (task == null) return;
         Logger.printInfo(() -> "Cancelling download " + videoId);
         task.cancelled = true;
+        // modified by lavinhoque33, 2026-10-13: cancellation must unblock socket reads, not wait for their timeout.
+        stopTransfer(task);
         if (task.state == State.QUEUED) {
             Future<?> future = task.future;
             if (future != null) future.cancel(false);
@@ -400,17 +411,21 @@ public final class OfflineDownloader {
         }
     }
 
+    // modified by lavinhoque33, 2026-10-13: share workers across both streams and reuse complete bounded responses.
     private static void downloadStreams(Task task, OfflineFormats.Resolved resolved, OfflineFormats.Stream video,
                                         File work, File videoFile, File audioFile) throws IOException {
+        checkCancelled(task);
+        task.transferStopped = false;
         final String userAgent = resolved.userAgent();
         final OfflineFormats.Stream audio = resolved.audio();
-        long videoLength = video.contentLength() > 0 ? video.contentLength() : probeLength(video.url(), userAgent);
-        long audioLength = audio.contentLength() > 0 ? audio.contentLength() : probeLength(audio.url(), userAgent);
+        long videoLength = video.contentLength() > 0 ? video.contentLength() : probeLength(task, video.url(), userAgent);
+        long audioLength = audio.contentLength() > 0 ? audio.contentLength() : probeLength(task, audio.url(), userAgent);
         task.done.set(0);
-        task.total = Math.max(0, videoLength) + Math.max(0, audioLength);
+        long knownBytes = Math.max(0, videoLength) + Math.max(0, audioLength);
+        task.total = videoLength > 0 && audioLength > 0 ? knownBytes : 0;
 
-        long required = (long) (task.total * REQUIRED_SPACE_FACTOR);
-        if (task.total > 0 && work.getUsableSpace() < required) {
+        long required = (long) (knownBytes * REQUIRED_SPACE_FACTOR);
+        if (knownBytes > 0 && work.getUsableSpace() < required) {
             throw new IOException(str("revanced_offline_error_space",
                     Formatter.formatShortFileSize(Utils.getContext(), required)));
         }
@@ -419,35 +434,47 @@ public final class OfflineDownloader {
         deleteQuietly(audioFile);
         Logger.printInfo(() -> "Downloading " + task.videoId + ": video itag " + video.itag()
                 + " (" + videoLength + " bytes), audio itag " + audio.itag() + " (" + audioLength + " bytes)");
-        downloadFile(task, video.url(), videoLength, videoFile, userAgent);
-        downloadFile(task, audio.url(), audioLength, audioFile, userAgent);
-    }
-
-    private static void downloadFile(Task task, String url, long length, File file,
-                                     @Nullable String userAgent) throws IOException {
-        if (length <= 0) {
-            downloadWhole(task, url, file, userAgent);
-            return;
-        }
-        try (RandomAccessFile output = new RandomAccessFile(file, "rw")) {
-            output.setLength(length);
-        }
-
-        final int chunks = (int) ((length + CHUNK_SIZE - 1) / CHUNK_SIZE);
-        ExecutorService pool = Executors.newFixedThreadPool(Math.min(PARALLEL_CONNECTIONS, chunks));
-        List<Future<?>> futures = new ArrayList<>(chunks);
+        DownloadSource[] sources = {
+                new DownloadSource(video.url(), videoLength, videoFile),
+                new DownloadSource(audio.url(), audioLength, audioFile)
+        };
+        RangeQueue ranges = new RangeQueue(sources);
+        int workers = (int) Math.min(PARALLEL_CONNECTIONS,
+                (Math.max(0, videoLength) + CHUNK_SIZE - 1) / CHUNK_SIZE
+                        + (Math.max(0, audioLength) + CHUNK_SIZE - 1) / CHUNK_SIZE
+                        + (videoLength <= 0 ? 1 : 0) + (audioLength <= 0 ? 1 : 0));
+        ExecutorService pool = Executors.newFixedThreadPool(workers);
+        ExecutorCompletionService<Void> completed = new ExecutorCompletionService<>(pool);
         try {
-            for (int i = 0; i < chunks; i++) {
-                final long start = i * CHUNK_SIZE;
-                final long end = Math.min(length, start + CHUNK_SIZE) - 1;
-                futures.add(pool.submit(() -> {
-                    downloadChunk(task, url, start, end, file, userAgent);
-                    return null;
-                }));
+            for (int i = 0; i < workers; i++) {
+                completed.submit(() -> {
+                    byte[] buffer = new byte[BUFFER_SIZE];
+                    RandomAccessFile[] outputs = new RandomAccessFile[sources.length];
+                    try {
+                        DownloadRange range;
+                        while ((range = ranges.take()) != null) {
+                            checkTransfer(task);
+                            int index = range.sourceIndex;
+                            DownloadSource source = sources[index];
+                            if (source.length <= 0) {
+                                downloadWhole(task, source, userAgent, buffer);
+                            } else {
+                                RandomAccessFile output = outputs[index];
+                                if (output == null) outputs[index] = output = new RandomAccessFile(source.file, "rw");
+                                downloadChunk(task, source.url, range.start, range.end, output, userAgent, buffer);
+                            }
+                        }
+                        return null;
+                    } finally {
+                        for (RandomAccessFile output : outputs) {
+                            if (output != null) output.close();
+                        }
+                    }
+                });
             }
-            for (Future<?> future : futures) {
+            for (int i = 0; i < workers; i++) {
                 try {
-                    future.get();
+                    completed.take().get();
                 } catch (ExecutionException ex) {
                     Throwable cause = ex.getCause();
                     if (cause instanceof IOException io) throw io;
@@ -458,49 +485,120 @@ public final class OfflineDownloader {
                     throw new IOException("Interrupted", ex);
                 }
             }
+            checkTransfer(task);
+            task.total = task.done.get(); // Unknown-length streams now have an exact total.
+            notifyChanged(true);
         } finally {
+            stopTransfer(task);
             pool.shutdownNow();
+            // No worker may still write when fallback truncates files or cancellation deletes them.
+            boolean interrupted = false;
+            while (!pool.isTerminated()) {
+                try {
+                    pool.awaitTermination(1, TimeUnit.SECONDS);
+                } catch (InterruptedException ex) {
+                    interrupted = true;
+                }
+            }
+            if (interrupted) Thread.currentThread().interrupt();
         }
     }
 
-    private static void downloadChunk(Task task, String url, long start, long end, File file,
-                                      @Nullable String userAgent) throws IOException {
-        final long expected = end - start + 1;
+    private static final class DownloadSource {
+        final String url;
+        final long length;
+        final File file;
+        long next;
+        boolean claimed;
+
+        DownloadSource(String url, long length, File file) throws IOException {
+            this.url = url;
+            this.length = length;
+            this.file = file;
+            if (length > 0) {
+                try (RandomAccessFile output = new RandomAccessFile(file, "rw")) {
+                    output.setLength(length);
+                }
+            }
+        }
+    }
+
+    private record DownloadRange(int sourceIndex, long start, long end) {
+    }
+
+    /** Assign bounded ranges from the largest unscheduled remainder of either stream. */
+    private static final class RangeQueue {
+        final DownloadSource[] sources;
+
+        RangeQueue(DownloadSource[] sources) {
+            this.sources = sources;
+        }
+
+        synchronized DownloadRange take() {
+            int largest = -1;
+            long remaining = 0;
+            for (int i = 0; i < sources.length; i++) {
+                DownloadSource source = sources[i];
+                if (source.length <= 0 && !source.claimed) {
+                    source.claimed = true;
+                    return new DownloadRange(i, 0, -1);
+                }
+                long candidate = source.length - source.next;
+                if (candidate > remaining) {
+                    largest = i;
+                    remaining = candidate;
+                }
+            }
+            if (largest < 0) return null;
+            DownloadSource source = sources[largest];
+            long size = Math.min(remaining, CHUNK_SIZE);
+            long start = source.next;
+            source.next += size;
+            return new DownloadRange(largest, start, source.next - 1);
+        }
+    }
+
+    private static void downloadChunk(Task task, String url, long start, long end, RandomAccessFile output,
+                                      @Nullable String userAgent, byte[] buffer) throws IOException {
+        long position = start;
         for (int attempt = 1; ; attempt++) {
-            checkCancelled(task);
-            long written = 0;
-            HttpURLConnection connection = open(url, start, end, userAgent);
+            checkTransfer(task);
+            HttpURLConnection connection = openTransfer(task, url, position, end, userAgent);
+            boolean reusable = false;
             try {
                 int code = connection.getResponseCode();
                 if (code == HttpURLConnection.HTTP_FORBIDDEN) throw new ForbiddenException();
                 if (code != HttpURLConnection.HTTP_PARTIAL) {
                     throw new IOException("Range request returned HTTP " + code);
                 }
-                try (InputStream input = connection.getInputStream();
-                     RandomAccessFile output = new RandomAccessFile(file, "rw")) {
-                    output.seek(start);
-                    byte[] buffer = new byte[BUFFER_SIZE];
-                    while (written < expected) {
-                        int read = input.read(buffer, 0, (int) Math.min(buffer.length, expected - written));
-                        if (read < 0) break;
+                String expectedRange = "bytes " + position + "-" + end + "/";
+                String actualRange = connection.getHeaderField("Content-Range");
+                if (actualRange == null || !actualRange.startsWith(expectedRange)) {
+                    throw new IOException("Unexpected Content-Range: " + actualRange);
+                }
+                try (InputStream input = connection.getInputStream()) {
+                    output.seek(position);
+                    while (position <= end) {
+                        int read = readBuffer(task, input, buffer,
+                                (int) Math.min(buffer.length, end - position + 1));
+                        if (read == 0) throw new IOException("Incomplete range " + position + "-" + end);
                         output.write(buffer, 0, read);
-                        written += read;
+                        position += read;
                         task.done.addAndGet(read);
                         notifyChanged(false);
-                        checkCancelled(task);
                     }
-                }
-                if (written != expected) {
-                    throw new IOException("Incomplete range " + start + "-" + end + ": " + written + "/" + expected);
+                    // Consume EOF before closing so Android can return the socket to its keep-alive pool.
+                    if (input.read() != -1) throw new IOException("Oversized range response");
+                    reusable = true;
                 }
                 return;
             } catch (ForbiddenException | CancellationException ex) {
                 throw ex;
             } catch (IOException ex) {
-                task.done.addAndGet(-written);
-                if (attempt >= CHUNK_ATTEMPTS) throw ex;
+                checkTransfer(task);
+                if (attempt >= CHUNK_ATTEMPTS || position > end) throw ex;
                 final int failedAttempt = attempt;
-                Logger.printInfo(() -> "Chunk " + start + "-" + end + " failed (attempt " + failedAttempt + "), retrying", ex);
+                Logger.printInfo(() -> "Chunk " + start + "-" + end + " failed (attempt " + failedAttempt + "), resuming", ex);
                 try {
                     //noinspection BusyWait
                     Thread.sleep(1000L * attempt);
@@ -509,36 +607,49 @@ public final class OfflineDownloader {
                     throw new IOException("Interrupted", interrupted);
                 }
             } finally {
-                connection.disconnect();
+                releaseTransfer(task, connection, reusable);
             }
         }
     }
 
     /** Fallback for streams whose size the server does not reveal. */
-    private static void downloadWhole(Task task, String url, File file, @Nullable String userAgent) throws IOException {
-        HttpURLConnection connection = open(url, -1, -1, userAgent);
+    private static void downloadWhole(Task task, DownloadSource source, @Nullable String userAgent,
+                                      byte[] buffer) throws IOException {
+        HttpURLConnection connection = openTransfer(task, source.url, -1, -1, userAgent);
+        boolean reusable = false;
         try {
             int code = connection.getResponseCode();
             if (code == HttpURLConnection.HTTP_FORBIDDEN) throw new ForbiddenException();
             if (code != HttpURLConnection.HTTP_OK) throw new IOException("HTTP " + code);
             try (InputStream input = connection.getInputStream();
-                 OutputStream output = new FileOutputStream(file)) {
-                byte[] buffer = new byte[BUFFER_SIZE];
+                 OutputStream output = new FileOutputStream(source.file)) {
                 int read;
-                while ((read = input.read(buffer)) != -1) {
+                while ((read = readBuffer(task, input, buffer, buffer.length)) != 0) {
                     output.write(buffer, 0, read);
                     task.done.addAndGet(read);
                     notifyChanged(false);
-                    checkCancelled(task);
                 }
+                reusable = true;
             }
         } finally {
-            connection.disconnect();
+            releaseTransfer(task, connection, reusable);
         }
     }
 
-    private static long probeLength(String url, @Nullable String userAgent) throws IOException {
-        HttpURLConnection connection = open(url, 0, 0, userAgent);
+    // modified by lavinhoque33, 2026-10-13: coalesce Android's small socket reads into one cache write without copying.
+    private static int readBuffer(Task task, InputStream input, byte[] buffer, int length) throws IOException {
+        int filled = 0;
+        while (filled < length) {
+            checkTransfer(task);
+            int read = input.read(buffer, filled, length - filled);
+            if (read < 0) break;
+            filled += read;
+        }
+        return filled;
+    }
+
+    private static long probeLength(Task task, String url, @Nullable String userAgent) throws IOException {
+        HttpURLConnection connection = openTransfer(task, url, 0, 0, userAgent);
         try {
             int code = connection.getResponseCode();
             if (code == HttpURLConnection.HTTP_FORBIDDEN) throw new ForbiddenException();
@@ -554,8 +665,40 @@ public final class OfflineDownloader {
             }
             return -1;
         } finally {
-            connection.disconnect();
+            releaseTransfer(task, connection, false);
         }
+    }
+
+    private static HttpURLConnection openTransfer(Task task, String url, long start, long end,
+                                                   @Nullable String userAgent) throws IOException {
+        HttpURLConnection connection = open(url, start, end, userAgent);
+        synchronized (task.connections) {
+            try {
+                checkTransfer(task);
+                task.connections.add(connection);
+            } catch (CancellationException ex) {
+                connection.disconnect();
+                throw ex;
+            }
+        }
+        return connection;
+    }
+
+    private static void releaseTransfer(Task task, HttpURLConnection connection, boolean reusable) {
+        if (!reusable) connection.disconnect();
+        task.connections.remove(connection);
+    }
+
+    private static void stopTransfer(Task task) {
+        synchronized (task.connections) {
+            task.transferStopped = true;
+            for (HttpURLConnection connection : task.connections) connection.disconnect();
+        }
+    }
+
+    private static void checkTransfer(Task task) {
+        checkCancelled(task);
+        if (task.transferStopped || Thread.currentThread().isInterrupted()) throw new CancellationException();
     }
 
     private static HttpURLConnection open(String url, long start, long end, @Nullable String userAgent) throws IOException {

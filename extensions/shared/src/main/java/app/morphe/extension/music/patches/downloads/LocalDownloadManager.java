@@ -26,14 +26,17 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.RandomAccessFile;
 import java.net.HttpURLConnection;
-import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorCompletionService;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.regex.Pattern;
 
@@ -47,6 +50,7 @@ import app.morphe.extension.shared.innertube.PlayerResponseOuterClass.PlayerResp
 import app.morphe.extension.shared.innertube.PlayerResponseOuterClass.ThumbnailEntry;
 import app.morphe.extension.shared.innertube.PlayerResponseOuterClass.VideoDetails;
 import app.morphe.extension.shared.requests.Requester;
+import app.morphe.extension.shared.spoof.ClientType;
 import app.morphe.extension.shared.spoof.requests.StreamOrDetailsDataRequest;
 
 /** Downloads the already resolved InnerTube audio stream without leaving YouTube Music. */
@@ -56,8 +60,15 @@ public final class LocalDownloadManager {
     private static final String USER_AGENT =
             "com.google.android.youtube/19.47.53 (Linux; U; Android 14) gzip";
 
-    /** Ranges are fetched in parallel, which is what makes a download finish in seconds. */
+    /**
+     * Ranges are fetched in parallel, which is what makes a download finish in seconds.
+     * Short files are still split into this many equal ranges.
+     */
     private static final int SEGMENT_COUNT = 4;
+    // modified by lavinhoque33, 2026-10-14: googlevideo throttles any single range response
+    // above ~10 MiB (16 MiB ranges ran at ~3 MB/s), so ranges are bounded and handed out from a queue.
+    private static final long MAX_RANGE_SIZE = 8L * 1024 * 1024;
+    private static final int MAX_CONNECTIONS = 6;
     private static final int BUFFER_SIZE = 64 * 1024;
 
     /**
@@ -144,14 +155,14 @@ public final class LocalDownloadManager {
                 return;
             }
 
-            ResolvedStream resolved = resolveStream(videoId);
-            if (resolved == null || resolved.format().getUrl().isBlank()) {
+            // modified by lavinhoque33, 2026-10-14: googlevideo can hand a client urls that refuse every
+            // range past the first ~1 MB with HTTP 403 (seen with VISIONOS), so a refused stream is
+            // replaced by the next client's instead of failing the whole download.
+            StreamCandidates candidates = new StreamCandidates(videoId);
+            ResolvedStream resolved = candidates.next();
+            if (resolved == null) {
                 throw new IllegalStateException("Audio stream unavailable");
             }
-
-            Format format = resolved.format();
-            Logger.printDebug(() -> "Downloading " + videoId + " as itag " + format.getItag()
-                    + " (" + format.getMimeType() + ")");
 
             VideoDetails details = resolved.details();
 
@@ -164,16 +175,37 @@ public final class LocalDownloadManager {
                 throw new IllegalStateException("Could not create download directory");
             }
 
-            String extension = format.getMimeType().contains("mp4") ? ".m4a" : ".webm";
-            File destination = new File(directory, videoId + extension);
-            File temporary = new File(directory, destination.getName() + ".part");
+            Utils.showToastShort(str("morphe_music_downloads_started"));
+            awaitNotificationSlot();
+            showDownloadNotification(videoId, title, 0, true, str("morphe_music_downloads_starting"));
 
-            if (temporary.exists() && !temporary.delete()) {
-                throw new IllegalStateException("Could not reset partial audio file");
+            File downloaded;
+            File downloadedTemporary;
+            while (true) {
+                Format format = resolved.format();
+                Logger.printDebug(() -> "Downloading " + videoId + " as itag " + format.getItag()
+                        + " (" + format.getMimeType() + ")");
+
+                String extension = format.getMimeType().contains("mp4") ? ".m4a" : ".webm";
+                downloaded = new File(directory, videoId + extension);
+                downloadedTemporary = new File(directory, downloaded.getName() + ".part");
+
+                if (downloadedTemporary.exists() && !downloadedTemporary.delete()) {
+                    throw new IllegalStateException("Could not reset partial audio file");
+                }
+
+                try {
+                    downloadWithResume(videoId, title, format.getUrl(), downloadedTemporary,
+                            format.getContentLength());
+                    break;
+                } catch (ForbiddenException ex) {
+                    Logger.printDebug(() -> "Stream refused, trying another client: " + videoId, ex);
+                    resolved = candidates.next();
+                    if (resolved == null) throw ex;
+                }
             }
-
-            downloadWithResume(videoId, title, format.getUrl(), temporary,
-                    format.getContentLength());
+            final File destination = downloaded;
+            final File temporary = downloadedTemporary;
 
             if (destination.exists() && !destination.delete()) {
                 throw new IllegalStateException("Could not replace audio file");
@@ -196,6 +228,57 @@ public final class LocalDownloadManager {
     }
 
     private record ResolvedStream(Format format, VideoDetails details) {
+    }
+
+    /** The server refused the stream's url itself, so another client's url may still work. */
+    private static final class ForbiddenException extends IllegalStateException {
+        ForbiddenException(String message) {
+            super(message);
+        }
+    }
+
+    /**
+     * Hands out the audio streams a download may try, one resolved client at a time and in
+     * playback order, so a refused stream costs only the next client's request.
+     */
+    private static final class StreamCandidates {
+        private final String videoId;
+        private final Iterator<ClientType> clients;
+        @Nullable
+        private StreamOrDetailsDataRequest cached;
+
+        StreamCandidates(String videoId) {
+            this.videoId = videoId;
+            this.cached = StreamOrDetailsDataRequest.getRequestForVideoId(videoId);
+            if (cached == null) {
+                Logger.printDebug(() -> "No cached streaming request for download, resolving: " + videoId);
+            }
+            // The clients are named here because the playback order is only set up while spoofing
+            // is on, and a download needs a client that answers with plain urls either way.
+            this.clients = StreamOrDetailsDataRequest.buildClientOrder(
+                    SpoofVideoStreamsPatch.getAvailableClients(),
+                    Settings.SPOOF_VIDEO_STREAMS_CLIENT_TYPE.get()).iterator();
+        }
+
+        /** @return The next stream with an audio url, or null once every client has been tried. */
+        @Nullable
+        ResolvedStream next() {
+            while (true) {
+                StreamOrDetailsDataRequest request = cached;
+                if (request != null) {
+                    cached = null;
+                } else if (clients.hasNext()) {
+                    ClientType client = clients.next();
+                    request = StreamOrDetailsDataRequest.fetchRequestForDownload(
+                            videoId, List.of(client), client);
+                } else {
+                    return null;
+                }
+
+                ResolvedStream stream = parseStream(videoId, request);
+                if (stream != null) return stream;
+            }
+        }
     }
 
     private static String firstNotBlank(@Nullable String value, String fallback, String lastResort) {
@@ -284,10 +367,6 @@ public final class LocalDownloadManager {
 
     private static void downloadWithResume(String videoId, String title, String url,
                                            File temporary, long expectedLength) throws Exception {
-        Utils.showToastShort(str("morphe_music_downloads_started"));
-        awaitNotificationSlot();
-        showDownloadNotification(videoId, title, 0, true, str("morphe_music_downloads_starting"));
-
         if (expectedLength <= 0) expectedLength = probeContentLength(url);
         final long totalLength = expectedLength;
 
@@ -305,6 +384,8 @@ public final class LocalDownloadManager {
         showDownloadNotification(videoId, title, 100, false, str("morphe_music_downloads_complete"));
     }
 
+    // modified by lavinhoque33, 2026-10-14: bounded ranges are handed out from a shared queue to a
+    // capped worker pool; the first failure stops every connection immediately.
     private static void downloadInParallel(String videoId, String title, String url,
                                            File temporary, long totalLength) throws Exception {
         try (RandomAccessFile file = new RandomAccessFile(temporary, "rw")) {
@@ -312,35 +393,50 @@ public final class LocalDownloadManager {
         }
 
         AtomicLong downloaded = new AtomicLong();
-        long segmentSize = (totalLength + SEGMENT_COUNT - 1) / SEGMENT_COUNT;
+        ProgressCallback progress = bytes -> {
+            if (!canPostProgress()) return;
+            int percent = (int) Math.min(99, bytes * 100 / totalLength);
+            showDownloadNotification(videoId, title, percent, true,
+                    str("morphe_music_downloads_progress", percent));
+        };
+
+        // Short files keep the original equal split, longer ones use ranges below the throttle.
+        long rangeSize = Math.min(MAX_RANGE_SIZE, (totalLength + SEGMENT_COUNT - 1) / SEGMENT_COUNT);
+        long rangeCount = (totalLength + rangeSize - 1) / rangeSize;
+        int workers = (int) Math.min(MAX_CONNECTIONS, rangeCount);
+        RangeQueue queue = new RangeQueue(url, temporary, totalLength, rangeSize, downloaded, progress);
 
         // Android's ExecutorService is not AutoCloseable, so it is shut down in the finally below.
         //noinspection resource
-        ExecutorService executor = Executors.newFixedThreadPool(SEGMENT_COUNT);
-        List<Future<?>> futures = new ArrayList<>();
+        ExecutorService executor = Executors.newFixedThreadPool(workers);
+        ExecutorCompletionService<Void> completion = new ExecutorCompletionService<>(executor);
 
         try {
-            for (int index = 0; index < SEGMENT_COUNT; index++) {
-                long start = index * segmentSize;
-                long end = Math.min(totalLength - 1, start + segmentSize - 1);
-                if (start > end) continue;
-
-                futures.add(executor.submit(() -> {
-                    downloadRange(url, temporary, start, end, downloaded, bytes -> {
-                        if (!canPostProgress()) return;
-                        int progress = (int) Math.min(99, bytes * 100 / totalLength);
-                        showDownloadNotification(videoId, title, progress, true,
-                                str("morphe_music_downloads_progress", progress));
-                    });
-                    return null;
-                }));
+            for (int index = 0; index < workers; index++) {
+                completion.submit(queue::work);
             }
 
-            for (Future<?> future : futures) {
-                future.get();
+            for (int index = 0; index < workers; index++) {
+                try {
+                    completion.take().get();
+                } catch (ExecutionException ex) {
+                    if (ex.getCause() instanceof Exception cause) throw cause;
+                    throw ex;
+                }
             }
         } finally {
+            // No worker may still write to the file once this returns.
+            queue.stop();
             executor.shutdownNow();
+            boolean interrupted = false;
+            while (!executor.isTerminated()) {
+                try {
+                    executor.awaitTermination(1, TimeUnit.SECONDS);
+                } catch (InterruptedException ex) {
+                    interrupted = true;
+                }
+            }
+            if (interrupted) Thread.currentThread().interrupt();
         }
     }
 
@@ -348,46 +444,115 @@ public final class LocalDownloadManager {
         void update(long bytes);
     }
 
-    private static void downloadRange(String url, File destination, long start, long end,
-                                      AtomicLong downloaded, ProgressCallback progress) throws Exception {
-        long position = start;
-        int failures = 0;
+    /** Hands out consecutive ranges of one file to the workers that download them. */
+    private static final class RangeQueue {
+        private final String url;
+        private final File destination;
+        private final long totalLength;
+        private final long rangeSize;
+        private final AtomicLong downloaded;
+        private final ProgressCallback progress;
+        private final AtomicLong nextStart = new AtomicLong();
+        private final Set<HttpURLConnection> connections = ConcurrentHashMap.newKeySet();
+        private volatile boolean stopped;
 
-        while (position <= end) {
-            long before = position;
-            HttpURLConnection connection = openAudioConnection(url, position, end);
+        RangeQueue(String url, File destination, long totalLength, long rangeSize,
+                   AtomicLong downloaded, ProgressCallback progress) {
+            this.url = url;
+            this.destination = destination;
+            this.totalLength = totalLength;
+            this.rangeSize = rangeSize;
+            this.downloaded = downloaded;
+            this.progress = progress;
+        }
 
-            try {
-                if (connection.getResponseCode() != HttpURLConnection.HTTP_PARTIAL) {
-                    throw new IllegalStateException(
-                            "Range request returned HTTP " + connection.getResponseCode());
+        /** Aborts every connection, so blocked reads fail at once instead of timing out. */
+        void stop() {
+            stopped = true;
+            for (HttpURLConnection connection : connections) connection.disconnect();
+        }
+
+        Void work() throws Exception {
+            byte[] buffer = new byte[BUFFER_SIZE];
+            try (RandomAccessFile output = new RandomAccessFile(destination, "rw")) {
+                while (true) {
+                    long start = nextStart.getAndAdd(rangeSize);
+                    if (start >= totalLength) return null;
+
+                    downloadRange(start, Math.min(totalLength - 1, start + rangeSize - 1),
+                            output, buffer);
                 }
+            }
+        }
 
-                try (InputStream input = connection.getInputStream();
-                     RandomAccessFile output = new RandomAccessFile(destination, "rw")) {
-                    output.seek(position);
-                    byte[] buffer = new byte[BUFFER_SIZE];
+        private void checkStopped() {
+            if (stopped) throw new CancellationException("Download stopped");
+        }
 
-                    while (position <= end) {
-                        int read = input.read(buffer, 0,
-                                (int) Math.min(buffer.length, end - position + 1));
-                        if (read < 0) break;
+        private void downloadRange(long start, long end, RandomAccessFile output,
+                                   byte[] buffer) throws Exception {
+            long position = start;
+            int failures = 0;
 
-                        output.write(buffer, 0, read);
-                        position += read;
-                        progress.update(downloaded.addAndGet(read));
+            while (position <= end) {
+                checkStopped();
+                long before = position;
+                HttpURLConnection connection = openAudioConnection(url, position, end);
+                boolean reusable = false;
+                connections.add(connection);
+
+                try {
+                    checkStopped();
+                    int responseCode = connection.getResponseCode();
+                    if (responseCode == HttpURLConnection.HTTP_FORBIDDEN) {
+                        throw new ForbiddenException("Range request returned HTTP 403");
                     }
-                }
-            } catch (IOException ex) {
-                Logger.printDebug(() -> "Audio range interrupted; retrying", ex);
-            } finally {
-                connection.disconnect();
-            }
+                    if (responseCode != HttpURLConnection.HTTP_PARTIAL) {
+                        throw new IllegalStateException("Range request returned HTTP " + responseCode);
+                    }
 
-            failures = position > before ? 0 : failures + 1;
-            if (failures >= MAX_STALLED_ATTEMPTS) {
-                throw new IllegalStateException("Download range stalled at " + position);
+                    try (InputStream input = connection.getInputStream()) {
+                        output.seek(position);
+
+                        while (position <= end) {
+                            int read = readBuffer(input, buffer,
+                                    (int) Math.min(buffer.length, end - position + 1));
+                            if (read == 0) break;
+
+                            output.write(buffer, 0, read);
+                            position += read;
+                            progress.update(downloaded.addAndGet(read));
+                        }
+
+                        // Reading up to the end lets Android keep the connection for the next range.
+                        reusable = position > end && input.read() < 0;
+                    }
+                } catch (IOException ex) {
+                    checkStopped();
+                    Logger.printDebug(() -> "Audio range interrupted; retrying", ex);
+                } finally {
+                    connections.remove(connection);
+                    if (!reusable) connection.disconnect();
+                }
+
+                failures = position > before ? 0 : failures + 1;
+                if (failures >= MAX_STALLED_ATTEMPTS) {
+                    throw new IllegalStateException("Download range stalled at " + position);
+                }
             }
+        }
+
+        // modified by lavinhoque33, 2026-10-14: Android returns small socket reads, so fill the
+        // buffer before each file write instead of writing every few KiB.
+        private int readBuffer(InputStream input, byte[] buffer, int length) throws IOException {
+            int filled = 0;
+            while (filled < length) {
+                checkStopped();
+                int read = input.read(buffer, filled, length - filled);
+                if (read < 0) break;
+                filled += read;
+            }
+            return filled;
         }
     }
 
@@ -428,6 +593,9 @@ public final class LocalDownloadManager {
         connection.setRequestProperty("User-Agent", USER_AGENT);
 
         try {
+            if (connection.getResponseCode() == HttpURLConnection.HTTP_FORBIDDEN) {
+                throw new ForbiddenException("HTTP 403");
+            }
             if (connection.getResponseCode() != HttpURLConnection.HTTP_OK) {
                 throw new IllegalStateException("HTTP " + connection.getResponseCode());
             }
@@ -481,17 +649,8 @@ public final class LocalDownloadManager {
     }
 
     @Nullable
-    private static ResolvedStream resolveStream(String videoId) {
-        StreamOrDetailsDataRequest request = StreamOrDetailsDataRequest.getRequestForVideoId(videoId);
-        if (request == null) {
-            Logger.printDebug(() -> "No cached streaming request for download, resolving: " + videoId);
-            // The clients are named here because the playback order is only set up while spoofing
-            // is on, and a download needs a client that answers with plain urls either way.
-            request = StreamOrDetailsDataRequest.fetchRequestForDownload(videoId,
-                    SpoofVideoStreamsPatch.getAvailableClients(),
-                    Settings.SPOOF_VIDEO_STREAMS_CLIENT_TYPE.get());
-        }
-
+    private static ResolvedStream parseStream(String videoId,
+                                              StreamOrDetailsDataRequest request) {
         StreamOrDetailsDataRequest.StreamData stream = request.getStream();
         if (stream == null) {
             Logger.printDebug(() -> "No stream data resolved for " + videoId);

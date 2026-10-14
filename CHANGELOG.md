@@ -4,6 +4,12 @@
 ### Bug Fixes
 
 * **YouTube - Theme:** Apply custom palettes to newer baseline menu, text and chip colors while preserving stock foreground shades when foreground theming is disabled.
+<!-- modified by lavinhoque33, 2026-10-13 -->
+* **YouTube - Hook download actions:** Speed up built-in offline downloads with a shared six-connection video/audio pool, reusable connections and bounded ranges with coalesced cache writes; resume failed ranges without decreasing progress and promptly stop cancelled transfers.
+<!-- modified by lavinhoque33, 2026-10-14 -->
+* **YouTube Music - Downloads:** Speed up in-app audio downloads with bounded 8 MiB ranges shared by up to six reusable connections instead of four uncapped ranges (long tracks over ~40 MiB were throttled by the server), coalesced cache writes and immediate abort of all connections when a range fails; resumed ranges keep progress from decreasing.
+<!-- modified by lavinhoque33, 2026-10-14 -->
+* **YouTube Music - Downloads:** Fix in-app downloads failing with "Download failed" when googlevideo refuses every range past the first ~1 MB of the default `VISIONOS` client's stream with HTTP 403; the download now falls back to the next client's stream.
 
 ## [1.4.2](https://github.com/lavinhoque33/revanced-patches/compare/v1.4.1...v1.4.2) (2026-10-12)
 

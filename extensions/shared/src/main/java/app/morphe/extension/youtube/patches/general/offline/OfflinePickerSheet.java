@@ -21,7 +21,10 @@ import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.graphics.drawable.RippleDrawable;
+import android.text.SpannableStringBuilder;
+import android.text.Spanned;
 import android.text.TextUtils;
+import android.text.style.ForegroundColorSpan;
 import android.text.format.Formatter;
 import android.view.Gravity;
 import android.view.View;
@@ -44,6 +47,7 @@ import java.util.function.Consumer;
 
 import app.morphe.extension.shared.ui.Dim;
 import app.morphe.extension.shared.ui.SheetBottomDialog;
+import app.morphe.extension.shared.utils.BaseThemeUtils;
 import app.morphe.extension.shared.utils.Logger;
 import app.morphe.extension.shared.utils.Utils;
 import app.morphe.extension.youtube.shared.PipDismissHelper;
@@ -169,11 +173,10 @@ final class OfflinePickerSheet {
 
         LinearLayout list = new LinearLayout(activity);
         list.setOrientation(LinearLayout.VERTICAL);
-        long audioLength = resolved.audio().contentLength();
         List<OfflineFormats.Stream> videos = resolved.videos();
         boolean[] picked = {false};
         for (OfflineFormats.Stream video : videos) {
-            list.addView(row(video, audioLength, v -> {
+            list.addView(row(video, resolved.audioFor(video).contentLength(), v -> {
                 if (picked[0]) return; // A second tap while the sheet slides away.
                 picked[0] = true;
                 onPick.accept(video);
@@ -231,7 +234,20 @@ final class OfflinePickerSheet {
 
         TextView codec = text(13, secondary, 1);
         boolean av1 = video.codec().toUpperCase(Locale.ROOT).startsWith("AV1");
-        codec.setText(video.codec() + " · " + str(av1 ? "revanced_offline_picker_av1_hint" : "revanced_offline_picker_h264_hint"));
+        boolean vp9 = OfflineFormats.CODEC_VP9.equals(video.codec());
+        // modified by lavinhoque33, 2026-10-14: AV1 this device cannot decode is listed, with a warning note.
+        SpannableStringBuilder codecText = new SpannableStringBuilder(video.codec() + " · "
+                + str(av1 ? "revanced_offline_picker_av1_hint"
+                : vp9 ? "revanced_offline_picker_vp9_hint" : "revanced_offline_picker_h264_hint"));
+        if (!video.playable()) {
+            int start = codecText.length();
+            codecText.append(" [").append(str("revanced_offline_picker_av1_unplayable")).append(']');
+            codecText.setSpan(new ForegroundColorSpan(
+                            BaseThemeUtils.isDarkModeEnabled() ? 0xFFFFA040 : 0xFFD84315),
+                    start, codecText.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            codec.setMaxLines(2);
+        }
+        codec.setText(codecText);
         texts.addView(codec);
         row.addView(texts, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 

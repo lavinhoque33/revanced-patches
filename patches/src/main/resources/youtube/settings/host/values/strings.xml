@@ -1929,9 +1929,12 @@ The quality picker is shown for every download"</string>
     <string name="revanced_offline_notification_channel_playback">Offline playback</string>
     <string name="revanced_offline_loading_formats">Loading available qualities…</string>
     <string name="revanced_offline_picker_subtitle">Download quality</string>
-    <string name="revanced_offline_picker_footer">Saved as MP4 in Movies/RVX</string>
+    <string name="revanced_offline_picker_footer">Saved in Movies/RVX (MP4, or WebM for VP9)</string>
     <string name="revanced_offline_picker_h264_hint">Plays everywhere</string>
     <string name="revanced_offline_picker_av1_hint">Smaller file</string>
+    <string name="revanced_offline_picker_vp9_hint">Plays on this device</string>
+    <string name="revanced_offline_picker_av1_unplayable">can\'t play on this device</string>
+    <string name="revanced_offline_av1_unplayable_toast">This device may not be able to play this AV1 video. The picture may stay blank.</string>
     <string name="revanced_offline_no_formats">No downloadable quality found for this video</string>
     <string name="revanced_offline_download_unavailable">This video cannot be downloaded</string>
     <string name="revanced_offline_already_downloading">This video is already downloading</string>

@@ -14,6 +14,14 @@
 * **YouTube Music - Downloads:** Fix downloaded songs not playing on root (mounted) installs ("Unable to start service ... OfflinePlaybackService ... not found"); the offline player now runs in YouTube Music's own `BackgroundPlayerService` (mediaPlayback) instead of a service the patch added to the manifest, so the manifest is no longer modified.
 <!-- modified by lavinhoque33, 2026-10-14 -->
 * **YouTube Music - Downloads:** Fix the three-dot menu Download row doing nothing with in-app downloads on; the row is now routed to the in-app downloader without also needing the separate "external downloader in flyout menu" setting.
+<!-- modified by lavinhoque33, 2026-10-14 -->
+* **YouTube - Hook download actions:** Make the merge step of the built-in offline downloader much faster (a 783 MB 960p60 video took ~27 s on a Galaxy S23, now a few seconds): the fragmented DASH video and audio are rebuilt into a progressive MP4 by copying the sample data in large blocks instead of feeding every sample through `MediaMuxer`, and the result is written straight into the `Movies/RVX` item instead of the cache and copied again. Files the new path does not handle still use `MediaMuxer`.
+<!-- modified by lavinhoque33, 2026-10-14 -->
+* **YouTube - Hook download actions:** Fix AV1 downloads playing a grey picture with audio only in the offline player on devices without a hardware AV1 decoder (e.g. some tablets); the quality picker now marks AV1 streams the device cannot decode with an orange "[can't play on this device]" note (they stay downloadable for other devices), and the offline player shows a message when such a file is opened.
+<!-- modified by lavinhoque33, 2026-10-14 -->
+* **YouTube - Hook download actions:** Offer VP9/WebM (Opus audio) downloads, saved as `.webm`, for qualities that have no H.264 and no AV1 the device can play (e.g. 1440p and 4K on devices without hardware AV1); only shown when the device has a hardware VP9 decoder for the stream. The WebM merge is a pure-Java remux (cues for seeking, Opus pre-skip kept) that takes seconds instead of over a minute for a 2 GB file; the platform muxer remains as a fallback.
+<!-- modified by lavinhoque33, 2026-10-15 -->
+* **YouTube - Hook download actions:** Fix quality labels in the built-in download picker, the saved library and the offline player for videos that are not 16:9 (e.g. 1920x960 showed "960p60" and 2560x1280 showed "1280p" where YouTube says 1080p60 and 1440p; vertical Shorts showed "1920p"); the label, HD/2K/4K badge and sort order now follow YouTube's own quality label, while decoder checks still use the real picture size.
 
 ## [1.4.2](https://github.com/lavinhoque33/revanced-patches/compare/v1.4.1...v1.4.2) (2026-10-12)
 

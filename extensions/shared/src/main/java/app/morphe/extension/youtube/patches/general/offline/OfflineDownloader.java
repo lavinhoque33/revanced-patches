@@ -211,7 +211,7 @@ public final class OfflineDownloader {
             task.future = queue.submit(() -> run(task));
         }
         Logger.printInfo(() -> "Queued " + task.videoId + " at " + task.qualityLabel + " " + video.codec()
-                + " (itag " + video.itag() + ", audio itag " + resolved.audio().itag() + ")");
+                + " (itag " + video.itag() + ", audio itag " + resolved.audioFor(video).itag() + ")");
         Utils.showToastShort(str("revanced_offline_download_started"));
         // The user just picked a quality, so the app is in the foreground and may start the service.
         OfflineServiceHooks.startDownloadForeground();
@@ -328,7 +328,6 @@ public final class OfflineDownloader {
         final File work = workDirectory(context);
         final File videoFile = new File(work, task.videoId + ".video");
         final File audioFile = new File(work, task.videoId + ".audio");
-        final File merged = new File(work, task.videoId + ".mp4");
         try {
             OfflineFormats.Resolved resolved = task.resolved;
             OfflineFormats.Stream video = task.video;
@@ -369,16 +368,30 @@ public final class OfflineDownloader {
             task.state = State.MERGING;
             notifyChanged(true);
             Logger.printInfo(() -> "Merging " + task.videoId);
-            Mp4Merger.merge(videoFile, audioFile, merged, () -> task.cancelled);
-            deleteQuietly(videoFile);
-            deleteQuietly(audioFile);
+            // modified by lavinhoque33, 2026-10-14: merge straight into the pending MediaStore item.
+            // modified by lavinhoque33, 2026-10-14: .webm for VP9 downloads.
+            final String displayName = displayName(resolved.title(), task.videoId, video.fileExtension());
+            final long size;
+            final Uri uri;
+            OfflineMediaStore.Pending pending = OfflineMediaStore.create(context, displayName);
+            try {
+                if (video.isWebm()) {
+                    Mp4Merger.mergeWebm(videoFile, audioFile, pending.fileDescriptor(), () -> task.cancelled);
+                } else {
+                    Mp4Merger.merge(videoFile, audioFile, pending.fileDescriptor(), () -> task.cancelled);
+                }
+                deleteQuietly(videoFile);
+                deleteQuietly(audioFile);
 
-            checkCancelled(task);
-            task.state = State.SAVING;
-            notifyChanged(true);
-            final long size = merged.length();
-            final String displayName = displayName(resolved.title(), task.videoId);
-            Uri uri = OfflineMediaStore.save(context, merged, displayName);
+                checkCancelled(task);
+                task.state = State.SAVING;
+                notifyChanged(true);
+                size = pending.length();
+                uri = pending.commit();
+            } catch (Throwable ex) {
+                pending.abort();
+                throw ex;
+            }
             Logger.printInfo(() -> "Saved " + task.videoId + " to " + uri + " (" + size + " bytes)");
 
             String thumbnail = saveThumbnail(context, task.videoId, resolved.thumbnailUrl());
@@ -406,7 +419,6 @@ public final class OfflineDownloader {
         } finally {
             deleteQuietly(videoFile);
             deleteQuietly(audioFile);
-            deleteQuietly(merged);
             finish(task);
         }
     }
@@ -417,7 +429,7 @@ public final class OfflineDownloader {
         checkCancelled(task);
         task.transferStopped = false;
         final String userAgent = resolved.userAgent();
-        final OfflineFormats.Stream audio = resolved.audio();
+        final OfflineFormats.Stream audio = resolved.audioFor(video);
         long videoLength = video.contentLength() > 0 ? video.contentLength() : probeLength(task, video.url(), userAgent);
         long audioLength = audio.contentLength() > 0 ? audio.contentLength() : probeLength(task, audio.url(), userAgent);
         task.done.set(0);
@@ -721,12 +733,12 @@ public final class OfflineDownloader {
 
     // region files
 
-    static String displayName(String title, String videoId) {
+    static String displayName(String title, String videoId, String extension) {
         String clean = title.replaceAll("[\\\\/:*?\"<>|\\p{Cntrl}]", "_").replaceAll("\\s+", " ").trim();
         if (clean.startsWith(".")) clean = "_" + clean.substring(1);
         if (clean.length() > 120) clean = clean.substring(0, 120).trim();
         if (clean.isEmpty()) clean = "video";
-        return String.format(Locale.US, "%s [%s].mp4", clean, videoId);
+        return String.format(Locale.US, "%s [%s].%s", clean, videoId, extension);
     }
 
     @NonNull

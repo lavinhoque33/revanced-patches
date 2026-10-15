@@ -25,13 +25,12 @@ import android.os.Environment;
 import android.os.ParcelFileDescriptor;
 import android.provider.MediaStore;
 
+import androidx.annotation.Nullable;
+
 import java.io.File;
-import java.io.FileInputStream;
+import java.io.FileDescriptor;
 import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.util.Collections;
 
 import app.morphe.extension.shared.utils.Logger;
@@ -44,18 +43,85 @@ import app.morphe.extension.shared.utils.Logger;
 @SuppressLint("NewApi")
 final class OfflineMediaStore {
     static final String RELATIVE_PATH = Environment.DIRECTORY_MOVIES + "/RVX";
-    private static final int COPY_BUFFER = 256 * 1024;
 
     private OfflineMediaStore() {
     }
 
-    /** @return The uri of the saved video. */
-    static Uri save(Context context, File source, String displayName) throws IOException {
+    // modified by lavinhoque33, 2026-10-14: the merged video is written straight into the pending item,
+    // so it is not written to the cache first and copied again.
+    /** A video being written to its final place. Either {@link #commit} or {@link #abort} it. */
+    static final class Pending {
+        private final ContentResolver resolver;
+        private final Uri uri;
+        /** Pre-Q only: the file being written, renamed over {@link #destination} on commit. */
+        private final File file;
+        private final File destination;
+        private final ParcelFileDescriptor descriptor;
+
+        private Pending(ContentResolver resolver, @Nullable Uri uri, @Nullable File file,
+                        @Nullable File destination, ParcelFileDescriptor descriptor) {
+            this.resolver = resolver;
+            this.uri = uri;
+            this.file = file;
+            this.destination = destination;
+            this.descriptor = descriptor;
+        }
+
+        /** Open for reading and writing, empty. Owned by this object. */
+        FileDescriptor fileDescriptor() {
+            return descriptor.getFileDescriptor();
+        }
+
+        /** Size of the video written so far. */
+        long length() {
+            return descriptor.getStatSize();
+        }
+
+        /** Publishes the video. @return The uri of the saved video. */
+        Uri commit() throws IOException {
+            descriptor.close();
+            if (uri == null) {
+                // modified by lavinhoque33, 2026-10-14: an earlier finished download is only replaced once the new one is complete.
+                if (!file.renameTo(destination)) {
+                    //noinspection ResultOfMethodCallIgnored
+                    file.delete();
+                    throw new IOException("Could not publish the video");
+                }
+                return Uri.fromFile(destination);
+            }
+            ContentValues done = new ContentValues();
+            done.put(MediaStore.Video.Media.IS_PENDING, 0);
+            if (resolver.update(uri, done, null, null) < 1) throw new IOException("Could not publish the video");
+            return uri;
+        }
+
+        /** Discards the video. Does not throw. */
+        void abort() {
+            try {
+                descriptor.close();
+            } catch (IOException ignored) {
+            }
+            try {
+                if (uri != null) resolver.delete(uri, null, null);
+                //noinspection ResultOfMethodCallIgnored
+                else file.delete();
+            } catch (RuntimeException ex) {
+                Logger.printDebug(() -> "Could not remove the unfinished video", ex);
+            }
+        }
+    }
+
+    static String mimeType(String displayName) {
+        return displayName.toLowerCase(java.util.Locale.ROOT).endsWith(".webm") ? "video/webm" : "video/mp4";
+    }
+
+    static Pending create(Context context, String displayName) throws IOException {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             ContentResolver resolver = context.getContentResolver();
             ContentValues values = new ContentValues();
             values.put(MediaStore.Video.Media.DISPLAY_NAME, displayName);
-            values.put(MediaStore.Video.Media.MIME_TYPE, "video/mp4");
+            // modified by lavinhoque33, 2026-10-14: VP9 downloads are WebM files.
+            values.put(MediaStore.Video.Media.MIME_TYPE, mimeType(displayName));
             values.put(MediaStore.Video.Media.RELATIVE_PATH, RELATIVE_PATH);
             values.put(MediaStore.Video.Media.IS_PENDING, 1);
 
@@ -64,15 +130,10 @@ final class OfflineMediaStore {
             Uri uri = resolver.insert(collection, values);
             if (uri == null) throw new IOException("MediaStore refused the new video");
             try {
-                try (InputStream input = new FileInputStream(source);
-                     OutputStream output = resolver.openOutputStream(uri, "w")) {
-                    if (output == null) throw new IOException("Could not open the MediaStore item");
-                    copy(input, output);
-                }
-                ContentValues done = new ContentValues();
-                done.put(MediaStore.Video.Media.IS_PENDING, 0);
-                resolver.update(uri, done, null, null);
-                return uri;
+                // "t" truncates: a leftover of an earlier attempt must not survive.
+                ParcelFileDescriptor descriptor = resolver.openFileDescriptor(uri, "rwt");
+                if (descriptor == null) throw new IOException("Could not open the MediaStore item");
+                return new Pending(resolver, uri, null, null, descriptor);
             } catch (IOException | RuntimeException ex) {
                 resolver.delete(uri, null, null);
                 throw ex;
@@ -84,13 +145,11 @@ final class OfflineMediaStore {
             throw new IOException("Could not create " + directory);
         }
         File destination = new File(directory, displayName);
-        if (!source.renameTo(destination)) {
-            try (InputStream input = new FileInputStream(source);
-                 OutputStream output = new FileOutputStream(destination)) {
-                copy(input, output);
-            }
-        }
-        return Uri.fromFile(destination);
+        File partial = new File(directory, displayName + "." + System.nanoTime() + ".part");
+        ParcelFileDescriptor descriptor = ParcelFileDescriptor.open(partial,
+                ParcelFileDescriptor.MODE_READ_WRITE | ParcelFileDescriptor.MODE_CREATE
+                        | ParcelFileDescriptor.MODE_TRUNCATE);
+        return new Pending(context.getContentResolver(), null, partial, destination, descriptor);
     }
 
     /**
@@ -114,15 +173,6 @@ final class OfflineMediaStore {
             // Not owned by the app (e.g. after a reinstall). Publishing may still fail then.
             Logger.printDebug(() -> "Could not clean up stale rows of " + displayName, ex);
         }
-    }
-
-    private static void copy(InputStream input, OutputStream output) throws IOException {
-        byte[] buffer = new byte[COPY_BUFFER];
-        int read;
-        while ((read = input.read(buffer)) != -1) {
-            output.write(buffer, 0, read);
-        }
-        output.flush();
     }
 
     /** Must be called off the main thread. */

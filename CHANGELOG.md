@@ -1,27 +1,22 @@
-## Unreleased
+## [1.5.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.4.2...v1.5.0) (2026-10-15)
 
-<!-- modified by lavinhoque33, 2026-10-12 -->
+
 ### Bug Fixes
 
-* **YouTube - Theme:** Apply custom palettes to newer baseline menu, text and chip colors while preserving stock foreground shades when foreground theming is disabled.
-<!-- modified by lavinhoque33, 2026-10-13 -->
-* **YouTube - Hook download actions:** Speed up built-in offline downloads with a shared six-connection video/audio pool, reusable connections and bounded ranges with coalesced cache writes; resume failed ranges without decreasing progress and promptly stop cancelled transfers.
-<!-- modified by lavinhoque33, 2026-10-14 -->
-* **YouTube Music - Downloads:** Speed up in-app audio downloads with bounded 8 MiB ranges shared by up to six reusable connections instead of four uncapped ranges (long tracks over ~40 MiB were throttled by the server), coalesced cache writes and immediate abort of all connections when a range fails; resumed ranges keep progress from decreasing.
-<!-- modified by lavinhoque33, 2026-10-14 -->
-* **YouTube Music - Downloads:** Fix in-app downloads failing with "Download failed" when googlevideo refuses every range past the first ~1 MB of the default `VISIONOS` client's stream with HTTP 403; the download now falls back to the next client's stream.
-<!-- modified by lavinhoque33, 2026-10-14 -->
-* **YouTube Music - Downloads:** Fix downloaded songs not playing on root (mounted) installs ("Unable to start service ... OfflinePlaybackService ... not found"); the offline player now runs in YouTube Music's own `BackgroundPlayerService` (mediaPlayback) instead of a service the patch added to the manifest, so the manifest is no longer modified.
-<!-- modified by lavinhoque33, 2026-10-14 -->
-* **YouTube Music - Downloads:** Fix the three-dot menu Download row doing nothing with in-app downloads on; the row is now routed to the in-app downloader without also needing the separate "external downloader in flyout menu" setting.
-<!-- modified by lavinhoque33, 2026-10-14 -->
-* **YouTube - Hook download actions:** Make the merge step of the built-in offline downloader much faster (a 783 MB 960p60 video took ~27 s on a Galaxy S23, now a few seconds): the fragmented DASH video and audio are rebuilt into a progressive MP4 by copying the sample data in large blocks instead of feeding every sample through `MediaMuxer`, and the result is written straight into the `Movies/RVX` item instead of the cache and copied again. Files the new path does not handle still use `MediaMuxer`.
-<!-- modified by lavinhoque33, 2026-10-14 -->
-* **YouTube - Hook download actions:** Fix AV1 downloads playing a grey picture with audio only in the offline player on devices without a hardware AV1 decoder (e.g. some tablets); the quality picker now marks AV1 streams the device cannot decode with an orange "[can't play on this device]" note (they stay downloadable for other devices), and the offline player shows a message when such a file is opened.
-<!-- modified by lavinhoque33, 2026-10-14 -->
-* **YouTube - Hook download actions:** Offer VP9/WebM (Opus audio) downloads, saved as `.webm`, for qualities that have no H.264 and no AV1 the device can play (e.g. 1440p and 4K on devices without hardware AV1); only shown when the device has a hardware VP9 decoder for the stream. The WebM merge is a pure-Java remux (cues for seeking, Opus pre-skip kept) that takes seconds instead of over a minute for a 2 GB file; the platform muxer remains as a fallback.
-<!-- modified by lavinhoque33, 2026-10-15 -->
-* **YouTube - Hook download actions:** Fix quality labels in the built-in download picker, the saved library and the offline player for videos that are not 16:9 (e.g. 1920x960 showed "960p60" and 2560x1280 showed "1280p" where YouTube says 1080p60 and 1440p; vertical Shorts showed "1920p"); the label, HD/2K/4K badge and sort order now follow YouTube's own quality label, while decoder checks still use the real picture size.
+* **YouTube - Theme:** Apply custom palettes to newer baseline menu, text and chip colors while preserving stock foreground shades when foreground theming is disabled ([6f7808f](https://github.com/lavinhoque33/revanced-patches/commit/6f7808f704b2d978cd58d6e6d3c10986bde5a7a0))
+* **YouTube - Hook download actions:** Speed up built-in offline downloads with a shared six-connection video/audio pool, reusable connections and bounded ranges with coalesced cache writes; resume failed ranges without decreasing progress and promptly stop cancelled transfers ([db0e088](https://github.com/lavinhoque33/revanced-patches/commit/db0e0889b43e37413e465e2c892eed7976ad460c))
+* **YouTube Music - Downloads:** Speed up in-app audio downloads with bounded 8 MiB ranges shared by up to six reusable connections instead of four uncapped ranges (long tracks over ~40 MiB were throttled by the server), coalesced cache writes and immediate abort of all connections when a range fails; resumed ranges keep progress from decreasing ([db0e088](https://github.com/lavinhoque33/revanced-patches/commit/db0e0889b43e37413e465e2c892eed7976ad460c))
+* **YouTube Music - Downloads:** Fix in-app downloads failing with "Download failed" when googlevideo refuses every range past the first ~1 MB of the default `VISIONOS` client's stream with HTTP 403; the download now falls back to the next client's stream ([db0e088](https://github.com/lavinhoque33/revanced-patches/commit/db0e0889b43e37413e465e2c892eed7976ad460c))
+* **YouTube Music - Downloads:** Fix downloaded songs not playing on root (mounted) installs ("Unable to start service ... OfflinePlaybackService ... not found"); the offline player now runs in YouTube Music's own `BackgroundPlayerService` (mediaPlayback) instead of a service the patch added to the manifest, so the manifest is no longer modified ([811d8dc](https://github.com/lavinhoque33/revanced-patches/commit/811d8dc39d19f20ecb41be19fbad4939ebe2604b))
+* **YouTube Music - Downloads:** Fix the three-dot menu Download row doing nothing with in-app downloads on; the row is now routed to the in-app downloader without also needing the separate "external downloader in flyout menu" setting ([811d8dc](https://github.com/lavinhoque33/revanced-patches/commit/811d8dc39d19f20ecb41be19fbad4939ebe2604b))
+* **YouTube - Hook download actions:** Make the merge step of the built-in offline downloader much faster (a 783 MB 960p60 video took ~27 s on a Galaxy S23, now a few seconds): the fragmented DASH video and audio are rebuilt into a progressive MP4 by copying the sample data in large blocks instead of feeding every sample through `MediaMuxer`, and the result is written straight into the `Movies/RVX` item instead of the cache and copied again. Files the new path does not handle still use `MediaMuxer` ([007c8d3](https://github.com/lavinhoque33/revanced-patches/commit/007c8d3437b96e80624bd4a0d6a6971cb9ee041f))
+* **YouTube - Hook download actions:** Fix AV1 downloads playing a grey picture with audio only in the offline player on devices without a hardware AV1 decoder (e.g. some tablets); the quality picker now marks AV1 streams the device cannot decode with an orange "[can't play on this device]" note (they stay downloadable for other devices), and the offline player shows a message when such a file is opened ([007c8d3](https://github.com/lavinhoque33/revanced-patches/commit/007c8d3437b96e80624bd4a0d6a6971cb9ee041f))
+* **YouTube - Hook download actions:** Fix quality labels in the built-in download picker, the saved library and the offline player for videos that are not 16:9 (e.g. 1920x960 showed "960p60" and 2560x1280 showed "1280p" where YouTube says 1080p60 and 1440p; vertical Shorts showed "1920p"); the label, HD/2K/4K badge and sort order now follow YouTube's own quality label, while decoder checks still use the real picture size ([007c8d3](https://github.com/lavinhoque33/revanced-patches/commit/007c8d3437b96e80624bd4a0d6a6971cb9ee041f))
+
+
+### Features
+
+* **YouTube - Hook download actions:** Offer VP9/WebM (Opus audio) downloads, saved as `.webm`, for qualities that have no H.264 and no AV1 the device can play (e.g. 1440p and 4K on devices without hardware AV1); only shown when the device has a hardware VP9 decoder for the stream. The WebM merge is a pure-Java remux (cues for seeking, Opus pre-skip kept) that takes seconds instead of over a minute for a 2 GB file; the platform muxer remains as a fallback ([007c8d3](https://github.com/lavinhoque33/revanced-patches/commit/007c8d3437b96e80624bd4a0d6a6971cb9ee041f))
 
 ## [1.4.2](https://github.com/lavinhoque33/revanced-patches/compare/v1.4.1...v1.4.2) (2026-10-12)
 

@@ -12,7 +12,6 @@ import static app.morphe.extension.shared.utils.StringRef.str;
 import android.animation.ValueAnimator;
 import android.app.Activity;
 import android.content.Context;
-import android.content.Intent;
 import android.content.res.ColorStateList;
 import android.graphics.Bitmap;
 import android.graphics.Color;
@@ -66,7 +65,7 @@ import app.morphe.extension.shared.ui.CustomDialog;
 /** Local catalogue with a compact player matching the stock bottom player of YouTube Music. */
 @SuppressWarnings("deprecation")
 public final class LocalDownloadsFragment extends PreferenceFragment
-        implements OfflinePlaybackService.PlaybackListener {
+        implements OfflinePlayer.PlaybackListener {
 
     private static final int SEEK_BAR_HEIGHT_DP = 3;
 
@@ -166,12 +165,12 @@ public final class LocalDownloadsFragment extends PreferenceFragment
     @Override
     public void onStart() {
         super.onStart();
-        OfflinePlaybackService.addListener(this);
+        OfflinePlayer.addListener(this);
     }
 
     @Override
     public void onStop() {
-        OfflinePlaybackService.removeListener(this);
+        OfflinePlayer.removeListener(this);
         super.onStop();
     }
 
@@ -437,7 +436,7 @@ public final class LocalDownloadsFragment extends PreferenceFragment
 
         miniPrevious = icon("yt_fill_experimental_skip_previous_vd_theme_24",
                 str("morphe_music_downloads_previous"));
-        miniPrevious.setOnClickListener(v -> OfflinePlaybackService.skipPrevious(getActivity()));
+        miniPrevious.setOnClickListener(v -> OfflinePlayer.skipPrevious());
         line.addView(miniPrevious, new LinearLayout.LayoutParams(dp(ICON_BUTTON_DP), dp(ICON_BUTTON_DP)));
 
         miniPlay = icon("yt_fill_experimental_play_vd_theme_24",
@@ -446,12 +445,12 @@ public final class LocalDownloadsFragment extends PreferenceFragment
         // the 24dp of the icons beside it.
         miniPlay.setScaleType(ImageView.ScaleType.FIT_CENTER);
         miniPlay.setPadding(dp(12), dp(12), dp(12), dp(12));
-        miniPlay.setOnClickListener(v -> OfflinePlaybackService.toggle(getActivity()));
+        miniPlay.setOnClickListener(v -> OfflinePlayer.toggle());
         line.addView(miniPlay, new LinearLayout.LayoutParams(dp(ICON_BUTTON_DP), dp(ICON_BUTTON_DP)));
 
         miniNext = icon("yt_fill_experimental_skip_next_vd_theme_24",
                 str("morphe_music_downloads_next"));
-        miniNext.setOnClickListener(v -> OfflinePlaybackService.skipNext(getActivity()));
+        miniNext.setOnClickListener(v -> OfflinePlayer.skipNext());
         line.addView(miniNext, new LinearLayout.LayoutParams(dp(ICON_BUTTON_DP), dp(ICON_BUTTON_DP)));
 
         outer.addView(line, new LinearLayout.LayoutParams(-1, dp(60)));
@@ -481,7 +480,7 @@ public final class LocalDownloadsFragment extends PreferenceFragment
             public void onStopTrackingTouch(SeekBar bar) {
                 userSeeking = false;
                 bar.setThumb(null);
-                OfflinePlaybackService.seekTo(bar.getProgress());
+                OfflinePlayer.seekTo(bar.getProgress());
             }
 
             @Override
@@ -631,16 +630,9 @@ public final class LocalDownloadsFragment extends PreferenceFragment
             ArrayList<String> queue = new ArrayList<>(queuePaths);
             final int queueIndex = Math.max(0, queue.indexOf(track.audioFile().getAbsolutePath()));
 
-            Intent intent = new Intent(getActivity(), OfflinePlaybackService.class)
-                    .setAction(OfflinePlaybackService.ACTION_PLAY_FILE)
-                    .putExtra(OfflinePlaybackService.EXTRA_PATH, track.audioFile().getAbsolutePath())
-                    .putExtra(OfflinePlaybackService.EXTRA_TITLE, track.displayTitle())
-                    .putExtra(OfflinePlaybackService.EXTRA_ARTIST, track.displayArtist())
-                    .putExtra(OfflinePlaybackService.EXTRA_ARTWORK_PATH,
-                            track.artworkFile().getAbsolutePath())
-                    .putStringArrayListExtra(OfflinePlaybackService.EXTRA_QUEUE, queue)
-                    .putExtra(OfflinePlaybackService.EXTRA_QUEUE_INDEX, queueIndex);
-            getActivity().startForegroundService(intent);
+            // modified by lavinhoque33, 2026-10-14: the player runs in a borrowed stock service
+            OfflinePlayer.play(track.audioFile().getAbsolutePath(), track.displayTitle(),
+                    track.displayArtist(), track.artworkFile().getAbsolutePath(), queue, queueIndex);
 
             applyTrackVisuals(track);
         } catch (Exception ex) {

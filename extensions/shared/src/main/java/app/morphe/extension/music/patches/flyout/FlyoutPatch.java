@@ -276,7 +276,10 @@ public class FlyoutPatch {
                 return true;
             }
 
-            if (!Settings.EXTERNAL_DOWNLOADER_FLYOUT_MENU.get()) {
+            // modified by lavinhoque33, 2026-10-14: the flyout Download row was only intercepted when
+            // the separate external downloader flyout setting (off by default) was on, so with in-app
+            // downloads on, the row fell through to Music's own Premium-only download and did nothing.
+            if (!Settings.IN_APP_DOWNLOADS.get() && !Settings.EXTERNAL_DOWNLOADER_FLYOUT_MENU.get()) {
                 return false;
             }
 

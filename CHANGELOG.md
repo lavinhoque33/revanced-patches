@@ -10,6 +10,10 @@
 * **YouTube Music - Downloads:** Speed up in-app audio downloads with bounded 8 MiB ranges shared by up to six reusable connections instead of four uncapped ranges (long tracks over ~40 MiB were throttled by the server), coalesced cache writes and immediate abort of all connections when a range fails; resumed ranges keep progress from decreasing.
 <!-- modified by lavinhoque33, 2026-10-14 -->
 * **YouTube Music - Downloads:** Fix in-app downloads failing with "Download failed" when googlevideo refuses every range past the first ~1 MB of the default `VISIONOS` client's stream with HTTP 403; the download now falls back to the next client's stream.
+<!-- modified by lavinhoque33, 2026-10-14 -->
+* **YouTube Music - Downloads:** Fix downloaded songs not playing on root (mounted) installs ("Unable to start service ... OfflinePlaybackService ... not found"); the offline player now runs in YouTube Music's own `BackgroundPlayerService` (mediaPlayback) instead of a service the patch added to the manifest, so the manifest is no longer modified.
+<!-- modified by lavinhoque33, 2026-10-14 -->
+* **YouTube Music - Downloads:** Fix the three-dot menu Download row doing nothing with in-app downloads on; the row is now routed to the in-app downloader without also needing the separate "external downloader in flyout menu" setting.
 
 ## [1.4.2](https://github.com/lavinhoque33/revanced-patches/compare/v1.4.1...v1.4.2) (2026-10-12)
 

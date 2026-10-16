@@ -1,6 +1,5 @@
-## Unreleased
+## [1.6.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.5.1...v1.6.0) (2026-10-16)
 
-<!-- modified by lavinhoque33, 2026-10-16 -->
 ### Features
 
 Ported from Morphe (MorpheApp/morphe-patches):

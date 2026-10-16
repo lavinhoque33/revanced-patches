@@ -5,6 +5,12 @@
 
 * **YouTube - Hook download actions:** Fix "Replace Downloads page" still opening YouTube's empty native Downloads page from the "Downloads" row in the You tab's library list (lavinhoque33/revanced-patches#7); that row uses a dedicated Downloads page command instead of a browse endpoint, so the command resolver now replaces every entry to the Downloads page with the offline library.
 
+<!-- modified by lavinhoque33, 2026-10-15 -->
+### Features
+
+* **YouTube - Force system font:** Add a patch, ported from Morphe (MorpheApp/morphe-patches#3579), with a setting in RVX → General that shows the app with the device font instead of YouTube Sans; requires an app restart (lavinhoque33/revanced-patches#4).
+* **YouTube - Visual preferences icons:** Add an "Icon style" patch option with a Bold style that draws the settings menu icons with a heavier line weight (lavinhoque33/revanced-patches#4).
+
 ## [1.5.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.4.2...v1.5.0) (2026-10-15)
 
 

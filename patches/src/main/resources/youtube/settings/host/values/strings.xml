@@ -867,6 +867,9 @@ Limitations:
 • Colors may look wrong if the display cannot actually show HDR
 • Playback may fail if the decoder cannot handle HDR
 • HDR still depends on the spoof video streams client"</string>
+    <!-- modified by lavinhoque33, 2026-10-15: Force system font strings. -->
+    <string name="revanced_force_system_font_summary">Shows the app with the device font instead of YouTube Sans</string>
+    <string name="revanced_force_system_font_title">Force system font</string>
     <string name="revanced_fullscreen_ads_closed_toast">Fullscreen ads are closed</string>
     <string name="revanced_gemini_cancelled">Canceled</string>
     <string name="revanced_gemini_chat_input_hint">Ask about this video</string>

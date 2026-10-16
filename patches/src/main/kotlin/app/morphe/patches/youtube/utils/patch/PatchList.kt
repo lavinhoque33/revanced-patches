@@ -69,6 +69,11 @@ internal enum class PatchList(
         "Force original audio",
         "Adds an option to disable audio tracks from being automatically enabled."
     ),
+    // modified by lavinhoque33, 2026-10-15: Force system font patch entry.
+    FORCE_SYSTEM_FONT(
+        "Force system font",
+        "Adds an option to show the app with the device system font instead of YouTube Sans."
+    ),
     DISABLE_FORCED_AUTO_CAPTIONS(
         "Disable forced auto captions",
         "Adds an option to disable captions from being automatically enabled."

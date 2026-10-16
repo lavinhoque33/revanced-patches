@@ -248,6 +248,10 @@
         <!-- SETTINGS: DISABLE_LAYOUT_UPDATES
         <SwitchPreference android:title="@string/revanced_disable_layout_updates_title" android:key="revanced_disable_layout_updates" android:summaryOn="@string/revanced_disable_layout_updates_summary_on" android:summaryOff="@string/revanced_disable_layout_updates_summary_off" />SETTINGS: DISABLE_LAYOUT_UPDATES -->
 
+        <!-- modified by lavinhoque33, 2026-10-15: Force system font preference. -->
+        <!-- SETTINGS: FORCE_SYSTEM_FONT
+        <SwitchPreference android:title="@string/revanced_force_system_font_title" android:key="revanced_force_system_font" android:summary="@string/revanced_force_system_font_summary" />SETTINGS: FORCE_SYSTEM_FONT -->
+
         <!-- SETTINGS: FIX_HYPE_BUTTON_ICON
         <SwitchPreference android:title="@string/revanced_fix_hype_button_icon_title" android:key="revanced_fix_hype_button_icon" android:summaryOn="@string/revanced_fix_hype_button_icon_summary_on" android:summaryOff="@string/revanced_fix_hype_button_icon_summary_off" />SETTINGS: FIX_HYPE_BUTTON_ICON -->
 

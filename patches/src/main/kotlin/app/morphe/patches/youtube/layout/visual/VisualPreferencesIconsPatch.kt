@@ -55,6 +55,17 @@ import org.w3c.dom.Element
 private const val DEFAULT_ICON = "extension"
 private const val EMPTY_ICON = "empty_icon"
 
+// modified by lavinhoque33, 2026-10-15: bold icon style, requested in lavinhoque33/revanced-patches#4.
+private const val REGULAR_ICON_STYLE = "regular"
+private const val BOLD_ICON_STYLE = "bold"
+
+/**
+ * Stroke width in viewport units (960 x 960) that thickens the outline icons.
+ * The outlines are about 31 units wide, so this roughly doubles them
+ * without closing the small gaps inside the icons.
+ */
+private const val BOLD_ICON_STROKE_WIDTH = "28"
+
 @Suppress("unused")
 val visualPreferencesIconsPatch = resourcePatch(
     VISUAL_PREFERENCES_ICONS_FOR_YOUTUBE.title,
@@ -95,10 +106,25 @@ val visualPreferencesIconsPatch = resourcePatch(
         required = true
     )
 
+    // modified by lavinhoque33, 2026-10-15: bold icon style, requested in lavinhoque33/revanced-patches#4.
+    val iconStyleOption = stringOption(
+        key = "iconStyle",
+        default = REGULAR_ICON_STYLE,
+        values = mapOf(
+            "Regular" to REGULAR_ICON_STYLE,
+            "Bold" to BOLD_ICON_STYLE,
+        ),
+        title = "Icon style",
+        description = "The line weight of the settings menu icons.",
+        required = true,
+    )
+
     execute {
         // Check patch options first.
         val selectedIconType = settingsMenuIconOption
             .underBarOrThrow()
+        val iconStyle = iconStyleOption
+            .lowerCaseOrThrow()
 
         if (applyToAll == true) {
             preferenceKey.putAll(rvxPreferenceKey)
@@ -107,6 +133,22 @@ val visualPreferencesIconsPatch = resourcePatch(
         // region copy shared resources
 
         copyResourcesWithRename("youtube/visual/icons", preferenceKey)
+
+        // modified by lavinhoque33, 2026-10-15: bold icon style, requested in lavinhoque33/revanced-patches#4.
+        if (iconStyle == BOLD_ICON_STYLE) {
+            preferenceKey.filterValues { !preferenceKey.containsKey(it) }.keys.forEach { title ->
+                document("res/drawable/${title}_icon.xml").use { document ->
+                    val paths = document.getElementsByTagName("path")
+                    for (i in 0 until paths.length) {
+                        (paths.item(i) as? Element)?.apply {
+                            setAttribute("android:strokeColor", getAttribute("android:fillColor"))
+                            setAttribute("android:strokeWidth", BOLD_ICON_STROKE_WIDTH)
+                            setAttribute("android:strokeLineJoin", "round")
+                        }
+                    }
+                }
+            }
+        }
 
         arrayOf(
             ResourceGroup(
@@ -363,6 +405,8 @@ private val rvxPreferenceKey = mapOf(
     "revanced_enable_shorts_custom_actions_toolbar" to "revanced_preference_screen_toolbar",
     "revanced_enable_watch_next_processing_delay" to "M 390.77 90.77 Q 384.23 90.77 379.81 86.28 Q 375.38 81.8 375.38 75.17 Q 375.38 68.54 379.81 64.27 Q 384.23 60 390.77 60 L 569.23 60 Q 575.77 60 580.19 64.49 Q 584.62 68.97 584.62 75.6 Q 584.62 82.23 580.19 86.5 Q 575.77 90.77 569.23 90.77 L 390.77 90.77 Z M 480.22 538.54 Q 486.85 538.54 491.12 534.12 Q 495.38 529.69 495.38 523.15 L 495.38 349.31 Q 495.38 342.77 490.9 338.35 Q 486.41 333.92 479.78 333.92 Q 473.15 333.92 468.88 338.35 Q 464.62 342.77 464.62 349.31 L 464.62 523.15 Q 464.62 529.69 469.1 534.12 Q 473.59 538.54 480.22 538.54 Z M 480 839.77 Q 414.05 839.77 355.68 814.35 Q 297.31 788.92 253.69 745.69 Q 210.08 702.46 185.04 643.7 Q 160 584.95 160 519.38 Q 160 453.82 185.04 395.45 Q 210.08 337.08 253.69 293.46 Q 297.31 249.85 355.68 224.81 Q 414.05 199.77 480 199.77 Q 540.85 199.77 596 221.5 Q 651.15 243.23 694.85 282.46 L 724.85 251.69 Q 729.23 247.31 735.46 246.92 Q 741.69 246.54 746.85 251.69 Q 752 256.85 752 262.69 Q 752 268.54 746.85 273.69 L 716.08 304.46 Q 753.62 344.46 776.81 398.77 Q 800 453.08 800 519.77 Q 800 584.95 774.96 643.7 Q 749.92 702.46 706.31 745.69 Q 662.69 788.92 604.32 814.35 Q 545.95 839.77 480 839.77 Z M 479.89 809 Q 600.38 809 684.81 724.69 Q 769.23 640.37 769.23 519.88 Q 769.23 399.38 684.92 314.96 Q 600.6 230.54 480.11 230.54 Q 359.62 230.54 275.19 314.85 Q 190.77 399.17 190.77 519.66 Q 190.77 640.15 275.08 724.58 Q 359.4 809 479.89 809 Z M 480 520 Z",
     "revanced_enable_wide_search_bar" to "M 175.38 640 Q 152.33 640 136.16 623.84 Q 120 607.67 120 584.62 L 120 375.38 Q 120 352.33 136.16 336.16 Q 152.33 320 175.38 320 L 784.62 320 Q 807.67 320 823.84 336.16 Q 840 352.33 840 375.38 L 840 584.62 Q 840 607.67 823.84 623.84 Q 807.67 640 784.62 640 L 175.38 640 Z M 175.38 609.23 L 784.62 609.23 Q 795.38 609.23 802.31 602.31 Q 809.23 595.38 809.23 584.62 L 809.23 375.38 Q 809.23 364.62 802.31 357.69 Q 795.38 350.77 784.62 350.77 L 175.38 350.77 Q 164.62 350.77 157.69 357.69 Q 150.77 364.62 150.77 375.38 L 150.77 584.62 Q 150.77 595.38 157.69 602.31 Q 164.62 609.23 175.38 609.23 Z M 150.77 609.23 L 150.77 350.77 L 150.77 609.23 Z",
+    // modified by lavinhoque33, 2026-10-15: icon for the ported Force system font setting.
+    "revanced_force_system_font" to "morphe_custom_branding_name",
     "revanced_hide_action_bar" to "revanced_preference_screen_action_buttons",
     "revanced_hide_album_card" to "M 480 612.46 Q 536.15 612.46 575.77 574.19 Q 615.38 535.92 615.38 480 Q 615.38 423.62 575.88 384.12 Q 536.38 344.62 480 344.62 Q 424.08 344.62 385.81 384.23 Q 347.54 423.85 347.54 480 Q 347.54 535.92 385.81 574.19 Q 424.08 612.46 480 612.46 Z M 480 520 Q 463 520 451.5 508.5 Q 440 497 440 480 Q 440 463 451.5 451.5 Q 463 440 480 440 Q 497 440 508.5 451.5 Q 520 463 520 480 Q 520 497 508.5 508.5 Q 497 520 480 520 Z M 480.13 840 Q 405.69 840 340.34 811.66 Q 274.99 783.32 225.86 734.24 Q 176.73 685.16 148.37 619.87 Q 120 554.58 120 480.13 Q 120 405.46 148.34 339.72 Q 176.68 273.99 225.76 225.36 Q 274.84 176.73 340.13 148.37 Q 405.42 120 479.87 120 Q 554.54 120 620.28 148.34 Q 686.01 176.68 734.64 225.26 Q 783.27 273.84 811.63 339.52 Q 840 405.19 840 479.87 Q 840 554.31 811.66 619.66 Q 783.32 685.01 734.74 734.14 Q 686.16 783.27 620.48 811.63 Q 554.81 840 480.13 840 Z M 480 809.23 Q 617.38 809.23 713.31 713.19 Q 809.23 617.15 809.23 480 Q 809.23 342.62 713.31 246.69 Q 617.38 150.77 480 150.77 Q 342.85 150.77 246.81 246.69 Q 150.77 342.62 150.77 480 Q 150.77 617.15 246.81 713.19 Q 342.85 809.23 480 809.23 Z M 480 480 Z",
     "revanced_hide_ask_button" to "revanced_preference_screen_gemini",

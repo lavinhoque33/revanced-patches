@@ -1,5 +1,5 @@
 {
-  "version": "1.5.0",
+  "version": "1.5.1",
   "patches": [
     {
       "name": "Alternative thumbnails",
@@ -946,6 +946,24 @@
       "use": true,
       "dependencies": [
         "ResourcePatch",
+        "ResourcePatch",
+        "ResourcePatch"
+      ],
+      "compatiblePackages": {
+        "com.google.android.youtube": [
+          "21.39.525",
+          "21.13.164",
+          "20.05.46"
+        ]
+      },
+      "options": []
+    },
+    {
+      "name": "Force system font",
+      "description": "Adds an option to show the app with the device system font instead of YouTube Sans.",
+      "use": true,
+      "dependencies": [
+        "BytecodePatch",
         "ResourcePatch",
         "ResourcePatch"
       ],
@@ -3147,6 +3165,18 @@
           "type": "kotlin.Boolean",
           "default": true,
           "values": null
+        },
+        {
+          "key": "iconStyle",
+          "title": "Icon style",
+          "description": "The line weight of the settings menu icons.",
+          "required": true,
+          "type": "kotlin.String",
+          "default": "regular",
+          "values": {
+            "Regular": "regular",
+            "Bold": "bold"
+          }
         }
       ]
     },

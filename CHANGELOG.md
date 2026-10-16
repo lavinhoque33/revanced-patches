@@ -1,3 +1,10 @@
+## Unreleased
+
+<!-- modified by lavinhoque33, 2026-10-15 -->
+### Bug Fixes
+
+* **YouTube - Hook download actions:** Fix "Replace Downloads page" still opening YouTube's empty native Downloads page from the "Downloads" row in the You tab's library list (lavinhoque33/revanced-patches#7); that row uses a dedicated Downloads page command instead of a browse endpoint, so the command resolver now replaces every entry to the Downloads page with the offline library.
+
 ## [1.5.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.4.2...v1.5.0) (2026-10-15)
 
 

@@ -718,6 +718,21 @@ val downloadActionsPatch = bytecodePatch(
             }
         }
 
+        // modified by lavinhoque33, 2026-10-15: the library row of the You tab opens the Downloads page
+        // with its own command, which never reaches the browse command handler above. The command
+        // resolver sees the commands of taps, links and rows, so both forms are replaced there; the
+        // browse hook above stays for handlers that are called without the resolver. The first
+        // parameter of the resolver is the command; v0 is free at the start and is assigned by
+        // YouTube's first instruction.
+        hookOptional("Command resolver") {
+            commandResolverFingerprint.method.skipIfTrue(
+                0,
+                "invoke-static {p1}, $EXTENSION_OFFLINE_SCREENS->openLibraryInsteadOfCommand(Ljava/lang/Object;)Z",
+                null,
+                "return-void",
+            )
+        }
+
         // endregion
 
         // region Downloads button in the You tab

@@ -20,6 +20,9 @@ import android.os.Bundle;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
+import com.google.protobuf.MessageLite;
+
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -42,6 +45,13 @@ public final class OfflineScreens {
 
     private static final String LICENSE_ACTIVITY = "com.google.android.libraries.social.licenses.LicenseActivity";
     private static final String DOWNLOADS_BROWSE_ID = "FEdownloads";
+    private static final byte[] DOWNLOADS_BROWSE_ID_BYTES = DOWNLOADS_BROWSE_ID.getBytes(StandardCharsets.UTF_8);
+
+    // modified by lavinhoque33, 2026-10-15: field numbers of the commands in YouTube's innertube
+    // protocol. browseEndpoint carries the browse id as field 1; the Downloads page endpoint is the
+    // command of the "Downloads" row in the You tab's library list.
+    private static final int BROWSE_ENDPOINT_FIELD = 48687626;
+    private static final int DOWNLOADS_PAGE_ENDPOINT_FIELD = 167315449;
 
     static final String SORT_NEWEST = "NEWEST";
     static final String SORT_OLDEST = "OLDEST";
@@ -158,14 +168,106 @@ public final class OfflineScreens {
      * @return True to cancel YouTube's navigation.
      */
     public static boolean openLibraryInsteadOfBrowse(@Nullable String browseId) {
-        if (!DOWNLOADS_BROWSE_ID.equals(browseId)
+        return DOWNLOADS_BROWSE_ID.equals(browseId) && openLibraryInsteadOfDownloadsPage();
+    }
+
+    // modified by lavinhoque33, 2026-10-15: the You tab library row opens the Downloads page with a
+    // dedicated endpoint, which never reaches the browse-endpoint handler. Every command is checked
+    // where YouTube resolves it, so each entry to the Downloads page is replaced.
+    /**
+     * Injection point, at the start of YouTube's command resolver.
+     * Opens the offline library instead of YouTube's Downloads page for the two commands that
+     * navigate to it: a browse endpoint with the browse id "FEdownloads" and the Downloads page
+     * endpoint (used by the library row of the You tab). The command is cancelled, so YouTube stays
+     * on the current page and Back from the library returns there.
+     *
+     * @param command The command, a protobuf message.
+     * @return True to cancel YouTube's command.
+     */
+    public static boolean openLibraryInsteadOfCommand(@Nullable Object command) {
+        if (!(command instanceof MessageLite message)
                 || !Settings.IN_APP_DOWNLOADER.get()
                 || !Settings.REPLACE_DOWNLOADS_PAGE.get()) {
             return false;
         }
+        try {
+            return isDownloadsPageCommand(message.toByteArray()) && openLibraryInsteadOfDownloadsPage();
+        } catch (Exception ex) {
+            Logger.printException(() -> "Could not check the command for the Downloads page", ex);
+            return false;
+        }
+    }
+
+    private static boolean openLibraryInsteadOfDownloadsPage() {
+        if (!Settings.IN_APP_DOWNLOADER.get() || !Settings.REPLACE_DOWNLOADS_PAGE.get()) return false;
         Logger.printInfo(() -> "Replacing the Downloads page with the offline library");
         Utils.runOnMainThread(() -> openLibrary(Utils.getActivity()));
         return true;
+    }
+
+    /**
+     * Reads the top-level fields of a serialized command. The field numbers are part of YouTube's
+     * protocol, so they do not change with the obfuscated class names of each app version.
+     */
+    static boolean isDownloadsPageCommand(byte[] command) {
+        int[] position = {0};
+        while (position[0] < command.length) {
+            long tag = readVarint(command, position);
+            int wireType = (int) (tag & 7);
+            int field = (int) (tag >>> 3);
+            if (wireType == 2) {
+                int length = (int) readVarint(command, position);
+                int start = position[0];
+                if (length < 0 || start + length > command.length) return false;
+                if (field == DOWNLOADS_PAGE_ENDPOINT_FIELD) return true;
+                if (field == BROWSE_ENDPOINT_FIELD && browseIdEquals(command, start, start + length)) {
+                    return true;
+                }
+                position[0] = start + length;
+            } else if (wireType == 0) {
+                readVarint(command, position);
+            } else if (wireType == 1) {
+                position[0] += 8;
+            } else if (wireType == 5) {
+                position[0] += 4;
+            } else {
+                return false;
+            }
+        }
+        return false;
+    }
+
+    /** @return If field 1 (browseId) of the browse endpoint in [start, end) is "FEdownloads". */
+    private static boolean browseIdEquals(byte[] data, int start, int end) {
+        int[] position = {start};
+        while (position[0] < end) {
+            long tag = readVarint(data, position);
+            int wireType = (int) (tag & 7);
+            if (wireType != 2) return false;
+            int length = (int) readVarint(data, position);
+            int valueStart = position[0];
+            if (length < 0 || valueStart + length > end) return false;
+            if ((tag >>> 3) == 1) {
+                if (length != DOWNLOADS_BROWSE_ID_BYTES.length) return false;
+                for (int i = 0; i < length; i++) {
+                    if (data[valueStart + i] != DOWNLOADS_BROWSE_ID_BYTES[i]) return false;
+                }
+                return true;
+            }
+            position[0] = valueStart + length;
+        }
+        return false;
+    }
+
+    private static long readVarint(byte[] data, int[] position) {
+        long result = 0;
+        for (int shift = 0; shift < 64 && position[0] < data.length; shift += 7) {
+            byte b = data[position[0]++];
+            result |= (long) (b & 0x7F) << shift;
+            if (b >= 0) return result;
+        }
+        position[0] = data.length;
+        return -1;
     }
 
     // endregion

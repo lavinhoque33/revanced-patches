@@ -53,6 +53,7 @@ import app.morphe.patcher.Fingerprint
 import app.morphe.patcher.InstructionLocation.MatchAfterImmediately
 import app.morphe.patcher.InstructionLocation.MatchAfterWithin
 import app.morphe.patcher.OpcodesFilter
+import app.morphe.patcher.StringComparisonType
 import app.morphe.patcher.fieldAccess
 import app.morphe.patcher.literal
 import app.morphe.patcher.methodCall
@@ -308,6 +309,20 @@ internal val browseEndpointCommandFingerprint = Fingerprint(
     filters = listOf(
         string("FEsfv_channel_pivot"),
         string("replace_pane_predicate"),
+    ),
+)
+
+// modified by lavinhoque33, 2026-10-15
+/**
+ * The command resolver, which looks up the handler of every command (taps, links, rows) and calls
+ * it. It logs "Unknown command not resolved" when no handler matches; the text differs between
+ * 21.13 ("...resolved") and 21.39 ("...resolved %s").
+ */
+internal val commandResolverFingerprint = Fingerprint(
+    returnType = "V",
+    parameters = listOf("L", "Ljava/util/Map;"),
+    filters = listOf(
+        string("Unknown command not resolved", StringComparisonType.STARTS_WITH),
     ),
 )
 

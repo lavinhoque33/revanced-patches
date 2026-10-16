@@ -164,3 +164,14 @@ internal fun floatingMicrophoneBackingFingerprint(backingField: FieldReference) 
         fieldAccess(opcode = Opcode.IPUT_BOOLEAN, reference = backingField, location = MatchAfterImmediately()),
     )
 ) {}
+
+// modified by lavinhoque33, 2026-10-16: Ported from Morphe, hide 'Help & feedback' in app bar menus.
+/**
+ * A row of an app bar menu.
+ */
+internal object ListMenuItemViewOnMeasureFingerprint : Fingerprint(
+    definingClass = "Landroid/support/v7/view/menu/ListMenuItemView;",
+    name = "onMeasure",
+    returnType = "V",
+    parameters = listOf("I", "I")
+)

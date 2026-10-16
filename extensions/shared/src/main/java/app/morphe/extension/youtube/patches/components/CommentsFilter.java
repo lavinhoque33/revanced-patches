@@ -20,8 +20,12 @@ import app.morphe.extension.youtube.utils.ExtendedUtils;
 public final class CommentsFilter extends Filter {
     private static final String CHIP_BAR_PATH_PREFIX = "chip_bar.e";
     private static final String COMMENT_COMPOSER_PATH = "comment_composer.e";
+    // modified by lavinhoque33, 2026-10-16: path of a single comment or reply (ported from Morphe)
+    private static final String COMMENT_PATH = "|comment.e";
     private static final String COMMENT_ENTRY_POINT_TEASER_PATH = "comments_entry_point_teaser";
     private static final Pattern COMMENT_PREVIEW_TEXT_PATTERN = Pattern.compile("comments_entry_point_teaser.+ContainerType");
+    // modified by lavinhoque33, 2026-10-16: the button text is localized and the component also holds other tri-state buttons (ported from Morphe)
+    private static final String TRANSLATE_BUTTON_ACCESSIBILITY_ID = "id.ui.comments.translate.button";
     private static final String FEED_VIDEO_PATH = "video_lockup_with_attachment";
     private static final String VIDEO_METADATA_CAROUSEL_PATH = "video_metadata_carousel.";
 
@@ -35,6 +39,11 @@ public final class CommentsFilter extends Filter {
     private final StringFilterGroup commentsPreviewDots;
     private final StringFilterGroup createAShort;
     private final StringFilterGroup emojiButton;
+    // modified by lavinhoque33, 2026-10-16: new comment button groups (ported from Morphe)
+    private final StringFilterGroup dislikeButton;
+    private final StringFilterGroup menuButton;
+    private final StringFilterGroup minimalCommentsIndicator;
+    private final StringFilterGroup translateButton;
     private final StringFilterGroup previewCommentText;
     private final StringFilterGroup thanks;
     private final StringFilterGroup timestampButton;
@@ -116,6 +125,34 @@ public final class CommentsFilter extends Filter {
                 "id.comment.quick_emoji.button"
         );
 
+        // modified by lavinhoque33, 2026-10-16: Dislike, Menu and Translate comment buttons (ported from Morphe)
+        dislikeButton = new StringFilterGroup(
+                Settings.HIDE_COMMENTS_DISLIKE_BUTTON,
+                "engagement_dislike_button.e"
+        );
+
+        // Overflow buttons are also used outside of comments.
+        menuButton = new StringFilterGroup(
+                Settings.HIDE_COMMENTS_MENU_BUTTON,
+                "overflow_button.e"
+        );
+
+        translateButton = new StringFilterGroup(
+                Settings.HIDE_COMMENTS_TRANSLATE_BUTTON,
+                "tri_state_button.e"
+        );
+
+        // modified by lavinhoque33, 2026-10-16: minimal comments button (ported from Morphe)
+        final StringFilterGroup minimalCommentsCards = new StringFilterGroup(
+                Settings.MINIMAL_COMMENTS_BUTTON,
+                "|carousel_item.e"
+        );
+
+        minimalCommentsIndicator = new StringFilterGroup(
+                Settings.MINIMAL_COMMENTS_BUTTON,
+                VIDEO_METADATA_CAROUSEL_PATH
+        );
+
         timestampButton = new StringFilterGroup(
                 Settings.HIDE_COMMENTS_EMOJI_AND_TIMESTAMP_BUTTONS,
                 "composer_timestamp_button"
@@ -160,12 +197,17 @@ public final class CommentsFilter extends Filter {
                 commentComposerButtons,
                 commentsPreviewDots,
                 createAShort,
+                dislikeButton,
                 emojiButton,
                 liveChatMessages,
+                menuButton,
+                minimalCommentsCards,
+                minimalCommentsIndicator,
                 previewComment,
                 previewCommentText,
                 thanks,
-                timestampButton
+                timestampButton,
+                translateButton
         );
     }
 
@@ -203,9 +245,28 @@ public final class CommentsFilter extends Filter {
             return path.startsWith(VIDEO_METADATA_CAROUSEL_PATH);
         } else if (matchedGroup == previewCommentText) {
             return COMMENT_PREVIEW_TEXT_PATTERN.matcher(path).find();
+        } else if (matchedGroup == dislikeButton || matchedGroup == menuButton) {
+            // modified by lavinhoque33, 2026-10-16: only the buttons of comments and replies
+            return path.contains(COMMENT_PATH);
+        } else if (matchedGroup == translateButton) {
+            // modified by lavinhoque33, 2026-10-16: accessibility id is passed as allValue (see the override below)
+            return allValue != null && allValue.contains(TRANSLATE_BUTTON_ACCESSIBILITY_ID)
+                    && path.contains(COMMENT_PATH);
+        } else if (matchedGroup == minimalCommentsIndicator) {
+            // modified by lavinhoque33, 2026-10-16: sliding cards page selector
+            return path.contains("carousel_header")
+                    && path.endsWith("|ContainerType|ContainerType|ContainerType|");
         }
 
         return true;
+    }
+
+    // modified by lavinhoque33, 2026-10-16: the modern litho bridge supplies accessibility text separately
+    // (same approach as ActionButtonsFilter); the legacy bridge's allValue holds the component string.
+    @Override
+    public boolean isFiltered(Object contextSource, String identifier, String accessibility, String path, byte[] buffer,
+                              StringFilterGroup matchedGroup, FilterContentType contentType, int contentIndex) {
+        return isFiltered(path, identifier, accessibility, buffer, matchedGroup, contentType, contentIndex);
     }
 
     /**

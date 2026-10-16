@@ -423,6 +423,9 @@ Use dark colors if possible, as the app does not support light themes"</string>
     <string name="revanced_disable_drc_audio_title">Disable DRC audio</string>
     <string name="revanced_disable_miniplayer_gesture_summary">Disables swipe to change tracks in the miniplayer</string>
     <string name="revanced_disable_miniplayer_gesture_title">Disable miniplayer gesture</string>
+    <!-- modified by lavinhoque33, 2026-10-16: media notification controls ported from Morphe -->
+    <string name="revanced_disable_notification_media_seekbar_summary">Prevents dragging the seekbar on the lock screen and notification panel</string>
+    <string name="revanced_disable_notification_media_seekbar_title">Disable seekbar</string>
     <string name="revanced_disable_music_video_in_album_redirect_type_entry_on_click">Tap Song / Video toggle</string>
     <string name="revanced_disable_music_video_in_album_redirect_type_entry_on_long_click">Tap and hold Song / Video toggle</string>
     <string name="revanced_disable_music_video_in_album_redirect_type_entry_redirect">Redirect</string>
@@ -489,6 +492,9 @@ Please download %2$s from the website"</string>
     <string name="revanced_external_downloader_not_installed_warning">%s is not installed. Please install it</string>
     <string name="revanced_external_downloader_package_name_summary">Package name of your installed external downloader app, such as NewPipe or YTDLnis</string>
     <string name="revanced_external_downloader_package_name_title">External downloader package name</string>
+    <!-- modified by lavinhoque33, 2026-10-16: force portrait orientation ported from Morphe -->
+    <string name="revanced_force_portrait_orientation_summary">Keeps the app in portrait orientation when the device is rotated</string>
+    <string name="revanced_force_portrait_orientation_title">Force portrait orientation</string>
     <string name="revanced_fullscreen_ads_closed_toast">Fullscreen ads are closed</string>
     <string name="revanced_gms_show_dialog_summary">Displays the optimization dialog for GMSCore at each application startup</string>
     <string name="revanced_gms_show_dialog_title">Show optimization dialog for GMSCore</string>
@@ -602,10 +608,16 @@ Please download %2$s from the website"</string>
     <string name="revanced_hide_navigation_upgrade_button_title">Hide Upgrade button</string>
     <string name="revanced_hide_notification_button_summary">Hides the Notifications button in the toolbar</string>
     <string name="revanced_hide_notification_button_title">Hide Notifications button</string>
+    <!-- modified by lavinhoque33, 2026-10-16: media notification controls ported from Morphe -->
+    <string name="revanced_hide_notification_media_prev_next_summary">Hides Previous and Next buttons in media notification, lock screen, and headphone controls</string>
+    <string name="revanced_hide_notification_media_prev_next_title">Hide Previous &amp; Next buttons</string>
     <string name="revanced_hide_paid_promotion_label_summary">Hides the paid promotion label</string>
     <string name="revanced_hide_paid_promotion_label_title">Hide paid promotion label</string>
     <string name="revanced_hide_playlist_card_shelf_summary">Hides the playlist card shelf in the feed</string>
     <string name="revanced_hide_playlist_card_shelf_title">Hide playlist card shelf</string>
+    <!-- modified by lavinhoque33, 2026-10-16: podcast episode Download button ported from Morphe -->
+    <string name="revanced_hide_podcast_episode_download_button_summary">Hides the Download button under podcast episode descriptions in episode lists</string>
+    <string name="revanced_hide_podcast_episode_download_button_title">Hide podcast episode Download button</string>
     <string name="revanced_hide_premium_promotion_closed_toast">Premium promotion popups are closed</string>
     <string name="revanced_hide_premium_promotion_summary">Hides the premium promotion popups</string>
     <string name="revanced_hide_premium_promotion_title">Hide premium promotion popups</string>

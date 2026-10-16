@@ -126,6 +126,11 @@ public class GeneralPatch {
         return Settings.HIDE_FLOATING_BUTTON.get();
     }
 
+    // modified by lavinhoque33, 2026-10-16: view based hook ported from Morphe's Library "New" button.
+    public static void hideFloatingButton(View view) {
+        hideViewBy0dpUnderCondition(Settings.HIDE_FLOATING_BUTTON.get(), view);
+    }
+
     public static boolean hideTapToUpdateButton() {
         return Settings.HIDE_TAP_TO_UPDATE_BUTTON.get();
     }

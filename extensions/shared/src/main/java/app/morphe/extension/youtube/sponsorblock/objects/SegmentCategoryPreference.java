@@ -39,7 +39,7 @@ public class SegmentCategoryPreference extends ColorPickerPreference {
         // Edit: Using preferences to sync together multiple pieces of code is messy and should be rethought.
         setKey(category.colorSetting.key);
         setTitle(category.title.toString());
-        setSummary(category.description.toString());
+        // modified by lavinhoque33, 2026-10-16: The summary is set in updateUI() and shows the skip behavior.
 
         // Enable opacity slider for this preference.
         setOpacitySliderEnabled(true);
@@ -119,6 +119,8 @@ public class SegmentCategoryPreference extends ColorPickerPreference {
             String value = entryValues[selectedDialogEntryIndex].toString();
             category.setBehaviour(Objects.requireNonNull(CategoryBehaviour.byReVancedKeyValue(value)));
             SegmentCategory.updateEnabledCategories();
+            // modified by lavinhoque33, 2026-10-16: Refresh the summary with the new behavior.
+            updateUI();
         }
     }
 
@@ -138,10 +140,24 @@ public class SegmentCategoryPreference extends ColorPickerPreference {
                 setEnabled(category.behaviorSetting.isAvailable());
             }
 
+            updateSummary();
             updateWidgetColorDot();
         } catch (Exception ex) {
             Logger.printException(() -> "updateUI failure for category: " + category.keyValue, ex);
         }
+    }
+
+    // modified by lavinhoque33, 2026-10-16: Show the skip behavior in the summary. Ported from Morphe.
+    private void updateSummary() {
+        // SegmentCategory.behaviour is only loaded once a video plays, the setting is always current.
+        CategoryBehaviour behaviour = null;
+        if (category.behaviorSetting != null) {
+            behaviour = CategoryBehaviour.byReVancedKeyValue(category.behaviorSetting.get());
+        }
+        if (behaviour == null) {
+            behaviour = category.behaviour;
+        }
+        setSummary(behaviour.description.toString() + '\n' + category.description.toString());
     }
 
     @Override

@@ -43,6 +43,8 @@ package app.morphe.patches.music.general.components
 
 import app.morphe.patcher.Fingerprint
 import app.morphe.patcher.InstructionLocation.MatchAfterImmediately
+import app.morphe.patcher.InstructionLocation.MatchAfterWithin
+import app.morphe.patcher.checkCast
 import app.morphe.patcher.methodCall
 import app.morphe.patcher.opcode
 import app.morphe.patches.music.utils.resourceid.chipCloud
@@ -94,6 +96,20 @@ internal val floatingButtonParentFingerprint = legacyFingerprint(
     parameters = listOf("L"),
     opcodes = listOf(Opcode.INVOKE_DIRECT),
     literals = listOf(259982244L),
+)
+
+// modified by lavinhoque33, 2026-10-16: view based Library "New" button fingerprint ported from Morphe.
+// The Library tab binds its floating button as an ExtendedFloatingActionButton, other fragments
+// bind a view with the same id as a different class. Verified in 9.40.51, 9.15.51 and 8.30.54.
+internal object LibraryNewButtonFingerprint : Fingerprint(
+    filters = listOf(
+        resourceLiteral(ResourceType.ID, "floating_action_button"),
+        opcode(Opcode.MOVE_RESULT_OBJECT, location = MatchAfterWithin(3)),
+        checkCast(
+            "Lcom/google/android/material/floatingactionbutton/ExtendedFloatingActionButton;",
+            location = MatchAfterImmediately()
+        )
+    )
 )
 
 /** Matches the history menu item before and after the 9.x menu-class split. */

@@ -83,6 +83,11 @@ internal enum class PatchList(
         "Flyout menu components",
         "Adds options to hide or change flyout menu components."
     ),
+    // modified by lavinhoque33, 2026-10-16: force portrait orientation ported from Morphe.
+    FORCE_PORTRAIT_ORIENTATION(
+        "Force portrait orientation",
+        "Adds an option to keep the app in portrait orientation when the device is rotated."
+    ),
     GMSCORE_SUPPORT(
         "GmsCore support",
         "Allows patched Google apps to run without root and under a different package name by using GmsCore instead of Google Play Services."
@@ -110,6 +115,11 @@ internal enum class PatchList(
     HIDE_PLAYER_OVERLAY_FILTER(
         "Hide player overlay filter",
         "Removes, at compile time, the dark overlay that appears when single-tapping in the player."
+    ),
+    // modified by lavinhoque33, 2026-10-16: media notification controls ported from Morphe.
+    MEDIA_NOTIFICATION_CONTROLS(
+        "Media notification controls",
+        "Adds options to disable the seekbar and previous/next buttons in the media notification and headphone controls."
     ),
     NAVIGATION_BAR_COMPONENTS(
         "Navigation bar components",

@@ -88,7 +88,8 @@ public final class ActionButtonsFilter extends Filter {
                 "yt_fill_experimental_spark",
                 "yt_fill_spark"
         ),
-        CHANNEL_PROFILE(false),
+        // modified by lavinhoque33, 2026-10-16: Ported from Morphe, hide channel and Subscribe button.
+        CHANNEL_PROFILE(Settings.HIDE_CHANNEL_PROFILE_BUTTON.get()),
         CLIP(Settings.HIDE_CLIP_BUTTON.get()),
         COMMENTS(
                 Settings.HIDE_COMMENTS_BUTTON.get(),
@@ -197,6 +198,10 @@ public final class ActionButtonsFilter extends Filter {
     private final StringFilterGroup actionBarGroup;
     private final StringFilterGroup likeSubscribeGlow;
     private final StringFilterGroup moreButton;
+    // modified by lavinhoque33, 2026-10-16: Ported from Morphe, hide channel profile and Subscribe button in the action bar.
+    // The watch next response is not always parsed on newer app versions, so the channel bar is also filtered by path.
+    private final StringFilterGroup channelProfileButton;
+    private final StringFilterGroup subscribeButton;
     private final StringFilterGroupList accessibilityGroupList = new StringFilterGroupList();
     private final ByteArrayFilterGroupList bufferGroupList = new ByteArrayFilterGroupList();
 
@@ -217,7 +222,16 @@ public final class ActionButtonsFilter extends Filter {
                 Settings.HIDE_MORE_BUTTON,
                 MORE_BUTTON_PATH
         );
-        addPathCallbacks(likeSubscribeGlow, moreButton);
+        // modified by lavinhoque33, 2026-10-16: Ported from Morphe, hide channel profile and Subscribe button in the action bar.
+        channelProfileButton = new StringFilterGroup(
+                Settings.HIDE_CHANNEL_PROFILE_BUTTON,
+                "|compact_channel_bar.e"
+        );
+        subscribeButton = new StringFilterGroup(
+                Settings.HIDE_CHANNEL_PROFILE_SUBSCRIBE_BUTTON,
+                "|compact_channel_bar_animated_buttons.e"
+        );
+        addPathCallbacks(likeSubscribeGlow, moreButton, channelProfileButton, subscribeButton);
 
         accessibilityGroupList.addAll(
                 new StringFilterGroup(
@@ -278,6 +292,10 @@ public final class ActionButtonsFilter extends Filter {
         }
         if (matchedGroup == moreButton) {
             return true;
+        }
+        if (matchedGroup == channelProfileButton || matchedGroup == subscribeButton) {
+            // modified by lavinhoque33, 2026-10-16: Only the channel bar and its Subscribe and Join buttons in the action bar.
+            return StringUtils.startsWithAny(path, COMPACTIFY_VIDEO_ACTION_BAR_PREFIX, VIDEO_ACTION_BAR_PREFIX);
         }
         if (matchedGroup == actionBarGroup) {
             if (Settings.HIDE_ACTION_BAR.get()) {

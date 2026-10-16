@@ -16,6 +16,9 @@ public final class DescriptionsFilter extends Filter {
     private final ByteArrayFilterGroupList macroMarkerShelfGroupList = new ByteArrayFilterGroupList();
     private final ByteArrayFilterGroupList playlistSectionGroupList = new ByteArrayFilterGroupList();
 
+    // modified by lavinhoque33, 2026-10-16: Ported from Morphe, hide 'Ask Gemini' button in the Ask panel.
+    private final StringFilterGroup askGeminiButton;
+    private final ByteArrayFilterGroup askGeminiButtonBuffer;
     private final StringFilterGroup featuredSection;
     private final StringFilterGroup hashtagSection;
     private final ByteArrayFilterGroupList hashtagSectionGroupList = new ByteArrayFilterGroupList();
@@ -79,6 +82,18 @@ public final class DescriptionsFilter extends Filter {
                 podcastSection,
                 transcriptSection,
                 videoSummarySection
+        );
+
+        // modified by lavinhoque33, 2026-10-16: Ported from Morphe.
+        // 'Ask Gemini' Play Store promo button inside the Ask about this video panel (chat_footer).
+        // Only match button paths so the chat_footer root (which holds the text input) is kept.
+        askGeminiButton = new StringFilterGroup(
+                null,
+                "chat_footer.e"
+        );
+        askGeminiButtonBuffer = new ByteArrayFilterGroup(
+                Settings.HIDE_ASK_GEMINI_BUTTON,
+                "com.google.android.apps.bard"
         );
 
         featuredSection = new StringFilterGroup(
@@ -214,6 +229,7 @@ public final class DescriptionsFilter extends Filter {
         );
 
         addPathCallbacks(
+                askGeminiButton,
                 howThisWasMadeSection,
                 correctionsSection,
                 courseProgressSection,
@@ -270,6 +286,12 @@ public final class DescriptionsFilter extends Filter {
     @Override
     public boolean isFiltered(String path, String identifier, String allValue, byte[] buffer,
                               StringFilterGroup matchedGroup, FilterContentType contentType, int contentIndex) {
+        // modified by lavinhoque33, 2026-10-16: Ported from Morphe.
+        // Ask Gemini lives in the PAyouchat engagement panel, not the description panel.
+        if (matchedGroup == askGeminiButton) {
+            return path.contains("button.e") && askGeminiButtonBuffer.check(buffer).isFiltered();
+        }
+
         if (!EngagementPanel.isDescription() && !RootView.isPlayerActive() && !RootView.isShortsActive()) {
             return false;
         }

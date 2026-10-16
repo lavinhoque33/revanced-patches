@@ -605,6 +605,9 @@ Limitation: Back button on the toolbar may not work"</string>
     <string name="revanced_disable_auto_captions_summary_off">Forced auto captions are enabled</string>
     <string name="revanced_disable_auto_captions_summary_on">Forced auto captions are disabled</string>
     <string name="revanced_disable_auto_captions_title">Disable forced auto captions</string>
+    <!-- modified by lavinhoque33, 2026-10-16: Ported from Morphe, disable auto feed refresh. -->
+    <string name="revanced_disable_auto_feed_refresh_summary">Prevents feeds from refreshing automatically after they become outdated</string>
+    <string name="revanced_disable_auto_feed_refresh_title">Disable auto feed refresh</string>
     <string name="revanced_disable_auto_player_popup_panels_summary_off">Auto player popup panels are enabled</string>
     <string name="revanced_disable_auto_player_popup_panels_summary_on">Auto player popup panels are disabled</string>
     <string name="revanced_disable_auto_player_popup_panels_title">Disable player popup panels</string>
@@ -939,6 +942,10 @@ Info:
     <string name="revanced_hide_ask_button_summary_off">Ask button is shown</string>
     <string name="revanced_hide_ask_button_summary_on">Ask button is hidden</string>
     <string name="revanced_hide_ask_button_title">Hide Ask button</string>
+    <!-- modified by lavinhoque33, 2026-10-16: Ported from Morphe, hide 'Ask Gemini' button. -->
+    <string name="revanced_hide_ask_gemini_button_summary_off">\'Ask Gemini\' button is shown</string>
+    <string name="revanced_hide_ask_gemini_button_summary_on">\'Ask Gemini\' button is hidden</string>
+    <string name="revanced_hide_ask_gemini_button_title">Hide \'Ask Gemini\' button</string>
     <string name="revanced_hide_ask_section_summary_off">Ask section is shown</string>
     <string name="revanced_hide_ask_section_summary_on">Ask section is hidden</string>
     <string name="revanced_hide_ask_section_title">Hide Ask section</string>
@@ -994,6 +1001,13 @@ Info:
     <string name="revanced_hide_channel_guidelines_summary_off">Channel guidelines are shown</string>
     <string name="revanced_hide_channel_guidelines_summary_on">Channel guidelines are hidden</string>
     <string name="revanced_hide_channel_guidelines_title">Hide channel guidelines</string>
+    <!-- modified by lavinhoque33, 2026-10-16: Ported from Morphe, hide channel and Subscribe button in the action bar. -->
+    <string name="revanced_hide_channel_profile_button_summary_off">Channel avatar and Subscribe button are shown</string>
+    <string name="revanced_hide_channel_profile_button_summary_on">Channel avatar and Subscribe button are hidden</string>
+    <string name="revanced_hide_channel_profile_button_title">Hide channel and Subscribe button</string>
+    <string name="revanced_hide_channel_profile_subscribe_button_summary_off">Subscribe and Join buttons next to the channel avatar are shown</string>
+    <string name="revanced_hide_channel_profile_subscribe_button_summary_on">Subscribe and Join buttons next to the channel avatar are hidden</string>
+    <string name="revanced_hide_channel_profile_subscribe_button_title">Hide Subscribe button</string>
     <string name="revanced_hide_channel_tab_filter_strings_hint">"Shorts
 Playlists
 Store"</string>
@@ -1033,6 +1047,9 @@ Store"</string>
     <string name="revanced_hide_comments_create_a_short_button_summary_off">Create a Short button is shown</string>
     <string name="revanced_hide_comments_create_a_short_button_summary_on">Create a Short button is hidden</string>
     <string name="revanced_hide_comments_create_a_short_button_title">Hide Create a Short button</string>
+    <string name="revanced_hide_comments_dislike_button_summary_off">Dislike button is shown</string>
+    <string name="revanced_hide_comments_dislike_button_summary_on">Dislike button is hidden</string>
+    <string name="revanced_hide_comments_dislike_button_title">Hide Dislike button</string>
     <string name="revanced_hide_comments_highlighted_search_links_summary_off">Highlighted search links are shown</string>
     <string name="revanced_hide_comments_highlighted_search_links_summary_on">"Highlighted search links are hidden
 
@@ -1041,6 +1058,9 @@ Limitation: Some highlighted search links that do not have a default text style 
     <string name="revanced_hide_comments_information_button_summary_off">Information button is shown</string>
     <string name="revanced_hide_comments_information_button_summary_on">Information button is hidden</string>
     <string name="revanced_hide_comments_information_button_title">Hide information button</string>
+    <string name="revanced_hide_comments_menu_button_summary_off">Menu button is shown</string>
+    <string name="revanced_hide_comments_menu_button_summary_on">Menu button is hidden</string>
+    <string name="revanced_hide_comments_menu_button_title">Hide Menu button</string>
     <string name="revanced_hide_comments_section_in_home_feed_summary_off">Comments section is shown in Home feed</string>
     <string name="revanced_hide_comments_section_in_home_feed_summary_on">Comments section is hidden in Home feed</string>
     <string name="revanced_hide_comments_section_in_home_feed_title">Hide Comments section in Home feed</string>
@@ -1050,6 +1070,9 @@ Limitation: Some highlighted search links that do not have a default text style 
     <string name="revanced_hide_comments_thanks_button_summary_off">Thanks button is shown</string>
     <string name="revanced_hide_comments_thanks_button_summary_on">Thanks button is hidden</string>
     <string name="revanced_hide_comments_thanks_button_title">Hide Thanks button</string>
+    <string name="revanced_hide_comments_translate_button_summary_off">Translate button is shown</string>
+    <string name="revanced_hide_comments_translate_button_summary_on">Translate button is hidden</string>
+    <string name="revanced_hide_comments_translate_button_title">Hide Translate button</string>
     <string name="revanced_hide_community_button_summary_off">Community button is shown</string>
     <string name="revanced_hide_community_button_summary_on">Community button is hidden</string>
     <string name="revanced_hide_community_button_title">Hide Community button</string>
@@ -1157,6 +1180,12 @@ Settings → Autoplay / Playback → Autoplay next video"</string>
     <string name="revanced_hide_hashtag_section_summary_off">Hashtag section is shown</string>
     <string name="revanced_hide_hashtag_section_summary_on">Hashtag section is hidden</string>
     <string name="revanced_hide_hashtag_section_title">Hide Hashtag section</string>
+    <!-- modified by lavinhoque33, 2026-10-16: Ported from Morphe, hide 'Help & feedback' in menus. -->
+    <string name="revanced_hide_help_feedback_menu_summary_off">\'Help &amp; feedback\' is shown in the three-dot menus of the app bar</string>
+    <string name="revanced_hide_help_feedback_menu_summary_on">\'Help &amp; feedback\' is hidden in the three-dot menus of the app bar, such as the search results menu</string>
+    <string name="revanced_hide_help_feedback_menu_title">Hide \'Help &amp; feedback\' in menus</string>
+    <string name="revanced_hide_history_shelf_summary">Hides the History shelf in the You tab</string>
+    <string name="revanced_hide_history_shelf_title">Hide History shelf</string>
     <string name="revanced_hide_how_this_was_made_section_summary_off">\'How this was made\' section is shown</string>
     <string name="revanced_hide_how_this_was_made_section_summary_on">\'How this was made\' section is hidden</string>
     <string name="revanced_hide_how_this_was_made_section_title">Hide \'How this was made\' section</string>
@@ -1246,6 +1275,8 @@ Words with uppercase letters in the middle must be entered with the casing (ie: 
     <string name="revanced_hide_live_chat_replay_button_summary_off">Live chat replay button in video overlay is shown</string>
     <string name="revanced_hide_live_chat_replay_button_summary_on">Live chat replay button in video overlay is hidden</string>
     <string name="revanced_hide_live_chat_replay_button_title">Hide live chat replay button</string>
+    <string name="revanced_hide_live_streams_summary">Hides videos that are live now in the home feed and search results</string>
+    <string name="revanced_hide_live_streams_title">Hide live streams</string>
     <string name="revanced_hide_medical_panel_summary_off">Medical panels are shown</string>
     <string name="revanced_hide_medical_panel_summary_on">Medical panels are hidden</string>
     <string name="revanced_hide_medical_panel_title">Hide medical panels</string>
@@ -1279,6 +1310,8 @@ Words with uppercase letters in the middle must be entered with the casing (ie: 
     <string name="revanced_hide_navigation_library_button_summary_off">Library button is shown</string>
     <string name="revanced_hide_navigation_library_button_summary_on">Library button is hidden</string>
     <string name="revanced_hide_navigation_library_button_title">Hide Library button</string>
+    <!-- modified by lavinhoque33, 2026-10-16: Hide new content dot string. -->
+    <string name="revanced_hide_navigation_new_content_dot_title">Hide new content dot</string>
     <string name="revanced_hide_navigation_notifications_button_summary_off">Notifications button is shown</string>
     <string name="revanced_hide_navigation_notifications_button_summary_on">Notifications button is hidden</string>
     <string name="revanced_hide_navigation_notifications_button_title">Hide Notifications button</string>
@@ -1583,12 +1616,17 @@ Side effect: Official headers in search results will be hidden"</string>
     <string name="revanced_hide_start_trial_button_summary_off">Start trial button is shown</string>
     <string name="revanced_hide_start_trial_button_summary_on">Start trial button is hidden</string>
     <string name="revanced_hide_start_trial_button_title">Hide Start trial button</string>
+    <!-- modified by lavinhoque33, 2026-10-16: Hide status bar strings. -->
+    <string name="revanced_hide_status_bar_summary">Hides the system status bar. Swipe down from the top edge to show it for a moment</string>
+    <string name="revanced_hide_status_bar_title">Hide status bar</string>
     <string name="revanced_hide_stop_ads_button_summary_off">Stop ads button is shown</string>
     <string name="revanced_hide_stop_ads_button_summary_on">Stop ads button is hidden</string>
     <string name="revanced_hide_stop_ads_button_title">Hide Stop ads</string>
     <string name="revanced_hide_store_button_summary_off">Store button is shown</string>
     <string name="revanced_hide_store_button_summary_on">Store button is hidden</string>
     <string name="revanced_hide_store_button_title">Hide Store button</string>
+    <string name="revanced_hide_subscribed_channels_bar_names_summary">Hides the channel names under the channel avatars in the subscribed channels bar</string>
+    <string name="revanced_hide_subscribed_channels_bar_names_title">Hide channel names in subscribed channels bar</string>
     <string name="revanced_hide_subscribed_channels_bar_summary_off">Subscribed channels bar is shown</string>
     <string name="revanced_hide_subscribed_channels_bar_summary_on">Subscribed channels bar is hidden</string>
     <string name="revanced_hide_subscribed_channels_bar_title">Hide subscribed channels bar</string>
@@ -1763,6 +1801,9 @@ Known issue: When this setting is enabled, YouTube Doodles are not clickable"</s
     <string name="revanced_language_VI">Vietnamese\n<small>Tiếng Việt</small></string>
     <string name="revanced_language_ZH">Chinese\n<small>中文</small></string>
     <string name="revanced_language_title">RVX language</string>
+    <string name="revanced_minimal_comments_button_summary_off">Sliding cards and page selector are shown on the comments button</string>
+    <string name="revanced_minimal_comments_button_summary_on">Sliding cards and page selector are hidden on the comments button</string>
+    <string name="revanced_minimal_comments_button_title">Enable minimal comments button</string>
     <string name="revanced_miniplayer_disable_horizontal_drag_playback_summary_off">Playback continues when the miniplayer is dragged off-screen</string>
     <string name="revanced_miniplayer_disable_horizontal_drag_playback_summary_on">Playback will pause when the miniplayer is dragged off-screen</string>
     <string name="revanced_miniplayer_disable_horizontal_drag_playback_title">Disable playback with horizontal drag</string>

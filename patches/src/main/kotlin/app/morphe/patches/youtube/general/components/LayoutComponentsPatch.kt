@@ -266,6 +266,19 @@ val layoutComponentsPatch = bytecodePatch(
 
         // endregion
 
+        // region hide help & feedback in menus
+
+        // modified by lavinhoque33, 2026-10-16: Ported from Morphe.
+        ListMenuItemViewOnMeasureFingerprint.method.addInstructions(
+            0,
+            """
+                invoke-static { p0, p2 }, $LAYOUT_COMPONENTS_FILTER_CLASS_DESCRIPTOR->hideHelpFeedbackMenuRow(Landroid/view/View;I)I
+                move-result p2
+            """
+        )
+
+        // endregion
+
         // region disable UI padding feature flags
 
         if (is_21_07_or_greater) {

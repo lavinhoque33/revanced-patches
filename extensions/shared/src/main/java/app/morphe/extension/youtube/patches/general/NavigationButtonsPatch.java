@@ -23,6 +23,7 @@ import android.content.Intent;
 import android.os.Build;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.ViewStub;
 import android.widget.ImageView;
 import android.widget.TextView;
 
@@ -85,6 +86,12 @@ public final class NavigationButtonsPatch {
 
     private static final boolean SWITCH_CREATE_WITH_NOTIFICATIONS_BUTTON
             = Settings.SWITCH_CREATE_WITH_NOTIFICATIONS_BUTTON.get();
+
+    // modified by lavinhoque33, 2026-10-16: Hide the new content dot on the navigation bar tabs.
+    private static final boolean HIDE_NAVIGATION_NEW_CONTENT_DOT
+            = Settings.HIDE_NAVIGATION_NEW_CONTENT_DOT.get();
+
+    private static int newContentDotId = -1;
 
     private static Map<NavigationButton, Boolean> shouldHideMap;
 
@@ -773,8 +780,41 @@ public final class NavigationButtonsPatch {
             return;
         }
 
+        // modified by lavinhoque33, 2026-10-16: Hide the new content dot on the navigation bar tabs.
+        if (HIDE_NAVIGATION_NEW_CONTENT_DOT) {
+            hideNewContentDot(tabView);
+        }
+
         if (BooleanUtils.isTrue(getHideMap().get(button))) {
             tabView.setVisibility(View.GONE);
+        }
+    }
+
+    // modified by lavinhoque33, 2026-10-16: Hide the new content dot on the navigation bar tabs. Ported from Morphe.
+    /**
+     * The dot is a stub that is inflated when the tab has new content, and the app shows and
+     * hides it again later. It is hidden right before every draw, so no frame shows it. The
+     * theme patch keeps the color of the dot the same way.
+     */
+    private static void hideNewContentDot(View tabView) {
+        try {
+            if (newContentDotId == -1) {
+                newContentDotId = ResourceUtils.getIdIdentifier("new_content_dot");
+            }
+            final int dotId = newContentDotId;
+            if (dotId == 0) {
+                return;
+            }
+
+            tabView.getViewTreeObserver().addOnPreDrawListener(() -> {
+                View dot = tabView.findViewById(dotId);
+                if (dot != null && !(dot instanceof ViewStub) && dot.getVisibility() == View.VISIBLE) {
+                    dot.setVisibility(View.INVISIBLE);
+                }
+                return true;
+            });
+        } catch (Exception ex) {
+            Logger.printException(() -> "hideNewContentDot failure", ex);
         }
     }
 

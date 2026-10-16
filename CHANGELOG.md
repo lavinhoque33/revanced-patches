@@ -1,3 +1,22 @@
+## Unreleased
+
+<!-- modified by lavinhoque33, 2026-10-16 -->
+### Features
+
+Ported from Morphe (MorpheApp/morphe-patches):
+
+* **YouTube - Hide comments components:** Add "Hide Menu button", "Hide Translate button", "Hide Dislike button" and "Minimal comments button" settings.
+* **YouTube - Hide feed components:** Add "Hide History shelf", "Hide live streams" and "Hide channel names in subscribed channels bar" settings.
+* **YouTube:** Add `Disable auto feed refresh` patch, which stops the feed from reloading on its own when returning to the app.
+* **YouTube - Hide action buttons:** Add "Hide channel and Subscribe button" and "Hide Subscribe button" settings for the video action bar.
+* **YouTube - Description components:** Add "Hide 'Ask Gemini' button" setting for the Ask panel.
+* **YouTube - Hide layout components:** Add "Hide Help & feedback in menus" setting for the app bar's three-dot menus.
+* **YouTube - Navigation bar components:** Add "Hide new content dot" setting.
+* **YouTube:** Add `Hide status bar` patch; swipe down from the top edge to show the status bar temporarily.
+* **YouTube - SponsorBlock:** Show each category's skip behavior in its summary in the settings.
+* **YouTube Music - Hide layout components:** Add "Hide podcast episode Download button" setting; "Hide floating button" also hides the Library tab's "New" button in newer layouts.
+* **YouTube Music:** Add `Force portrait orientation` and `Media notification controls` (hide previous/next buttons, disable the seekbar) patches.
+
 ## [1.5.1](https://github.com/lavinhoque33/revanced-patches/compare/v1.5.0...v1.5.1) (2026-10-15)
 
 

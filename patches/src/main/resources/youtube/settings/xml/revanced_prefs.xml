@@ -112,6 +112,7 @@
 
             <!-- SETTINGS: HIDE_NAVIGATION_COMPONENTS
             <SwitchPreference android:title="@string/revanced_hide_navigation_label_title" android:key="revanced_hide_navigation_label" android:summaryOn="@string/revanced_hide_navigation_label_summary_on" android:summaryOff="@string/revanced_hide_navigation_label_summary_off" />
+            <SwitchPreference android:title="@string/revanced_hide_navigation_new_content_dot_title" android:key="revanced_hide_navigation_new_content_dot" />
             <SwitchPreference android:title="@string/revanced_hide_navigation_home_button_title" android:key="revanced_hide_navigation_home_button" android:summaryOn="@string/revanced_hide_navigation_home_button_summary_on" android:summaryOff="@string/revanced_hide_navigation_home_button_summary_off" />
             <SwitchPreference android:title="@string/revanced_hide_navigation_shorts_button_title" android:key="revanced_hide_navigation_shorts_button" android:summaryOn="@string/revanced_hide_navigation_shorts_button_summary_on" android:summaryOff="@string/revanced_hide_navigation_shorts_button_summary_off" />
             <SwitchPreference android:title="@string/revanced_hide_navigation_create_button_title" android:key="revanced_hide_navigation_create_button" android:summaryOn="@string/revanced_hide_navigation_create_button_summary_on" android:summaryOff="@string/revanced_hide_navigation_create_button_summary_off" />
@@ -238,6 +239,9 @@
 
         <!-- SETTINGS: HIDE_LAYOUT_COMPONENTS
         <SwitchPreference android:title="@string/morphe_hide_sync_button_title" android:key="morphe_hide_sync_button" />SETTINGS: HIDE_LAYOUT_COMPONENTS -->
+        <!-- modified by lavinhoque33, 2026-10-16: Ported from Morphe, hide 'Help & feedback' in app bar menus. -->
+        <!-- SETTINGS: HIDE_LAYOUT_COMPONENTS
+        <SwitchPreference android:title="@string/revanced_hide_help_feedback_menu_title" android:key="revanced_hide_help_feedback_menu" android:summaryOn="@string/revanced_hide_help_feedback_menu_summary_on" android:summaryOff="@string/revanced_hide_help_feedback_menu_summary_off" />SETTINGS: HIDE_LAYOUT_COMPONENTS -->
 
         <!-- PREFERENCE_CATEGORY: GENERAL_EXPERIMENTAL_FLAGS
         <PreferenceCategory android:title="@string/revanced_preference_category_experimental_flag" android:layout="@layout/revanced_settings_preferences_category"/>PREFERENCE_CATEGORY: GENERAL_EXPERIMENTAL_FLAGS -->
@@ -251,6 +255,10 @@
         <!-- modified by lavinhoque33, 2026-10-15: Force system font preference. -->
         <!-- SETTINGS: FORCE_SYSTEM_FONT
         <SwitchPreference android:title="@string/revanced_force_system_font_title" android:key="revanced_force_system_font" android:summary="@string/revanced_force_system_font_summary" />SETTINGS: FORCE_SYSTEM_FONT -->
+
+        <!-- modified by lavinhoque33, 2026-10-16: Hide status bar preference. -->
+        <!-- SETTINGS: HIDE_STATUS_BAR
+        <SwitchPreference android:title="@string/revanced_hide_status_bar_title" android:key="revanced_hide_status_bar" android:summary="@string/revanced_hide_status_bar_summary" />SETTINGS: HIDE_STATUS_BAR -->
 
         <!-- SETTINGS: FIX_HYPE_BUTTON_ICON
         <SwitchPreference android:title="@string/revanced_fix_hype_button_icon_title" android:key="revanced_fix_hype_button_icon" android:summaryOn="@string/revanced_fix_hype_button_icon_summary_on" android:summaryOff="@string/revanced_fix_hype_button_icon_summary_off" />SETTINGS: FIX_HYPE_BUTTON_ICON -->
@@ -397,6 +405,11 @@
         <!-- SETTINGS: PLAYBACK_IN_FEEDS
         <app.morphe.extension.youtube.settings.preference.PlaybackInFeedsListPreference android:title="@string/morphe_playback_in_feeds_title" android:key="morphe_playback_in_feeds" android:entries="@array/morphe_playback_in_feeds_entries" android:entryValues="@array/morphe_playback_in_feeds_entry_values" />SETTINGS: PLAYBACK_IN_FEEDS -->
 
+        <!-- modified by lavinhoque33, 2026-10-16: Disable auto feed refresh (ported from Morphe). -->
+        <!-- SETTINGS: DISABLE_AUTO_FEED_REFRESH
+        <SwitchPreference android:title="@string/revanced_disable_auto_feed_refresh_title" android:key="revanced_disable_auto_feed_refresh" android:summary="@string/revanced_disable_auto_feed_refresh_summary" />SETTINGS: DISABLE_AUTO_FEED_REFRESH -->
+
+        <!-- modified by lavinhoque33, 2026-10-16: Ported from Morphe, added revanced_hide_history_shelf, revanced_hide_live_streams and revanced_hide_subscribed_channels_bar_names to the block below. -->
         <!-- SETTINGS: HIDE_FEED_COMPONENTS
         <SwitchPreference android:title="@string/revanced_hide_album_card_title" android:key="revanced_hide_album_card" android:summaryOn="@string/revanced_hide_album_card_summary_on" android:summaryOff="@string/revanced_hide_album_card_summary_off" />
         <SwitchPreference android:title="@string/revanced_hide_feed_captions_button_title" android:key="revanced_hide_feed_captions_button" android:summaryOn="@string/revanced_hide_feed_captions_button_on" android:summaryOff="@string/revanced_hide_feed_captions_button_off" />
@@ -405,6 +418,7 @@
         <SwitchPreference android:title="@string/morphe_hide_auto_dubbed_label_title" android:key="morphe_hide_auto_dubbed_label" />
         <SwitchPreference android:title="@string/morphe_hide_hyped_label_title" android:key="morphe_hide_hyped_label" />
         <SwitchPreference android:title="@string/morphe_hide_invite_to_message_card_title" android:key="morphe_hide_invite_to_message_card" android:summary="@string/morphe_hide_invite_to_message_card_summary" />
+        <SwitchPreference android:title="@string/revanced_hide_history_shelf_title" android:key="revanced_hide_history_shelf" android:summary="@string/revanced_hide_history_shelf_summary" />
         <SwitchPreference android:title="@string/revanced_hide_chips_shelf_title" android:key="revanced_hide_chips_shelf" android:summaryOn="@string/revanced_hide_chips_shelf_on" android:summaryOff="@string/revanced_hide_chips_shelf_off" />SETTINGS: HIDE_FEED_COMPONENTS -->
 
         <!-- SETTINGS: HIDE_EXPANDABLE_CARD
@@ -417,6 +431,7 @@
         <SwitchPreference android:title="@string/revanced_hide_expandable_shelf_title" android:key="revanced_hide_expandable_shelf" android:summaryOn="@string/revanced_hide_expandable_shelf_summary_on" android:summaryOff="@string/revanced_hide_expandable_shelf_summary_off" />
         <SwitchPreference android:title="@string/revanced_hide_latest_posts_title" android:key="revanced_hide_latest_posts" android:summaryOn="@string/revanced_hide_latest_posts_summary_on" android:summaryOff="@string/revanced_hide_latest_posts_summary_off" />
         <SwitchPreference android:title="@string/revanced_hide_latest_videos_button_title" android:key="revanced_hide_latest_videos_button" android:summaryOn="@string/revanced_hide_latest_videos_button_summary_on" android:summaryOff="@string/revanced_hide_latest_videos_button_summary_off" />
+        <SwitchPreference android:title="@string/revanced_hide_live_streams_title" android:key="revanced_hide_live_streams" android:summary="@string/revanced_hide_live_streams_summary" />
         <SwitchPreference android:title="@string/revanced_hide_mix_playlists_title" android:key="revanced_hide_mix_playlists" android:summaryOn="@string/revanced_hide_mix_playlists_summary_on" android:summaryOff="@string/revanced_hide_mix_playlists_summary_off" />
         <SwitchPreference android:title="@string/revanced_hide_movie_shelf_title" android:key="revanced_hide_movie_shelf" android:summaryOn="@string/revanced_hide_movie_shelf_summary_on" android:summaryOff="@string/revanced_hide_movie_shelf_summary_off" />
         <SwitchPreference android:title="@string/revanced_hide_notify_me_button_title" android:key="revanced_hide_notify_me_button" android:summaryOn="@string/revanced_hide_notify_me_button_summary_on" android:summaryOff="@string/revanced_hide_notify_me_button_summary_off" />
@@ -424,6 +439,7 @@
         <SwitchPreference android:title="@string/revanced_hide_feed_search_bar_title" android:key="revanced_hide_feed_search_bar" android:summaryOn="@string/revanced_hide_feed_search_bar_summary_on" android:summaryOff="@string/revanced_hide_feed_search_bar_summary_off" />
         <SwitchPreference android:title="@string/revanced_hide_show_more_button_title" android:key="revanced_hide_show_more_button" android:summaryOn="@string/revanced_hide_show_more_button_summary_on" android:summaryOff="@string/revanced_hide_show_more_button_summary_off" />
         <SwitchPreference android:title="@string/revanced_hide_subscribed_channels_bar_title" android:key="revanced_hide_subscribed_channels_bar" android:summaryOn="@string/revanced_hide_subscribed_channels_bar_summary_on" android:summaryOff="@string/revanced_hide_subscribed_channels_bar_summary_off" />
+        <SwitchPreference android:title="@string/revanced_hide_subscribed_channels_bar_names_title" android:key="revanced_hide_subscribed_channels_bar_names" android:summary="@string/revanced_hide_subscribed_channels_bar_names_summary" />
         <SwitchPreference android:title="@string/revanced_hide_section_header_in_feed_title" android:key="revanced_hide_section_header_in_feed" android:summaryOn="@string/revanced_hide_section_header_in_feed_summary_on" android:summaryOff="@string/revanced_hide_section_header_in_feed_summary_off" />
         <SwitchPreference android:title="@string/revanced_hide_surveys_title" android:key="revanced_hide_surveys" android:summaryOn="@string/revanced_hide_surveys_summary_on" android:summaryOff="@string/revanced_hide_surveys_summary_off" />
         <SwitchPreference android:title="@string/revanced_hide_ticket_shelf_title" android:key="revanced_hide_ticket_shelf" android:summaryOn="@string/revanced_hide_ticket_shelf_summary_on" android:summaryOff="@string/revanced_hide_ticket_shelf_summary_off" />
@@ -507,6 +523,7 @@
             <!-- SETTINGS: RESTORE_OLD_VIDEO_ACTION_BAR
             <SwitchPreference android:title="@string/revanced_restore_old_video_action_bar_title" android:key="revanced_restore_old_video_action_bar" android:summary="@string/revanced_restore_old_video_action_bar_summary" />SETTINGS: RESTORE_OLD_VIDEO_ACTION_BAR -->
 
+            <!-- modified by lavinhoque33, 2026-10-16: Ported from Morphe, added revanced_hide_channel_profile_button and revanced_hide_channel_profile_subscribe_button below. -->
             <!-- SETTINGS: HIDE_ACTION_BUTTONS
             <SwitchPreference android:title="@string/revanced_hide_action_bar_title" android:key="revanced_hide_action_bar" android:summaryOn="@string/revanced_hide_action_bar_summary_on" android:summaryOff="@string/revanced_hide_action_bar_summary_off" />
             <SwitchPreference android:title="@string/revanced_hide_like_dislike_button_title" android:key="revanced_hide_like_dislike_button" android:summaryOn="@string/revanced_hide_like_dislike_button_summary_on" android:summaryOff="@string/revanced_hide_like_dislike_button_summary_off" />
@@ -521,6 +538,8 @@
             <SwitchPreference android:title="@string/revanced_hide_connect_button_title" android:key="revanced_hide_connect_button" android:summaryOn="@string/revanced_hide_connect_button_summary_on" android:summaryOff="@string/revanced_hide_connect_button_summary_off" />
             <SwitchPreference android:title="@string/revanced_hide_stop_ads_button_title" android:key="revanced_hide_stop_ads_button" android:summaryOn="@string/revanced_hide_stop_ads_button_summary_on" android:summaryOff="@string/revanced_hide_stop_ads_button_summary_off" />
             <SwitchPreference android:title="@string/revanced_hide_ask_button_title" android:key="revanced_hide_ask_button" android:summaryOn="@string/revanced_hide_ask_button_summary_on" android:summaryOff="@string/revanced_hide_ask_button_summary_off" />
+            <SwitchPreference android:title="@string/revanced_hide_channel_profile_button_title" android:key="revanced_hide_channel_profile_button" android:summaryOn="@string/revanced_hide_channel_profile_button_summary_on" android:summaryOff="@string/revanced_hide_channel_profile_button_summary_off" />
+            <SwitchPreference android:title="@string/revanced_hide_channel_profile_subscribe_button_title" android:key="revanced_hide_channel_profile_subscribe_button" android:summaryOn="@string/revanced_hide_channel_profile_subscribe_button_summary_on" android:summaryOff="@string/revanced_hide_channel_profile_subscribe_button_summary_off" />
             <SwitchPreference android:title="@string/revanced_hide_hype_button_title" android:key="revanced_hide_hype_button" android:summaryOn="@string/revanced_hide_hype_button_summary_on" android:summaryOff="@string/revanced_hide_hype_button_summary_off" />
             <SwitchPreference android:title="@string/revanced_hide_more_button_title" android:key="revanced_hide_more_button" android:summaryOn="@string/revanced_hide_more_button_summary_on" android:summaryOff="@string/revanced_hide_more_button_summary_off" />
             <SwitchPreference android:title="@string/revanced_hide_promote_button_title" android:key="revanced_hide_promote_button" android:summaryOn="@string/revanced_hide_promote_button_summary_on" android:summaryOff="@string/revanced_hide_promote_button_summary_off" />
@@ -567,8 +586,13 @@
             <SwitchPreference android:title="@string/revanced_hide_preview_comment_title" android:key="revanced_hide_preview_comment" android:summaryOn="@string/revanced_hide_preview_comment_on" android:summaryOff="@string/revanced_hide_preview_comment_off" />
             <SwitchPreference android:title="@string/revanced_hide_preview_comment_type_title" android:key="revanced_hide_preview_comment_type" android:summaryOn="@string/revanced_hide_preview_comment_type_on" android:summaryOff="@string/revanced_hide_preview_comment_type_off" />
             <SwitchPreference android:title="@string/revanced_hide_comments_thanks_button_title" android:key="revanced_hide_comments_thanks_button" android:summaryOn="@string/revanced_hide_comments_thanks_button_summary_on" android:summaryOff="@string/revanced_hide_comments_thanks_button_summary_off" />
+            <SwitchPreference android:title="@string/revanced_hide_comments_dislike_button_title" android:key="revanced_hide_comments_dislike_button" android:summaryOn="@string/revanced_hide_comments_dislike_button_summary_on" android:summaryOff="@string/revanced_hide_comments_dislike_button_summary_off" />
+            <SwitchPreference android:title="@string/revanced_hide_comments_menu_button_title" android:key="revanced_hide_comments_menu_button" android:summaryOn="@string/revanced_hide_comments_menu_button_summary_on" android:summaryOff="@string/revanced_hide_comments_menu_button_summary_off" />
+            <SwitchPreference android:title="@string/revanced_hide_comments_translate_button_title" android:key="revanced_hide_comments_translate_button" android:summaryOn="@string/revanced_hide_comments_translate_button_summary_on" android:summaryOff="@string/revanced_hide_comments_translate_button_summary_off" />
+            <SwitchPreference android:title="@string/revanced_minimal_comments_button_title" android:key="revanced_minimal_comments_button" android:summaryOn="@string/revanced_minimal_comments_button_summary_on" android:summaryOff="@string/revanced_minimal_comments_button_summary_off" />
             <SwitchPreference android:title="@string/revanced_sanitize_comments_category_bar_title" android:key="revanced_sanitize_comments_category_bar" android:summaryOn="@string/revanced_sanitize_comments_category_bar_summary_on" android:summaryOff="@string/revanced_sanitize_comments_category_bar_summary_off" />
         </PreferenceScreen>SETTINGS: HIDE_COMMENTS_COMPONENTS -->
+        <!-- modified by lavinhoque33, 2026-10-16: added Dislike, Menu, Translate and minimal comments button settings to HIDE_COMMENTS_COMPONENTS above (ported from Morphe). -->
 
         <!-- PREFERENCE_SCREENS: FLYOUT_MENU
         <PreferenceScreen android:title="@string/revanced_preference_screen_feed_flyout_menu_title" android:key="revanced_preference_screen_player_flyout_menu" android:summary="@string/revanced_preference_screen_player_flyout_menu_summary">PREFERENCE_SCREENS: FLYOUT_MENU -->
@@ -758,9 +782,11 @@
 
             <!-- SETTINGS: DISABLE_ROLLING_NUMBER_ANIMATIONS
             <SwitchPreference android:title="@string/revanced_disable_rolling_number_animations_title" android:key="revanced_disable_rolling_number_animations" android:summaryOn="@string/revanced_disable_rolling_number_animations_summary_on" android:summaryOff="@string/revanced_disable_rolling_number_animations_summary_off" />SETTINGS: DISABLE_ROLLING_NUMBER_ANIMATIONS -->
+            <!-- modified by lavinhoque33, 2026-10-16: Ported from Morphe, added revanced_hide_ask_gemini_button below. -->
             <!-- SETTINGS: DESCRIPTION_COMPONENTS
             <SwitchPreference android:title="@string/revanced_hide_ai_generated_video_summary_section_title" android:key="revanced_hide_ai_generated_video_summary_section" android:summaryOn="@string/revanced_hide_ai_generated_video_summary_section_summary_on" android:summaryOff="@string/revanced_hide_ai_generated_video_summary_section_summary_off" />
             <SwitchPreference android:title="@string/revanced_hide_ask_section_title" android:key="revanced_hide_ask_section" android:summaryOn="@string/revanced_hide_ask_section_summary_on" android:summaryOff="@string/revanced_hide_ask_section_summary_off" />
+            <SwitchPreference android:title="@string/revanced_hide_ask_gemini_button_title" android:key="revanced_hide_ask_gemini_button" android:summaryOn="@string/revanced_hide_ask_gemini_button_summary_on" android:summaryOff="@string/revanced_hide_ask_gemini_button_summary_off" />
             <SwitchPreference android:title="@string/revanced_hide_attributes_section_title" android:key="revanced_hide_attributes_section" android:summaryOn="@string/revanced_hide_attributes_section_summary_on" android:summaryOff="@string/revanced_hide_attributes_section_summary_off" />
             <SwitchPreference android:title="@string/revanced_hide_chapters_section_title" android:key="revanced_hide_chapters_section" android:summaryOn="@string/revanced_hide_chapters_section_summary_on" android:summaryOff="@string/revanced_hide_chapters_section_summary_off" />
             <SwitchPreference android:title="@string/revanced_hide_corrections_section_title" android:key="revanced_hide_corrections_section" android:summaryOn="@string/revanced_hide_corrections_section_summary_on" android:summaryOff="@string/revanced_hide_corrections_section_summary_off" />

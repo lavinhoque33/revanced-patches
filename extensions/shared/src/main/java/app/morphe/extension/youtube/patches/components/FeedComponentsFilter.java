@@ -71,6 +71,11 @@ public final class FeedComponentsFilter extends Filter {
     private final ByteArrayFilterGroup movieShelfBuffer;
     private final StringFilterGroup inviteToMessageCard;
     private final ByteArrayFilterGroup inviteToMessageCardBuffer;
+    // modified by lavinhoque33, 2026-10-16: Hide History shelf, live streams and subscribed channels bar names (ported from Morphe).
+    private final ByteArrayFilterGroup historyShelfBuffer;
+    private final StringFilterGroup liveStream;
+    private final ByteArrayFilterGroup liveStreamBuffer;
+    private final StringFilterGroup subscribedChannelsBarName;
     private final StringFilterGroup videoLabels;
     private final ByteArrayFilterGroupList videoLabelsGroupList = new ByteArrayFilterGroupList();
     private final StringFilterGroup videoRecommendationLabels;
@@ -297,6 +302,13 @@ public final class FeedComponentsFilter extends Filter {
                 "subscriptions_channel_bar"
         );
 
+        // modified by lavinhoque33, 2026-10-16: Hide channel names in subscribed channels bar (ported from Morphe).
+        // The name under each channel avatar of the bar is the only text of the channel.
+        subscribedChannelsBarName = new StringFilterGroup(
+                Settings.HIDE_SUBSCRIBED_CHANNELS_BAR_NAMES,
+                "subscriptions_channel_bar_channel.e"
+        );
+
         final StringFilterGroup subscriptionsCategoryBar = new StringFilterGroup(
                 Settings.HIDE_CATEGORY_BAR_IN_FEED,
                 "subscriptions_chip_bar"
@@ -363,6 +375,28 @@ public final class FeedComponentsFilter extends Filter {
                 "movie_card.e"
         );
 
+        // modified by lavinhoque33, 2026-10-16: Hide History shelf (ported from Morphe).
+        // Browse id of the History page, opened by the header of the shelf.
+        historyShelfBuffer = new ByteArrayFilterGroup(
+                Settings.HIDE_HISTORY_SHELF,
+                "FEhistory"
+        );
+
+        // modified by lavinhoque33, 2026-10-16: Hide live streams (ported from Morphe).
+        // Feed and search result items.
+        liveStream = new StringFilterGroup(
+                Settings.HIDE_LIVE_STREAMS,
+                "video_lockup_with_attachment.e"
+        );
+
+        // Icon of the 'LIVE' thumbnail badge. Only videos that are live now have it,
+        // past streams ('Streamed 2 months ago') do not.
+        liveStreamBuffer = new ByteArrayFilterGroup(
+                null,
+                "yt_outline_live_black",
+                "yt_outline_experimental_live_black"
+        );
+
         addPathCallbacks(
                 albumCard,
                 carouselShelves,
@@ -379,6 +413,8 @@ public final class FeedComponentsFilter extends Filter {
                 notifyMe,
                 playables,
                 subscribedChannelsBar,
+                subscribedChannelsBarName,
+                liveStream,
                 subscriptionsCategoryBar,
                 subscriptionsSectionHeader,
                 surveys,
@@ -581,7 +617,11 @@ public final class FeedComponentsFilter extends Filter {
 
         if (matchedGroup == carouselShelves) {
             if (contentIndex == 0) {
-                return playablesBuffer.check(buffer).isFiltered()
+                // modified by lavinhoque33, 2026-10-16: Hide History shelf (ported from Morphe).
+                // The History page itself is never hidden, only its shelf in the You tab.
+                return (!BROWSE_ID_HISTORY.equals(RootView.getBrowseId())
+                        && historyShelfBuffer.check(buffer).isFiltered())
+                        || playablesBuffer.check(buffer).isFiltered()
                         || ticketShelfBuffer.check(buffer).isFiltered()
                         || movieShelfBuffer.check(buffer).isFiltered()
                         || (!carouselShelfExceptions.matches(path) && hideShelves());
@@ -601,6 +641,18 @@ public final class FeedComponentsFilter extends Filter {
 
             // Check the navigation button last and only after all buffer checks pass.
             return NavigationButton.getSelectedNavigationButton() == NavigationButton.NOTIFICATIONS;
+        }
+
+        // modified by lavinhoque33, 2026-10-16: Hide live streams (ported from Morphe).
+        if (matchedGroup == liveStream) {
+            // Only check the whole lockup. The buffers of its nested components include
+            // a shared list of icon names that also has the 'LIVE' badge icon.
+            return path.endsWith("|CellType|") && liveStreamBuffer.check(buffer).isFiltered();
+        }
+
+        // modified by lavinhoque33, 2026-10-16: Hide channel names in subscribed channels bar (ported from Morphe).
+        if (matchedGroup == subscribedChannelsBarName) {
+            return path.endsWith("|TextType|");
         }
 
         if (matchedGroup == videoLabels) {

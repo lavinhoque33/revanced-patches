@@ -165,6 +165,18 @@ val layoutComponentsPatch = bytecodePatch(
             )
         }
 
+        // modified by lavinhoque33, 2026-10-16: Morphe's view based Library "New" button hook, controlled
+        // by the existing "Hide floating button" setting. Skipped when the Library button is not bound this way.
+        runCatching { LibraryNewButtonFingerprint.match() }.getOrNull()?.let {
+            val moveResult = it.instructionMatches[1]
+            val register = it.method.getInstruction<OneRegisterInstruction>(moveResult.index).registerA
+
+            it.method.addInstruction(
+                moveResult.index + 1,
+                "invoke-static {v$register}, $GENERAL_CLASS_DESCRIPTOR->hideFloatingButton(Landroid/view/View;)V"
+            )
+        }
+
         // endregion
 
         // region patch for hide history button
@@ -389,6 +401,12 @@ val layoutComponentsPatch = bytecodePatch(
                 "false"
             )
         }
+        // modified by lavinhoque33, 2026-10-16: podcast episode Download button ported from Morphe.
+        addSwitchPreference(
+            CategoryType.GENERAL,
+            "revanced_hide_podcast_episode_download_button",
+            "false"
+        )
         addSwitchPreference(
             CategoryType.GENERAL,
             "revanced_hide_samples_shelf",

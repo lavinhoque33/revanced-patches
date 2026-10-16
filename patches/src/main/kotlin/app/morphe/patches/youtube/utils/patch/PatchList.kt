@@ -74,6 +74,16 @@ internal enum class PatchList(
         "Force system font",
         "Adds an option to show the app with the device system font instead of YouTube Sans."
     ),
+    // modified by lavinhoque33, 2026-10-16: Hide status bar patch entry.
+    HIDE_STATUS_BAR(
+        "Hide status bar",
+        "Adds an option to hide the system status bar. Swipe down from the top edge to show it for a moment."
+    ),
+    // modified by lavinhoque33, 2026-10-16: Disable auto feed refresh patch entry.
+    DISABLE_AUTO_FEED_REFRESH(
+        "Disable auto feed refresh",
+        "Adds an option to stop feeds from refreshing automatically after they become outdated."
+    ),
     DISABLE_FORCED_AUTO_CAPTIONS(
         "Disable forced auto captions",
         "Adds an option to disable captions from being automatically enabled."

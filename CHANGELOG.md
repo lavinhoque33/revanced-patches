@@ -16,6 +16,9 @@ Ported from Morphe (MorpheApp/morphe-patches):
 * **YouTube - SponsorBlock:** Show each category's skip behavior in its summary in the settings.
 * **YouTube Music - Hide layout components:** Add "Hide podcast episode Download button" setting; "Hide floating button" also hides the Library tab's "New" button in newer layouts.
 * **YouTube Music:** Add `Force portrait orientation` and `Media notification controls` (hide previous/next buttons, disable the seekbar) patches.
+* **YouTube:** Add `Copy text` patch; tap and hold the video title or a comment to copy it (MorpheApp/morphe-patches#3592).
+* **YouTube - Swipe controls:** Add a "Volume boost" setting; swiping the volume up past its maximum boosts it with a `LoudnessEnhancer`, which can distort loud audio (MorpheApp/morphe-patches#3412).
+* **YouTube/YouTube Music:** Add `Skip silence` patch with a selectable minimum pause length, which automatically skips silent pauses in audio playback (MorpheApp/morphe-patches#3467).
 
 ## [1.5.1](https://github.com/lavinhoque33/revanced-patches/compare/v1.5.0...v1.5.1) (2026-10-15)
 

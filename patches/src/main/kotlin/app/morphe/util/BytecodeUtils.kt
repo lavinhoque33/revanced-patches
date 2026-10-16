@@ -214,6 +214,8 @@ import com.android.tools.smali.dexlib2.iface.instruction.FiveRegisterInstruction
 import com.android.tools.smali.dexlib2.iface.instruction.Instruction
 import com.android.tools.smali.dexlib2.iface.instruction.OneRegisterInstruction
 import com.android.tools.smali.dexlib2.iface.instruction.ReferenceInstruction
+import com.android.tools.smali.dexlib2.iface.instruction.RegisterRangeInstruction
+import com.android.tools.smali.dexlib2.iface.instruction.TwoRegisterInstruction
 import com.android.tools.smali.dexlib2.iface.instruction.WideLiteralInstruction
 import com.android.tools.smali.dexlib2.iface.instruction.formats.Instruction31i
 import com.android.tools.smali.dexlib2.iface.reference.FieldReference
@@ -256,10 +258,15 @@ private fun Method.findInstructionIndexFromToString(fieldName: String, isField: 
     val stringRegister = getInstruction<OneRegisterInstruction>(stringIndex).registerA
 
     // Find use of the string with a StringBuilder.
+    // modified by lavinhoque33, 2026-10-16: some targets use ranged invokes here, which are not
+    // five register instructions, so take the start register of the ranged call if present.
     val stringUsageIndex = indexOfFirstInstruction(stringIndex) {
         val reference = getReference<MethodReference>()
-        reference?.definingClass == "Ljava/lang/StringBuilder;" &&
-                (this as? FiveRegisterInstruction)?.registerD == stringRegister
+        reference?.definingClass == "Ljava/lang/StringBuilder;" && when (this) {
+            is FiveRegisterInstruction -> registerD == stringRegister
+            is RegisterRangeInstruction -> startRegister == stringRegister
+            else -> false
+        }
     }
     if (stringUsageIndex < 0) {
         throw IllegalArgumentException("Could not find StringBuilder usage in: $this")
@@ -274,7 +281,14 @@ private fun Method.findInstructionIndexFromToString(fieldName: String, isField: 
         // Should never happen.
         throw IllegalArgumentException("Could not find StringBuilder append usage in: $this")
     }
-    var fieldUsageRegister = getInstruction<FiveRegisterInstruction>(fieldUsageIndex).registerD
+    // modified by lavinhoque33, 2026-10-16: take the start register when the append is a ranged invoke.
+    var fieldUsageRegister = when (val appendInstruction = getInstruction(fieldUsageIndex)) {
+        is FiveRegisterInstruction -> appendInstruction.registerD
+        is RegisterRangeInstruction -> appendInstruction.startRegister
+        else -> throw IllegalArgumentException(
+            "Unexpected StringBuilder append instruction: ${appendInstruction.opcode}"
+        )
+    }
 
     // Look backwards up the method to find the instruction that sets the register.
     var fieldSetIndex = indexOfFirstInstructionReversedOrThrow(fieldUsageIndex - 1) {
@@ -298,7 +312,26 @@ private fun Method.findInstructionIndexFromToString(fieldName: String, isField: 
             fieldSetIndex--
         }
 
-        val fieldSetReference = getInstruction<ReferenceInstruction>(fieldSetIndex).reference
+        // modified by lavinhoque33, 2026-10-16: newer toString() implementations copy the field
+        // into a register before appending it, so walk backwards over such register moves.
+        val fieldSetInstruction = getInstruction(fieldSetIndex)
+        if (fieldSetInstruction !is ReferenceInstruction) {
+            val moveSourceRegister = when (fieldSetInstruction) {
+                is TwoRegisterInstruction -> fieldSetInstruction.registerB
+                is RegisterRangeInstruction -> fieldSetInstruction.startRegister
+                else -> throw IllegalArgumentException(
+                    "Unknown reference: ${fieldSetInstruction.opcode}"
+                )
+            }
+            fieldUsageRegister = moveSourceRegister
+            fieldSetIndex = indexOfFirstInstructionReversedOrThrow(fieldSetIndex - 1) {
+                fieldUsageRegister == writeRegister
+            }
+            loopCount--
+            continue
+        }
+
+        val fieldSetReference = fieldSetInstruction.reference
 
         if (isField && fieldSetReference is FieldReference ||
             !isField && fieldSetReference is MethodReference
@@ -309,7 +342,13 @@ private fun Method.findInstructionIndexFromToString(fieldName: String, isField: 
             // Object.toString(), String.valueOf(object)
             fieldSetReference.returnType == "Ljava/lang/String;"
         ) {
-            fieldUsageRegister = getInstruction<FiveRegisterInstruction>(fieldSetIndex).registerC
+            fieldUsageRegister = when (val invokeInstruction = getInstruction(fieldSetIndex)) {
+                is FiveRegisterInstruction -> invokeInstruction.registerC
+                is RegisterRangeInstruction -> invokeInstruction.startRegister
+                else -> throw IllegalArgumentException(
+                    "Unexpected invoke instruction: ${invokeInstruction.opcode}"
+                )
+            }
 
             // Look backwards up the method to find the instruction that sets the register.
             fieldSetIndex = indexOfFirstInstructionReversedOrThrow(fieldSetIndex - 1) {

@@ -43,8 +43,9 @@ class VolumeKeysController(
     private fun handleVolumeKeyEvent(event: KeyEvent, volumeUp: Boolean): Boolean {
         if (event.action == KeyEvent.ACTION_DOWN) {
             controller.audio?.apply {
-                volume += controller.config.volumeSwipeSensitivity * if (volumeUp) 1 else -1
-                controller.overlay.onVolumeChanged(volume, maxVolume)
+                // modified by lavinhoque33, 2026-10-16: Volume boost ported from Morphe.
+                adjustVolumeBy(controller.config.volumeSwipeSensitivity * if (volumeUp) 1 else -1)
+                controller.overlay.onVolumeChanged(volume, maxVolume, boostStep)
             }
         }
 

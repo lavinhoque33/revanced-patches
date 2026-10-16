@@ -529,6 +529,13 @@ Limitation: Back button on the toolbar may not work"</string>
     <string name="revanced_change_youtube_header_title">Change YouTube header</string>
     <string name="revanced_confirm_user_dialog_title">Are you sure you want to proceed?</string>
     <string name="revanced_copy_error">Failed to copy text</string>
+    <!-- modified by lavinhoque33, 2026-10-16: Copy text strings, ported from Morphe. -->
+    <string name="revanced_copy_comments_summary">Tap and hold a comment to copy it</string>
+    <string name="revanced_copy_comments_success">Comment copied to clipboard</string>
+    <string name="revanced_copy_comments_title">Copy comments</string>
+    <string name="revanced_copy_video_title_summary">Tap and hold the title of the video to copy it</string>
+    <string name="revanced_copy_video_title_success">Video title copied to clipboard</string>
+    <string name="revanced_copy_video_title_title">Copy video title</string>
     <string name="revanced_credits_title">Credits</string>
     <string name="revanced_custom_dpi_summary">Forced display density in dots-per-inch for this app only (0 = system default)</string>
     <string name="revanced_custom_dpi_title">Custom DPI</string>
@@ -2956,6 +2963,14 @@ Authorization is required to request translation with live voices for videos tha
     <string name="revanced_vot_voice_style_standard">Standard voices</string>
     <string name="revanced_vot_voice_style_title">Voice-over style</string>
     <string name="revanced_vot_yandex_title" translatable="false">Yandex</string>
+    <!-- modified by lavinhoque33, 2026-10-16: Volume boost strings, ported from Morphe. -->
+    <string name="revanced_volume_boost_summary_on">Volume boost is enabled: swiping up past maximum volume boosts it, which can distort loud audio</string>
+    <string name="revanced_volume_boost_summary_off">Volume boost is disabled</string>
+    <string name="revanced_volume_boost_title">Volume boost</string>
+    <!-- modified by lavinhoque33, 2026-10-16: Skip silence strings, ported from Morphe. -->
+    <string name="revanced_skip_silence_summary">Automatically skips silent pauses in video audio</string>
+    <string name="revanced_skip_silence_title">Skip silence</string>
+    <string name="revanced_skip_silence_minimum_pause_title">Minimum pause length</string>
     <string name="revanced_watch_history_about_status_blocked">• Watch history is blocked</string>
     <string name="revanced_watch_history_about_status_original">"• Follows the watch history settings of Google account
 • Watch history may not work due to DNS or VPN"</string>

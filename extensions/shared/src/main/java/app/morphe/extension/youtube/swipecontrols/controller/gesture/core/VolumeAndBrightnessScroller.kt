@@ -75,8 +75,9 @@ class VolumeAndBrightnessScrollerImpl(
             dipToPixels(volumeDistance),
         ) { _, _, direction ->
             volumeController?.run {
-                volume += direction * volumeSwipeSensitivity
-                overlayController.onVolumeChanged(volume, maxVolume)
+                // modified by lavinhoque33, 2026-10-16: Volume boost ported from Morphe.
+                adjustVolumeBy(direction * volumeSwipeSensitivity)
+                overlayController.onVolumeChanged(volume, maxVolume, boostStep)
             }
         }
 

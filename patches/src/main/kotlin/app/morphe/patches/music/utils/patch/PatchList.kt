@@ -169,6 +169,11 @@ internal enum class PatchList(
         "SponsorBlock",
         "Adds options to enable and configure SponsorBlock, which can skip undesired video segments, such as non-music sections."
     ),
+    // modified by lavinhoque33, 2026-10-16: skip silence patch ported from Morphe.
+    SKIP_SILENCE(
+        "Skip silence",
+        "Adds an option to automatically skip silent pauses in audio playback."
+    ),
     SPOOF_APP_VERSION(
         "Spoof app version",
         "Adds options to spoof the YouTube Music client version. This can be used to restore old UI elements and features."

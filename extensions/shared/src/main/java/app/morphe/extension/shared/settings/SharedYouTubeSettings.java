@@ -8,6 +8,7 @@ import static app.morphe.extension.shared.settings.Setting.parentInverted;
 
 import app.morphe.extension.shared.patches.PatchStatus;
 import app.morphe.extension.shared.patches.PoTokenProviderPatch.PoTokenProviderAvailability;
+import app.morphe.extension.shared.patches.SkipSilencePatch;
 import app.morphe.extension.shared.spoof.SpoofVideoStreamsPatch;
 import app.morphe.extension.shared.spoof.SpoofVideoStreamsPatch.SpoofVideoStreamsAvailability;
 import app.morphe.extension.shared.spoof.SpoofVideoStreamsPatch.JavaScriptClientAvailability;
@@ -48,6 +49,11 @@ public class SharedYouTubeSettings extends BaseSettings {
             !"original".equals(CustomBrandingPatch.getDefaultIconStyle()), true);
 
     public static final BooleanSetting FORCE_ORIGINAL_AUDIO = new BooleanSetting("morphe_force_original_audio", TRUE, true);
+
+    // modified by lavinhoque33, 2026-10-16: Skip silence settings (ported from Morphe).
+    public static final BooleanSetting SKIP_SILENCE = new BooleanSetting("revanced_skip_silence", FALSE, true);
+    public static final EnumSetting<SkipSilencePatch.MinimumPause> SKIP_SILENCE_MINIMUM_PAUSE =
+            new EnumSetting<>("revanced_skip_silence_minimum_pause", SkipSilencePatch.MinimumPause.MS_700, true, parent(SKIP_SILENCE));
 
     public static final BooleanSetting LIVESTREAM_DVR = new BooleanSetting("morphe_livestream_dvr", FALSE, true);
     public static final BooleanSetting EXPAND_LIVESTREAM_DVR_DURATION = new BooleanSetting("morphe_expand_livestream_dvr_duration", FALSE, true);

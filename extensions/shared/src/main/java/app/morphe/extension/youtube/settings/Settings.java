@@ -351,6 +351,9 @@ public class Settings extends SharedYouTubeSettings {
 
 
     // PreferenceScreen: General
+    // modified by lavinhoque33, 2026-10-16: Copy text settings (ported from Morphe).
+    public static final BooleanSetting COPY_VIDEO_TITLE = new BooleanSetting("revanced_copy_video_title", TRUE);
+    public static final BooleanSetting COPY_COMMENTS = new BooleanSetting("revanced_copy_comments", TRUE);
     /** Precompiled presets work on Android 8+, while arbitrary colors require Android 11+. */
     public static final StringSetting DARK_THEME = new StringSetting(
             "morphe_dark_theme", ThemePatch.DEFAULT_DARK_THEME, true);
@@ -970,6 +973,9 @@ public class Settings extends SharedYouTubeSettings {
 
     public static final IntegerSetting SWIPE_VOLUME_DISTANCE = new IntegerSetting("revanced_swipe_volume_distance", 100,
             true, new SliderConfig(1, 1_000, 1, "px"), new SwipeActionAvailability(SwipeZoneAction.VOLUME));
+    // modified by lavinhoque33, 2026-10-16: Volume boost setting (ported from Morphe).
+    public static final BooleanSetting VOLUME_BOOST = new BooleanSetting("revanced_volume_boost", FALSE,
+            new SwipeActionAvailability(SwipeZoneAction.VOLUME));
     public static final IntegerSetting SWIPE_BRIGHTNESS_DISTANCE = new IntegerSetting("revanced_swipe_brightness_distance", 100,
             true, new SliderConfig(1, 1_000, 1, "px"), new SwipeActionAvailability(SwipeZoneAction.BRIGHTNESS));
     public static final IntegerSetting SWIPE_SPEED_DISTANCE = new IntegerSetting("revanced_swipe_speed_distance", 100,

@@ -41,6 +41,11 @@ internal enum class PatchList(
         "Change start page",
         "Adds an option to set which page the app opens in instead of the homepage."
     ),
+    // modified by lavinhoque33, 2026-10-16: copy text patch ported from Morphe.
+    COPY_TEXT(
+        "Copy text",
+        "Adds options to copy the video title and comments by tapping and holding them."
+    ),
     CUSTOM_SHORTS_ACTION_BUTTONS(
         "Custom Shorts action buttons",
         "Changes, at compile time, the icon of the action buttons of the Shorts player."
@@ -292,6 +297,11 @@ internal enum class PatchList(
     SPONSORBLOCK(
         "SponsorBlock",
         "Adds options to enable and configure SponsorBlock, which can skip undesired video segments, such as sponsored content."
+    ),
+    // modified by lavinhoque33, 2026-10-16: skip silence patch ported from Morphe.
+    SKIP_SILENCE(
+        "Skip silence",
+        "Adds an option to automatically skip silent pauses in audio playback."
     ),
     SPOOF_APP_VERSION(
         "Spoof app version",

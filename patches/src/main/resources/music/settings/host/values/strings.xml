@@ -808,6 +808,10 @@ Click to see how to issue an API key"</string>
     <string name="revanced_sb_toast_on_connection_error_sum">Shows a toast if the SponsorBlock API is unavailable</string>
     <string name="revanced_sb_toast_on_skip">Show a toast when skipping automatically</string>
     <string name="revanced_sb_toast_on_skip_sum">Shows a toast when a segment is automatically skipped</string>
+    <!-- modified by lavinhoque33, 2026-10-16: Skip silence strings, ported from Morphe. -->
+    <string name="revanced_skip_silence_summary">Automatically skips silent pauses in audio playback</string>
+    <string name="revanced_skip_silence_title">Skip silence</string>
+    <string name="revanced_skip_silence_minimum_pause_title">Minimum pause length</string>
     <string name="revanced_settings_export_as_file">Export settings to file</string>
     <string name="revanced_settings_export_failed">Failed to export settings</string>
     <string name="revanced_settings_export_success">Settings were successfully exported</string>

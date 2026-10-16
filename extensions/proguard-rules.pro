@@ -6,12 +6,6 @@
 -keep class app.morphe.** {
   *;
 }
--keep class com.aurora.** {
-  *;
-}
--keep class com.dragons.** {
-  *;
-}
 
 ## Rules for OkHttp. Copy pasted from https://github.com/square/okhttp
 -dontwarn okhttp3.**

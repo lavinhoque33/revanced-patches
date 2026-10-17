@@ -33,11 +33,12 @@ Use the full URL above, not the repository URL or a repository-only add-source l
 
 | 💊 Patch | 📜 Description | 🏹 Target Version |
 |:--------:|:--------------:|:-----------------:|
-| `Alternative thumbnails` | Adds options to replace video thumbnails using the DeArrow API or image captures from the video. | 21.39.525 ~ 20.05.46 |
+| `Alternative thumbnails` | Adds options to replace video thumbnails and titles using the DeArrow API, or replace video thumbnails with image captures from the video. | 21.39.525 ~ 20.05.46 |
 | `Ambient mode control` | Adds options to disable Ambient mode and to bypass Ambient mode restrictions. | 21.39.525 ~ 20.05.46 |
 | `App refresh rate` | Adds an option to change the app refresh rate. | 21.39.525 ~ 20.05.46 |
 | `Bypass URL redirects` | Adds an option to bypass URL redirects and open the original URL directly. | 21.39.525 ~ 20.05.46 |
 | `Bypass image region restrictions` | Adds an option to use a different host for static images, so that images blocked in some countries can be received. | 21.39.525 ~ 20.05.46 |
+| `Caption language` | Adds options to automatically select captions in a preferred language and to add more auto-translate languages. | 21.39.525 ~ 20.05.46 |
 | `Change form factor` | Adds an option to change the UI appearance to a phone, tablet, or automotive device. | 21.39.525 ~ 20.05.46 |
 | `Change player flyout menu toggles` | Adds an option to use text toggles instead of switch toggles within the additional settings menu. | 21.39.525 ~ 20.05.46 |
 | `Change share sheet` | Adds an option to change the in-app share sheet to the system share sheet. | 21.39.525 ~ 20.05.46 |
@@ -50,6 +51,7 @@ Use the full URL above, not the repository URL or a repository-only add-source l
 | `Description components` | Adds options to hide and disable description components. | 21.39.525 ~ 20.05.46 |
 | `Disable QUIC protocol` | Adds an option to disable CronetEngine's QUIC protocol. | 21.39.525 ~ 20.05.46 |
 | `Disable auto feed refresh` | Adds an option to stop feeds from refreshing automatically after they become outdated. | 21.39.525 ~ 20.05.46 |
+| `Disable continue watching prompt` | Adds an option to keep autoplay going instead of pausing with a "Continue watching" prompt after a period of inactivity. | 21.39.525 ~ 20.05.46 |
 | `Disable forced auto captions` | Adds an option to disable captions from being automatically enabled. | 21.39.525 ~ 20.05.46 |
 | `Disable haptic feedback` | Adds options to disable haptic feedback when swiping in the video player. | 21.39.525 ~ 20.05.46 |
 | `Disable layout updates` | Adds an option to disable layout updates by server. | 21.39.525 ~ 20.05.46 |

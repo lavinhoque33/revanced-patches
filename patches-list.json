@@ -1,13 +1,15 @@
 {
-  "version": "1.8.0",
+  "version": "1.9.0",
   "patches": [
     {
       "name": "Alternative thumbnails",
-      "description": "Adds options to replace video thumbnails using the DeArrow API or image captures from the video.",
+      "description": "Adds options to replace video thumbnails and titles using the DeArrow API, or replace video thumbnails with image captures from the video.",
       "use": true,
       "dependencies": [
         "BytecodePatch",
         "BytecodePatch",
+        "BytecodePatch",
+        "ResourcePatch",
         "BytecodePatch",
         "ResourcePatch"
       ],
@@ -134,6 +136,25 @@
       "dependencies": [
         "BytecodePatch",
         "ResourcePatch"
+      ],
+      "compatiblePackages": {
+        "com.google.android.youtube": [
+          "21.39.525",
+          "21.13.164",
+          "20.05.46"
+        ]
+      },
+      "options": []
+    },
+    {
+      "name": "Caption language",
+      "description": "Adds options to automatically select captions in a preferred language and to add more auto-translate languages.",
+      "use": true,
+      "dependencies": [
+        "BytecodePatch",
+        "ResourcePatch",
+        "ResourcePatch",
+        "BytecodePatch"
       ],
       "compatiblePackages": {
         "com.google.android.youtube": [
@@ -635,6 +656,24 @@
       "options": []
     },
     {
+      "name": "Disable continue watching prompt",
+      "description": "Adds an option to keep autoplay going instead of pausing with a \"Continue watching\" prompt after a period of inactivity.",
+      "use": true,
+      "dependencies": [
+        "BytecodePatch",
+        "ResourcePatch",
+        "ResourcePatch"
+      ],
+      "compatiblePackages": {
+        "com.google.android.youtube": [
+          "21.39.525",
+          "21.13.164",
+          "20.05.46"
+        ]
+      },
+      "options": []
+    },
+    {
       "name": "Disable dislike redirection",
       "description": "Adds an option to disable redirection to the next track when clicking the Dislike button.",
       "use": true,
@@ -846,6 +885,8 @@
         "ResourcePatch",
         "BytecodePatch",
         "ResourcePatch",
+        "BytecodePatch",
+        "BytecodePatch",
         "BytecodePatch",
         "BytecodePatch"
       ],
@@ -2231,11 +2272,6 @@
       "dependencies": [
         "BytecodePatch",
         "ResourcePatch",
-        "BytecodePatch",
-        "ResourcePatch",
-        "BytecodePatch",
-        "BytecodePatch",
-        "BytecodePatch",
         "BytecodePatch"
       ],
       "compatiblePackages": {

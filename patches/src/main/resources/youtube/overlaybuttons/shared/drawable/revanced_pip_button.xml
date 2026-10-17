@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- modified by lavinhoque33, 2026-10-17: picture-in-picture overlay button selector (ported from Morphe) -->
+<selector android:constantSize="true"
+    xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <item android:state_pressed="true"
+        android:drawable="@drawable/revanced_pip_button_icon"
+        android:tint="?ytCallToAction" />
+
+    <item android:drawable="@drawable/revanced_pip_button_icon"
+        android:tint="@color/yt_white1" />
+</selector>

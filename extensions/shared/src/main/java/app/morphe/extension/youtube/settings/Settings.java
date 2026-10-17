@@ -200,6 +200,9 @@ public class Settings extends SharedYouTubeSettings {
                 public void settingsExported(@Nullable Context context) {
                 }
             };
+    // modified by lavinhoque33, 2026-10-17: caption language settings ported from Morphe.
+    public static final StringSetting PREFERRED_CAPTION_LANGUAGE = new StringSetting("morphe_preferred_caption_language", "off", true);
+    public static final BooleanSetting AUTO_TRANSLATE_ADDITIONAL_LANGUAGES = new BooleanSetting("morphe_auto_translate_additional_languages", TRUE);
     public static final BooleanSetting SPOOF_VIDEO_STREAMS_AV1 = new BooleanSetting(
             "morphe_spoof_video_streams_av1",
             FALSE,
@@ -236,9 +239,23 @@ public class Settings extends SharedYouTubeSettings {
     public static final EnumSetting<ThumbnailOption> ALT_THUMBNAIL_LIBRARY = new EnumSetting<>("revanced_alt_thumbnail_library", ThumbnailOption.ORIGINAL);
     public static final StringSetting ALT_THUMBNAIL_DEARROW_API_URL = new StringSetting("revanced_alt_thumbnail_dearrow_api_url",
             "https://dearrow-thumb.ajay.app/api/v1/getThumbnail", true, new DeArrowAvailability());
-    public static final BooleanSetting ALT_THUMBNAIL_DEARROW_CONNECTION_TOAST = new BooleanSetting("revanced_alt_thumbnail_dearrow_connection_toast", FALSE, new DeArrowAvailability());
+    // modified by lavinhoque33, 2026-10-17: the connection toast also applies to DeArrow titles.
+    public static final BooleanSetting ALT_THUMBNAIL_DEARROW_CONNECTION_TOAST = new BooleanSetting("revanced_alt_thumbnail_dearrow_connection_toast", FALSE,
+            new app.morphe.extension.youtube.patches.alternativethumbnails.AlternativeThumbnailsPatch.DeArrowTitlesOrThumbnailsAvailability());
     public static final EnumSetting<ThumbnailStillTime> ALT_THUMBNAIL_STILLS_TIME = new EnumSetting<>("revanced_alt_thumbnail_stills_time", ThumbnailStillTime.MIDDLE, new StillImagesAvailability());
     public static final BooleanSetting ALT_THUMBNAIL_STILLS_FAST = new BooleanSetting("revanced_alt_thumbnail_stills_fast", FALSE, new StillImagesAvailability());
+    // modified by lavinhoque33, 2026-10-17: DeArrow titles, ported from Morphe's DeArrow patch.
+    public static final BooleanSetting DEARROW_TITLES_HOME = new BooleanSetting("revanced_alt_thumbnail_dearrow_titles_home", FALSE, true);
+    public static final BooleanSetting DEARROW_TITLES_PLAYER = new BooleanSetting("revanced_alt_thumbnail_dearrow_titles_player", FALSE, true);
+    public static final BooleanSetting DEARROW_TITLES_SEARCH = new BooleanSetting("revanced_alt_thumbnail_dearrow_titles_search", FALSE, true);
+    public static final BooleanSetting DEARROW_TITLES_SUBSCRIPTIONS = new BooleanSetting("revanced_alt_thumbnail_dearrow_titles_subscriptions", FALSE, true);
+    public static final BooleanSetting DEARROW_TITLES_LIBRARY = new BooleanSetting("revanced_alt_thumbnail_dearrow_titles_library", FALSE, true);
+    public static final BooleanSetting DEARROW_TITLES_ICON = new BooleanSetting("revanced_alt_thumbnail_dearrow_titles_icon", TRUE, true,
+            new app.morphe.extension.youtube.patches.alternativethumbnails.AlternativeThumbnailsPatch.DeArrowTitlesAvailability());
+    public static final BooleanSetting DEARROW_CASUAL_MODE = new BooleanSetting("revanced_alt_thumbnail_dearrow_casual_mode", FALSE, true,
+            new app.morphe.extension.youtube.patches.alternativethumbnails.AlternativeThumbnailsPatch.DeArrowTitlesAvailability());
+    public static final IntegerSetting DEARROW_CASUAL_MODE_MIN_VOTES = new IntegerSetting("revanced_alt_thumbnail_dearrow_casual_mode_min_votes", 2, true,
+            new app.morphe.extension.youtube.patches.alternativethumbnails.AlternativeThumbnailsPatch.DeArrowCasualModeAvailability());
 
 
     // PreferenceScreen: Feed
@@ -523,6 +540,8 @@ public class Settings extends SharedYouTubeSettings {
             true, new SliderConfig(0, 100, 1, "%"));
     public static final BooleanSetting DISABLE_AUTO_SWITCH_MIX_PLAYLISTS = new BooleanSetting("revanced_disable_auto_switch_mix_playlists", FALSE, true, "revanced_disable_auto_switch_mix_playlists_user_dialog_message");
     public static final BooleanSetting DISABLE_AUTO_PLAYER_POPUP_PANELS = new BooleanSetting("revanced_disable_auto_player_popup_panels", TRUE, true);
+    // modified by lavinhoque33, 2026-10-17: Disable continue watching prompt setting (ported from Morphe).
+    public static final BooleanSetting DISABLE_CONTINUE_WATCHING_PROMPT = new BooleanSetting("revanced_disable_continue_watching_prompt", FALSE);
     public static final BooleanSetting DISABLE_PLAYLIST_AUTOPLAY = new BooleanSetting("revanced_disable_playlist_autoplay", FALSE, true);
     public static final BooleanSetting DISABLE_CHAPTER_SKIP_DOUBLE_TAP = new BooleanSetting("revanced_disable_chapter_skip_double_tap", FALSE);
     public static final BooleanSetting DISABLE_SPEED_OVERLAY = new BooleanSetting("revanced_disable_speed_overlay", FALSE, true);
@@ -720,6 +739,8 @@ public class Settings extends SharedYouTubeSettings {
     public static final IntegerSetting OVERLAY_BUTTON_LOOP_SEGMENT_MARKER_SIZE = new IntegerSetting("revanced_overlay_button_loop_segment_marker_size", 10,
             new SliderConfig(6, 24, 1, "dp"), parent(OVERLAY_BUTTON_LOOP_SEGMENT_SEEKBAR));
     public static final BooleanSetting OVERLAY_BUTTON_MUTE_VOLUME = new BooleanSetting("revanced_overlay_button_mute_volume", FALSE);
+    // modified by lavinhoque33, 2026-10-17: picture-in-picture overlay button (ported from Morphe)
+    public static final BooleanSetting OVERLAY_BUTTON_PICTURE_IN_PICTURE = new BooleanSetting("revanced_overlay_button_picture_in_picture", FALSE);
     public static final BooleanSetting OVERLAY_BUTTON_EXTERNAL_DOWNLOADER = new BooleanSetting("revanced_overlay_button_external_downloader", FALSE);
     public static final BooleanSetting OVERLAY_BUTTON_EXTERNAL_DOWNLOADER_QUEUE_MANAGER = new BooleanSetting("revanced_overlay_button_external_downloader_queue_manager", FALSE, true,
             "revanced_queue_manager_user_dialog_message", parent(OVERLAY_BUTTON_EXTERNAL_DOWNLOADER));

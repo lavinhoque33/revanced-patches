@@ -11,7 +11,8 @@ internal enum class PatchList(
     ),
     ALTERNATIVE_THUMBNAILS(
         "Alternative thumbnails",
-        "Adds options to replace video thumbnails using the DeArrow API or image captures from the video."
+        // modified by lavinhoque33, 2026-10-17: also replaces video titles with DeArrow titles (ported from Morphe).
+        "Adds options to replace video thumbnails and titles using the DeArrow API, or replace video thumbnails with image captures from the video."
     ),
     AMBIENT_MODE_CONTROL(
         "Ambient mode control",
@@ -24,6 +25,11 @@ internal enum class PatchList(
     BYPASS_URL_REDIRECTS(
         "Bypass URL redirects",
         "Adds an option to bypass URL redirects and open the original URL directly."
+    ),
+    // modified by lavinhoque33, 2026-10-17: caption language patch ported from Morphe.
+    CAPTION_LANGUAGE(
+        "Caption language",
+        "Adds options to automatically select captions in a preferred language and to add more auto-translate languages."
     ),
     CHANGE_FORM_FACTOR(
         "Change form factor",
@@ -96,6 +102,11 @@ internal enum class PatchList(
     DISABLE_HAPTIC_FEEDBACK(
         "Disable haptic feedback",
         "Adds options to disable haptic feedback when swiping in the video player."
+    ),
+    // modified by lavinhoque33, 2026-10-17: disable continue watching prompt patch ported from Morphe.
+    DISABLE_CONTINUE_WATCHING_PROMPT(
+        "Disable continue watching prompt",
+        "Adds an option to keep autoplay going instead of pausing with a \"Continue watching\" prompt after a period of inactivity."
     ),
     DISABLE_LAYOUT_UPDATES(
         "Disable layout updates",

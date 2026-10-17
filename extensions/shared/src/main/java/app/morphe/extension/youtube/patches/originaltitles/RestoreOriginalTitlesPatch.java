@@ -43,6 +43,9 @@ import app.morphe.extension.shared.utils.StringRef;
 import app.morphe.extension.shared.utils.Utils;
 import app.morphe.extension.shared.patches.LithoRelayoutPatch;
 import app.morphe.extension.youtube.patches.utils.ProtoNode;
+import app.morphe.extension.youtube.patches.alternativethumbnails.AlternativeThumbnailsPatch;
+import app.morphe.extension.youtube.patches.alternativethumbnails.DeArrowBrandingRequest;
+import app.morphe.extension.youtube.patches.alternativethumbnails.DeArrowTitleIcon;
 import app.morphe.extension.youtube.settings.Settings;
 
 /**
@@ -155,7 +158,23 @@ public final class RestoreOriginalTitlesPatch {
     /**
      * Title requests that lay out the loading texts again when done.
      */
-    private static final Set<CompletableFuture<String>> relayoutRequests = ConcurrentHashMap.newKeySet();
+    // modified by lavinhoque33, 2026-10-17: titles are fetched as OriginalTitleRequest.Titles (DeArrow and original title).
+    private static final Set<CompletableFuture<OriginalTitleRequest.Titles>> relayoutRequests = ConcurrentHashMap.newKeySet();
+
+    // modified by lavinhoque33, 2026-10-17: DeArrow titles of 'Alternative thumbnails', ported from Morphe.
+    // The settings need an app restart, so they are read once.
+    /**
+     * If the original titles and descriptions are restored.
+     */
+    static final boolean RESTORE_ORIGINAL = Settings.RESTORE_ORIGINAL_TITLES.get();
+
+    /**
+     * If the titles are replaced with the DeArrow titles, for any navigation.
+     * A DeArrow title is used instead of the original title when the video has one.
+     */
+    static final boolean USE_DEARROW = AlternativeThumbnailsPatch.DeArrowTitlesAvailability.usingDeArrowTitlesAnywhere();
+
+    private static final boolean REPLACE_TITLES = RESTORE_ORIGINAL || USE_DEARROW;
 
     /**
      * Video id of the opened video.
@@ -167,7 +186,7 @@ public final class RestoreOriginalTitlesPatch {
      */
     public static void newVideoLoaded(String videoId) {
         try {
-            if (!Settings.RESTORE_ORIGINAL_TITLES.get() || videoId == null || videoId.isEmpty()) {
+            if (!RESTORE_ORIGINAL || videoId == null || videoId.isEmpty()) {
                 return;
             }
 
@@ -183,7 +202,7 @@ public final class RestoreOriginalTitlesPatch {
      */
     public static byte[] restoreOriginalTitle(byte[] bytes) {
         try {
-            if (!Settings.RESTORE_ORIGINAL_TITLES.get() || !elementSearch.matches(bytes)) {
+            if (!REPLACE_TITLES || !elementSearch.matches(bytes)) {
                 return bytes;
             }
 
@@ -203,7 +222,12 @@ public final class RestoreOriginalTitlesPatch {
             }
 
             if (identifier != null && identifier.startsWith(DESCRIPTION_IDENTIFIER)) {
-                return restoreDescription(root, textNodes) ? ProtoNode.write(root) : bytes;
+                return RESTORE_ORIGINAL && restoreDescription(root, textNodes) ? ProtoNode.write(root) : bytes;
+            }
+
+            // modified by lavinhoque33, 2026-10-17: DeArrow titles can be used only for some navigations.
+            if (!replacesTitlesForCurrentNavigation()) {
+                return bytes;
             }
 
             Map<List<ProtoNode>, Set<String>> messageVideoIds = new IdentityHashMap<>();
@@ -226,14 +250,21 @@ public final class RestoreOriginalTitlesPatch {
      */
     public static CharSequence onLithoTextLoaded(Object contextInterface, CharSequence text) {
         try {
-            if (!Settings.RESTORE_ORIGINAL_TITLES.get() || text == null
-                    || text.length() > maxTranslatedTitleLength.get()) {
+            // modified by lavinhoque33, 2026-10-17: DeArrow titles (Morphe), with the DeArrow icon if enabled.
+            if (!REPLACE_TITLES || text == null || DeArrowTitleIcon.hasIcon(text)) {
                 return text;
+            }
+            if (text.length() > maxTranslatedTitleLength.get()) {
+                return USE_DEARROW ? deArrowTitleWithIcon(text) : text;
             }
 
             String translatedTitle = text.toString();
             String videoId = translatedTitles.get(translatedTitle);
             if (videoId == null) {
+                // The title can be replaced with the DeArrow title when the element was parsed.
+                return USE_DEARROW ? deArrowTitleWithIcon(text) : text;
+            }
+            if (!replacesTitlesForCurrentNavigation()) {
                 return text;
             }
 
@@ -251,22 +282,10 @@ public final class RestoreOriginalTitlesPatch {
                 return text;
             }
 
-            // Only spans that style the entire text can be applied to a different text.
-            SpannableString replacement = new SpannableString(originalTitle);
-            if (loading) {
-                replacement.setSpan(new LoadingTitleSpan(videoId), 0, replacement.length(),
-                        Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            if (!loading) {
+                logDeArrowTitle(videoId, originalTitle);
             }
-            if (text instanceof Spanned spanned) {
-                final int translatedLength = spanned.length();
-                final int replacementLength = replacement.length();
-                for (Object span : spanned.getSpans(0, translatedLength, Object.class)) {
-                    if (spanned.getSpanStart(span) == 0 && spanned.getSpanEnd(span) == translatedLength) {
-                        replacement.setSpan(span, 0, replacementLength, spanned.getSpanFlags(span));
-                    }
-                }
-            }
-            return replacement;
+            return titleText(text, originalTitle, loading ? new LoadingTitleSpan(videoId) : null);
         } catch (Exception ex) {
             Logger.printException(() -> "onLithoTextLoaded failure", ex);
         }
@@ -282,13 +301,18 @@ public final class RestoreOriginalTitlesPatch {
      */
     public static void restoreOriginalTitle(TextView view, String videoId) {
         try {
-            if (!Settings.RESTORE_ORIGINAL_TITLES.get() || view == null || videoId == null) {
+            // modified by lavinhoque33, 2026-10-17: DeArrow titles (Morphe), decided for the navigation when bound.
+            final boolean useDeArrow = USE_DEARROW && AlternativeThumbnailsPatch.useDeArrowTitlesForCurrentNavigation();
+            if (!REPLACE_TITLES || view == null || videoId == null || !(RESTORE_ORIGINAL || useDeArrow)) {
                 return;
             }
 
             CharSequence translatedTitle = view.getText();
             String translatedTitleText = translatedTitle.toString().trim();
-            if (!translatedTitleText.isEmpty()) {
+            // Reused views can still show the loading title or a DeArrow title.
+            if (!translatedTitleText.isEmpty() && !translatedTitleText.equals(LOADING_TITLE.toString())
+                    && !DeArrowTitleIcon.hasIcon(translatedTitle)
+                    && !DeArrowBrandingRequest.isDeArrowTitle(translatedTitleText)) {
                 putTranslatedTitle(translatedTitleText, videoId);
             }
 
@@ -301,12 +325,18 @@ public final class RestoreOriginalTitlesPatch {
             }
 
             WeakReference<TextView> viewRef = new WeakReference<>(view);
-            OriginalTitleRequest.getAsync(videoId, originalTitle -> {
+            OriginalTitleRequest.getAsync(videoId, titles -> {
                 TextView titleView = viewRef.get();
                 if (titleView == null || !titleViewVideoIds.remove(titleView, videoId)) {
                     return;
                 }
-                CharSequence title = originalTitle == null ? translatedTitle : originalTitle;
+                String replacementTitle = titles.replacement(useDeArrow);
+                if (replacementTitle != null) {
+                    logDeArrowTitle(videoId, replacementTitle);
+                }
+                CharSequence title = replacementTitle == null
+                        ? translatedTitle
+                        : titleText(translatedTitle, replacementTitle, null);
                 // Setting the same text again would notify the text listeners again.
                 if (!TextUtils.equals(title, titleView.getText())) {
                     titleView.setText(title);
@@ -335,7 +365,7 @@ public final class RestoreOriginalTitlesPatch {
 
             @Override
             public void onTextChanged(CharSequence text, int start, int before, int count) {
-                if (!Settings.RESTORE_ORIGINAL_TITLES.get()) {
+                if (!REPLACE_TITLES) {
                     return;
                 }
 
@@ -394,7 +424,7 @@ public final class RestoreOriginalTitlesPatch {
      * Each request lays out the texts once, including requests made again after a failure.
      */
     private static void relayoutWhenFetched(String videoId) {
-        CompletableFuture<String> request = OriginalTitleRequest.fetch(videoId);
+        CompletableFuture<OriginalTitleRequest.Titles> request = OriginalTitleRequest.fetch(videoId);
         if (!relayoutRequests.add(request)) {
             return;
         }
@@ -550,7 +580,7 @@ public final class RestoreOriginalTitlesPatch {
         }
 
         putTranslatedTitle(translatedTitle, videoId);
-        return originalTitle != null && replaceTitle(textNodes, translatedTitle, originalTitle, label);
+        return originalTitle != null && replaceTitle(textNodes, translatedTitle, originalTitle, label, videoId);
     }
 
     /**
@@ -573,7 +603,7 @@ public final class RestoreOriginalTitlesPatch {
 
             String originalTitle = OriginalTitleRequest.getIfAvailable(videoId);
             if (originalTitle != null && !originalTitle.equals(text)) {
-                modified |= replaceTitle(textNodes, text, originalTitle, null);
+                modified |= replaceTitle(textNodes, text, originalTitle, null, videoId);
             }
         }
 
@@ -704,7 +734,7 @@ public final class RestoreOriginalTitlesPatch {
      * @return If any text was replaced.
      */
     private static boolean replaceTitle(List<ProtoNode> textNodes, String translatedTitle,
-                                        String originalTitle, @Nullable String label) {
+                                        String originalTitle, @Nullable String label, String videoId) {
         boolean replaced = false;
         final int translatedLength = translatedTitle.length();
         final boolean replaceInsideTexts = translatedLength >= MIN_TITLE_LENGTH;
@@ -726,7 +756,60 @@ public final class RestoreOriginalTitlesPatch {
 
         if (replaced) {
             Logger.printDebug(() -> "Restored title: " + translatedTitle + " to: " + originalTitle);
+            logDeArrowTitle(videoId, originalTitle);
         }
         return replaced;
+    }
+
+    // modified by lavinhoque33, 2026-10-17: DeArrow titles of 'Alternative thumbnails', ported from Morphe.
+    /**
+     * @return If the titles are replaced for the current navigation: original titles are restored
+     *         for all navigations, and DeArrow titles can be used only for some navigations.
+     */
+    private static boolean replacesTitlesForCurrentNavigation() {
+        return RESTORE_ORIGINAL || AlternativeThumbnailsPatch.useDeArrowTitlesForCurrentNavigation();
+    }
+
+    /**
+     * Only spans that style the entire text can be applied to a different text.
+     * Shows the DeArrow icon before the title if the title is a DeArrow title.
+     *
+     * @param loadingSpan Span of the entire loading title, or null if the title is not loading.
+     */
+    private static SpannableString titleText(CharSequence text, String title, @Nullable LoadingTitleSpan loadingSpan) {
+        final boolean showIcon = loadingSpan == null && DeArrowTitleIcon.isShown(title);
+        SpannableString replacement = new SpannableString(showIcon ? DeArrowTitleIcon.addIcon(title) : title);
+        final int replacementLength = replacement.length();
+        if (loadingSpan != null) {
+            replacement.setSpan(loadingSpan, 0, replacementLength, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        }
+        if (text instanceof Spanned spanned) {
+            final int textLength = spanned.length();
+            for (Object span : spanned.getSpans(0, textLength, Object.class)) {
+                if (spanned.getSpanStart(span) == 0 && spanned.getSpanEnd(span) == textLength) {
+                    replacement.setSpan(span, 0, replacementLength, spanned.getSpanFlags(span));
+                }
+            }
+        }
+        if (showIcon) {
+            // Spans of the entire text are also applied to the icon, such as the color of the text.
+            DeArrowTitleIcon.setIconSpan(replacement);
+        }
+        return replacement;
+    }
+
+    /**
+     * @return The text with the DeArrow icon if the text is a DeArrow title that was replaced
+     *         when the element was parsed, otherwise the text.
+     */
+    private static CharSequence deArrowTitleWithIcon(CharSequence text) {
+        String title = text.toString();
+        return DeArrowTitleIcon.isShown(title) ? titleText(text, title, null) : text;
+    }
+
+    private static void logDeArrowTitle(String videoId, String title) {
+        if (USE_DEARROW && DeArrowBrandingRequest.isDeArrowTitle(title.trim())) {
+            Logger.printDebug(() -> "DeArrow title replaced. videoId: " + videoId + " title: " + title);
+        }
     }
 }

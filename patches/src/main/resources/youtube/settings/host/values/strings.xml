@@ -407,6 +407,18 @@ Tap here to learn more about DeArrow"</string>
     <string name="revanced_alt_thumbnail_dearrow_connection_toast_summary_on">Toast is shown if DeArrow is unavailable</string>
     <string name="revanced_alt_thumbnail_dearrow_error">DeArrow temporarily unavailable (status code: %s)</string>
     <string name="revanced_alt_thumbnail_dearrow_error_generic">DeArrow temporarily unavailable</string>
+    <!-- modified by lavinhoque33, 2026-10-17: DeArrow titles of Alternative thumbnails, ported from Morphe's DeArrow patch. -->
+    <string name="revanced_alt_thumbnail_dearrow_casual_mode_min_votes_summary">The number of casual votes in a single category, such as funny or creative, needed to show the original title</string>
+    <string name="revanced_alt_thumbnail_dearrow_casual_mode_min_votes_title">Minimum casual votes to show original title</string>
+    <string name="revanced_alt_thumbnail_dearrow_casual_mode_summary_off">DeArrow titles are shown regardless of casual votes</string>
+    <string name="revanced_alt_thumbnail_dearrow_casual_mode_summary_on">The original title is shown instead of the DeArrow title if DeArrow users voted they like the original title</string>
+    <string name="revanced_alt_thumbnail_dearrow_casual_mode_title">Casual mode</string>
+    <string name="revanced_alt_thumbnail_dearrow_titles_category_title">DeArrow titles</string>
+    <string name="revanced_alt_thumbnail_dearrow_titles_icon_summary_off">DeArrow icon is not shown on crowdsourced video titles</string>
+    <string name="revanced_alt_thumbnail_dearrow_titles_icon_summary_on">DeArrow icon is shown on crowdsourced video titles</string>
+    <string name="revanced_alt_thumbnail_dearrow_titles_icon_title">Show DeArrow icon</string>
+    <string name="revanced_alt_thumbnail_dearrow_titles_summary_off">DeArrow titles are not shown</string>
+    <string name="revanced_alt_thumbnail_dearrow_titles_summary_on">Video titles are replaced with crowdsourced DeArrow titles when available</string>
     <string name="revanced_alt_thumbnail_home_title">Home tab</string>
     <string name="revanced_alt_thumbnail_library_title">You tab</string>
     <string name="revanced_alt_thumbnail_options_entry_1">Original thumbnails</string>
@@ -444,6 +456,13 @@ Tap and hold to toggle the appended information type"</string>
     <string name="revanced_auto_captions_style_entry_3">Show when unmuted</string>
     <string name="revanced_auto_captions_style_entry_4">Show when muted</string>
     <string name="revanced_auto_captions_style_title">Auto captions visibility</string>
+    <!-- modified by lavinhoque33, 2026-10-17: Caption language strings, ported from Morphe. -->
+    <string name="morphe_preferred_caption_language_title">Preferred caption language</string>
+    <string name="morphe_preferred_caption_language_summary">Selects provider subtitles first, then automatically translates to the preferred language</string>
+    <string name="morphe_preferred_caption_language_entry_off">Off</string>
+    <string name="morphe_auto_translate_additional_languages_title">Add additional auto-translate languages</string>
+    <string name="morphe_auto_translate_additional_languages_summary_on">More languages are added to the auto-translate menu</string>
+    <string name="morphe_auto_translate_additional_languages_summary_off">Only languages offered by YouTube are shown in the auto-translate menu</string>
     <string name="revanced_back_button_always_exits_feed_summary_off">Pressing back scrolls to the top of the feed</string>
     <string name="revanced_back_button_always_exits_feed_summary_on">Pressing back always exits the feed/app</string>
     <string name="revanced_back_button_always_exits_feed_title">Back press in feed</string>
@@ -678,6 +697,10 @@ Changes include:
     <string name="revanced_disable_like_dislike_glow_summary_off">Like and Dislike buttons will glow when mentioned</string>
     <string name="revanced_disable_like_dislike_glow_summary_on">Like and Dislike buttons will not glow when mentioned</string>
     <string name="revanced_disable_like_dislike_glow_title">Disable Like and Dislike buttons glow</string>
+    <!-- modified by lavinhoque33, 2026-10-17: Disable continue watching prompt strings, ported from Morphe. -->
+    <string name="revanced_disable_continue_watching_prompt_title">Disable \'Continue watching?\' prompt</string>
+    <string name="revanced_disable_continue_watching_prompt_summary_on">Autoplay keeps going after a period of inactivity</string>
+    <string name="revanced_disable_continue_watching_prompt_summary_off">Autoplay pauses with a \'Continue watching?\' prompt after a period of inactivity</string>
     <string name="revanced_disable_playlist_autoplay_summary_off">Playlists automatically advance to the next video</string>
     <string name="revanced_disable_playlist_autoplay_summary_on">Playlists are prevented from automatically advancing to the next video</string>
     <string name="revanced_disable_playlist_autoplay_title">Disable playlist autoplay</string>
@@ -1913,6 +1936,9 @@ Tap and hold to copy a video URL with start and end parameters"</string>
     <string name="revanced_overlay_button_mute_volume_summary">Tap to mute volume of the current video. Tap again to unmute</string>
     <string name="revanced_overlay_button_mute_volume_title">Show mute volume button</string>
     <string name="revanced_overlay_button_not_allowed_warning">Tap and hold to change button state</string>
+    <!-- modified by lavinhoque33, 2026-10-17: picture-in-picture overlay button (ported from Morphe) -->
+    <string name="revanced_overlay_button_picture_in_picture_summary">Tap to enter picture-in-picture mode</string>
+    <string name="revanced_overlay_button_picture_in_picture_title">Show picture-in-picture button</string>
     <string name="revanced_overlay_button_play_all_not_available_toast">Unable to generate playlist due to channel id mismatch</string>
     <string name="revanced_overlay_button_play_all_summary">"Tap to generate a playlist of all videos from channel
 Tap and hold to undo

@@ -1,3 +1,14 @@
+## Unreleased
+
+### Features
+
+Ported from Morphe (MorpheApp/morphe-patches):
+
+* **YouTube - Alternative thumbnails:** Add "DeArrow titles": replaces clickbait titles with DeArrow's community titles, set per screen (Home, Player playlists & recommendations, Search results, Subscriptions, You), with an optional DeArrow icon and a "Casual mode" that keeps the original title when enough DeArrow users prefer it. When "Restore original titles" is also on, a DeArrow title is used if the video has one, otherwise the original title.
+* **YouTube:** Add `Disable continue watching prompt` patch: autoplay keeps going instead of pausing with a "Continue watching?" prompt after a period of inactivity (RVX → Player).
+* **YouTube - Overlay buttons:** Add a picture-in-picture button to the video player (RVX → Player → Player buttons).
+* **YouTube:** Add `Caption language` patch: a preferred caption language (creator subtitles first, then a track in that language, then an auto-translated track) and additional auto-translate languages (RVX → General). Choosing a track in the captions menu still wins for that video.
+
 ## [1.8.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.7.0...v1.8.0) (2026-10-17)
 
 ### Features

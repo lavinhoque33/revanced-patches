@@ -110,6 +110,86 @@ public final class AlternativeThumbnailsPatch {
         }
     }
 
+    // modified by lavinhoque33, 2026-10-17: DeArrow titles, ported from Morphe's DeArrowPatch.DeArrowTitlesAvailability.
+    public static final class DeArrowTitlesAvailability implements Setting.Availability {
+        public static boolean usingDeArrowTitlesAnywhere() {
+            return Settings.DEARROW_TITLES_HOME.get()
+                    || Settings.DEARROW_TITLES_SUBSCRIPTIONS.get()
+                    || Settings.DEARROW_TITLES_LIBRARY.get()
+                    || Settings.DEARROW_TITLES_PLAYER.get()
+                    || Settings.DEARROW_TITLES_SEARCH.get();
+        }
+
+        public static boolean usingDeArrowTitlesEverywhere() {
+            return Settings.DEARROW_TITLES_HOME.get()
+                    && Settings.DEARROW_TITLES_SUBSCRIPTIONS.get()
+                    && Settings.DEARROW_TITLES_LIBRARY.get()
+                    && Settings.DEARROW_TITLES_PLAYER.get()
+                    && Settings.DEARROW_TITLES_SEARCH.get();
+        }
+
+        @Override
+        public boolean isAvailable() {
+            return usingDeArrowTitlesAnywhere();
+        }
+
+        @Override
+        public List<Setting<?>> getParentSettings() {
+            return List.of(
+                    Settings.DEARROW_TITLES_HOME,
+                    Settings.DEARROW_TITLES_SUBSCRIPTIONS,
+                    Settings.DEARROW_TITLES_LIBRARY,
+                    Settings.DEARROW_TITLES_PLAYER,
+                    Settings.DEARROW_TITLES_SEARCH
+            );
+        }
+    }
+
+    // modified by lavinhoque33, 2026-10-17: minimum casual votes is available if DeArrow titles and casual mode are on.
+    public static final class DeArrowCasualModeAvailability implements Setting.Availability {
+        @Override
+        public boolean isAvailable() {
+            return DeArrowTitlesAvailability.usingDeArrowTitlesAnywhere() && Settings.DEARROW_CASUAL_MODE.get();
+        }
+
+        @Override
+        public List<Setting<?>> getParentSettings() {
+            return List.of(
+                    Settings.DEARROW_TITLES_HOME,
+                    Settings.DEARROW_TITLES_SUBSCRIPTIONS,
+                    Settings.DEARROW_TITLES_LIBRARY,
+                    Settings.DEARROW_TITLES_PLAYER,
+                    Settings.DEARROW_TITLES_SEARCH,
+                    Settings.DEARROW_CASUAL_MODE
+            );
+        }
+    }
+
+    // modified by lavinhoque33, 2026-10-17: the connection toast applies to DeArrow titles and thumbnails (Morphe's DeArrowAvailability).
+    public static final class DeArrowTitlesOrThumbnailsAvailability implements Setting.Availability {
+        @Override
+        public boolean isAvailable() {
+            return DeArrowAvailability.usingDeArrowAnywhere()
+                    || DeArrowTitlesAvailability.usingDeArrowTitlesAnywhere();
+        }
+
+        @Override
+        public List<Setting<?>> getParentSettings() {
+            return List.of(
+                    ALT_THUMBNAIL_HOME,
+                    ALT_THUMBNAIL_SUBSCRIPTIONS,
+                    ALT_THUMBNAIL_LIBRARY,
+                    ALT_THUMBNAIL_PLAYER,
+                    ALT_THUMBNAIL_SEARCH,
+                    Settings.DEARROW_TITLES_HOME,
+                    Settings.DEARROW_TITLES_SUBSCRIPTIONS,
+                    Settings.DEARROW_TITLES_LIBRARY,
+                    Settings.DEARROW_TITLES_PLAYER,
+                    Settings.DEARROW_TITLES_SEARCH
+            );
+        }
+    }
+
     public enum ThumbnailOption {
         ORIGINAL(false, false),
         DEARROW(true, false),
@@ -189,37 +269,71 @@ public final class AlternativeThumbnailsPatch {
         return apiUri;
     }
 
-    private static ThumbnailOption optionSettingForCurrentNavigation() {
+    // modified by lavinhoque33, 2026-10-17: generalized (as in Morphe's DeArrowPatch) so DeArrow titles use the same navigation logic as thumbnails.
+    /**
+     * Can be called on any thread.
+     *
+     * @return The value of the setting of the current navigation: the player, the search results,
+     *         or the selected navigation tab.
+     */
+    private static <T> T settingForCurrentNavigation(Setting<T> player, Setting<T> search, Setting<T> home,
+                                                     Setting<T> subscriptions, Setting<T> library) {
         // Must check player type first, as search bar can be active behind the player.
         if (RootView.isPlayerActive()) {
-            return ALT_THUMBNAIL_PLAYER.get();
+            return player.get();
         }
 
         // Must check second, as search can be from any tab.
         if (RootView.isSearchBarActive()) {
-            return ALT_THUMBNAIL_SEARCH.get();
+            return search.get();
         }
 
         // Avoid checking which navigation button is selected, if all other settings are the same.
-        ThumbnailOption homeOption = ALT_THUMBNAIL_HOME.get();
-        ThumbnailOption subscriptionsOption = ALT_THUMBNAIL_SUBSCRIPTIONS.get();
-        ThumbnailOption libraryOption = ALT_THUMBNAIL_LIBRARY.get();
-        if ((homeOption == subscriptionsOption) && (homeOption == libraryOption)) {
-            return homeOption; // All are the same option.
+        T homeValue = home.get();
+        T subscriptionsValue = subscriptions.get();
+        T libraryValue = library.get();
+        if (homeValue.equals(subscriptionsValue) && homeValue.equals(libraryValue)) {
+            return homeValue; // All are the same value.
         }
 
         NavigationButton selectedNavButton = NavigationButton.getSelectedNavigationButton();
         if (selectedNavButton == null) {
             // Unknown tab, treat as the home tab;
-            return homeOption;
+            return homeValue;
         }
 
         return switch (selectedNavButton) {
-            case SUBSCRIPTIONS, NOTIFICATIONS -> subscriptionsOption;
-            case LIBRARY -> libraryOption;
+            case SUBSCRIPTIONS, NOTIFICATIONS -> subscriptionsValue;
+            case LIBRARY -> libraryValue;
             // Home or explore tab.
-            default -> homeOption;
+            default -> homeValue;
         };
+    }
+
+    private static ThumbnailOption optionSettingForCurrentNavigation() {
+        return settingForCurrentNavigation(
+                ALT_THUMBNAIL_PLAYER,
+                ALT_THUMBNAIL_SEARCH,
+                ALT_THUMBNAIL_HOME,
+                ALT_THUMBNAIL_SUBSCRIPTIONS,
+                ALT_THUMBNAIL_LIBRARY
+        );
+    }
+
+    // modified by lavinhoque33, 2026-10-17: ported from Morphe's DeArrowPatch.
+    /**
+     * Can be called on any thread.
+     *
+     * @return If DeArrow titles are shown for the current navigation.
+     */
+    public static boolean useDeArrowTitlesForCurrentNavigation() {
+        return settingForCurrentNavigation(
+                Settings.DEARROW_TITLES_PLAYER,
+                Settings.DEARROW_TITLES_SEARCH,
+                Settings.DEARROW_TITLES_HOME,
+                Settings.DEARROW_TITLES_SUBSCRIPTIONS,
+                Settings.DEARROW_TITLES_LIBRARY
+        );
     }
 
     /**
@@ -261,10 +375,11 @@ public final class AlternativeThumbnailsPatch {
         return imageUrl.startsWith(deArrowApiUrlPrefix);
     }
 
+    // modified by lavinhoque33, 2026-10-17: package-private, so DeArrowBrandingRequest (DeArrow titles) shares the DeArrow backoff.
     /**
      * @return If this client has not recently experienced any DeArrow API errors.
      */
-    private static boolean canUseDeArrowAPI() {
+    static boolean canUseDeArrowAPI() {
         if (timeToResumeDeArrowAPICalls == 0) {
             return true;
         }
@@ -276,7 +391,7 @@ public final class AlternativeThumbnailsPatch {
         return false;
     }
 
-    private static void handleDeArrowError(@NonNull String url, int statusCode) {
+    static void handleDeArrowError(@NonNull String url, int statusCode) {
         Logger.printDebug(() -> "Encountered DeArrow error.  Url: " + url);
         final long now = System.currentTimeMillis();
         if (timeToResumeDeArrowAPICalls < now) {

@@ -29,4 +29,23 @@ public class PlaybackSpeedPatch {
 
         showToastShort(str("revanced_remember_playback_speed_toast", playbackSpeed + "x"));
     }
+
+    // modified by lavinhoque33, 2026-10-17: pitch follows speed (nightcore) when enabled.
+    /**
+     * Injection point. Called for every PlaybackParameters passed to ExoPlayer.setPlaybackParameters.
+     * Takes effect on the next speed change or track load.
+     */
+    public static float overridePlaybackPitch(final float speed, final float pitch) {
+        try {
+            if (!Settings.PLAYBACK_SPEED_CHANGE_PITCH.get()) {
+                return pitch;
+            }
+            // modified by lavinhoque33, 2026-10-17: debug log, as Morphe logs its speed/pitch changes.
+            Logger.printDebug(() -> "Playback pitch follows speed: " + speed + " (app pitch: " + pitch + ")");
+            return speed;
+        } catch (Exception ex) {
+            Logger.printException(() -> "Failed to overridePlaybackPitch", ex);
+        }
+        return pitch;
+    }
 }

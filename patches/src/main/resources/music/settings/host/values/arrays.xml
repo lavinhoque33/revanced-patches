@@ -135,6 +135,17 @@
         <item>MILLISECONDS_11000</item>
         <item>MILLISECONDS_12000</item>
     </string-array>
+    <!-- modified by lavinhoque33, 2026-10-17: Playlist track tap action arrays, ported from Morphe. -->
+    <string-array name="morphe_music_playlist_track_tap_action_entries">
+        <item>@string/morphe_music_playlist_track_tap_action_entry_default</item>
+        <item>@string/morphe_music_playlist_track_tap_action_entry_play_single_track</item>
+        <item>@string/morphe_music_playlist_track_tap_action_entry_add_to_queue</item>
+    </string-array>
+    <string-array name="morphe_music_playlist_track_tap_action_entry_values">
+        <item>DEFAULT</item>
+        <item>PLAY_SINGLE_TRACK</item>
+        <item>ADD_TO_QUEUE</item>
+    </string-array>
     <string-array name="morphe_spoof_video_streams_client_type_entries">
         <item>Android Music Reel</item>
         <item>Android Music No SDK</item>

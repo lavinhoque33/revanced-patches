@@ -13,5 +13,7 @@ internal enum class CategoryType(val value: String, var added: Boolean) {
     RETURN_YOUTUBE_DISLIKE("ryd", false),
     RETURN_YOUTUBE_USERNAME("return_youtube_username", false),
     SPONSOR_BLOCK("sb", false),
+    // modified by lavinhoque33, 2026-10-17: own top level screen for the Morphe Scrobbling port.
+    SCROBBLING("scrobbling", false),
     MISC("misc", false)
 }

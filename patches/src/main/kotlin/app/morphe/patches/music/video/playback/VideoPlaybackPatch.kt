@@ -117,6 +117,8 @@ val videoPlaybackPatch = bytecodePatch(
         drcAudioPatch { is_7_13_or_greater },
         sharedResourceIdPatch,
         videoInformationPatch,
+        // modified by lavinhoque33, 2026-10-17: change pitch with speed
+        playbackPitchPatch,
     )
 
     execute {
@@ -319,6 +321,12 @@ val videoPlaybackPatch = bytecodePatch(
             CategoryType.VIDEO,
             "revanced_remember_playback_speed_last_selected",
             "true"
+        )
+        // modified by lavinhoque33, 2026-10-17: change pitch with speed
+        addSwitchPreference(
+            CategoryType.VIDEO,
+            "morphe_music_playback_speed_change_pitch",
+            "false"
         )
         addTextPreference(
             CategoryType.VIDEO,

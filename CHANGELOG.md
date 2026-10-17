@@ -1,3 +1,14 @@
+## Unreleased
+
+### Features
+
+Ported from Morphe (MorpheApp/morphe-patches):
+
+* **YouTube Music:** Add `Scrobbling` patch: sends played tracks to ListenBrainz (user token) and Last.fm (username/password login), with optional "Now Playing" status, "love" on like for Last.fm, minimum duration and scrobble delay sliders, and metadata cleanup. Settings are in the new RVX → Scrobbling screen.
+* **YouTube Music:** Add `Playlist track tap action` patch: tapping a track in a playlist or album can play only that track or add it to the queue, instead of replacing the queue with the whole playlist (RVX → Player).
+* **YouTube Music:** Add `Enable audio/video switch` patch: the Song side of the Song/Video switch in the player swaps the current track between its song and official music video versions (RVX → Player; YouTube Music 9.00 and newer). Switching turns shuffle off.
+* **YouTube Music - Video playback:** Add "Change pitch with speed" setting: pitch rises and falls with the playback speed. It applies on the next speed change or track.
+
 ## [1.7.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.6.0...v1.7.0) (2026-10-17)
 
 ### Features

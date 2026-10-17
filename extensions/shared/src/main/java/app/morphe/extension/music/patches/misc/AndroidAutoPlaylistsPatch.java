@@ -16,7 +16,6 @@ import android.content.Context;
 import android.media.MediaDescription;
 import android.media.browse.MediaBrowser;
 import android.net.Uri;
-import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -32,22 +31,16 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.IOException;
-import java.io.OutputStream;
 import java.lang.ref.WeakReference;
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
 import app.morphe.extension.shared.innertube.utils.AuthUtils;
-import app.morphe.extension.shared.requests.Requester;
+import app.morphe.extension.music.patches.misc.requests.MusicBrowseRequest;
 import app.morphe.extension.shared.utils.Logger;
 import app.morphe.extension.shared.utils.Utils;
 
@@ -80,7 +73,6 @@ public final class AndroidAutoPlaylistsPatch {
     private static final String LIBRARY_PLAYLISTS_BROWSE_ID = "FEmusic_liked_playlists";
     private static final String PLAYLIST_BROWSE_ID_PREFIX = "VL";
 
-    private static final String BROWSE_URL = "https://youtubei.googleapis.com/youtubei/v1/browse?prettyPrint=false";
     private static final String ITEM_FIELDS =
             "contents.musicTwoColumnItemRenderer(title,subtitle,thumbnail.musicThumbnailRenderer.thumbnail.thumbnails(url,width),"
                     + "navigationEndpoint(watchEndpoint(videoId,playlistId),browseEndpoint.browseId)),continuations";
@@ -91,9 +83,6 @@ public final class AndroidAutoPlaylistsPatch {
                     + "continuationContents(musicPlaylistShelfContinuation(" + ITEM_FIELDS + "),"
                     + "musicShelfContinuation(" + ITEM_FIELDS + "),"
                     + "sectionListContinuation.contents(musicShelfRenderer(" + ITEM_FIELDS + "),musicPlaylistShelfRenderer(" + ITEM_FIELDS + ")))";
-    private static final String CLIENT_NAME = "ANDROID_MUSIC";
-    private static final String CLIENT_ID = "21";
-    private static final int CONNECTION_TIMEOUT_MILLISECONDS = 10_000;
 
     private static final int MAX_PLAYLISTS = 200;
     private static final int MAX_TRACKS = 500;
@@ -541,82 +530,14 @@ public final class AndroidAutoPlaylistsPatch {
         return renderers.size() > maxItems ? renderers.subList(0, maxItems) : renderers;
     }
 
+    // modified by lavinhoque33, 2026-10-16: share transport/auth with full playlist downloads, retaining AA's own paging policy.
     private static JSONObject browse(Context context, String browseId, @Nullable String continuation)
             throws IOException, JSONException {
-        try {
-            return browse(context, browseId, continuation, true);
-        } catch (BadRequestException ex) {
-            // The field mask may no longer match the response layout. Retry with the full response.
-            Logger.printDebug(() -> "Browse with field mask failed, retrying without: " + ex.getMessage());
-            return browse(context, browseId, continuation, false);
-        }
-    }
-
-    private static JSONObject browse(Context context, String browseId, @Nullable String continuation,
-                                     boolean useFieldMask) throws IOException, JSONException {
         if (AuthUtils.getAuthorization().isEmpty()) {
             waitingForAuthorization = true;
             throw new IOException("No authorization header captured yet");
         }
-        String clientVersion = getClientVersion(context);
-
-        JSONObject client = new JSONObject();
-        client.put("clientName", CLIENT_NAME);
-        client.put("clientVersion", clientVersion);
-        client.put("osName", "Android");
-        client.put("osVersion", Build.VERSION.RELEASE);
-        client.put("androidSdkVersion", Build.VERSION.SDK_INT);
-        Locale locale = Locale.getDefault();
-        client.put("hl", locale.toLanguageTag());
-        if (!locale.getCountry().isEmpty()) {
-            client.put("gl", locale.getCountry());
-        }
-        JSONObject body = new JSONObject();
-        body.put("context", new JSONObject().put("client", client));
-        if (continuation != null) {
-            body.put("continuation", continuation);
-        } else {
-            body.put("browseId", browseId);
-        }
-
-        String url = useFieldMask
-                ? BROWSE_URL + "&fields=" + URLEncoder.encode(FIELDS, StandardCharsets.UTF_8.name())
-                : BROWSE_URL;
-        HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
-        try {
-            connection.setRequestMethod("POST");
-            connection.setConnectTimeout(CONNECTION_TIMEOUT_MILLISECONDS);
-            connection.setReadTimeout(CONNECTION_TIMEOUT_MILLISECONDS);
-            connection.setUseCaches(false);
-            connection.setDoOutput(true);
-            connection.setRequestProperty("Content-Type", "application/json");
-            connection.setRequestProperty("User-Agent", context.getPackageName() + "/" + clientVersion
-                    + " (Linux; U; Android " + Build.VERSION.RELEASE + ") gzip");
-            connection.setRequestProperty("X-YouTube-Client-Name", CLIENT_ID);
-            connection.setRequestProperty("X-YouTube-Client-Version", clientVersion);
-            for (Map.Entry<String, String> header : AuthUtils.getRequestHeader().entrySet()) {
-                if (header.getValue() != null && !header.getValue().isEmpty()) {
-                    connection.setRequestProperty(header.getKey(), header.getValue());
-                }
-            }
-
-            byte[] payload = body.toString().getBytes(StandardCharsets.UTF_8);
-            connection.setFixedLengthStreamingMode(payload.length);
-            try (OutputStream out = connection.getOutputStream()) {
-                out.write(payload);
-            }
-
-            int code = connection.getResponseCode();
-            if (code == HttpURLConnection.HTTP_BAD_REQUEST && useFieldMask) {
-                throw new BadRequestException(Requester.parseErrorString(connection));
-            }
-            if (code != HttpURLConnection.HTTP_OK) {
-                throw new IOException("Browse " + browseId + " failed: HTTP " + code);
-            }
-            return Requester.parseJSONObject(connection);
-        } finally {
-            connection.disconnect();
-        }
+        return MusicBrowseRequest.browse(context, browseId, continuation, FIELDS);
     }
 
     /**
@@ -723,18 +644,6 @@ public final class AndroidAutoPlaylistsPatch {
         return value.isEmpty() ? null : value;
     }
 
-    private static String getClientVersion(Context context) throws IOException {
-        try {
-            String version = context.getPackageManager()
-                    .getPackageInfo(context.getPackageName(), 0).versionName;
-            if (version != null && !version.isEmpty()) {
-                return version;
-            }
-        } catch (Exception ex) {
-            Logger.printDebug(() -> "Could not read app version", ex);
-        }
-        throw new IOException("Unknown app version");
-    }
 
     /**
      * Converts a {@code MediaBrowserCompat.MediaItem} to the framework class.
@@ -807,9 +716,4 @@ public final class AndroidAutoPlaylistsPatch {
         }
     }
 
-    private static final class BadRequestException extends IOException {
-        BadRequestException(String message) {
-            super(message);
-        }
-    }
 }

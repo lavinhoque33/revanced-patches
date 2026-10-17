@@ -1,28 +1,21 @@
 /*
  * Copyright (C) 2026 lavinhoque33
- *
- * This file is part of the revanced-patches project:
- * https://github.com/anddea/revanced-patches
- *
  * Licensed under the GNU General Public License v3.0.
- * Written by lavinhoque33, 2026-10-14.
  */
-
 package app.morphe.patches.music.interaction.downloads
 
 import app.morphe.patcher.Fingerprint
 
-// The stock service class name is kept by R8 because the manifest references it.
-private const val BACKGROUND_PLAYER_SERVICE_SUFFIX = "/BackgroundPlayerService;"
-
-private fun serviceMethodFingerprint(methodName: String) = Fingerprint(
-    custom = { method, classDef ->
-        classDef.type.endsWith(BACKGROUND_PLAYER_SERVICE_SUFFIX) && method.name == methodName
-    },
+// modified by lavinhoque33, 2026-10-16: resolve native playlist commands and the local-playlist repository across obfuscated clients.
+// InOrderCommandMapping.tryResolve; the patch hooks its caller, the dispatcher that chooses the resolver.
+internal val nativeDownloadsCommandResolverFingerprint = Fingerprint(
+    returnType = "Z",
+    parameters = listOf("L", "L", "Ljava/util/Map;"),
+    strings = listOf("CommandResolver threw exception during resolution"),
 )
 
-internal val backgroundPlayerServiceOnCreateFingerprint = serviceMethodFingerprint("onCreate")
-internal val backgroundPlayerServiceOnStartCommandFingerprint = serviceMethodFingerprint("onStartCommand")
-internal val backgroundPlayerServiceOnBindFingerprint = serviceMethodFingerprint("onBind")
-internal val backgroundPlayerServiceOnTaskRemovedFingerprint = serviceMethodFingerprint("onTaskRemoved")
-internal val backgroundPlayerServiceOnDestroyFingerprint = serviceMethodFingerprint("onDestroy")
+internal val nativePlaylistDatabaseFingerprint = Fingerprint(
+    name = "<init>",
+    parameters = listOf("L"),
+    strings = listOf("music_sideloaded_playlist_database"),
+)

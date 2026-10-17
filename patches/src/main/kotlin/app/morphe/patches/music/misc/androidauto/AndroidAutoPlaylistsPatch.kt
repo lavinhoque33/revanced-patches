@@ -24,16 +24,13 @@ import app.morphe.patches.music.utils.extension.Constants.MISC_PATH
 import app.morphe.patches.music.utils.patch.PatchList.ANDROID_AUTO_PLAYLISTS
 import app.morphe.patches.music.utils.settings.ResourceUtils.updatePatchStatus
 import app.morphe.patches.music.utils.settings.settingsPatch
-import app.morphe.patches.shared.extension.Constants.EXTENSION_PATH
-import app.morphe.patches.shared.misc.request.buildRequestPatch
+import app.morphe.patches.shared.misc.request.authHeadersPatch
 import app.morphe.patches.shared.misc.request.hookBuildRequest
 import com.android.tools.smali.dexlib2.AccessFlags
 
 private const val EXTENSION_CLASS_DESCRIPTOR =
     "$MISC_PATH/AndroidAutoPlaylistsPatch;"
 
-private const val EXTENSION_AUTH_UTILS_CLASS_DESCRIPTOR =
-    "$EXTENSION_PATH/innertube/utils/AuthUtils;"
 
 /**
  * The Android Auto media browser tree that the server sends contains a "Library → Playlists" node
@@ -48,14 +45,11 @@ val androidAutoPlaylistsPatch = bytecodePatch(
 
     dependsOn(
         settingsPatch,
-        buildRequestPatch,
+        authHeadersPatch,
     )
 
     execute {
-        // The extension sends its browse requests with the app's own login headers.
-        hookBuildRequest(
-            "$EXTENSION_AUTH_UTILS_CLASS_DESCRIPTOR->setRequestHeaders(Ljava/lang/String;Ljava/util/Map;)V"
-        )
+        // modified by lavinhoque33, 2026-10-16: authorization capture is shared with native playlist downloads.
         // Library and playlist changes made in the phone app reload the open Android Auto pages.
         hookBuildRequest(
             "$EXTENSION_CLASS_DESCRIPTOR->onBuildRequest(Ljava/lang/String;Ljava/util/Map;)V"

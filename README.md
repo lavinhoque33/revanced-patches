@@ -136,7 +136,7 @@ Use the full URL above, not the repository URL or a repository-only add-source l
 | `Disable dislike redirection` | Adds an option to disable redirection to the next track when clicking the Dislike button. | 9.40.51 ~ 8.12.54 |
 | `Disable forced auto captions` | Adds an option to disable captions from being automatically enabled. | 9.40.51 ~ 8.12.54 |
 | `Disable music video in album` | Adds option to redirect music videos from albums for non-premium users. | 9.40.51 ~ 8.12.54 |
-| `Downloads` | Adds support to download songs for offline playback inside YouTube Music. | 9.40.51 ~ 8.12.54 |
+| `Downloads` | Adds support to download songs and playlists for offline playback in YouTube Music's own device files library and player. | 9.40.51 ~ 8.12.54 |
 | `Enable debug logging` | Adds an option for debugging. | 9.40.51 ~ 8.12.54 |
 | `Enable landscape mode` | Adds an option to enable landscape mode when rotating the screen on phones. | 9.40.51 ~ 8.12.54 |
 | `Flyout menu components` | Adds options to hide or change flyout menu components. | 9.40.51 ~ 8.12.54 |

@@ -840,7 +840,7 @@
     },
     {
       "name": "Downloads",
-      "description": "Adds support to download songs for offline playback inside YouTube Music.",
+      "description": "Adds support to download songs and playlists for offline playback in YouTube Music's own device files library and player.",
       "use": true,
       "dependencies": [
         "ResourcePatch",

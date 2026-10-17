@@ -14,9 +14,7 @@ import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.content.Context;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
-import android.os.Environment;
+import android.net.Uri;
 
 import androidx.annotation.Nullable;
 
@@ -24,8 +22,8 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.RandomAccessFile;
 import java.net.HttpURLConnection;
+import java.nio.channels.FileChannel;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
@@ -36,6 +34,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorCompletionService;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.FutureTask;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.regex.Pattern;
@@ -47,7 +46,6 @@ import app.morphe.extension.shared.utils.Logger;
 import app.morphe.extension.shared.utils.Utils;
 import app.morphe.extension.shared.innertube.PlayerResponseOuterClass.Format;
 import app.morphe.extension.shared.innertube.PlayerResponseOuterClass.PlayerResponse;
-import app.morphe.extension.shared.innertube.PlayerResponseOuterClass.ThumbnailEntry;
 import app.morphe.extension.shared.innertube.PlayerResponseOuterClass.VideoDetails;
 import app.morphe.extension.shared.requests.Requester;
 import app.morphe.extension.shared.spoof.ClientType;
@@ -86,26 +84,16 @@ public final class LocalDownloadManager {
 
     private static final Pattern VIDEO_ID = Pattern.compile("[A-Za-z0-9_-]{1,20}");
 
-    private static final String THUMBNAIL_URL = "https://i.ytimg.com/vi/";
-
-    private static final Set<String> ACTIVE_DOWNLOADS = ConcurrentHashMap.newKeySet();
+    // modified by lavinhoque33, 2026-10-16: song and playlist requests share one result for each active media download.
+    private static final ConcurrentHashMap<String, FutureTask<Uri>> ACTIVE_DOWNLOADS = new ConcurrentHashMap<>();
 
     private static volatile String currentTitle;
     private static volatile String currentArtist;
-    private static volatile String currentAlbum;
-    private static volatile int currentDurationSeconds;
-    private static volatile Bitmap currentArtwork;
 
     public static void onSetMetadata(android.media.MediaMetadata metadata) {
         if (metadata == null) return;
         currentTitle = metadata.getString(android.media.MediaMetadata.METADATA_KEY_TITLE);
         currentArtist = metadata.getString(android.media.MediaMetadata.METADATA_KEY_ARTIST);
-        currentAlbum = metadata.getString(android.media.MediaMetadata.METADATA_KEY_ALBUM);
-        long dur = metadata.getLong(android.media.MediaMetadata.METADATA_KEY_DURATION);
-        currentDurationSeconds = dur > 0 ? (int) (dur / 1000) : 0;
-        Bitmap art = metadata.getBitmap(android.media.MediaMetadata.METADATA_KEY_ALBUM_ART);
-        if (art == null) art = metadata.getBitmap(android.media.MediaMetadata.METADATA_KEY_ART);
-        currentArtwork = art;
     }
 
     private LocalDownloadManager() {
@@ -113,117 +101,106 @@ public final class LocalDownloadManager {
 
     /** Must be called from the main thread. Resolution and downloading happen in background. */
     public static void enqueue(String videoId) {
-        // Every file of a download is named after the id, so anything that is not a plain id
-        // is refused rather than written under a different name than it is looked up by.
         if (!VIDEO_ID.matcher(videoId).matches()) {
-            Logger.printDebug(() -> "Refusing to download an unusable id: " + videoId);
             Utils.showToastShort(str("morphe_music_downloads_unknown_track"));
             return;
         }
-
-        // The scrobbler describes whatever the player is on, so it may only be used for that
-        // track. Any other track is described by the video details of its own player response.
-        final boolean isPlayingTrack = videoId.equals(VideoInformation.getVideoId());
-        String title = isPlayingTrack ? currentTitle : null;
-        String artist = isPlayingTrack ? currentArtist : null;
-        String album = isPlayingTrack ? currentAlbum : null;
-        int duration = isPlayingTrack ? currentDurationSeconds : 0;
-        Bitmap artwork = isPlayingTrack ? currentArtwork : null;
-
+        if (!NativeDownloads.ensureStoragePermission()) return;
+        if (ACTIVE_DOWNLOADS.containsKey(videoId)) {
+            Utils.showToastShort(str("morphe_music_downloads_already_running"));
+            return;
+        }
         Utils.submitOnBackgroundThread(() -> {
-            downloadBlocking(videoId, title, artist, album, duration, artwork);
+            try {
+                NativeDownloads.migrateLegacy();
+                if (NativeAudioStore.find(videoId) != null) {
+                    Utils.showToastShort(str("morphe_music_downloads_already_saved"));
+                    return null;
+                }
+                Utils.showToastShort(str("morphe_music_downloads_started"));
+                download(videoId);
+                Utils.showToastShort(str("morphe_music_downloads_complete"));
+                NativePlaylistStore.refreshUnsortedLater(); // modified by lavinhoque33, 2026-10-17: list the new single.
+            } catch (Exception ex) {
+                Logger.printException(() -> "Local audio download failed: " + videoId, ex);
+                Utils.showToastShort(str("morphe_music_downloads_failed"));
+            }
             return null;
         });
     }
 
-    private static void downloadBlocking(String videoId, String title, String artist, String album,
-                                         int duration, Bitmap artwork) {
-        if (!ACTIVE_DOWNLOADS.add(videoId)) {
-            Utils.showToastShort(str("morphe_music_downloads_already_running"));
-            return;
-        }
-
+    static Uri download(String videoId) throws Exception {
+        Utils.verifyOffMainThread();
+        if (!VIDEO_ID.matcher(videoId).matches()) throw new IOException("Invalid video id");
+        Uri saved = NativeAudioStore.find(videoId);
+        if (saved != null) return saved;
+        boolean playing = videoId.equals(VideoInformation.getVideoId());
+        String title = playing ? currentTitle : null;
+        String artist = playing ? currentArtist : null;
+        FutureTask<Uri> task = new FutureTask<>(() -> downloadBlocking(videoId, title, artist));
+        FutureTask<Uri> existing = ACTIVE_DOWNLOADS.putIfAbsent(videoId, task);
+        if (existing == null) task.run();
         try {
-            Context context = Utils.getContext();
-            File directory = new File(
-                    context.getExternalFilesDir(Environment.DIRECTORY_MUSIC), "RVX");
+            return (existing == null ? task : existing).get();
+        } catch (ExecutionException ex) {
+            if (ex.getCause() instanceof Exception cause) throw cause;
+            throw ex;
+        } finally {
+            if (existing == null) ACTIVE_DOWNLOADS.remove(videoId, task);
+        }
+    }
 
-            if (new File(directory, videoId + ".webm").isFile()
-                    || new File(directory, videoId + ".m4a").isFile()) {
-                Logger.printDebug(() -> "Already downloaded: " + videoId);
-                Utils.showToastShort(str("morphe_music_downloads_already_saved"));
-                return;
-            }
-
-            // modified by lavinhoque33, 2026-10-14: googlevideo can hand a client urls that refuse every
-            // range past the first ~1 MB with HTTP 403 (seen with VISIONOS), so a refused stream is
-            // replaced by the next client's instead of failing the whole download.
+    // modified by lavinhoque33, 2026-10-16: the stream is downloaded to a private temporary file and
+    // published with embedded tags, since Music's device-files library reads metadata only from the file.
+    private static Uri downloadBlocking(String videoId, String title, String artist) throws Exception {
+        NativeAudioStore.Destination destination = null;
+        File temporary = null;
+        try {
+            // A competing request may have published the track between the lookup and single-flight ownership.
+            Uri saved = NativeAudioStore.find(videoId);
+            if (saved != null) return saved;
             StreamCandidates candidates = new StreamCandidates(videoId);
             ResolvedStream resolved = candidates.next();
-            if (resolved == null) {
-                throw new IllegalStateException("Audio stream unavailable");
-            }
-
-            VideoDetails details = resolved.details();
-
-            // Anything the caller already knows wins, the player response only fills the blanks.
-            title = firstNotBlank(title, details.getTitle(), videoId);
-            artist = firstNotBlank(artist, stripTopic(details.getOwnerChannelName()), "");
-            if (duration <= 0) duration = details.getLengthSeconds();
-            if (artwork == null) artwork = resolveArtwork(videoId, details);
-            if (!directory.isDirectory() && !directory.mkdirs()) {
-                throw new IllegalStateException("Could not create download directory");
-            }
-
-            Utils.showToastShort(str("morphe_music_downloads_started"));
+            if (resolved == null) throw new IOException("Audio stream unavailable");
+            AudioTagger.Tags tags = TrackMetadata.resolve(videoId, title, artist, resolved.details());
+            title = tags.title;
             awaitNotificationSlot();
             showDownloadNotification(videoId, title, 0, true, str("morphe_music_downloads_starting"));
-
-            File downloaded;
-            File downloadedTemporary;
+            Format format;
             while (true) {
-                Format format = resolved.format();
-                Logger.printDebug(() -> "Downloading " + videoId + " as itag " + format.getItag()
-                        + " (" + format.getMimeType() + ")");
-
-                String extension = format.getMimeType().contains("mp4") ? ".m4a" : ".webm";
-                downloaded = new File(directory, videoId + extension);
-                downloadedTemporary = new File(directory, downloaded.getName() + ".part");
-
-                if (downloadedTemporary.exists() && !downloadedTemporary.delete()) {
-                    throw new IllegalStateException("Could not reset partial audio file");
-                }
-
+                format = resolved.format();
+                temporary = File.createTempFile("rvx-audio-", ".part", Utils.getContext().getCacheDir());
                 try {
-                    downloadWithResume(videoId, title, format.getUrl(), downloadedTemporary,
+                    // Keep the existing bounded parallel range/resume downloader.
+                    downloadWithResume(videoId, title, format.getUrl(),
+                            new NativeAudioStore.Destination(null, temporary, format.getMimeType()),
                             format.getContentLength());
                     break;
                 } catch (ForbiddenException ex) {
-                    Logger.printDebug(() -> "Stream refused, trying another client: " + videoId, ex);
+                    temporary.delete();
+                    temporary = null;
                     resolved = candidates.next();
                     if (resolved == null) throw ex;
                 }
             }
-            final File destination = downloaded;
-            final File temporary = downloadedTemporary;
-
-            if (destination.exists() && !destination.delete()) {
-                throw new IllegalStateException("Could not replace audio file");
+            // Pending MediaStore files are hidden from native Library until the full audio has been indexed.
+            destination = NativeAudioStore.create(videoId, AudioTagger.outputMimeType(format.getMimeType()),
+                    tags.title, tags.artist);
+            try (FileOutputStream output = destination.openOutput()) {
+                AudioTagger.write(temporary, format.getMimeType(), output, tags);
             }
-            if (!temporary.renameTo(destination)) {
-                throw new IllegalStateException("Could not finish audio file");
-            }
-            Logger.printDebug(() -> "Saved " + destination + " (" + destination.length() + " bytes)");
-
-            OfflineTrack.save(directory, videoId, title, artist, album, duration, artwork);
-            Utils.showToastShort(str("morphe_music_downloads_complete"));
+            Uri uri = NativeAudioStore.finish(videoId, destination);
+            destination = null;
+            awaitNotificationSlot();
+            showDownloadNotification(videoId, title, 100, false, str("morphe_music_downloads_complete"));
+            return uri;
         } catch (Exception ex) {
-            Logger.printException(() -> "Local audio download failed: " + videoId, ex);
             awaitNotificationSlot();
             showDownloadNotification(videoId, title, 0, false, str("morphe_music_downloads_failed"));
-            Utils.showToastShort(str("morphe_music_downloads_failed"));
+            throw ex;
         } finally {
-            ACTIVE_DOWNLOADS.remove(videoId);
+            if (destination != null) NativeAudioStore.abort(destination);
+            if (temporary != null) temporary.delete();
         }
     }
 
@@ -281,21 +258,8 @@ public final class LocalDownloadManager {
         }
     }
 
-    private static String firstNotBlank(@Nullable String value, String fallback, String lastResort) {
-        if (value != null && !value.isBlank()) return value;
-        if (!fallback.isBlank()) return fallback;
-        return lastResort;
-    }
-
-    /** Music uploads are owned by an "Artist - Topic" channel, which is not the artist name. */
-    private static String stripTopic(String channelName) {
-        return channelName.endsWith(" - Topic")
-                ? channelName.substring(0, channelName.length() - " - Topic".length())
-                : channelName;
-    }
-
     /** @return Whether a progress update may be posted without the system dropping it. */
-    private static boolean canPostProgress() {
+    static boolean canPostProgress() { // modified by lavinhoque33, 2026-10-17: shared with playlist progress.
         long now = System.currentTimeMillis();
         long previous = lastNotificationTime.get();
         return now - previous >= NOTIFICATION_INTERVAL_MILLISECONDS
@@ -307,7 +271,7 @@ public final class LocalDownloadManager {
      * The loop sleeps exactly as long as the slot is away, and repeats only if another thread
      * took the slot first. Must be called off the main thread.
      */
-    private static void awaitNotificationSlot() {
+    static void awaitNotificationSlot() {
         while (true) {
             long now = System.currentTimeMillis();
             long previous = lastNotificationTime.get();
@@ -328,45 +292,9 @@ public final class LocalDownloadManager {
         }
     }
 
-    /**
-     * Some videos come back without any video details, so the thumbnail of the id is used as a
-     * fallback. It exists for every video, while the largest size does not.
-     */
-    @Nullable
-    private static Bitmap resolveArtwork(String videoId, VideoDetails details) {
-        Bitmap artwork = downloadArtwork(largestThumbnail(details));
-        if (artwork != null) return artwork;
-
-        artwork = downloadArtwork(THUMBNAIL_URL + videoId + "/maxresdefault.jpg");
-        return artwork != null ? artwork : downloadArtwork(THUMBNAIL_URL + videoId + "/hqdefault.jpg");
-    }
-
-    @Nullable
-    private static String largestThumbnail(VideoDetails details) {
-        String url = null;
-        int widest = 0;
-        for (ThumbnailEntry entry : details.getThumbnail().getThumbnailsList()) {
-            if (entry.getWidth() >= widest && !entry.getUrl().isBlank()) {
-                widest = entry.getWidth();
-                url = entry.getUrl();
-            }
-        }
-        return url;
-    }
-
-    @Nullable
-    private static Bitmap downloadArtwork(@Nullable String url) {
-        if (url == null || url.isBlank()) return null;
-        try (InputStream input = Requester.openConnection(url).getInputStream()) {
-            return BitmapFactory.decodeStream(input);
-        } catch (Exception ex) {
-            Logger.printDebug(() -> "Could not fetch artwork: " + url, ex);
-            return null;
-        }
-    }
 
     private static void downloadWithResume(String videoId, String title, String url,
-                                           File temporary, long expectedLength) throws Exception {
+                                           NativeAudioStore.Destination temporary, long expectedLength) throws Exception {
         if (expectedLength <= 0) expectedLength = probeContentLength(url);
         final long totalLength = expectedLength;
 
@@ -376,21 +304,19 @@ public final class LocalDownloadManager {
             downloadInParallel(videoId, title, url, temporary, totalLength);
         }
 
-        if (totalLength > 0 && temporary.length() != totalLength) {
-            throw new IllegalStateException(
-                    "Incomplete audio file: " + temporary.length() + "/" + totalLength);
+        if (totalLength > 0) {
+            long actualLength = temporary.size();
+            if (actualLength != totalLength) {
+                throw new IllegalStateException("Incomplete audio file: " + actualLength + "/" + totalLength);
+            }
         }
-        awaitNotificationSlot();
-        showDownloadNotification(videoId, title, 100, false, str("morphe_music_downloads_complete"));
     }
 
     // modified by lavinhoque33, 2026-10-14: bounded ranges are handed out from a shared queue to a
     // capped worker pool; the first failure stops every connection immediately.
     private static void downloadInParallel(String videoId, String title, String url,
-                                           File temporary, long totalLength) throws Exception {
-        try (RandomAccessFile file = new RandomAccessFile(temporary, "rw")) {
-            file.setLength(totalLength);
-        }
+                                           NativeAudioStore.Destination temporary, long totalLength) throws Exception {
+        temporary.setLength(totalLength);
 
         AtomicLong downloaded = new AtomicLong();
         ProgressCallback progress = bytes -> {
@@ -447,7 +373,7 @@ public final class LocalDownloadManager {
     /** Hands out consecutive ranges of one file to the workers that download them. */
     private static final class RangeQueue {
         private final String url;
-        private final File destination;
+        private final NativeAudioStore.Destination destination;
         private final long totalLength;
         private final long rangeSize;
         private final AtomicLong downloaded;
@@ -456,7 +382,7 @@ public final class LocalDownloadManager {
         private final Set<HttpURLConnection> connections = ConcurrentHashMap.newKeySet();
         private volatile boolean stopped;
 
-        RangeQueue(String url, File destination, long totalLength, long rangeSize,
+        RangeQueue(String url, NativeAudioStore.Destination destination, long totalLength, long rangeSize,
                    AtomicLong downloaded, ProgressCallback progress) {
             this.url = url;
             this.destination = destination;
@@ -473,14 +399,17 @@ public final class LocalDownloadManager {
         }
 
         Void work() throws Exception {
-            byte[] buffer = new byte[BUFFER_SIZE];
-            try (RandomAccessFile output = new RandomAccessFile(destination, "rw")) {
+            // modified by lavinhoque33, 2026-10-16: each worker owns a seekable provider
+            // descriptor; writes retain the existing reusable byte buffer without an extra copy.
+            try (FileOutputStream output = destination.openOutput()) {
+                FileChannel channel = output.getChannel();
+                byte[] buffer = new byte[BUFFER_SIZE];
                 while (true) {
                     long start = nextStart.getAndAdd(rangeSize);
                     if (start >= totalLength) return null;
 
                     downloadRange(start, Math.min(totalLength - 1, start + rangeSize - 1),
-                            output, buffer);
+                            output, channel, buffer);
                 }
             }
         }
@@ -489,8 +418,8 @@ public final class LocalDownloadManager {
             if (stopped) throw new CancellationException("Download stopped");
         }
 
-        private void downloadRange(long start, long end, RandomAccessFile output,
-                                   byte[] buffer) throws Exception {
+        private void downloadRange(long start, long end, FileOutputStream output,
+                                   FileChannel channel, byte[] buffer) throws Exception {
             long position = start;
             int failures = 0;
 
@@ -512,7 +441,7 @@ public final class LocalDownloadManager {
                     }
 
                     try (InputStream input = connection.getInputStream()) {
-                        output.seek(position);
+                        channel.position(position);
 
                         while (position <= end) {
                             int read = readBuffer(input, buffer,
@@ -586,7 +515,7 @@ public final class LocalDownloadManager {
         return connection;
     }
 
-    private static void downloadUnknownLength(String url, File destination) throws Exception {
+    private static void downloadUnknownLength(String url, NativeAudioStore.Destination destination) throws Exception {
         HttpURLConnection connection = Requester.openConnection(url);
         connection.setConnectTimeout(CONNECT_TIMEOUT_MILLISECONDS);
         connection.setReadTimeout(READ_TIMEOUT_MILLISECONDS);
@@ -601,7 +530,7 @@ public final class LocalDownloadManager {
             }
 
             try (InputStream input = connection.getInputStream();
-                 FileOutputStream output = new FileOutputStream(destination)) {
+                 FileOutputStream output = destination.openOutput()) {
                 byte[] buffer = new byte[BUFFER_SIZE];
                 int read;
                 while ((read = input.read(buffer)) != -1) {
@@ -663,6 +592,7 @@ public final class LocalDownloadManager {
                     .getAdaptiveFormatsList()
                     .stream()
                     .filter(format -> format.getMimeType().startsWith("audio/")
+                            && AudioTagger.canTag(format.getMimeType())
                             && !format.getUrl().isBlank())
                     .max(Comparator.comparingInt(Format::getBitrate))
                     .orElse(null);

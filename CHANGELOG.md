@@ -1,3 +1,13 @@
+## Unreleased
+
+### Features
+
+* **YouTube Music - Downloads:** With in-app downloads on, a playlist's or album's Download button downloads every track (all continuation pages, in order, duplicates kept) and saves it as a native local playlist. Library/account Downloads opens YouTube Music's own Device files library, and its own local-file player plays the tracks offline, signed out, without Premium. Songs are saved to `Music/RVX` as `Title - Artist` with the title, artist, album and cover YouTube Music shows for the track embedded in the file, so the Device files library lists them under their real artist and album: Opus streams are repackaged without re-encoding as `.ogg`, AAC streams as tagged `.m4a`. Tracks without an album on YouTube Music (e.g. music videos) get no album tag, and Android lists them under the folder name. A playlist is only saved once every track has finished; if a track is unavailable the download fails, completed songs are kept and any earlier copy of the playlist stays. Songs already downloaded are reused, and existing in-app downloads are migrated, with their saved titles, artists and covers, without downloading them again. Turning the option off restores stock behavior.
+* **YouTube Music - Downloads:** Music's native Device files library and player replace the patch's own Downloads screen and offline player.
+* **YouTube Music - Downloads:** Signed-in accounts without Premium: the playlist Download button now starts the native download instead of the "Get Music Premium" sheet, Account → Downloads opens Device files, and playlists you own no longer fail on their "Add a song" row.
+* **YouTube Music - Downloads:** A "Not in a playlist" native playlist lists every downloaded song that is in no other playlist (including playlists you make in Device files), newest first. It updates after each download and when Music opens, and is removed when empty.
+* **YouTube Music - Downloads:** A playlist download no longer leaves a stuck "Downloading track N of M" notification when its songs were already downloaded.
+
 ## [1.6.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.5.1...v1.6.0) (2026-10-16)
 
 ### Features

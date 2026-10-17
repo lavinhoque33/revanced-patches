@@ -1,5 +1,5 @@
 {
-  "version": "1.7.0",
+  "version": "1.8.0",
   "patches": [
     {
       "name": "Alternative thumbnails",
@@ -847,6 +847,28 @@
         "BytecodePatch",
         "ResourcePatch",
         "BytecodePatch",
+        "BytecodePatch"
+      ],
+      "compatiblePackages": {
+        "com.google.android.apps.youtube.music": [
+          "9.40.51",
+          "9.15.51",
+          "8.30.54",
+          "8.28.54",
+          "8.12.54"
+        ]
+      },
+      "options": []
+    },
+    {
+      "name": "Enable audio/video switch",
+      "description": "Adds an option to switch between the audio and the video version of a track by redirecting videoId.",
+      "use": true,
+      "dependencies": [
+        "BytecodePatch",
+        "ResourcePatch",
+        "ResourcePatch",
+        "ResourcePatch",
         "BytecodePatch"
       ],
       "compatiblePackages": {
@@ -1996,6 +2018,26 @@
       "options": []
     },
     {
+      "name": "Playlist track tap action",
+      "description": "Adds an option to play only the tapped track of a playlist or album, or to add it to the queue, instead of replacing the queue with the whole playlist.",
+      "use": true,
+      "dependencies": [
+        "BytecodePatch",
+        "ResourcePatch",
+        "ResourcePatch"
+      ],
+      "compatiblePackages": {
+        "com.google.android.apps.youtube.music": [
+          "9.40.51",
+          "9.15.51",
+          "8.30.54",
+          "8.28.54",
+          "8.12.54"
+        ]
+      },
+      "options": []
+    },
+    {
       "name": "PoToken provider",
       "description": "Adds option to get PoToken using the built-in PoToken provider.",
       "use": true,
@@ -2337,6 +2379,26 @@
           "21.39.525",
           "21.13.164",
           "20.05.46"
+        ]
+      },
+      "options": []
+    },
+    {
+      "name": "Scrobbling",
+      "description": "Adds options to add played tracks to Last.fm and ListenBrainz.",
+      "use": true,
+      "dependencies": [
+        "ResourcePatch",
+        "BytecodePatch",
+        "ResourcePatch"
+      ],
+      "compatiblePackages": {
+        "com.google.android.apps.youtube.music": [
+          "9.40.51",
+          "9.15.51",
+          "8.30.54",
+          "8.28.54",
+          "8.12.54"
         ]
       },
       "options": []
@@ -3210,6 +3272,7 @@
         "BytecodePatch",
         "BytecodePatch",
         "ResourcePatch",
+        "BytecodePatch",
         "BytecodePatch"
       ],
       "compatiblePackages": {

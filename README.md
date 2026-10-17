@@ -137,6 +137,7 @@ Use the full URL above, not the repository URL or a repository-only add-source l
 | `Disable forced auto captions` | Adds an option to disable captions from being automatically enabled. | 9.40.51 ~ 8.12.54 |
 | `Disable music video in album` | Adds option to redirect music videos from albums for non-premium users. | 9.40.51 ~ 8.12.54 |
 | `Downloads` | Adds support to download songs and playlists for offline playback in YouTube Music's own device files library and player. | 9.40.51 ~ 8.12.54 |
+| `Enable audio/video switch` | Adds an option to switch between the audio and the video version of a track by redirecting videoId. Requires YouTube Music 9.00 or newer; on older versions the patch is a no-op. | 9.40.51 ~ 8.12.54 |
 | `Enable debug logging` | Adds an option for debugging. | 9.40.51 ~ 8.12.54 |
 | `Enable landscape mode` | Adds an option to enable landscape mode when rotating the screen on phones. | 9.40.51 ~ 8.12.54 |
 | `Flyout menu components` | Adds options to hide or change flyout menu components. | 9.40.51 ~ 8.12.54 |
@@ -152,6 +153,7 @@ Use the full URL above, not the repository URL or a repository-only add-source l
 | `Media notification controls` | Adds options to disable the seekbar and previous/next buttons in the media notification and headphone controls. | 9.40.51 ~ 8.12.54 |
 | `Navigation bar components` | Adds options to hide or change components related to the navigation bar. | 9.40.51 ~ 8.12.54 |
 | `Player components` | Adds options to hide or change components related to the player. | 9.40.51 ~ 8.12.54 |
+| `Playlist track tap action` | Adds an option to play only the tapped track of a playlist or album, or to add it to the queue, instead of replacing the queue with the whole playlist. | 9.40.51 ~ 8.12.54 |
 | `PoToken provider` | Adds option to get PoToken using the built-in PoToken provider. | 9.40.51 ~ 8.12.54 |
 | `Remove background playback restrictions` | Removes restrictions on background playback, including for kids videos. | 9.40.51 ~ 8.12.54 |
 | `Remove viewer discretion dialog` | Adds an option to remove the dialog that appears when opening a video that has been age-restricted by accepting it automatically. This does not bypass the age restriction. | 9.40.51 ~ 8.12.54 |
@@ -160,6 +162,7 @@ Use the full URL above, not the repository URL or a repository-only add-source l
 | `Return YouTube Dislike` | Adds an option to show the dislike count of songs using the Return YouTube Dislike API. | 9.40.51 ~ 8.12.54 |
 | `Return YouTube Username` | Adds an option to replace YouTube handles with usernames in comments using YouTube Data API v3. | 9.40.51 ~ 8.12.54 |
 | `Sanitize sharing links` | Adds an option to sanitize sharing links by removing tracking query parameters. | 9.40.51 ~ 8.12.54 |
+| `Scrobbling` | Adds options to add played tracks to Last.fm and ListenBrainz. | 9.40.51 ~ 8.12.54 |
 | `Settings for YouTube Music` | Applies mandatory patches to implement ReVanced Extended settings into the application. | 9.40.51 ~ 8.12.54 |
 | `Settings menu filter` | Adds an option to hide items on the standard YouTube Music settings screen by their visible name. | 9.40.51 ~ 8.12.54 |
 | `Skip silence` | Adds an option to automatically skip silent pauses in audio playback. | 9.40.51 ~ 8.12.54 |

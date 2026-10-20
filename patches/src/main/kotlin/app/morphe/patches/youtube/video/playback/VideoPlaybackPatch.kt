@@ -62,6 +62,7 @@ import app.morphe.util.addInstructionsAtControlFlowLabel
 import app.morphe.util.ResourceGroup
 import app.morphe.util.copyResources
 import app.morphe.util.findFreeRegister
+import app.morphe.util.findInstructionIndicesReversedOrThrow
 import app.morphe.util.findMethodOrThrow
 import app.morphe.util.indexOfFirstInstructionOrThrow
 import app.morphe.util.insertLiteralOverride
@@ -202,9 +203,9 @@ val videoPlaybackPatch = bytecodePatch(
                     }
             }
 
-            // modified by lavinhoque33, 2026-10-11: the load parameters only seed the rate. The
-            // player then takes it from the playback rate settings store, so the default is also
-            // written through the Shorts speed setter once the Shorts player has the player response.
+            // The load parameters only seed the rate. The player then takes it from the playback
+            // rate settings store, so the default is also written through the Shorts speed setter
+            // once the Shorts player has the player response.
             videoIdFingerprintShorts.methodOrThrow().addInstruction(
                 0,
                 "invoke-static { }, $EXTENSION_PLAYBACK_SPEED_CLASS_DESCRIPTOR->onShortsPlayerResponse()V"
@@ -427,6 +428,27 @@ val videoPlaybackPatch = bytecodePatch(
                     return v0
                     """, ExternalLabel("default", getInstruction(0))
             )
+        }
+
+        // endregion
+
+        // region Disable audio offload if audio pitch controls are enabled.
+
+        // With audio offload, the device hardware decodes the audio
+        // and usually does not support changing the pitch, so the selected pitch is ignored.
+        (AudioOffloadEnabledFingerprint.matchOrNull(AudioOffloadVariableRateSupportedFingerprint.originalClassDef)
+            ?: LegacyAudioOffloadEnabledFingerprint.match()).method.apply {
+            findInstructionIndicesReversedOrThrow(Opcode.RETURN).forEach { index ->
+                val register = getInstruction<OneRegisterInstruction>(index).registerA
+
+                addInstructionsAtControlFlowLabel(
+                    index,
+                    """
+                        invoke-static { v$register }, $EXTENSION_CUSTOM_PLAYBACK_SPEED_CLASS_DESCRIPTOR->disableAudioOffload(Z)Z
+                        move-result v$register
+                    """
+                )
+            }
         }
 
         // endregion

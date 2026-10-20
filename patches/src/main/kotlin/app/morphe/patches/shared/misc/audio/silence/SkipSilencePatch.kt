@@ -3,28 +3,27 @@
  * https://github.com/MorpheApp/morphe-patches/pull/3467
  *
  * See the included NOTICE file for GPLv3 Section 7 terms that apply to this code.
- * Ported to RVX by lavinhoque33, 2026-10-16.
  */
 
 package app.morphe.patches.shared.misc.audio.silence
 
 import app.morphe.patcher.extensions.InstructionExtensions.addInstruction
 import app.morphe.patcher.extensions.InstructionExtensions.addInstructions
+import app.morphe.patcher.patch.BytecodePatchContext
 import app.morphe.patcher.patch.BytecodePatchBuilder
 import app.morphe.patcher.patch.bytecodePatch
 import app.morphe.util.fingerprint.matchSingle
 import com.android.tools.smali.dexlib2.iface.instruction.TwoRegisterInstruction
+import com.android.tools.smali.dexlib2.iface.instruction.OneRegisterInstruction
 import java.util.logging.Logger
 
 private const val EXTENSION_CLASS = "Lapp/morphe/extension/shared/patches/SkipSilencePatch;"
 
-/**
- * Shared factory for the Skip silence patch used by both YouTube and YT Music.
- */
+@Suppress("unused")
 internal fun skipSilencePatch(
     block: BytecodePatchBuilder.() -> Unit,
     targetCompatible: BytecodePatchBuilder.() -> Boolean = { true },
-    addPreferences: () -> Unit = {},
+    executeBlock: BytecodePatchContext.() -> Unit,
 ) = bytecodePatch(
     name = "Skip silence",
     description = "Adds an option to automatically skip silent pauses in audio playback."
@@ -39,7 +38,7 @@ internal fun skipSilencePatch(
             )
         }
 
-        addPreferences()
+        executeBlock()
 
         ApplySkipSilenceFingerprint.apply {
             val match = instructionMatches[1]
@@ -62,7 +61,61 @@ internal fun skipSilencePatch(
             """
         )
 
-        SilenceSkippingProcessorConstructorFingerprint.method.addInstructions(
+        val processorClass = classDefBy(
+            SkipSilenceProcessorEnabledFingerprint.instructionMatches.last().getFieldAccessed().definingClass
+        )
+        val constructor = SilenceSkippingProcessorConstructorFingerprint.classFingerprint!!.matchOrNull()?.let {
+            SilenceSkippingProcessorConstructorFingerprint.matchOrNull(processorClass)
+        }
+        if (constructor == null) {
+            // Legacy processors inline these settings rather than accepting constructor arguments.
+            val flush = LegacySilenceSkippingProcessorFlushFingerprint.match(processorClass)
+            val duration = flush.instructionMatches.first()
+            val durationRegister = duration.getInstruction<OneRegisterInstruction>().registerA
+            flush.method.addInstructions(
+                duration.index + 1,
+                """
+                    invoke-static/range { v$durationRegister .. v${durationRegister + 1} }, $EXTENSION_CLASS->minimumSilenceDurationUs(J)J
+                    move-result-wide v$durationRegister
+                """
+            )
+
+            LegacySilenceSkippingProcessorRetentionFingerprint.matchAllOrNull(processorClass).orEmpty().forEach {
+                val ratio = it.instructionMatches.first()
+                val register = ratio.getInstruction<OneRegisterInstruction>().registerA
+                it.method.addInstructions(
+                    ratio.index + 1,
+                    """
+                        invoke-static { v$register }, $EXTENSION_CLASS->silenceRetentionRatio(F)F
+                        move-result v$register
+                    """
+                )
+            }
+
+            LegacySilenceSkippingProcessorNoiseFingerprint.matchAll(processorClass).forEach {
+                val threshold = it.instructionMatches.last()
+                val register = threshold.getInstruction<OneRegisterInstruction>().registerA
+                it.method.addInstructions(
+                    threshold.index + 1,
+                    """
+                        invoke-static { v$register }, $EXTENSION_CLASS->adaptiveSilenceThresholdLevel(S)S
+                        move-result v$register
+                    """
+                )
+            }
+
+            LegacySilenceSkippingProcessorQueueInputFingerprint.match(processorClass).method.addInstruction(
+                0,
+                "invoke-static { p1 }, $EXTENSION_CLASS->updateSilenceThresholdLevel(Ljava/nio/ByteBuffer;)V"
+            )
+            flush.method.addInstruction(
+                0,
+                "invoke-static { }, $EXTENSION_CLASS->resetSilenceThresholdLevel()V"
+            )
+            return@execute
+        }
+
+        constructor.method.addInstructions(
             0,
             """
                 invoke-static { p1, p2 }, $EXTENSION_CLASS->minimumSilenceDurationUs(J)J

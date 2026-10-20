@@ -152,8 +152,8 @@ val downloadActionsPatch = bytecodePatch(
         // modified by lavinhoque33, 2026-10-10: Downloads button in the You tab.
         fixProtoLibraryPatch,
         toolBarHookPatch,
-        // modified by lavinhoque33, 2026-10-11: keep the bottom sheet 3-dots menu that the
-        // custom flyout items (Save to Watch later, download) are added to.
+        // Keep the bottom sheet 3-dots menu that the custom flyout items
+        // (Save to Watch later, download) are added to.
         bottomSheetFlyoutMenuPatch,
     )
 

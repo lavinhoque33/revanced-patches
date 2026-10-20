@@ -3,45 +3,47 @@
  * https://github.com/MorpheApp/morphe-patches/pull/3384
  * https://github.com/MorpheApp/morphe-patches/pull/3447
  *
+ * Original author(s):
+ * - Morphe contributors (https://github.com/MorpheApp/morphe-patches)
+ * - COOLak (https://github.com/COOLak)
+ *
  * See the included NOTICE file for GPLv3 Section 7 terms that apply to this code.
  */
-
-// modified by lavinhoque33, 2026-10-17: fetches the DeArrow titles of 'Alternative thumbnails' as in Morphe's
-// OriginalTitleRequest (DeArrow title wins when available, else the original title if restored).
-// Kept the fork's oEmbed-only original title request and simpler retry.
 
 package app.morphe.extension.youtube.patches.originaltitles;
 
 import androidx.annotation.Nullable;
 
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import java.io.IOException;
+import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.Consumer;
 
+import app.morphe.extension.shared.patches.LithoRelayoutPatch;
 import app.morphe.extension.shared.utils.Logger;
 import app.morphe.extension.shared.utils.Utils;
 import app.morphe.extension.shared.requests.Requester;
-import app.morphe.extension.youtube.patches.alternativethumbnails.AlternativeThumbnailsPatch;
-import app.morphe.extension.youtube.patches.alternativethumbnails.AlternativeThumbnailsPatch.DeArrowTitlesAvailability;
-import app.morphe.extension.youtube.patches.alternativethumbnails.DeArrowBrandingRequest;
-import app.morphe.extension.youtube.patches.alternativethumbnails.DeArrowBrandingRequest.DeArrowTitle;
+import app.morphe.extension.youtube.patches.dearrow.DeArrowBrandingRequest;
+import app.morphe.extension.youtube.patches.dearrow.DeArrowBrandingRequest.DeArrowTitle;
+import app.morphe.extension.youtube.patches.utils.requests.ChannelIdRoutes;
 
 /**
  * Fetches the titles that replace the titles shown by YouTube.
  * <p>
  * Original titles are fetched from the public oEmbed endpoint, which always returns the title
- * as set by the uploader. DeArrow titles are fetched with {@link DeArrowBrandingRequest},
- * and if DeArrow has no title then the original title is used if original titles are restored.
+ * as set by the uploader. Titles that oEmbed does not return, such as the titles of the videos
+ * whose embedding is disabled, are fetched from the player endpoint without an account.
+ * DeArrow titles are fetched with {@link DeArrowBrandingRequest}, and if DeArrow has no title
+ * then the original title is used if original titles are restored.
  * Casual mode of DeArrow also needs the original title, to check if the casual votes are for
  * the current original title.
- * <p>
- * DeArrow titles can be used only for some navigations, such as only for the search results,
- * so the title that replaces the title is chosen when the title is shown.
  */
 final class OriginalTitleRequest {
 
@@ -49,72 +51,152 @@ final class OriginalTitleRequest {
 
     /**
      * Time before a title that failed to fetch because of network errors is fetched again.
-     * The titles fetched before are shown meanwhile, so a failing network does not keep loading.
      */
     private static final long FAILED_FETCH_RETRY_MILLISECONDS = 30_000;
 
     /**
-     * Titles that can replace the title of a video.
-     *
-     * @param deArrowTitle  The DeArrow title, or null if the video has no DeArrow title,
-     *                      DeArrow titles are not used, or it failed to fetch.
-     * @param originalTitle The original title, or null if original titles are not restored,
-     *                      the video has no available title such as a private video,
-     *                      the DeArrow title is used for all navigations, or it failed to fetch.
+     * Maximum number of times an original title that failed to fetch because of network errors or temporary
+     * errors of the server is fetched again while the title is shown as loading. After that, the translated
+     * title is shown, so a failing network does not keep loading, and the title is fetched again when loaded again.
      */
-    record Titles(@Nullable String deArrowTitle, @Nullable String originalTitle) {
-        /**
-         * Can be called on any thread.
-         *
-         * @return The title that replaces the title of the video for the current navigation,
-         *         or null if the title is not replaced.
-         */
-        @Nullable
-        String replacement() {
-            return replacement(deArrowTitle != null && AlternativeThumbnailsPatch.useDeArrowTitlesForCurrentNavigation());
-        }
-
-        /**
-         * @param useDeArrow If the DeArrow title is used if the video has one.
-         * @return The title that replaces the title of the video, or null if the title is not replaced.
-         */
-        @Nullable
-        String replacement(boolean useDeArrow) {
-            return useDeArrow && deArrowTitle != null ? deArrowTitle : originalTitle;
-        }
-    }
+    private static final int MAX_FAILED_FETCH_RETRIES = 3;
 
     /**
-     * Video id -> titles.
+     * Video id -> title. A null title means the video has no available title,
+     * such as a private video, or the title failed to fetch because of network errors.
      */
-    private static final Map<String, CompletableFuture<Titles>> cache =
+    private static final Map<String, CompletableFuture<String>> cache =
             Collections.synchronizedMap(Utils.createSizeRestrictedMap(1000));
 
     /**
-     * Video id -> time when the titles that failed to fetch can be fetched again.
+     * Original title and name of the channel of a video, as returned by the oEmbed endpoint,
+     * or by the player endpoint if oEmbed does not return the title.
+     */
+    record OriginalVideo(String title, String channelName) {
+    }
+
+    /**
+     * Video id -> original title and channel name, of the original titles that were fetched.
+     * The title that replaces the title of the video can be a DeArrow title instead.
+     */
+    private static final Map<String, OriginalVideo> originalVideos =
+            Collections.synchronizedMap(Utils.createSizeRestrictedMap(1000));
+
+    /**
+     * Video id -> time when the title that failed to fetch can be fetched again.
      */
     private static final Map<String, Long> retryTimes =
             Collections.synchronizedMap(Utils.createSizeRestrictedMap(1000));
 
-    static CompletableFuture<Titles> fetch(String videoId) {
+    /**
+     * Video id -> number of times the original title failed to fetch in a row
+     * because of network errors or temporary errors of the server.
+     */
+    private static final Map<String, Integer> failedFetchCounts =
+            Collections.synchronizedMap(Utils.createSizeRestrictedMap(1000));
+
+    static CompletableFuture<String> fetch(String videoId) {
         synchronized (cache) {
-            CompletableFuture<Titles> future = cache.get(videoId);
-            if (future == null) {
-                future = CompletableFuture.supplyAsync(() -> fetchTitles(videoId), Utils::runOnBackgroundThread);
-                cache.put(videoId, future);
-            } else if (future.isDone() && canRetry(videoId)) {
+            CompletableFuture<String> future = cache.get(videoId);
+            Long retryTime = retryTimes.get(videoId);
+            if (future == null || (retryTime != null && System.currentTimeMillis() >= retryTime)) {
                 retryTimes.remove(videoId);
-                // The titles fetched before are kept until the titles are fetched again,
-                // so the title is not shown as loading again.
-                CompletableFuture<Titles> fetchedFuture = future;
-                CompletableFuture.supplyAsync(() -> fetchTitles(videoId), Utils::runOnBackgroundThread)
-                        .thenAccept(titles -> cache.replace(videoId, fetchedFuture, CompletableFuture.completedFuture(titles)));
+                String fetchedTitle = future != null && future.isDone() && !future.isCompletedExceptionally()
+                        ? future.getNow(null)
+                        : null;
+                // Only the DeArrow title failed to fetch if the original title did not fail,
+                // and was fetched or is not restored. The DeArrow title is fetched again, and the titles
+                // fetched before are kept meanwhile, so the title is not shown as loading again
+                // and the original title is not fetched again.
+                if (fetchedTitle != null && !failedFetchCounts.containsKey(videoId)) {
+                    CompletableFuture<String> fetchedFuture = future;
+                    Utils.runOnBackgroundThread(() -> {
+                        try {
+                            DeArrowTitle deArrow = DeArrowBrandingRequest.fetchTitle(videoId);
+                            OriginalVideo original = originalVideos.get(videoId);
+                            String originalTitle = original != null ? original.title() : fetchedTitle;
+                            if (originalTitle == null && deArrow.needsOriginalTitle()) {
+                                originalTitle = fetchOriginalTitle(videoId);
+                            }
+                            String title = deArrow.titleFor(originalTitle);
+                            if (title != null) {
+                                // Not replaced if the titles were fetched again meanwhile.
+                                cache.replace(videoId, fetchedFuture, CompletableFuture.completedFuture(title));
+                            }
+                        } catch (DeArrowBrandingRequest.DeArrowException ex) {
+                            // The DeArrow title is fetched again later,
+                            // and the titles fetched before are used meanwhile.
+                            retryTimes.put(videoId, System.currentTimeMillis() + FAILED_FETCH_RETRY_MILLISECONDS);
+                        }
+                    });
+                    return future;
+                }
+                future = CompletableFuture.supplyAsync(() -> fetchTitle(videoId), Utils::runOnBackgroundThread);
+                cache.put(videoId, future);
             }
             return future;
         }
     }
 
-    private static Titles fetchTitles(String videoId) {
+    /**
+     * Starts fetching the title if needed, and does not wait for it.
+     *
+     * @return The original title, or null if not yet available.
+     */
+    @Nullable
+    static String getIfAvailable(String videoId) {
+        return fetch(videoId).getNow(null);
+    }
+
+    /**
+     * Does not start fetching the title.
+     *
+     * @return The original title and the name of the channel of the video,
+     *         or null if the original title was not fetched.
+     */
+    @Nullable
+    static OriginalVideo getOriginalIfFetched(String videoId) {
+        return originalVideos.get(videoId);
+    }
+
+    /**
+     * @return If the title is not yet fetched, or the original title failed to fetch and is fetched again
+     *         until the maximum number of retries, so the title is shown as loading meanwhile.
+     */
+    static boolean isPending(String videoId) {
+        CompletableFuture<String> future = cache.get(videoId);
+        if (future == null || !future.isDone()) {
+            return true;
+        }
+        Integer failures = failedFetchCounts.get(videoId);
+        Long retryTime = retryTimes.get(videoId);
+        return failures != null && failures <= MAX_FAILED_FETCH_RETRIES
+                && retryTime != null && System.currentTimeMillis() < retryTime;
+    }
+
+    /**
+     * @return Time until the title that failed to fetch can be fetched again, or 0 if it can be fetched.
+     */
+    static long retryRemainingMilliseconds(String videoId) {
+        Long retryTime = retryTimes.get(videoId);
+        return retryTime == null ? 0 : Math.max(0, retryTime - System.currentTimeMillis());
+    }
+
+    /**
+     * The original title is fetched again after the requests to the server are no longer paused.
+     * The loading texts are laid out again then, which fetches the title again only for the texts
+     * that are still loaded, such as the elements that are not scrolled away.
+     */
+    private static void originalTitleFailed(String videoId) {
+        final long delay = Math.max(FAILED_FETCH_RETRY_MILLISECONDS, RequestBackoff.pauseRemainingMilliseconds());
+        retryTimes.put(videoId, System.currentTimeMillis() + delay);
+        if (failedFetchCounts.merge(videoId, 1, Integer::sum) <= MAX_FAILED_FETCH_RETRIES) {
+            Utils.runOnMainThreadDelayed(LithoRelayoutPatch::relayoutOutdatedTexts, delay);
+        }
+    }
+
+    @Nullable
+    private static String fetchTitle(String videoId) {
         String deArrowTitle = null;
         String originalTitle = null;
         boolean originalFetched = false;
@@ -126,59 +208,26 @@ final class OriginalTitleRequest {
                     originalFetched = true;
                 }
                 deArrowTitle = deArrow.titleFor(originalTitle);
+                if (deArrowTitle != null) {
+                    return deArrowTitle;
+                }
             } catch (DeArrowBrandingRequest.DeArrowException ex) {
                 // The DeArrow title is fetched again later, and the original title is used meanwhile.
                 retryTimes.put(videoId, System.currentTimeMillis() + FAILED_FETCH_RETRY_MILLISECONDS);
             }
         }
-        // The original title is not needed if the DeArrow title is used for all navigations.
-        final boolean fetchOriginal = RestoreOriginalTitlesPatch.RESTORE_ORIGINAL
-                && (deArrowTitle == null || !DeArrowTitlesAvailability.usingDeArrowTitlesEverywhere());
-        if (fetchOriginal && !originalFetched) {
-            originalTitle = fetchOriginalTitle(videoId);
+        if (!RestoreOriginalTitlesPatch.RESTORE_ORIGINAL) {
+            return null;
         }
-        return new Titles(deArrowTitle, fetchOriginal ? originalTitle : null);
-    }
-
-    /**
-     * Starts fetching the title if needed, and does not wait for it.
-     *
-     * @return The title that replaces the title of the video for the current navigation,
-     *         or null if not yet available or the title is not replaced.
-     */
-    @Nullable
-    static String getIfAvailable(String videoId) {
-        Titles titles = fetch(videoId).getNow(null);
-        return titles == null ? null : titles.replacement();
-    }
-
-    private static boolean canRetry(String videoId) {
-        Long retryTime = retryTimes.get(videoId);
-        return retryTime != null && System.currentTimeMillis() >= retryTime;
-    }
-
-    /**
-     * @return If the titles are not yet fetched. Titles that failed to fetch
-     *         are not pending, and the titles fetched before are used until they are fetched again.
-     */
-    static boolean isPending(String videoId) {
-        CompletableFuture<Titles> future = cache.get(videoId);
-        return future == null || !future.isDone();
-    }
-
-    /**
-     * Calls the callback on the main thread when the titles are fetched.
-     */
-    static void getAsync(String videoId, Consumer<Titles> callback) {
-        fetch(videoId).thenAccept(titles ->
-                Utils.runOnMainThreadNowOrLater(() -> callback.accept(titles)));
+        return originalFetched ? originalTitle : fetchOriginalTitle(videoId);
     }
 
     @Nullable
     private static String fetchOriginalTitle(String videoId) {
         try {
+            //noinspection CharsetObjectCanBeUsed
             String url = "https://www.youtube.com/oembed?format=json&url="
-                    + URLEncoder.encode("https://www.youtube.com/watch?v=" + videoId, StandardCharsets.UTF_8);
+                    + URLEncoder.encode("https://www.youtube.com/watch?v=" + videoId, StandardCharsets.UTF_8.name());
 
             HttpURLConnection connection = Requester.openConnection(url);
             connection.setConnectTimeout(CONNECTION_TIMEOUT_MILLISECONDS);
@@ -186,16 +235,69 @@ final class OriginalTitleRequest {
 
             final int responseCode = connection.getResponseCode();
             if (responseCode == Requester.HTTP_STATUS_CODE_SUCCESS) {
-                String title = Requester.parseJSONObject(connection).optString("title");
-                return title.isEmpty() ? null : title;
+                JSONObject json = Requester.parseJSONObject(connection);
+                String title = json.optString("title");
+                if (title.isEmpty()) {
+                    return null;
+                }
+                return originalTitleFetched(videoId, title, json.optString("author_name"));
             }
             Logger.printDebug(() -> "oEmbed request failed for: " + videoId + " code: " + responseCode);
+
+            // oEmbed does not return the title of some videos,
+            // such as the videos whose embedding is disabled by the uploader (code 401).
+            return fetchPlayerTitle(videoId);
         } catch (IOException ex) {
             Logger.printInfo(() -> "Could not fetch original title of: " + videoId, ex);
-            retryTimes.put(videoId, System.currentTimeMillis() + FAILED_FETCH_RETRY_MILLISECONDS);
+            originalTitleFailed(videoId);
         } catch (Exception ex) {
             Logger.printException(() -> "fetchOriginalTitle failure", ex);
         }
         return null;
+    }
+
+    /**
+     * Fetches the original title from the player endpoint without an account,
+     * which returns the title as set by the uploader, and not the translated title.
+     */
+    @Nullable
+    private static String fetchPlayerTitle(String videoId) throws IOException, JSONException {
+        if (RequestBackoff.isPaused()) {
+            originalTitleFailed(videoId);
+            return null;
+        }
+        byte[] requestBody = ChannelIdRoutes.createBody(videoId);
+        HttpURLConnection connection = ChannelIdRoutes.getConnection(ChannelIdRoutes.GET_TITLE);
+        connection.setFixedLengthStreamingMode(requestBody.length);
+        try (OutputStream output = connection.getOutputStream()) {
+            output.write(requestBody);
+        }
+
+        final int responseCode = connection.getResponseCode();
+        if (responseCode != Requester.HTTP_STATUS_CODE_SUCCESS) {
+            if (RequestBackoff.isTemporaryError(responseCode)) {
+                // Fetched again later, as the server limits the requests or is unavailable.
+                RequestBackoff.onTemporaryError(connection, responseCode);
+                originalTitleFailed(videoId);
+                return null;
+            }
+            Logger.printDebug(() -> "Player title request failed for: " + videoId + " code: " + responseCode);
+            return null;
+        }
+        JSONObject videoDetails = Requester.parseJSONObject(connection).optJSONObject("videoDetails");
+        String title = videoDetails == null ? "" : videoDetails.optString("title");
+        if (title.isEmpty()) {
+            Logger.printDebug(() -> "Player response has no title for: " + videoId);
+            return null;
+        }
+        Logger.printDebug(() -> "Original title fetched from the player endpoint for: " + videoId);
+        return originalTitleFetched(videoId, title, videoDetails.optString("author"));
+    }
+
+    private static String originalTitleFetched(String videoId, String title, String channelName) {
+        failedFetchCounts.remove(videoId);
+        originalVideos.put(videoId, new OriginalVideo(title, channelName.trim()));
+        TitleLayouts.originalTitleFetched(videoId, title);
+        return title;
     }
 }

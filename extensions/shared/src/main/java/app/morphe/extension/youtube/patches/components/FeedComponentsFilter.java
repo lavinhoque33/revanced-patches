@@ -35,6 +35,7 @@ import app.morphe.extension.youtube.shared.EngagementPanel;
 import app.morphe.extension.youtube.shared.NavigationBar;
 import app.morphe.extension.youtube.shared.NavigationBar.NavigationButton;
 import app.morphe.extension.youtube.shared.RootView;
+import app.morphe.extension.youtube.utils.ExtendedUtils;
 
 @SuppressWarnings({"deprecation", "unused", "FieldCanBeLocal"})
 public final class FeedComponentsFilter extends Filter {
@@ -62,6 +63,7 @@ public final class FeedComponentsFilter extends Filter {
     private final StringFilterGroup carouselShelves;
     private final StringFilterGroup chipBar;
     private final StringFilterGroup chipsShelf;
+    private final StringFilterGroup compactChannel;
     private final StringFilterGroup communityPosts;
     private final StringFilterGroup expandableCard;
     private final ByteArrayFilterGroup productCardBuffer;
@@ -71,11 +73,11 @@ public final class FeedComponentsFilter extends Filter {
     private final ByteArrayFilterGroup movieShelfBuffer;
     private final StringFilterGroup inviteToMessageCard;
     private final ByteArrayFilterGroup inviteToMessageCardBuffer;
-    // modified by lavinhoque33, 2026-10-16: Hide History shelf, live streams and subscribed channels bar names (ported from Morphe).
+    // modified by lavinhoque33, 2026-10-16: Hide History shelf and subscribed channels bar names (ported from Morphe).
     private final ByteArrayFilterGroup historyShelfBuffer;
+    private final StringFilterGroup subscribedChannelsBarName;
     private final StringFilterGroup liveStream;
     private final ByteArrayFilterGroup liveStreamBuffer;
-    private final StringFilterGroup subscribedChannelsBarName;
     private final StringFilterGroup videoLabels;
     private final ByteArrayFilterGroupList videoLabelsGroupList = new ByteArrayFilterGroupList();
     private final StringFilterGroup videoRecommendationLabels;
@@ -188,6 +190,20 @@ public final class FeedComponentsFilter extends Filter {
                 "connections_inbox_zero_state"
         );
 
+        // Feed and search result items.
+        liveStream = new StringFilterGroup(
+                Settings.HIDE_LIVE_STREAMS,
+                "video_lockup_with_attachment.e"
+        );
+
+        // Icon of the 'LIVE' thumbnail badge. Only videos that are live now have it,
+        // past streams ('Streamed 2 months ago') do not.
+        liveStreamBuffer = new ByteArrayFilterGroup(
+                null,
+                "yt_outline_live_black",
+                "yt_outline_experimental_live_black"
+        );
+
         addIdentifierCallbacks(
                 chipsShelf,
                 communityPosts,
@@ -195,7 +211,8 @@ public final class FeedComponentsFilter extends Filter {
                 feedSearchBar,
                 movieShelfIdentifier,
                 ticketShelfIdentifier,
-                inviteToMessageCard
+                inviteToMessageCard,
+                liveStream
         );
 
         // Paths.
@@ -219,9 +236,9 @@ public final class FeedComponentsFilter extends Filter {
                 "button.e"
         );
 
-        final StringFilterGroup compactChannelCommunityButton = new StringFilterGroup(
-                Settings.HIDE_COMMUNITY_BUTTON,
-                "compact_channel$FEcommunity"
+        compactChannel = new StringFilterGroup(
+                Settings.HIDE_CHANNEL_BUTTONS,
+                "compact_channel.e"
         );
 
         final StringFilterGroup membersShelf = new StringFilterGroup(
@@ -382,27 +399,12 @@ public final class FeedComponentsFilter extends Filter {
                 "FEhistory"
         );
 
-        // modified by lavinhoque33, 2026-10-16: Hide live streams (ported from Morphe).
-        // Feed and search result items.
-        liveStream = new StringFilterGroup(
-                Settings.HIDE_LIVE_STREAMS,
-                "video_lockup_with_attachment.e"
-        );
-
-        // Icon of the 'LIVE' thumbnail badge. Only videos that are live now have it,
-        // past streams ('Streamed 2 months ago') do not.
-        liveStreamBuffer = new ByteArrayFilterGroup(
-                null,
-                "yt_outline_live_black",
-                "yt_outline_experimental_live_black"
-        );
-
         addPathCallbacks(
                 albumCard,
                 carouselShelves,
                 channelProfileSubscribeButton,
                 chipBar,
-                compactChannelCommunityButton,
+                compactChannel,
                 expandableCard,
                 forYouShelf,
                 imageShelf,
@@ -414,7 +416,6 @@ public final class FeedComponentsFilter extends Filter {
                 playables,
                 subscribedChannelsBar,
                 subscribedChannelsBarName,
-                liveStream,
                 subscriptionsCategoryBar,
                 subscriptionsSectionHeader,
                 surveys,
@@ -559,6 +560,17 @@ public final class FeedComponentsFilter extends Filter {
                 button.getMatchedIndex() + button.getMatchedLength()).isFiltered();
     }
 
+    /**
+     * Only the root lockup holds the whole item buffer. Its nested components share
+     * a common icon list that also contains the LIVE badge, so checking them would
+     * cause false positives.
+     *
+     * @return If the path is the root of a feed item: {@code identifier|hash|CellType|}.
+     */
+    private static boolean isLockupRoot(CharSequence path) {
+        return StringUtils.endsWith(path, "|CellType|");
+    }
+
     @Override
     public boolean isFiltered(String path, String accessibility, String allValue, byte[] buffer,
                               StringFilterGroup matchedGroup, FilterContentType contentType, int contentIndex) {
@@ -572,6 +584,10 @@ public final class FeedComponentsFilter extends Filter {
 
         if (matchedGroup == chipsShelf) {
             return NavigationButton.getSelectedNavigationButton() != NavigationButton.LIBRARY;
+        }
+
+        if (matchedGroup == compactChannel) {
+            return StringUtils.contains(path, "button.e");
         }
 
         if (matchedGroup == communityPosts) {
@@ -643,11 +659,10 @@ public final class FeedComponentsFilter extends Filter {
             return NavigationButton.getSelectedNavigationButton() == NavigationButton.NOTIFICATIONS;
         }
 
-        // modified by lavinhoque33, 2026-10-16: Hide live streams (ported from Morphe).
         if (matchedGroup == liveStream) {
             // Only check the whole lockup. The buffers of its nested components include
             // a shared list of icon names that also has the 'LIVE' badge icon.
-            return path.endsWith("|CellType|") && liveStreamBuffer.check(buffer).isFiltered();
+            return isLockupRoot(path) && liveStreamBuffer.check(buffer).isFiltered();
         }
 
         // modified by lavinhoque33, 2026-10-16: Hide channel names in subscribed channels bar (ported from Morphe).
@@ -656,7 +671,7 @@ public final class FeedComponentsFilter extends Filter {
         }
 
         if (matchedGroup == videoLabels) {
-            return videoLabelsGroupList.check(buffer).isFiltered();
+            return ExtendedUtils.IS_20_31_OR_GREATER && videoLabelsGroupList.check(buffer).isFiltered();
         }
 
         if (matchedGroup == videoRecommendationLabels) {
@@ -750,13 +765,15 @@ public final class FeedComponentsFilter extends Filter {
                         // The header keeps the space of the subscribe button if it's removed,
                         // so it's hidden by the Litho filter.
                         hasHiddenSubscribeButton = Settings.HIDE_SUBSCRIBE_BUTTON_IN_CHANNEL_PAGE.get();
-                    } else if (ProtoNode.field(fields, BUTTON_VIEW_MODEL_FIELD) == null) {
-                        continue;
-                    } else if (isPageHeaderButtonHidden(fields)) {
-                        button.remove();
-                        modified = true;
                     } else {
-                        visibleButtons++;
+                        if (ProtoNode.field(fields, BUTTON_VIEW_MODEL_FIELD) != null) {
+                            if (isPageHeaderButtonHidden(fields)) {
+                                button.remove();
+                                modified = true;
+                            } else {
+                                visibleButtons++;
+                            }
+                        }
                     }
                 }
 

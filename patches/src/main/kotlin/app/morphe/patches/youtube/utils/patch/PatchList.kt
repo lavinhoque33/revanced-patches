@@ -5,13 +5,16 @@ internal enum class PatchList(
     val summary: String,
     var included: Boolean? = false
 ) {
+    SKIP_SILENCE(
+        "Skip silence",
+        "Adds an option to automatically skip silent pauses in audio playback."
+    ),
     APP_REFRESH_RATE(
         "App refresh rate",
         "Adds an option to change the app refresh rate."
     ),
-    ALTERNATIVE_THUMBNAILS(
-        "Alternative thumbnails",
-        // modified by lavinhoque33, 2026-10-17: also replaces video titles with DeArrow titles (ported from Morphe).
+    DEARROW(
+        "DeArrow",
         "Adds options to replace video thumbnails and titles using the DeArrow API, or replace video thumbnails with image captures from the video."
     ),
     AMBIENT_MODE_CONTROL(
@@ -25,11 +28,6 @@ internal enum class PatchList(
     BYPASS_URL_REDIRECTS(
         "Bypass URL redirects",
         "Adds an option to bypass URL redirects and open the original URL directly."
-    ),
-    // modified by lavinhoque33, 2026-10-17: caption language patch ported from Morphe.
-    CAPTION_LANGUAGE(
-        "Caption language",
-        "Adds options to automatically select captions in a preferred language and to add more auto-translate languages."
     ),
     CHANGE_FORM_FACTOR(
         "Change form factor",
@@ -47,7 +45,6 @@ internal enum class PatchList(
         "Change start page",
         "Adds an option to set which page the app opens in instead of the homepage."
     ),
-    // modified by lavinhoque33, 2026-10-16: copy text patch ported from Morphe.
     COPY_TEXT(
         "Copy text",
         "Adds options to copy the video title and comments by tapping and holding them."
@@ -72,6 +69,10 @@ internal enum class PatchList(
         "Description components",
         "Adds options to hide and disable description components."
     ),
+    DISABLE_AUTO_FEED_REFRESH(
+        "Disable auto feed refresh",
+        "Adds an option to stop feeds from refreshing automatically after they become outdated."
+    ),
     DISABLE_QUIC_PROTOCOL(
         "Disable QUIC protocol",
         "Adds an option to disable CronetEngine's QUIC protocol."
@@ -90,10 +91,9 @@ internal enum class PatchList(
         "Hide status bar",
         "Adds an option to hide the system status bar. Swipe down from the top edge to show it for a moment."
     ),
-    // modified by lavinhoque33, 2026-10-16: Disable auto feed refresh patch entry.
-    DISABLE_AUTO_FEED_REFRESH(
-        "Disable auto feed refresh",
-        "Adds an option to stop feeds from refreshing automatically after they become outdated."
+    PREFERRED_CAPTION_LANGUAGE(
+        "Preferred caption language",
+        "Adds an option to automatically select captions in your preferred language."
     ),
     DISABLE_FORCED_AUTO_CAPTIONS(
         "Disable forced auto captions",
@@ -229,6 +229,10 @@ internal enum class PatchList(
         "Overlay buttons",
         "Adds options to display useful overlay buttons in the video player."
     ),
+    PICTURE_IN_PICTURE_BUTTON(
+        "Picture-in-picture button",
+        "Adds an option to display a picture-in-picture button in the video player."
+    ),
     PLAYBACK_BUFFER(
         "Playback buffer",
         "Adds an option to change the video playback buffer size."
@@ -267,7 +271,7 @@ internal enum class PatchList(
     ),
     RESTORE_ORIGINAL_TITLES(
         "Restore original titles",
-        "Adds an option to show the original video titles and descriptions instead of the auto-translated ones."
+        "Adds an option to show the original video titles, video descriptions and channel descriptions instead of the auto-translated ones."
     ),
     RETURN_YOUTUBE_DISLIKE(
         "Return YouTube Dislike",
@@ -308,11 +312,6 @@ internal enum class PatchList(
     SPONSORBLOCK(
         "SponsorBlock",
         "Adds options to enable and configure SponsorBlock, which can skip undesired video segments, such as sponsored content."
-    ),
-    // modified by lavinhoque33, 2026-10-16: skip silence patch ported from Morphe.
-    SKIP_SILENCE(
-        "Skip silence",
-        "Adds an option to automatically skip silent pauses in audio playback."
     ),
     SPOOF_APP_VERSION(
         "Spoof app version",

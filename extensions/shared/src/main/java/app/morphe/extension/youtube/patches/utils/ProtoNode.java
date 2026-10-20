@@ -21,7 +21,6 @@ import java.nio.charset.CharsetDecoder;
 import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -163,6 +162,10 @@ public final class ProtoNode {
         }
     }
 
+    public int getFieldNumber() {
+        return fieldNumber;
+    }
+
     /**
      * @return If this field is a text.
      */
@@ -189,13 +192,6 @@ public final class ProtoNode {
         return text != null
                 ? text
                 : new String(bytes, valueStart, valueEnd - valueStart, StandardCharsets.UTF_8);
-    }
-
-    /**
-     * @return A copy of the payload as parsed, or the value of fields that are not length delimited.
-     */
-    public byte[] getPayload() {
-        return Arrays.copyOfRange(bytes, valueStart, valueEnd);
     }
 
     public void setText(String text) {
@@ -261,6 +257,20 @@ public final class ProtoNode {
             }
         }
         return null;
+    }
+
+    /**
+     * @return The fields of the message at the field number path, or an empty list if there is no such message.
+     */
+    public static List<ProtoNode> message(List<ProtoNode> message, int... path) {
+        for (int fieldNumber : path) {
+            ProtoNode field = field(message, fieldNumber);
+            if (field == null || field.children == null) {
+                return List.of();
+            }
+            message = field.children;
+        }
+        return message;
     }
 
     public static byte[] write(List<ProtoNode> message) throws IOException {

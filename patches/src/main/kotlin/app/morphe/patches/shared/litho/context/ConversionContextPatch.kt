@@ -4,18 +4,22 @@
  * https://github.com/MorpheApp/morphe-patches/pull/3120
  *
  * See the included NOTICE file for GPLv3 Section 7 terms that apply to this code.
- * Ported to RVX by lavinhoque33, 2026-10-16.
  */
+
+@file:Suppress("SpellCheckingInspection")
 
 package app.morphe.patches.shared.litho.context
 
+import app.morphe.patcher.extensions.InstructionExtensions.addInstructions
+import app.morphe.patcher.extensions.InstructionExtensions.addInstructionsWithLabels
 import app.morphe.patcher.patch.bytecodePatch
 import app.morphe.patcher.util.proxy.mutableTypes.MutableClass
+import app.morphe.patcher.util.proxy.mutableTypes.MutableMethod
 import app.morphe.patcher.util.proxy.mutableTypes.MutableMethod.Companion.toMutable
-import app.morphe.patcher.extensions.InstructionExtensions.addInstructions
 import app.morphe.util.findFieldFromToString
 import com.android.tools.smali.dexlib2.AccessFlags
 import com.android.tools.smali.dexlib2.builder.MutableMethodImplementation
+import com.android.tools.smali.dexlib2.iface.reference.FieldReference
 import com.android.tools.smali.dexlib2.immutable.ImmutableMethod
 
 const val EXTENSION_CONTEXT_INTERFACE =
@@ -28,28 +32,59 @@ lateinit var conversionContextClassDef: MutableClass
     internal set
 
 /**
- * Shared patch for the ConversionContext class used by both YouTube and YT Music.
+ * Shared factory for the ConversionContext patch used by both YouTube and YT Music.
  *
- * Adds the [EXTENSION_CONTEXT_INTERFACE] interface to the app's ConversionContext class,
- * exposing helper methods that extension code can call to read the identifier and the
- * path-builder StringBuilder via obfuscation-safe names.
+ * Adds the [EXTENSION_CONTEXT_INTERFACE] interface to the app's ConversionContext class (or its
+ * abstract superclass in some versions), exposing helper methods that extension code can call to
+ * read the identifier and the path-builder StringBuilder via obfuscation-safe names.
  *
- * Unlike the original Morphe port, toString() is not rewritten, because this fork's
- * legacy Litho filter still resolves this class by the strings inside toString().
  */
 val conversionContextPatch = bytecodePatch(
     description = "Hooks the method to use the conversion context in an extension."
 ) {
     execute {
-        conversionContextClassDef = ConversionContextToStringFingerprint.classDef
-        val toStringMethod = ConversionContextToStringFingerprint.method
+        val toStringMethod: MutableMethod
+        val stringBuilderField: FieldReference
+        val identifierField: FieldReference
+        val horizontalSwipeField: FieldReference
+        val heightConstraint: FieldReference
 
-        val stringBuilderField = conversionContextClassDef.fields.single { field ->
-            field.type == "Ljava/lang/StringBuilder;"
+        with(ConversionContextToStringFingerprint) {
+            conversionContextClassDef = classDef
+            toStringMethod = method
+            stringBuilderField = conversionContextClassDef.fields.single { field ->
+                field.type == "Ljava/lang/StringBuilder;"
+            }
+            identifierField = method.findFieldFromToString(IDENTIFIER_PROPERTY)
+            horizontalSwipeField = method.findFieldFromToString(HORIZONTAL_COLLECTION_SWIPE_PROTECTOR_PROPERTY)
+            heightConstraint = method.findFieldFromToString(HEIGHT_CONSTRAINT_PROPERTY)
         }
-        val identifierField = toStringMethod.findFieldFromToString(IDENTIFIER_PROPERTY)
-        val horizontalSwipeField = toStringMethod.findFieldFromToString(HORIZONTAL_COLLECTION_SWIPE_PROTECTOR_PROPERTY)
-        val heightConstraint = toStringMethod.findFieldFromToString(HEIGHT_CONSTRAINT_PROPERTY)
+
+        // Replace toString() to only include information patches care about.
+        // Edit: This change is no longer needed as toString() is no longer called on the context.
+        toStringMethod.addInstructionsWithLabels(
+            0,
+            """
+                move-object/from16 v2, p0
+                new-instance v0, Ljava/lang/StringBuilder;
+                invoke-direct {v0}, Ljava/lang/StringBuilder;-><init>()V
+                const-string v1, "identifierProperty="
+                invoke-virtual {v0, v1}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+                iget-object v1, v2, $identifierField
+                invoke-virtual {v0, v1}, Ljava/lang/StringBuilder;->append(Ljava/lang/Object;)Ljava/lang/StringBuilder;
+                const-string v1, " "
+                invoke-virtual {v0, v1}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+                iget-object v1, v2, $stringBuilderField
+
+                if-eqz v1, :morphe_cc_no_path
+                invoke-virtual {v0, v1}, Ljava/lang/StringBuilder;->append(Ljava/lang/Object;)Ljava/lang/StringBuilder;
+                :morphe_cc_no_path
+                nop
+                invoke-virtual {v0}, Ljava/lang/StringBuilder;->toString()Ljava/lang/String;
+                move-result-object v0
+                return-object v0
+            """
+        )
 
         conversionContextClassDef.apply {
             // Add interface and helper methods to allow extension code to call obfuscated methods.

@@ -3,7 +3,6 @@
  * https://github.com/MorpheApp/morphe-patches/pull/3467
  *
  * See the included NOTICE file for GPLv3 Section 7 terms that apply to this code.
- * Ported to RVX by lavinhoque33, 2026-10-16.
  */
 
 package app.morphe.extension.shared.patches;
@@ -43,11 +42,12 @@ public final class SkipSilencePatch {
     private static final short SILENCE_THRESHOLD_LEVEL = 512;
 
     /**
-     * In quiet audio, such as a talk recorded far from the microphone, the end of a word can stay below
-     * the fixed threshold and is then cut as silence. Streams without 'Stable volume' formats (Android VR)
-     * are not leveled, so the threshold follows the audio: about 28 dB below its recent peaks,
-     * but always above the background noise, or pauses with noise are no longer found.
-     * Audio at normal levels keeps the fixed threshold.
+     * Quiet audio, such as an audio recorded with a low volume, needs a lower threshold,
+     * so silence is still skipped. A threshold too low skips also quiet words, and a threshold
+     * too high keeps pauses that have a background noise.
+     * The threshold is the audio peak divided by {@link #AUDIO_PEAK_TO_THRESHOLD_RATIO},
+     * or the noise floor multiplied by {@link #NOISE_FLOOR_TO_THRESHOLD_RATIO} if there is background noise,
+     * between {@link #MINIMUM_SILENCE_THRESHOLD_LEVEL} and {@link #SILENCE_THRESHOLD_LEVEL}.
      */
     private static final int AUDIO_PEAK_TO_THRESHOLD_RATIO = 25;
     private static final int NOISE_FLOOR_TO_THRESHOLD_RATIO = 3;

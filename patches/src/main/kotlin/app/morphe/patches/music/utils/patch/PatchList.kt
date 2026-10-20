@@ -5,6 +5,10 @@ internal enum class PatchList(
     val summary: String,
     var included: Boolean? = false
 ) {
+    SKIP_SILENCE(
+        "Skip silence",
+        "Adds an option to automatically skip silent pauses in audio playback."
+    ),
     // modified by lavinhoque33, 2026-10-06: Android Auto playlists patch.
     // modified by lavinhoque33, 2026-10-07: artwork and phone sync in the summary.
     ANDROID_AUTO_PLAYLISTS(
@@ -168,11 +172,6 @@ internal enum class PatchList(
     SPONSORBLOCK(
         "SponsorBlock",
         "Adds options to enable and configure SponsorBlock, which can skip undesired video segments, such as non-music sections."
-    ),
-    // modified by lavinhoque33, 2026-10-16: skip silence patch ported from Morphe.
-    SKIP_SILENCE(
-        "Skip silence",
-        "Adds an option to automatically skip silent pauses in audio playback."
     ),
     SPOOF_APP_VERSION(
         "Spoof app version",

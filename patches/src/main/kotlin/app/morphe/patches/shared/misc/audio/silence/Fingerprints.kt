@@ -1,16 +1,18 @@
 /*
  * Copyright 2026 Morphe.
- * https://github.com/MorpheApp/morphe-patches/pull/3467
+ * https://github.com/MorpheApp/morphe-patches
  *
  * See the included NOTICE file for GPLv3 Section 7 terms that apply to this code.
- * Ported to RVX by lavinhoque33, 2026-10-16.
  */
 
 package app.morphe.patches.shared.misc.audio.silence
 
 import app.morphe.patcher.Fingerprint
 import app.morphe.patcher.InstructionLocation.MatchAfterWithin
+import app.morphe.patcher.anyInstruction
 import app.morphe.patcher.fieldAccess
+import app.morphe.patcher.literal
+import app.morphe.patcher.methodCall
 import app.morphe.patcher.opcode
 import app.morphe.patcher.string
 import com.android.tools.smali.dexlib2.AccessFlags
@@ -23,7 +25,10 @@ import com.android.tools.smali.dexlib2.Opcode
 internal object ApplySkipSilenceFingerprint : Fingerprint(
     classFingerprint = Fingerprint(
         filters = listOf(
-            string("AudioTrackAudioOutput"),
+            anyInstruction(
+                string("AudioTrackAudioOutput"),
+                string("DefaultAudioSink")
+            ),
             string("Failed to set playback params")
         ),
     ),
@@ -55,6 +60,60 @@ internal object SetSkipSilenceEnabledFingerprint : Fingerprint(
     accessFlags = listOf(AccessFlags.PUBLIC, AccessFlags.FINAL),
     returnType = "V",
     parameters = listOf("Z")
+)
+
+/**
+ * Writes the sink's silence flag to its audio processor, identifying the processor even on legacy players.
+ */
+internal object SkipSilenceProcessorEnabledFingerprint : Fingerprint(
+    classFingerprint = ApplySkipSilenceFingerprint,
+    returnType = "V",
+    parameters = listOf("J"),
+    filters = listOf(
+        fieldAccess(opcode = Opcode.IGET_BOOLEAN, definingClass = "this"),
+        fieldAccess(opcode = Opcode.IPUT_BOOLEAN)
+    )
+)
+
+/**
+ * Legacy onFlush calculates its silence buffer length from an inlined minimum duration.
+ */
+internal object LegacySilenceSkippingProcessorFlushFingerprint : Fingerprint(
+    returnType = "V",
+    parameters = listOf(),
+    filters = listOf(
+        anyInstruction(literal(100000L), literal(150000L)),
+        opcode(Opcode.NEW_ARRAY)
+    )
+)
+
+/**
+ * Legacy queueInput, resolved inside the processor identified by the sink's enabled flag.
+ */
+internal object LegacySilenceSkippingProcessorQueueInputFingerprint : Fingerprint(
+    accessFlags = listOf(AccessFlags.PUBLIC, AccessFlags.FINAL),
+    returnType = "V",
+    parameters = listOf("Ljava/nio/ByteBuffer;")
+)
+
+/**
+ * Legacy processors compare the absolute sample value with an inlined threshold.
+ * The oldest processor does this in both queueInput and its noise scanning method.
+ */
+internal object LegacySilenceSkippingProcessorNoiseFingerprint : Fingerprint(
+    filters = listOf(
+        methodCall(smali = "Ljava/lang/Math;->abs(I)I"),
+        literal(1024, location = MatchAfterWithin(2))
+    )
+)
+
+/**
+ * Intermediate processors inline the retention ratio; the oldest ones retain a fixed padding duration.
+ */
+internal object LegacySilenceSkippingProcessorRetentionFingerprint : Fingerprint(
+    returnType = "I",
+    parameters = listOf("I"),
+    filters = listOf(literal(0.2f.toRawBits().toLong()))
 )
 
 /**

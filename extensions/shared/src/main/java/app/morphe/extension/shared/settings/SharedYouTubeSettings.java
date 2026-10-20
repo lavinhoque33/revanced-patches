@@ -7,6 +7,7 @@ import static app.morphe.extension.shared.settings.Setting.parent;
 import static app.morphe.extension.shared.settings.Setting.parentInverted;
 
 import app.morphe.extension.shared.patches.PatchStatus;
+import app.morphe.extension.shared.patches.SkipSilencePatch.MinimumPause;
 import app.morphe.extension.shared.patches.PoTokenProviderPatch.PoTokenProviderAvailability;
 import app.morphe.extension.shared.patches.SkipSilencePatch;
 import app.morphe.extension.shared.spoof.SpoofVideoStreamsPatch;
@@ -48,12 +49,10 @@ public class SharedYouTubeSettings extends BaseSettings {
             "morphe_custom_branding_apply_to_rvx_settings",
             !"original".equals(CustomBrandingPatch.getDefaultIconStyle()), true);
 
-    public static final BooleanSetting FORCE_ORIGINAL_AUDIO = new BooleanSetting("morphe_force_original_audio", TRUE, true);
+    public static final BooleanSetting SKIP_SILENCE = new BooleanSetting("morphe_skip_silence", FALSE, true);
+    public static final EnumSetting<MinimumPause> SKIP_SILENCE_MINIMUM_PAUSE = new EnumSetting<>("morphe_skip_silence_minimum_pause", MinimumPause.MS_700, true, parent(SKIP_SILENCE));
 
-    // modified by lavinhoque33, 2026-10-16: Skip silence settings (ported from Morphe).
-    public static final BooleanSetting SKIP_SILENCE = new BooleanSetting("revanced_skip_silence", FALSE, true);
-    public static final EnumSetting<SkipSilencePatch.MinimumPause> SKIP_SILENCE_MINIMUM_PAUSE =
-            new EnumSetting<>("revanced_skip_silence_minimum_pause", SkipSilencePatch.MinimumPause.MS_700, true, parent(SKIP_SILENCE));
+    public static final BooleanSetting FORCE_ORIGINAL_AUDIO = new BooleanSetting("morphe_force_original_audio", TRUE, true);
 
     public static final BooleanSetting LIVESTREAM_DVR = new BooleanSetting("morphe_livestream_dvr", FALSE, true);
     public static final BooleanSetting EXPAND_LIVESTREAM_DVR_DURATION = new BooleanSetting("morphe_expand_livestream_dvr_duration", FALSE, true);
@@ -71,6 +70,7 @@ public class SharedYouTubeSettings extends BaseSettings {
     public static final LongSetting SPOOF_VIDEO_STREAMS_PLAYER_JS_SAVED_MILLISECONDS = new LongSetting("morphe_spoof_video_streams_player_js_saved_milliseconds", -1L, false, false);
     public static final StringSetting OAUTH2_REFRESH_TOKEN = new StringSetting("morphe_oauth2_refresh_token", "", false, false);
     public static final StringSetting SPOOF_VIDEO_STREAMS_CLIENT_IDS = new StringSetting("morphe_spoof_video_streams_clent_id", "", false, false);
+    public static final LongSetting SPOOF_VIDEO_STREAMS_CLIENT_FAILING_DIALOG_LAST_SHOWN = new LongSetting("morphe_spoof_video_streams_client_failing_dialog_last_shown", 0L, false, false);
 
     public static final BooleanSetting POTOKEN_PROVIDER = new BooleanSetting(
             "morphe_potoken_provider",
@@ -79,6 +79,7 @@ public class SharedYouTubeSettings extends BaseSettings {
             true,
             "morphe_external_potoken_provider_user_dialog_message",
             new PoTokenProviderAvailability());
+    public static final LongSetting POTOKEN_PROVIDER_EXPIRED_DIALOG_LAST_SHOWN = new LongSetting("morphe_potoken_provider_expired_dialog_last_shown", 0L, false, false);
 
     public static final BooleanSetting SANITIZE_SHARING_LINKS = new BooleanSetting("morphe_sanitize_sharing_links", TRUE);
     public static final BooleanSetting REPLACE_MUSIC_LINKS_WITH_YOUTUBE = new BooleanSetting("morphe_replace_music_with_youtube", FALSE);

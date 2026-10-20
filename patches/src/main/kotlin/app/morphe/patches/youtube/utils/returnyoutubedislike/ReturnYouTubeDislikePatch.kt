@@ -186,9 +186,9 @@ private val returnYouTubeDislikeRollingNumberPatch = bytecodePatch(
                 .methodOrThrow(rollingNumberTextViewFingerprint)
         ).forEach { method ->
             method.apply {
-                // modified by lavinhoque33, 2026-10-12: YouTube 21.39 added a two-line branch with its own
-                // setText before the bitmap ImageSpan setText, so hooking only the first call left the
-                // regular path showing YouTube's bitmap of the raw text (separator placeholder visible).
+                // YouTube 21.39 added a two-line branch with its own setText before the bitmap
+                // ImageSpan setText, so hooking only the first call left the regular path showing
+                // YouTube's bitmap of the raw text (separator placeholder visible).
                 // Hook every setText, in reverse order so earlier indices stay valid.
                 findInstructionIndicesReversedOrThrow {
                     getReference<MethodReference>()?.name == "setText"

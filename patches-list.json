@@ -1,27 +1,6 @@
 {
-  "version": "1.9.0",
+  "version": "v1.9.0",
   "patches": [
-    {
-      "name": "Alternative thumbnails",
-      "description": "Adds options to replace video thumbnails and titles using the DeArrow API, or replace video thumbnails with image captures from the video.",
-      "use": true,
-      "dependencies": [
-        "BytecodePatch",
-        "BytecodePatch",
-        "BytecodePatch",
-        "ResourcePatch",
-        "BytecodePatch",
-        "ResourcePatch"
-      ],
-      "compatiblePackages": {
-        "com.google.android.youtube": [
-          "21.39.525",
-          "21.13.164",
-          "20.05.46"
-        ]
-      },
-      "options": []
-    },
     {
       "name": "Ambient mode control",
       "description": "Adds options to disable Ambient mode and to bypass Ambient mode restrictions.",
@@ -147,25 +126,6 @@
       "options": []
     },
     {
-      "name": "Caption language",
-      "description": "Adds options to automatically select captions in a preferred language and to add more auto-translate languages.",
-      "use": true,
-      "dependencies": [
-        "BytecodePatch",
-        "ResourcePatch",
-        "ResourcePatch",
-        "BytecodePatch"
-      ],
-      "compatiblePackages": {
-        "com.google.android.youtube": [
-          "21.39.525",
-          "21.13.164",
-          "20.05.46"
-        ]
-      },
-      "options": []
-    },
-    {
       "name": "Certificate spoof",
       "description": "Enables YouTube Music to work with Android Auto by spoofing the YouTube Music certificate.",
       "use": true,
@@ -254,9 +214,8 @@
       "description": "Adds an option to change the in-app share sheet to the system share sheet.",
       "use": true,
       "dependencies": [
-        "ResourcePatch",
         "BytecodePatch",
-        "BytecodePatch"
+        "ResourcePatch"
       ],
       "compatiblePackages": {
         "com.google.android.youtube": [
@@ -331,7 +290,6 @@
       "dependencies": [
         "BytecodePatch",
         "ResourcePatch",
-        "BytecodePatch",
         "BytecodePatch",
         "BytecodePatch"
       ],
@@ -423,7 +381,7 @@
         {
           "key": "appIcon",
           "title": "App icon",
-          "description": "Icon used by Android and selected by default in the app. Choose Custom to use the Custom icon folder, or enter a resource folder path. All icons remain available in the app settings.",
+          "description": "Icon used by Android and selected by default in the app. Choose Custom to use the Custom icon folder, or enter a resource folder path. Mounted (root) installs require patching again to change the launcher icon.",
           "required": true,
           "type": "kotlin.String",
           "default": "original",
@@ -497,7 +455,7 @@
         {
           "key": "appIcon",
           "title": "App icon",
-          "description": "Icon used by Android and selected by default in the app. Choose Custom to use the Custom icon folder, or enter a resource folder path. All icons remain available in the app settings.",
+          "description": "Icon used by Android and selected by default in the app. Choose Custom to use the Custom icon folder, or enter a resource folder path. Mounted (root) installs require patching again to change the launcher icon.",
           "required": true,
           "type": "kotlin.String",
           "default": "original",
@@ -557,6 +515,27 @@
           "values": null
         }
       ]
+    },
+    {
+      "name": "DeArrow",
+      "description": "Adds options to replace video thumbnails and titles using the DeArrow API, or replace video thumbnails with image captures from the video.",
+      "use": true,
+      "dependencies": [
+        "BytecodePatch",
+        "BytecodePatch",
+        "BytecodePatch",
+        "ResourcePatch",
+        "BytecodePatch",
+        "BytecodePatch"
+      ],
+      "compatiblePackages": {
+        "com.google.android.youtube": [
+          "21.39.525",
+          "21.13.164",
+          "20.05.46"
+        ]
+      },
+      "options": []
     },
     {
       "name": "Description components",
@@ -724,6 +703,7 @@
       "description": "Adds an option to disable captions from being automatically enabled.",
       "use": true,
       "dependencies": [
+        "BytecodePatch",
         "BytecodePatch",
         "ResourcePatch",
         "ResourcePatch"
@@ -1962,6 +1942,27 @@
       "options": []
     },
     {
+      "name": "Picture-in-picture button",
+      "description": "Adds an option to display a picture-in-picture button in the video player.",
+      "use": true,
+      "dependencies": [
+        "ResourcePatch",
+        "BytecodePatch",
+        "ResourcePatch",
+        "BytecodePatch",
+        "BytecodePatch",
+        "BytecodePatch"
+      ],
+      "compatiblePackages": {
+        "com.google.android.youtube": [
+          "21.39.525",
+          "21.13.164",
+          "20.05.46"
+        ]
+      },
+      "options": []
+    },
+    {
       "name": "Playback buffer",
       "description": "Adds an option to change the video playback buffer size.",
       "use": true,
@@ -2107,6 +2108,25 @@
         "BytecodePatch",
         "ResourcePatch",
         "ResourcePatch"
+      ],
+      "compatiblePackages": {
+        "com.google.android.youtube": [
+          "21.39.525",
+          "21.13.164",
+          "20.05.46"
+        ]
+      },
+      "options": []
+    },
+    {
+      "name": "Preferred caption language",
+      "description": "Adds an option to automatically select captions in your preferred language.",
+      "use": true,
+      "dependencies": [
+        "BytecodePatch",
+        "ResourcePatch",
+        "ResourcePatch",
+        "BytecodePatch"
       ],
       "compatiblePackages": {
         "com.google.android.youtube": [
@@ -2272,6 +2292,12 @@
       "dependencies": [
         "BytecodePatch",
         "ResourcePatch",
+        "BytecodePatch",
+        "BytecodePatch",
+        "ResourcePatch",
+        "BytecodePatch",
+        "BytecodePatch",
+        "BytecodePatch",
         "BytecodePatch"
       ],
       "compatiblePackages": {
@@ -2644,7 +2670,6 @@
       "use": true,
       "dependencies": [
         "BytecodePatch",
-        "ResourcePatch",
         "ResourcePatch"
       ],
       "compatiblePackages": {
@@ -3145,7 +3170,7 @@
     },
     {
       "name": "Third-party lyrics",
-      "description": "Adds an option to show synced lyrics with experience enhancement from 15+ providers in the lyrics panel.",
+      "description": "Adds an option to show synced lyrics with experience enhancement from 18+ providers in the lyrics panel.",
       "use": true,
       "dependencies": [
         "BytecodePatch",
@@ -3168,6 +3193,7 @@
       "description": "Adds options to hide or change components located on the toolbar, such as the search bar, header, and toolbar buttons.",
       "use": true,
       "dependencies": [
+        "BytecodePatch",
         "BytecodePatch",
         "BytecodePatch",
         "ResourcePatch",

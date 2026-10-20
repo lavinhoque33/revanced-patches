@@ -19,6 +19,9 @@ public final class DescriptionsFilter extends Filter {
     // modified by lavinhoque33, 2026-10-16: Ported from Morphe, hide 'Ask Gemini' button in the Ask panel.
     private final StringFilterGroup askGeminiButton;
     private final ByteArrayFilterGroup askGeminiButtonBuffer;
+    private final StringFilterGroup attributesSectionPath;
+    private final ByteArrayFilterGroup attributesSectionBuffer;
+    private final ByteArrayFilterGroup podcastSectionBuffer;
     private final StringFilterGroup featuredSection;
     private final StringFilterGroup hashtagSection;
     private final ByteArrayFilterGroupList hashtagSectionGroupList = new ByteArrayFilterGroupList();
@@ -94,6 +97,22 @@ public final class DescriptionsFilter extends Filter {
         askGeminiButtonBuffer = new ByteArrayFilterGroup(
                 Settings.HIDE_ASK_GEMINI_BUTTON,
                 "com.google.android.apps.bard"
+        );
+
+        attributesSectionPath = new StringFilterGroup(
+                null,
+                "card.e"
+        );
+
+        attributesSectionBuffer = new ByteArrayFilterGroup(
+                Settings.HIDE_ATTRIBUTES_SECTION,
+                "album_hero_card",
+                "gaming_hero_card"
+        );
+
+        podcastSectionBuffer = new ByteArrayFilterGroup(
+                null,
+                "podcast_hero_card"
         );
 
         featuredSection = new StringFilterGroup(
@@ -230,6 +249,7 @@ public final class DescriptionsFilter extends Filter {
 
         addPathCallbacks(
                 askGeminiButton,
+                attributesSectionPath,
                 howThisWasMadeSection,
                 correctionsSection,
                 courseProgressSection,
@@ -299,6 +319,11 @@ public final class DescriptionsFilter extends Filter {
         // Check for the index because of likelihood of false positives.
         if (matchedGroup == howThisWasMadeSection) {
             return contentIndex == 0;
+        } else if (matchedGroup == attributesSectionPath) {
+            return attributesSectionBuffer.check(buffer).isFiltered()
+                    || ((Settings.HIDE_EXPLORE_SECTION.get()
+                    || Settings.HIDE_EXPLORE_PODCAST_SECTION.get())
+                    && podcastSectionBuffer.check(buffer).isFiltered());
         } else if (matchedGroup == featuredSection) {
             return featuredSectionGroupList.check(buffer).isFiltered();
         } else if (matchedGroup == hashtagSection) {

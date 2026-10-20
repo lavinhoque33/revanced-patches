@@ -58,12 +58,12 @@
     <string name="morphe_auto_pause_on_screen_lock_always">鎖定時一律暫停</string>
     <string name="morphe_auto_pause_on_screen_lock_except_wireless">除非連接無線音訊，否則暫停</string>
     <string name="morphe_auto_pause_on_screen_lock_title">裝置鎖定時自動暫停</string>
-    <string name="morphe_copy_comments_success">留言已複製到剪貼簿</string>
-    <string name="morphe_copy_comments_summary">長按留言即可複製</string>
-    <string name="morphe_copy_comments_title">複製留言</string>
-    <string name="morphe_copy_video_title_success">影片標題已複製到剪貼簿</string>
-    <string name="morphe_copy_video_title_summary">長按影片標題即可複製</string>
-    <string name="morphe_copy_video_title_title">複製影片標題</string>
+    <string name="revanced_copy_comments_success">留言已複製到剪貼簿</string>
+    <string name="revanced_copy_comments_summary">長按留言即可複製</string>
+    <string name="revanced_copy_comments_title">複製留言</string>
+    <string name="revanced_copy_video_title_success">影片標題已複製到剪貼簿</string>
+    <string name="revanced_copy_video_title_summary">長按影片標題即可複製</string>
+    <string name="revanced_copy_video_title_title">複製影片標題</string>
     <string name="morphe_custom_branding_icon_title">應用程式圖示</string>
     <string name="morphe_dearrow_about_summary">"DeArrow 以更準確且不那麼誇大的社群提交內容取代點擊誘餌標題和縮圖。標題由社群撰寫和投票，縮圖則取自影片的畫面
 

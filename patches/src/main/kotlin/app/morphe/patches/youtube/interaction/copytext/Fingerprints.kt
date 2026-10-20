@@ -3,6 +3,7 @@
  * https://github.com/MorpheApp/morphe-patches/pull/3592
  *
  * See the included NOTICE file for GPLv3 Section 7 terms that apply to this code.
+ * Ported to RVX by lavinhoque33, 2026-10-16.
  */
 
 package app.morphe.patches.youtube.interaction.copytext

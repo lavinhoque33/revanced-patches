@@ -58,12 +58,12 @@ Meldungen sind öffentlich und werden überprüft, bevor ein Kanal zu einer List
     <string name="morphe_auto_pause_on_screen_lock_always">Immer pausieren, wenn gesperrt</string>
     <string name="morphe_auto_pause_on_screen_lock_except_wireless">Pausieren, außer wenn drahtloses Audio verbunden ist</string>
     <string name="morphe_auto_pause_on_screen_lock_title">Auto-Pause bei gesperrtem Gerät</string>
-    <string name="morphe_copy_comments_success">Kommentar in die Zwischenablage kopiert</string>
-    <string name="morphe_copy_comments_summary">Tippe und halte einen Kommentar, um ihn zu kopieren</string>
-    <string name="morphe_copy_comments_title">Kommentare kopieren</string>
-    <string name="morphe_copy_video_title_success">Videotitel in die Zwischenablage kopiert</string>
-    <string name="morphe_copy_video_title_summary">Tippe und halte den Videotitel, um ihn zu kopieren</string>
-    <string name="morphe_copy_video_title_title">Videotitel kopieren</string>
+    <string name="revanced_copy_comments_success">Kommentar in die Zwischenablage kopiert</string>
+    <string name="revanced_copy_comments_summary">Tippe und halte einen Kommentar, um ihn zu kopieren</string>
+    <string name="revanced_copy_comments_title">Kommentare kopieren</string>
+    <string name="revanced_copy_video_title_success">Videotitel in die Zwischenablage kopiert</string>
+    <string name="revanced_copy_video_title_summary">Tippe und halte den Videotitel, um ihn zu kopieren</string>
+    <string name="revanced_copy_video_title_title">Videotitel kopieren</string>
     <string name="morphe_custom_branding_icon_title">App-Icon</string>
     <string name="morphe_dearrow_about_summary">"DeArrow ersetzt Clickbait-Titel und -Thumbnails durch von der Community erstellte, die genauer und weniger sensationell sind. Titel werden von der Community geschrieben und abgestimmt, und Thumbnails sind Einzelbilder aus dem Video
 

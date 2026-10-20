@@ -3,6 +3,7 @@
  * https://github.com/MorpheApp/morphe-patches/pull/3592
  *
  * See the included NOTICE file for GPLv3 Section 7 terms that apply to this code.
+ * Ported to RVX by lavinhoque33, 2026-10-16.
  */
 
 package app.morphe.extension.youtube.patches;
@@ -23,12 +24,11 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.regex.Pattern;
 
+import app.morphe.extension.shared.patches.components.ContextInterface;
 import app.morphe.extension.shared.utils.Logger;
 import app.morphe.extension.shared.utils.Utils;
-import app.morphe.extension.shared.patches.components.ContextInterface;
 import app.morphe.extension.youtube.settings.Settings;
 import app.morphe.extension.youtube.shared.VideoInformation;
-import org.apache.commons.lang3.StringUtils;
 
 @SuppressWarnings("unused")
 public final class CopyTextPatch {
@@ -95,20 +95,23 @@ public final class CopyTextPatch {
     /**
      * Injection point.
      */
-    public static CharSequence onLithoTextLoaded(ContextInterface contextInterface, CharSequence text) {
+    public static CharSequence onLithoTextLoaded(Object context, CharSequence text) {
         try {
-            if (text == null || !(COPY_VIDEO_TITLE || COPY_COMMENTS)) {
+            if (text == null || !(context instanceof ContextInterface)
+                    || !(COPY_VIDEO_TITLE || COPY_COMMENTS)) {
                 return text;
             }
 
-            if (COPY_COMMENTS && isCommentText(contextInterface)) {
+            ContextInterface conversionContext = (ContextInterface) context;
+
+            if (COPY_COMMENTS && isCommentText(conversionContext.patch_getPathBuilder())) {
                 String comment = text.toString().trim();
                 if (!comment.isEmpty()) {
                     synchronized (commentTexts) {
                         commentTexts.put(comment, Boolean.TRUE);
                     }
                 }
-            } else if (COPY_VIDEO_TITLE && isVideoTitle(contextInterface)) {
+            } else if (COPY_VIDEO_TITLE && isVideoTitle(conversionContext)) {
                 shownTitle = removeTitleMarker(text.toString().trim());
             }
         } catch (Exception ex) {
@@ -117,23 +120,22 @@ public final class CopyTextPatch {
         return text;
     }
 
-    private static boolean isVideoTitle(ContextInterface contextInterface) {
-        String identifier = contextInterface.patch_getIdentifier();
+    private static boolean isVideoTitle(ContextInterface context) {
+        String identifier = context.patch_getIdentifier();
         if (identifier == null || !identifier.startsWith("video_metadata.e")) {
             return false;
         }
         // The subtitle with the channel and the views is in the same element.
-        StringBuilder path = contextInterface.patch_getPathBuilder();
+        StringBuilder path = context.patch_getPathBuilder();
         return path.indexOf("video_metadata_inner.e") >= 0
                 && path.indexOf("video_subtitle.e") < 0
-                && StringUtils.endsWith(path, "|TextType|");
+                && endsWith(path, "|TextType|");
     }
 
     /**
      * Comments, replies and the comment above the replies all nest the same comment component.
      */
-    private static boolean isCommentText(ContextInterface contextInterface) {
-        StringBuilder path = contextInterface.patch_getPathBuilder();
+    private static boolean isCommentText(StringBuilder path) {
         final int commentStart = path.lastIndexOf("|comment.e");
         if (commentStart < 0) {
             return false;
@@ -145,12 +147,20 @@ public final class CopyTextPatch {
     }
 
     /**
+     * @return If the path ends with the suffix. StringBuilder has no endsWith method.
+     */
+    private static boolean endsWith(StringBuilder path, String suffix) {
+        final int start = path.length() - suffix.length();
+        return start >= 0 && path.indexOf(suffix, start) == start;
+    }
+
+    /**
      * Restore original titles marks the titles with invisible characters at the end,
      * and removes them only when its own text hook runs after this one.
      */
     private static String removeTitleMarker(String title) {
         int end = title.length();
-        while (end > 0 && title.charAt(end - 1) >= '⁠' && title.charAt(end - 1) <= '⁤') {
+        while (end > 0 && title.charAt(end - 1) >= '\u2060' && title.charAt(end - 1) <= '\u2064') {
             end--;
         }
         return title.substring(0, end);
@@ -216,7 +226,7 @@ public final class CopyTextPatch {
                         : null;
                 if (fullTitle != null) {
                     touchedText = fullTitle;
-                    touchedToastKey = "morphe_copy_video_title_success";
+                    touchedToastKey = "revanced_copy_video_title_success";
                     return true;
                 }
             }
@@ -224,7 +234,7 @@ public final class CopyTextPatch {
                 String comment = findComment(itemText);
                 if (comment != null) {
                     touchedText = comment;
-                    touchedToastKey = "morphe_copy_comments_success";
+                    touchedToastKey = "revanced_copy_comments_success";
                     return true;
                 }
             }

@@ -58,12 +58,12 @@
     <string name="morphe_auto_pause_on_screen_lock_always">锁定时始终暂停</string>
     <string name="morphe_auto_pause_on_screen_lock_except_wireless">除非连接无线音频，否则暂停</string>
     <string name="morphe_auto_pause_on_screen_lock_title">设备锁定时自动暂停</string>
-    <string name="morphe_copy_comments_success">评论已复制到剪贴板</string>
-    <string name="morphe_copy_comments_summary">点按并按住评论即可复制</string>
-    <string name="morphe_copy_comments_title">复制评论</string>
-    <string name="morphe_copy_video_title_success">视频标题已复制到剪贴板</string>
-    <string name="morphe_copy_video_title_summary">点按并按住视频标题即可复制</string>
-    <string name="morphe_copy_video_title_title">复制视频标题</string>
+    <string name="revanced_copy_comments_success">评论已复制到剪贴板</string>
+    <string name="revanced_copy_comments_summary">点按并按住评论即可复制</string>
+    <string name="revanced_copy_comments_title">复制评论</string>
+    <string name="revanced_copy_video_title_success">视频标题已复制到剪贴板</string>
+    <string name="revanced_copy_video_title_summary">点按并按住视频标题即可复制</string>
+    <string name="revanced_copy_video_title_title">复制视频标题</string>
     <string name="morphe_custom_branding_icon_title">应用图标</string>
     <string name="morphe_dearrow_about_summary">"DeArrow 会用更准确、更不耸人听闻的众包标题和缩略图来替换点击诱饵标题和缩略图。标题由社区撰写并投票决定，缩略图则是从视频中截取的帧
 

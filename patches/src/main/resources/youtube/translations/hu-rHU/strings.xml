@@ -58,12 +58,12 @@ A jelentések nyilvánosak, és felülvizsgálják őket, mielőtt egy csatorna 
     <string name="morphe_auto_pause_on_screen_lock_always">Mindig szüneteltetés, ha le van zárva</string>
     <string name="morphe_auto_pause_on_screen_lock_except_wireless">Szüneteltetés, hacsak nincs vezeték nélküli hang csatlakoztatva</string>
     <string name="morphe_auto_pause_on_screen_lock_title">Automatikus szüneteltetés, ha az eszköz le van zárva</string>
-    <string name="morphe_copy_comments_success">A hozzászólás a vágólapra lett másolva</string>
-    <string name="morphe_copy_comments_summary">Tartsd lenyomva a hozzászólást a másoláshoz</string>
-    <string name="morphe_copy_comments_title">Hozzászólások másolása</string>
-    <string name="morphe_copy_video_title_success">A videó címe a vágólapra lett másolva</string>
-    <string name="morphe_copy_video_title_summary">Tartsd lenyomva a videó címét a másoláshoz</string>
-    <string name="morphe_copy_video_title_title">Videó címének másolása</string>
+    <string name="revanced_copy_comments_success">A hozzászólás a vágólapra lett másolva</string>
+    <string name="revanced_copy_comments_summary">Tartsd lenyomva a hozzászólást a másoláshoz</string>
+    <string name="revanced_copy_comments_title">Hozzászólások másolása</string>
+    <string name="revanced_copy_video_title_success">A videó címe a vágólapra lett másolva</string>
+    <string name="revanced_copy_video_title_summary">Tartsd lenyomva a videó címét a másoláshoz</string>
+    <string name="revanced_copy_video_title_title">Videó címének másolása</string>
     <string name="morphe_custom_branding_icon_title">Alkalmazás ikonja</string>
     <string name="morphe_dearrow_about_summary">"A DeArrow a kattintásvadász címeket és miniatűröket közösségi forrásból származó, pontosabb és kevésbé szenzációhajhász tartalmakra cseréli. A címeket a közösség írja és szavazza meg, a miniatűrök pedig a videóból készült képkockák
 

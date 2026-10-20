@@ -50,12 +50,12 @@ Báo cáo được công khai và được xem xét trước khi một kênh đ�
     <string name="morphe_auto_pause_on_screen_lock_always">Luôn tạm dừng khi khóa</string>
     <string name="morphe_auto_pause_on_screen_lock_except_wireless">Tạm dừng trừ khi có thiết bị âm thanh không dây được kết nối</string>
     <string name="morphe_auto_pause_on_screen_lock_title">Tạm dừng khi khóa thiết bị</string>
-    <string name="morphe_copy_comments_success">Đã sao chép bình luận vào bảng tạm</string>
-    <string name="morphe_copy_comments_summary">Chạm và giữ một bình luận để sao chép</string>
-    <string name="morphe_copy_comments_title">Sao chép bình luận</string>
-    <string name="morphe_copy_video_title_success">Đã sao chép tiêu đề video vào bảng tạm</string>
-    <string name="morphe_copy_video_title_summary">Chạm và giữ tiêu đề video để sao chép</string>
-    <string name="morphe_copy_video_title_title">Sao chép tiêu đề video</string>
+    <string name="revanced_copy_comments_success">Đã sao chép bình luận vào bảng tạm</string>
+    <string name="revanced_copy_comments_summary">Chạm và giữ một bình luận để sao chép</string>
+    <string name="revanced_copy_comments_title">Sao chép bình luận</string>
+    <string name="revanced_copy_video_title_success">Đã sao chép tiêu đề video vào bảng tạm</string>
+    <string name="revanced_copy_video_title_summary">Chạm và giữ tiêu đề video để sao chép</string>
+    <string name="revanced_copy_video_title_title">Sao chép tiêu đề video</string>
     <string name="morphe_custom_branding_icon_title">Biểu tượng ứng dụng</string>
     <string name="morphe_dearrow_about_summary">"DeArrow thay thế các tiêu đề và hình thu nhỏ giật gân bằng những cái do cộng đồng đóng góp, chính xác hơn và ít giật gân hơn. Tiêu đề được viết và bình chọn bởi cộng đồng, và hình thu nhỏ là các khung hình lấy từ video
 

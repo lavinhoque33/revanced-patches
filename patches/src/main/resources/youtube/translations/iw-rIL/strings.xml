@@ -58,12 +58,12 @@
     <string name="morphe_auto_pause_on_screen_lock_always">השהה תמיד כשהמכשיר נעול</string>
     <string name="morphe_auto_pause_on_screen_lock_except_wireless">השהה אלא אם כן אודיו אלחוטי מחובר</string>
     <string name="morphe_auto_pause_on_screen_lock_title">השהייה אוטומטית כשהמכשיר נעול</string>
-    <string name="morphe_copy_comments_success">התגובה הועתקה ללוח</string>
-    <string name="morphe_copy_comments_summary">הקש והחזק תגובה כדי להעתיק אותה</string>
-    <string name="morphe_copy_comments_title">העתקת תגובות</string>
-    <string name="morphe_copy_video_title_success">כותרת הסרטון הועתקה ללוח</string>
-    <string name="morphe_copy_video_title_summary">הקש והחזק את כותרת הסרטון כדי להעתיק אותה</string>
-    <string name="morphe_copy_video_title_title">העתקת כותרת הסרטון</string>
+    <string name="revanced_copy_comments_success">התגובה הועתקה ללוח</string>
+    <string name="revanced_copy_comments_summary">הקש והחזק תגובה כדי להעתיק אותה</string>
+    <string name="revanced_copy_comments_title">העתקת תגובות</string>
+    <string name="revanced_copy_video_title_success">כותרת הסרטון הועתקה ללוח</string>
+    <string name="revanced_copy_video_title_summary">הקש והחזק את כותרת הסרטון כדי להעתיק אותה</string>
+    <string name="revanced_copy_video_title_title">העתקת כותרת הסרטון</string>
     <string name="morphe_custom_branding_icon_title">אייקון האפליקציה</string>
     <string name="morphe_dearrow_about_summary">"DeArrow מחליף כותרות ומיניאטורות קליקבייט בכאלה שמגיעות מהקהל, שהן מדויקות יותר ופחות סנסציוניות. הכותרות נכתבות ומוצבעות על ידי הקהילה, והמיניאטורות הן פריימים שנלקחו מהסרטון
 

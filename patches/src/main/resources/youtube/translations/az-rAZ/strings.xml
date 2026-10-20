@@ -55,12 +55,12 @@ Davam et düyməsinə toxun və optimallaşdırma dəyişikliklərinə razı ol"
     <string name="morphe_auto_pause_on_screen_lock_always">Kilidli olduqda həmişə fasilə ver</string>
     <string name="morphe_auto_pause_on_screen_lock_except_wireless">Simsiz səs qoşulmadıqca fasilə ver</string>
     <string name="morphe_auto_pause_on_screen_lock_title">Cihaz kilidləndikdə avtomatik fasilə</string>
-    <string name="morphe_copy_comments_success">Şərh buferə köçürüldü</string>
-    <string name="morphe_copy_comments_summary">Şərhi köçürmək üçün toxunub saxla</string>
-    <string name="morphe_copy_comments_title">Şərhləri köçür</string>
-    <string name="morphe_copy_video_title_success">Video başlığı buferə köçürüldü</string>
-    <string name="morphe_copy_video_title_summary">Videonun başlığını köçürmək üçün üzərinə toxunub saxla</string>
-    <string name="morphe_copy_video_title_title">Video başlığını köçür</string>
+    <string name="revanced_copy_comments_success">Şərh buferə köçürüldü</string>
+    <string name="revanced_copy_comments_summary">Şərhi köçürmək üçün toxunub saxla</string>
+    <string name="revanced_copy_comments_title">Şərhləri köçür</string>
+    <string name="revanced_copy_video_title_success">Video başlığı buferə köçürüldü</string>
+    <string name="revanced_copy_video_title_summary">Videonun başlığını köçürmək üçün üzərinə toxunub saxla</string>
+    <string name="revanced_copy_video_title_title">Video başlığını köçür</string>
     <string name="morphe_custom_branding_icon_title">Tətbiq simvolu</string>
     <string name="morphe_dearrow_about_summary">"DeArrow diqqətçəkən başlıqları və miniatürləri daha dəqiq və daha az sensasiyalı olan kütləvi variantlarla əvəzləyir. Başlıqlar icma tərəfindən yazılır və səsverməyə qoyulur, miniatürlər isə videodan götürülmüş kadrlar olur
 

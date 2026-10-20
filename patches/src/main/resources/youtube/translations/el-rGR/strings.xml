@@ -58,12 +58,12 @@
     <string name="morphe_auto_pause_on_screen_lock_always">Πάντα παύση όταν η συσκευή είναι κλειδωμένη</string>
     <string name="morphe_auto_pause_on_screen_lock_except_wireless">Παύση εκτός αν είναι συνδεδεμένη ασύρματη συσκευή ήχου</string>
     <string name="morphe_auto_pause_on_screen_lock_title">Αυτόματη παύση όταν η συσκευή είναι κλειδωμένη</string>
-    <string name="morphe_copy_comments_success">Το σχόλιο αντιγράφηκε στο πρόχειρο</string>
-    <string name="morphe_copy_comments_summary">Πατήστε παρατεταμένα ένα σχόλιο για να το αντιγράψετε</string>
-    <string name="morphe_copy_comments_title">Αντιγραφή σχολίων</string>
-    <string name="morphe_copy_video_title_success">Ο τίτλος του βίντεο αντιγράφηκε στο πρόχειρο</string>
-    <string name="morphe_copy_video_title_summary">Πατήστε παρατεταμένα τον τίτλο του βίντεο για να τον αντιγράψετε</string>
-    <string name="morphe_copy_video_title_title">Αντιγραφή τίτλου βίντεο</string>
+    <string name="revanced_copy_comments_success">Το σχόλιο αντιγράφηκε στο πρόχειρο</string>
+    <string name="revanced_copy_comments_summary">Πατήστε παρατεταμένα ένα σχόλιο για να το αντιγράψετε</string>
+    <string name="revanced_copy_comments_title">Αντιγραφή σχολίων</string>
+    <string name="revanced_copy_video_title_success">Ο τίτλος του βίντεο αντιγράφηκε στο πρόχειρο</string>
+    <string name="revanced_copy_video_title_summary">Πατήστε παρατεταμένα τον τίτλο του βίντεο για να τον αντιγράψετε</string>
+    <string name="revanced_copy_video_title_title">Αντιγραφή τίτλου βίντεο</string>
     <string name="morphe_custom_branding_icon_title">Εικονίδιο εφαρμογής</string>
     <string name="morphe_dearrow_about_summary">"Το DeArrow αντικαθιστά τους παραπλανητικούς τίτλους και τις μικρογραφίες clickbait με αυτές που παρέχονται από το κοινό, οι οποίες είναι πιο ακριβείς και λιγότερο εντυπωσιακές. Οι τίτλοι γράφονται και ψηφίζονται από την κοινότητα, και οι μικρογραφίες είναι καρέ που λαμβάνονται από το βίντεο
 

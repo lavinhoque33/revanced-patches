@@ -46,7 +46,11 @@ import com.android.tools.smali.dexlib2.iface.reference.TypeReference
 internal lateinit var addTopControl: (String, String, String) -> Unit
     private set
 
-private var insertElementId = "@id/player_video_heading"
+// modified by lavinhoque33, 2026-10-20: The chain used to start at the title (player_video_heading).
+// YouTube rewrites the title's layout_toStartOf to music_app_deeplink_button at runtime, which dropped
+// the added buttons from the title's end constraint and let long titles run under them.
+// Starting at music_app_deeplink_button, the stock target of that rewrite, keeps the buttons in the chain.
+private var insertElementId = "@id/music_app_deeplink_button"
 
 val playerControlsResourcePatch = resourcePatch {
     execute {

@@ -1,3 +1,9 @@
+## Unreleased
+
+### Bug Fixes
+
+* **YouTube - Player buttons:** Long video titles no longer run under the Save to watch later, Reload video, Picture-in-picture and SponsorBlock overlay buttons. YouTube rewrote the title's end constraint at runtime, which dropped the added buttons from it (#9).
+
 ## [1.10.1](https://github.com/lavinhoque33/revanced-patches/compare/v1.10.0...v1.10.1) (2026-10-20)
 
 ### Bug Fixes

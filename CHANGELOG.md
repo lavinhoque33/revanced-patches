@@ -1,15 +1,16 @@
-## Unreleased
+## [1.10.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.9.0...v1.10.0) (2026-10-20)
 
 ### Features
 
 Merged anddea/revanced-patches `dev` (4.4.0-dev.2). Where both repositories carried the same feature ported from Morphe, anddea's implementation replaces this fork's copy, so the settings of these features reset to their defaults:
 
-* **YouTube:** `Copy text`, `Disable auto feed refresh`, `Picture-in-picture button` (replaces the PiP overlay button), `Preferred caption language` (replaces `Caption language`) and `DeArrow` (replaces `Alternative thumbnails` and its DeArrow titles).
+* **YouTube:** `Disable auto feed refresh`, `Picture-in-picture button` (replaces the PiP overlay button), `Preferred caption language` (replaces `Caption language`) and `DeArrow` (replaces `Alternative thumbnails` and its DeArrow titles).
 * **YouTube - Swipe controls:** `Volume boost`.
 * **YouTube - Hide feed components:** `Hide live streams`.
 * **YouTube & YT Music:** `Skip silence`.
 * **YouTube:** `Restore original titles` now uses anddea's reworked implementation.
 
+The fork's `Copy text` is kept (anddea's version does not apply on YouTube 20.05.46), so its settings are unchanged.
 
 ## [1.9.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.8.0...v1.9.0) (2026-10-17)
 

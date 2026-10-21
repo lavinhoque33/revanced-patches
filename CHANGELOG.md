@@ -1,3 +1,10 @@
+## Unreleased
+
+### Bug Fixes
+
+* **YouTube - Built-in downloader:** The offline library and player now use YouTube-style icons (search, sort, play, pause, next, previous, speed, rotate, back) and a red seekbar that follows `Custom seekbar color`. The sort and playback speed menus show a check mark on the selected row instead of radio buttons, and the "Downloads" title is centered with the back arrow (#8).
+* **YouTube - Visual preferences icons:** `Icon style: Bold` now also applies to the RVX entry in the YouTube settings (#8).
+
 ## [1.10.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.9.0...v1.10.0) (2026-10-20)
 
 ### Features

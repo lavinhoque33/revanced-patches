@@ -34,6 +34,7 @@ import app.morphe.extension.shared.spoof.requests.StreamOrDetailsDataRequest;
 import app.morphe.extension.shared.spoof.requests.VisitorIdRequester;
 import app.morphe.extension.shared.utils.Logger;
 import app.morphe.extension.shared.utils.Utils;
+import app.morphe.extension.youtube.patches.general.offline.OfflineStreamSource;
 
 @SuppressWarnings("unused")
 public class SpoofVideoStreamsPatch {
@@ -212,6 +213,15 @@ public class SpoofVideoStreamsPatch {
         return SPOOF_VIDEO_STREAMS;
     }
 
+    /**
+     * Injection point.
+     * modified by lavinhoque33, 2026-10-20: the streams are also replaced for a download that
+     * YouTube's player plays, which does not need spoofing.
+     */
+    public static boolean isStreamingDataOverrideEnabled() {
+        return SPOOF_VIDEO_STREAMS || OfflineStreamSource.isActive();
+    }
+
     public static boolean fixHLSCurrentTime(boolean original) {
         if (SPOOF_VIDEO_STREAMS) {
             return false;
@@ -220,7 +230,8 @@ public class SpoofVideoStreamsPatch {
     }
 
     public static boolean disableSABR() {
-        return SPOOF_VIDEO_STREAMS && !StreamOrDetailsDataRequest.getLastSpoofedClientUseSABR();
+        return OfflineStreamSource.isServingAny()
+                || (SPOOF_VIDEO_STREAMS && !StreamOrDetailsDataRequest.getLastSpoofedClientUseSABR());
     }
 
     public static boolean useMediaFetchHotConfigReplacement(boolean original) {
@@ -302,6 +313,9 @@ public class SpoofVideoStreamsPatch {
 
     @Nullable
     public static byte[] getStreamingData(String videoId) {
+        // modified by lavinhoque33, 2026-10-20: a download opened from the offline library replaces the streams, spoofing or not.
+        byte[] offline = OfflineStreamSource.streamingData(videoId);
+        if (offline != null) return offline;
         if (SPOOF_VIDEO_STREAMS) {
             try {
                 StreamOrDetailsDataRequest request = StreamOrDetailsDataRequest.getStreamRequestForVideoId(videoId);
@@ -331,6 +345,8 @@ public class SpoofVideoStreamsPatch {
      */
     @Nullable
     public static byte[] getPlayerConfig(String videoId) {
+        // modified by lavinhoque33, 2026-10-20: the player config of the spoofed client does not fit a downloaded file.
+        if (OfflineStreamSource.isServing(videoId)) return null;
         if (SPOOF_VIDEO_STREAMS) {
             try {
                 StreamOrDetailsDataRequest request = StreamOrDetailsDataRequest.getStreamRequestForVideoId(videoId);

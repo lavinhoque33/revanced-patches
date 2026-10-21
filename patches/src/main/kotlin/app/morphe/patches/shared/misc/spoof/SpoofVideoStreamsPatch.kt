@@ -218,7 +218,7 @@ internal fun spoofVideoStreamsPatch(
                     addInstructionsWithLabels(
                         0,
                         """
-                            invoke-static { }, $EXTENSION_CLASS->isSpoofingEnabled()Z
+                            invoke-static { }, $EXTENSION_CLASS->isStreamingDataOverrideEnabled()Z
                             move-result v0
                             if-eqz v0, :disabled
 

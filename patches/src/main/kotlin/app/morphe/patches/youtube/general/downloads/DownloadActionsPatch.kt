@@ -167,6 +167,7 @@ val downloadActionsPatch = bytecodePatch(
                     "PREFERENCE_SCREEN: GENERAL",
                     "SETTINGS: HOOK_BUTTONS",
                     "SETTINGS: HOOK_DOWNLOAD_ACTIONS",
+                    "SETTINGS: OFFLINE_USE_YOUTUBE_PLAYER",
                     "SETTINGS: OVERRIDE_PLAY_NEXT_IN_QUEUE",
                 )
                 // modified by lavinhoque33, 2026-10-10: the setting is not shown when it has no effect.

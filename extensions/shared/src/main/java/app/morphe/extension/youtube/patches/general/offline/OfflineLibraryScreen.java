@@ -286,16 +286,23 @@ final class OfflineLibraryScreen implements OfflineScreens.Screen {
     // region actions
 
     private void showActions(OfflineVideo video) {
-        String[] actions = {
-                str("revanced_offline_action_play_background"),
-                str("revanced_offline_action_share"),
-                str("revanced_offline_action_open_youtube"),
-                str("revanced_offline_action_delete"),
-        };
+        // modified by lavinhoque33, 2026-10-20: a tap opens YouTube's player, so the built-in one gets an entry.
+        final boolean builtInEntry = Settings.OFFLINE_USE_YOUTUBE_PLAYER.get();
+        final int offset = builtInEntry ? 1 : 0;
+        String[] actions = new String[4 + offset];
+        if (builtInEntry) actions[0] = str("revanced_offline_action_play_builtin");
+        actions[offset] = str("revanced_offline_action_play_background");
+        actions[offset + 1] = str("revanced_offline_action_share");
+        actions[offset + 2] = str("revanced_offline_action_open_youtube");
+        actions[offset + 3] = str("revanced_offline_action_delete");
         Utils.getDialogBuilder(activity)
                 .setTitle(video.title)
                 .setItems(actions, (dialog, which) -> {
-                    switch (which) {
+                    if (builtInEntry && which == 0) {
+                        OfflineScreens.openBuiltInPlayer(activity, video.videoId);
+                        return;
+                    }
+                    switch (which - offset) {
                         case 0 -> {
                             OfflinePlayer.play(video, OfflineScreens.order());
                             Utils.showToastShort(str("revanced_offline_playing_background"));

@@ -122,7 +122,7 @@ final class OfflineNotifications {
                 .setContentTitle(title)
                 .setContentText(str("revanced_offline_download_complete"))
                 .setAutoCancel(true)
-                .setContentIntent(activityIntent(context, OfflineScreens.playerIntent(context, videoId), videoId.hashCode()))
+                .setContentIntent(activityIntent(context, OfflineScreens.preferYouTubePlayerIntent(context, videoId), videoId.hashCode()))
                 .build();
         manager.notify(resultId(videoId), notification);
     }

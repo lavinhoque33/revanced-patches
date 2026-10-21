@@ -1,3 +1,9 @@
+## Unreleased
+
+### Features
+
+* **YouTube - Built-in downloader:** A tap on a download in the offline library (or on the download finished notification) now opens the video in YouTube's own player, so comments, related videos, SponsorBlock, Return YouTube Dislike and the other player buttons work for it. The downloaded file is played, not the stream. YouTube's video page needs the internet: without a connection, for a file this device cannot decode, or with `Play downloads in YouTube's player` off, the built-in player opens as before. The long-press menu of a download has a `Play in built-in player` entry. The resume position is saved while YouTube's player plays the file.
+
 ## [1.10.2](https://github.com/lavinhoque33/revanced-patches/compare/v1.10.1...v1.10.2) (2026-10-20)
 
 ### Bug Fixes

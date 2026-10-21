@@ -85,6 +85,9 @@
             <SwitchPreference android:title="@string/revanced_replace_downloads_page_title" android:key="revanced_replace_downloads_page" android:summaryOn="@string/revanced_replace_downloads_page_summary_on" android:summaryOff="@string/revanced_replace_downloads_page_summary_off" />
             <app.morphe.extension.youtube.settings.preference.OpenOfflineLibraryPreference android:title="@string/revanced_open_offline_library_title" android:key="revanced_open_offline_library" android:summary="@string/revanced_open_offline_library_summary" />SETTINGS: HOOK_DOWNLOAD_ACTIONS -->
 
+            <!-- SETTINGS: OFFLINE_USE_YOUTUBE_PLAYER
+            <SwitchPreference android:title="@string/revanced_offline_use_youtube_player_title" android:key="revanced_offline_use_youtube_player" android:summaryOn="@string/revanced_offline_use_youtube_player_summary_on" android:summaryOff="@string/revanced_offline_use_youtube_player_summary_off" />SETTINGS: OFFLINE_USE_YOUTUBE_PLAYER -->
+
             <!-- SETTINGS: SHOW_OFFLINE_LIBRARY_BUTTON
             <SwitchPreference android:title="@string/revanced_show_offline_library_button_title" android:key="revanced_show_offline_library_button" android:summaryOn="@string/revanced_show_offline_library_button_summary_on" android:summaryOff="@string/revanced_show_offline_library_button_summary_off" />SETTINGS: SHOW_OFFLINE_LIBRARY_BUTTON -->
 

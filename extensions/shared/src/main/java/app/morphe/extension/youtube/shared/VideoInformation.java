@@ -411,6 +411,8 @@ public final class VideoInformation {
         videoTitle = newlyLoadedVideoTitle;
         videoLength = newlyLoadedVideoLength;
         videoIsLiveStream = newlyLoadedLiveStreamValue;
+        // modified by lavinhoque33, 2026-10-20: another video ends the playback of a downloaded file.
+        app.morphe.extension.youtube.patches.general.offline.OfflineStreamSource.onVideoLoaded(newlyLoadedVideoId);
 
         if (!videoChanged)
             return;
@@ -949,6 +951,8 @@ public final class VideoInformation {
      */
     public static void setVideoTime(final long time) {
         videoTime = time;
+        // modified by lavinhoque33, 2026-10-20: resume position of downloads played in YouTube's player.
+        app.morphe.extension.youtube.patches.general.offline.OfflineStreamSource.onVideoTime(videoId, time);
         Logger.printDebug(() -> "setVideoTime: " + getFormattedTimeStamp(time));
     }
 

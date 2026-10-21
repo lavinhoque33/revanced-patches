@@ -2019,6 +2019,9 @@ The quality picker is shown for every download"</string>
     <string name="revanced_show_offline_library_button_title">Downloads button in You tab</string>
     <string name="revanced_show_offline_library_button_summary_on">A Downloads button next to Settings in the You tab opens the offline library</string>
     <string name="revanced_show_offline_library_button_summary_off">No Downloads button in the You tab</string>
+    <string name="revanced_offline_use_youtube_player_title">Play downloads in YouTube\'s player</string>
+    <string name="revanced_offline_use_youtube_player_summary_on">"Downloads open on the video page of YouTube, with comments, SponsorBlock and player buttons. Needs an internet connection, otherwise the built-in player opens"</string>
+    <string name="revanced_offline_use_youtube_player_summary_off">Downloads open in the built-in player</string>
     <string name="revanced_open_offline_library_title">Open offline library</string>
     <string name="revanced_open_offline_library_summary">Videos downloaded with the built-in downloader</string>
     <string name="revanced_offline_notification_channel_downloads">Video downloads</string>
@@ -2067,6 +2070,7 @@ The quality picker is shown for every download"</string>
     <string name="revanced_offline_library_resume">Resume at %s</string>
     <string name="revanced_offline_action_play_background">Play in background</string>
     <string name="revanced_offline_action_share">Share</string>
+    <string name="revanced_offline_action_play_builtin">Play in built-in player</string>
     <string name="revanced_offline_action_open_youtube">Open on YouTube</string>
     <string name="revanced_offline_action_delete">Delete</string>
     <string name="revanced_offline_playing_background">Playing in background</string>

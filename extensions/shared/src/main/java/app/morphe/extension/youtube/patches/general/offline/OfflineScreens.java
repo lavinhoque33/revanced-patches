@@ -42,6 +42,7 @@ public final class OfflineScreens {
     public static final String LIBRARY_INTENT = "rvx_offline_library_intent";
     public static final String PLAYER_INTENT = "rvx_offline_player_intent";
     static final String EXTRA_VIDEO_ID = "rvx_offline_video_id";
+    static final String EXTRA_PREFER_YOUTUBE = "rvx_offline_prefer_youtube_player";
 
     private static final String LICENSE_ACTIVITY = "com.google.android.libraries.social.licenses.LicenseActivity";
     private static final String DOWNLOADS_BROWSE_ID = "FEdownloads";
@@ -88,6 +89,11 @@ public final class OfflineScreens {
         return intent;
     }
 
+    /** A player intent that opens YouTube's player when it can play the video, else the built-in player. */
+    static Intent preferYouTubePlayerIntent(Context context, String videoId) {
+        return playerIntent(context, videoId).putExtra(EXTRA_PREFER_YOUTUBE, true);
+    }
+
     private static Intent hostIntent(Context context, String key) {
         Intent intent = new Intent(Intent.ACTION_MAIN);
         intent.setData(Uri.parse(key));
@@ -111,7 +117,18 @@ public final class OfflineScreens {
         start(context, libraryIntent(base));
     }
 
+    /**
+     * Plays a download, in YouTube's player if the setting is on and it can play the file,
+     * otherwise in the built-in player.
+     */
     static void openPlayer(@Nullable Context context, @Nullable String videoId) {
+        // modified by lavinhoque33, 2026-10-20: YouTube's player first, the built-in player as the fallback.
+        OfflineVideo video = videoId == null ? null : OfflineIndex.get(videoId);
+        if (video != null && OfflineStreamSource.open(context, video)) return;
+        openBuiltInPlayer(context, videoId);
+    }
+
+    static void openBuiltInPlayer(@Nullable Context context, @Nullable String videoId) {
         Context base = context != null ? context : Utils.getContext();
         start(context, playerIntent(base, videoId));
     }
@@ -130,6 +147,16 @@ public final class OfflineScreens {
         final boolean library = LIBRARY_INTENT.equals(data);
         final boolean player = PLAYER_INTENT.equals(data);
         if (!library && !player) return false;
+
+        // modified by lavinhoque33, 2026-10-20: a tap on a finished download goes to YouTube's player when it can play the file.
+        if (player && activity.getIntent().getBooleanExtra(EXTRA_PREFER_YOUTUBE, false)) {
+            String videoId = activity.getIntent().getStringExtra(EXTRA_VIDEO_ID);
+            OfflineVideo video = videoId == null ? null : OfflineIndex.get(videoId);
+            if (video != null && OfflineStreamSource.open(activity, video)) {
+                activity.finish();
+                return true;
+            }
+        }
 
         try {
             registerLifecycleCallbacks(activity);

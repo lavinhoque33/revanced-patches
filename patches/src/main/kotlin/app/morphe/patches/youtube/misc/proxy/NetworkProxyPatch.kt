@@ -45,12 +45,12 @@ val networkProxyPatch = bytecodePatch(
         }
 
         // Extension requests made before the first Cronet engine is built also use the proxy.
-        arrayOf(
-            applicationInitHook.fingerprint.method,
-            getMainActivityMethod("onCreate"),
-        ).forEach { method ->
-            method.addInstruction(0, "invoke-static { }, $EXTENSION_CLASS->initialize()V")
-        }
+        // The Application hook goes after the extension context hook, which is at index 0, because
+        // the Spoof video streams hook inserted after it needs the context.
+        applicationInitHook.fingerprint.method
+            .addInstruction(1, "invoke-static { }, $EXTENSION_CLASS->initialize()V")
+        getMainActivityMethod("onCreate")
+            .addInstruction(0, "invoke-static { }, $EXTENSION_CLASS->initialize()V")
 
         addPreference(
             arrayOf("SETTINGS: NETWORK_PROXY"),

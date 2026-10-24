@@ -8,6 +8,8 @@
  * Modified by lavinhoque33, 2026-10-24.
  *
  * See the included NOTICE file for GPLv3 Section 7 terms that apply to Morphe contributions.
+ *
+ * Modified by lavinhoque33, 2026-10-24
  */
 
 package app.morphe.extension.youtube.patches.components;
@@ -287,6 +289,22 @@ public final class CommentsFilter extends Filter {
     public boolean isFiltered(Object contextSource, String identifier, String accessibility, String path, byte[] buffer,
                               StringFilterGroup matchedGroup, FilterContentType contentType, int contentIndex) {
         return isFiltered(path, identifier, accessibility, buffer, matchedGroup, contentType, contentIndex);
+    }
+
+    /**
+     * Injection point.
+     */
+    public static void hideLiveChatScrollToBottomButton(View view) {
+        if (Settings.HIDE_COMMENTS_LIVE_CHAT_SCROLL_TO_BOTTOM_BUTTON.get() && view != null) {
+            ViewGroup.LayoutParams lp = view.getLayoutParams();
+            if (lp != null) {
+                lp.width = 0;
+                lp.height = 0;
+                view.setLayoutParams(lp);
+            }
+
+            view.setVisibility(View.GONE);
+        }
     }
 
     /**

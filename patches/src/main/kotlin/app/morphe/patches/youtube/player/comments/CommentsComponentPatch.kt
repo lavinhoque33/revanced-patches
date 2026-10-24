@@ -23,12 +23,14 @@ import app.morphe.patches.youtube.utils.proto.hookElement
 import app.morphe.patches.youtube.utils.resourceid.sharedResourceIdPatch
 import app.morphe.patches.youtube.utils.settings.ResourceUtils.addPreference
 import app.morphe.patches.youtube.utils.settings.settingsPatch
+import app.morphe.util.Utils.printWarn
 import app.morphe.util.fingerprint.methodOrThrow
 import app.morphe.util.getReference
 import app.morphe.util.getWalkerMethod
 import app.morphe.util.indexOfFirstInstructionOrThrow
 import app.morphe.util.indexOfFirstInstructionReversedOrThrow
 import app.morphe.util.indexOfFirstLiteralInstructionOrThrow
+import app.morphe.util.injectHideViewCall
 import com.android.tools.smali.dexlib2.Opcode
 import com.android.tools.smali.dexlib2.iface.instruction.FiveRegisterInstruction
 import com.android.tools.smali.dexlib2.iface.instruction.OneRegisterInstruction
@@ -117,6 +119,30 @@ val commentsComponentPatch = bytecodePatch(
                     "invoke-static { v$subheaderRegister }, $COMMENTS_FILTER_CLASS_DESCRIPTOR->hideInComments(Landroid/view/View;)V"
                 )
             }
+        }
+
+        // endregion
+
+        // region hide live chat scroll to bottom button
+
+        try {
+            MoreCommentsIconFingerprint.matchAll().forEach {
+                it.method.apply {
+                    val viewIndex = it.instructionMatches.last().index
+                    val viewRegister = getInstruction<OneRegisterInstruction>(viewIndex).registerA
+
+                    injectHideViewCall(
+                        viewIndex + 1,
+                        viewRegister,
+                        COMMENTS_FILTER_CLASS_DESCRIPTOR,
+                        "hideLiveChatScrollToBottomButton"
+                    )
+                }
+            }
+        } catch (_: Exception) {
+            printWarn(
+                "Live chat scroll to bottom button not found. 'Hide live chat scroll to bottom button' will not work."
+            )
         }
 
         // endregion

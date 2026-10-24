@@ -179,6 +179,9 @@ Tap here to open AiSlopList.com and see downloads for other platforms"</string>
     <string name="morphe_hide_auto_dubbed_label_title">Hide \'Auto-dubbed\' label</string>
     <string name="morphe_hide_channel_buttons_summary">Hides buttons such as Subscribe, View Channel, Community, and YouTube Music from channel profiles in search results</string>
     <string name="morphe_hide_channel_buttons_title">Hide channel buttons</string>
+    <string name="morphe_hide_comments_live_chat_scroll_to_bottom_button_summary_off">Live chat scroll to bottom button is shown</string>
+    <string name="morphe_hide_comments_live_chat_scroll_to_bottom_button_summary_on">Live chat scroll to bottom button is hidden</string>
+    <string name="morphe_hide_comments_live_chat_scroll_to_bottom_button_title">Hide live chat scroll to bottom button</string>
     <string name="morphe_hide_courses_menu_title">Hide Courses menu</string>
     <string name="morphe_hide_explore_button_title">Hide Explore button</string>
     <string name="morphe_hide_fashion_menu_title">Hide \'Fashion &amp; Beauty\' menu</string>

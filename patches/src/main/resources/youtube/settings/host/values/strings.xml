@@ -2026,6 +2026,17 @@ To show the native playlist download button, turn on \'Spoof app version\' and c
 
 The quality picker is shown for every download"</string>
     <string name="revanced_in_app_downloader_summary_off">Video download buttons use your external downloader</string>
+    <!-- modified by lavinhoque33, 2026-10-24: Quick download menu strings. -->
+    <string name="morphe_external_downloader_quick_menu_title">Quick download menu</string>
+    <string name="morphe_external_downloader_quick_menu_summary">Video download buttons open a menu to download the video or its audio in the background with the default settings of your downloader, or to open the downloader
+
+Works with YTDLnis and YTindir as the video downloader</string>
+    <string name="morphe_external_downloader_quick_menu_video">Video</string>
+    <string name="morphe_external_downloader_quick_menu_audio">Audio</string>
+    <string name="morphe_external_downloader_quick_menu_video_quality">Video (Full HD, 1080p)</string>
+    <string name="morphe_external_downloader_quick_menu_audio_quality">Audio (192 kbps)</string>
+    <string name="morphe_external_downloader_quick_menu_all_options">All options</string>
+    <string name="morphe_external_downloader_quick_menu_title_dialog">Download</string>
     <string name="revanced_replace_downloads_page_title">Replace Downloads page</string>
     <string name="revanced_replace_downloads_page_summary_on">YouTube\'s Downloads page opens the offline library</string>
     <string name="revanced_replace_downloads_page_summary_off">YouTube\'s Downloads page is shown</string>

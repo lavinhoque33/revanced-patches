@@ -6,6 +6,7 @@
 * **YouTube - Hide comments components:** Added a `Hide live chat scroll to bottom button` setting (off by default) that hides the button that jumps to the newest message in live chat. Ported from Morphe.
 * **YouTube - Navigation bar:** Added a `Disable toolbar navigation tabs` setting (on by default) that keeps Subscriptions in the navigation bar when YouTube moves it to a tab at the top of Home. Needs YouTube 21.35 or newer; on older versions it is skipped with a warning. Ported from Morphe.
 * **YouTube - Return YouTube Dislike:** Added two settings (off by default) that show the like count and the like percentage on the right side of feed video thumbnails, using the Return YouTube Dislike API. Ported from Morphe.
+* **YouTube Music - Playback speed:** Added a `Playback speed` slider (25-300%, in Video settings) that sets the speed used for all tracks, and applies a changed value within about a second while a track is playing. At 100% the app's own speed, such as the podcast speed, is kept. `Change pitch with speed` now follows the slider too and also takes effect right away. Ported from Morphe.
 
 ## [1.13.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.12.0...v1.13.0) (2026-10-24)
 

@@ -57,6 +57,7 @@ import app.morphe.patches.music.utils.playservice.versionCheckPatch
 import app.morphe.patches.music.utils.resourceid.qualityAuto
 import app.morphe.patches.music.utils.resourceid.sharedResourceIdPatch
 import app.morphe.patches.music.utils.settings.CategoryType
+import app.morphe.patches.music.utils.settings.addCustomPreference
 import app.morphe.patches.music.utils.settings.ResourceUtils.updatePatchStatus
 import app.morphe.patches.music.utils.settings.addTextPreference
 import app.morphe.patches.music.utils.settings.addSwitchPreference
@@ -117,8 +118,8 @@ val videoPlaybackPatch = bytecodePatch(
         drcAudioPatch { is_7_13_or_greater },
         sharedResourceIdPatch,
         videoInformationPatch,
-        // modified by lavinhoque33, 2026-10-17: change pitch with speed
-        playbackPitchPatch,
+        // modified by lavinhoque33, 2026-10-24: playback speed override and change pitch with speed
+        playbackSpeedPatch,
     )
 
     execute {
@@ -322,7 +323,12 @@ val videoPlaybackPatch = bytecodePatch(
             "revanced_remember_playback_speed_last_selected",
             "true"
         )
-        // modified by lavinhoque33, 2026-10-17: change pitch with speed
+        // modified by lavinhoque33, 2026-10-24: playback speed override and change pitch with speed
+        addCustomPreference(
+            CategoryType.VIDEO,
+            "morphe_music_playback_speed",
+            "app.morphe.extension.shared.settings.preference.SliderPreference"
+        )
         addSwitchPreference(
             CategoryType.VIDEO,
             "morphe_music_playback_speed_change_pitch",

@@ -3,6 +3,7 @@ package app.morphe.extension.shared.utils;
 import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
+import android.os.Bundle;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -12,10 +13,19 @@ import app.morphe.extension.shared.patches.PatchStatus;
 public class IntentUtils extends Utils {
 
     public static void launchExternalDownloader(@NonNull String content, @NonNull String downloaderPackageName) {
+        launchExternalDownloader(content, downloaderPackageName, null);
+    }
+
+    public static void launchExternalDownloader(@NonNull String content,
+                                                @NonNull String downloaderPackageName,
+                                                @Nullable Bundle extras) {
         Intent intent = new Intent("android.intent.action.SEND");
         intent.setType("text/plain");
         intent.setPackage(downloaderPackageName);
         intent.putExtra("android.intent.extra.TEXT", content);
+        if (extras != null) {
+            intent.putExtras(extras);
+        }
         launchIntent(intent);
     }
 

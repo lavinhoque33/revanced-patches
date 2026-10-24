@@ -1,3 +1,22 @@
+## Unreleased
+
+### Features
+
+* **YouTube - Video delay:** Added a player button and dialog (and a setting, 0-5000 ms) that delay the video to keep it in sync with laggy Bluetooth audio. Ported from Morphe.
+* **YouTube - Skip live Shorts:** Added an option to automatically skip live streams in the Shorts feed. Ported from Morphe.
+* **YouTube - Force animations:** Added an option to always turn on or off the app animations that YouTube can turn off. Ported from Morphe.
+* **YouTube - Search comments:** Added an option (off by default) that adds a search button to the comments panel to filter the loaded comments. Ported from Morphe.
+* **YouTube - Channel search:** Added an option (off by default) that adds a button to channel pages to search for videos inside that channel. Ported from Morphe.
+* **YouTube - Feed card layout:** Added a Feed setting to keep the feed as YouTube sends it (default), or to show feed videos in the classic layout, as cards, or as cards with like, comment and save buttons. Ported from Morphe.
+* **YouTube - Feed view count:** Added a Feed setting (off by default) to show the view count at the bottom left of feed video thumbnails instead of below the title. Ported from Morphe.
+* **YouTube - Shorts icon style:** Added a Shorts setting to change the style of the Shorts action button icons (Fluent, Phosphor, Phosphor Light, Phosphor Duotone, Ionicons, Sharp). Ported from Morphe.
+* **YouTube - Media notification controls:** Added options to disable the seekbar, hide the Previous & Next buttons, or make them seek by a set number of seconds in the media notification, lock screen and headphone controls. Ported from Morphe.
+* **YouTube - Hook download actions:** Added a `Quick download menu` setting (off by default). With YTDLnis or YTindir as the video downloader, the download buttons show a Video / Audio / All options menu. Video and audio are queued in the background with the downloader's default settings. Idea from Morphe.
+* **YouTube / YouTube Music - Network proxy:** Added a patch (off by default) to route the app's network requests through an HTTP or HTTPS proxy, with optional authentication and direct fallback. Needs YouTube 20.47+ or YouTube Music 9.15+. Ported from Morphe.
+* **YouTube Music - Play albums songs:** Added an option to play the song version of album tracks instead of their music videos (needs `Spoof video streams`). Ported from Morphe.
+* **YouTube Music - Enable exclusive audio playback:** Added a patch that allows audio-only playback for content that is marked as audio-only unavailable. Ported from Morphe.
+* **YouTube Music - Jam queue sharing:** Added a patch (the setting is off by default) that shares the host queue and playback controls through the Jam Layer companion app. Needs YouTube Music 9.00+. Ported from Morphe.
+
 ## [1.11.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.10.4...v1.11.0) (2026-10-24)
 
 ### Features

@@ -45,6 +45,10 @@ internal enum class PatchList(
         "Change start page",
         "Adds an option to set which page the app opens in instead of the homepage."
     ),
+    CHANNEL_SEARCH(
+        "Channel search",
+        "Adds an option to search inside the channel that is currently open instead of searching all of YouTube."
+    ),
     COPY_TEXT(
         "Copy text",
         "Adds options to copy the video title and comments by tapping and holding them."
@@ -77,6 +81,23 @@ internal enum class PatchList(
         "Disable QUIC protocol",
         "Adds an option to disable CronetEngine's QUIC protocol."
     ),
+    NETWORK_PROXY(
+        "Network proxy",
+        "Adds options to route supported network requests through an HTTP or HTTPS proxy. " +
+                "Including this patch may cause connectivity problems on certain devices."
+    ),
+    FEED_CARD_LAYOUT(
+        "Feed card layout",
+        "Adds an option to show or hide the card layout of feed videos, which YouTube sends as an A/B test."
+    ),
+    FEED_VIEW_COUNT(
+        "Feed view count",
+        "Adds an option to show the view count at the bottom left of the thumbnails of feed videos."
+    ),
+    FORCE_ANIMATIONS(
+        "Force animations",
+        "Adds an option to always turn on or off the app animations that YouTube can turn off, such as the player transitions."
+    ),
     FORCE_ORIGINAL_AUDIO(
         "Force original audio",
         "Adds an option to disable audio tracks from being automatically enabled."
@@ -90,6 +111,12 @@ internal enum class PatchList(
     HIDE_STATUS_BAR(
         "Hide status bar",
         "Adds an option to hide the system status bar. Swipe down from the top edge to show it for a moment."
+    ),
+    // modified by lavinhoque33, 2026-10-24: Media notification controls patch entry.
+    MEDIA_NOTIFICATION_CONTROLS(
+        "Media notification controls",
+        "Adds options to disable the seekbar, hide the previous/next buttons, or make them seek in the " +
+                "media notification and headphone controls."
     ),
     PREFERRED_CAPTION_LANGUAGE(
         "Preferred caption language",
@@ -285,6 +312,10 @@ internal enum class PatchList(
         "Sanitize sharing links",
         "Adds an option to sanitize sharing links by removing tracking query parameters."
     ),
+    SEARCH_COMMENTS(
+        "Search comments",
+        "Adds a button to the comments to show only the loaded comments that contain the searched words."
+    ),
     SEEKBAR_COMPONENTS(
         "Seekbar components",
         "Adds options to hide or change components related to the seekbar."
@@ -304,6 +335,14 @@ internal enum class PatchList(
     SHORTS_COMPONENTS(
         "Shorts components",
         "Adds options to hide or change components related to YouTube Shorts."
+    ),
+    SHORTS_ICON_STYLE(
+        "Shorts icon style",
+        "Adds an option to change the style of the Shorts action button icons."
+    ),
+    SKIP_LIVE_SHORTS(
+        "Skip live Shorts",
+        "Adds an option to automatically skip live streams that appear in the Shorts feed."
     ),
     SNACK_BAR_COMPONENTS(
         "Snack bar components",
@@ -336,6 +375,10 @@ internal enum class PatchList(
     TRANSLATIONS_FOR_YOUTUBE(
         "Translations for YouTube",
         "Add translations or remove string resources."
+    ),
+    VIDEO_DELAY(
+        "Video delay",
+        "Adds an option to delay the video, to keep it in sync with laggy Bluetooth audio."
     ),
     VIDEO_PLAYBACK(
         "Video playback",

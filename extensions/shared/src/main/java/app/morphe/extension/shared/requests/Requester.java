@@ -1,5 +1,7 @@
 package app.morphe.extension.shared.requests;
 
+import androidx.annotation.Nullable;
+
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -23,15 +25,42 @@ public class Requester {
     public static final int HTTP_STATUS_CODE_CONFLICT = 409;
     public static final int HTTP_STATUS_CODE_TOO_MANY_REQUESTS = 429;
 
+    /**
+     * Opens the connections of every request made through this class.
+     * Set by the Network proxy patch; without it the platform connection is used.
+     */
+    public interface ConnectionProvider {
+        HttpURLConnection openConnection(URL url) throws IOException;
+    }
+
+    @Nullable
+    private static volatile ConnectionProvider connectionProvider;
+
     private Requester() {
     }
 
+    public static void setConnectionProvider(@Nullable ConnectionProvider provider) {
+        connectionProvider = provider;
+    }
+
     public static HttpURLConnection openConnection(String url) throws IOException {
-        HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
+        HttpURLConnection connection = openConnection(new URL(url));
         String agentString = System.getProperty("http.agent")
                 + "; RVX/" + PackageUtils.getAppVersionName();
         connection.setRequestProperty("User-Agent", agentString);
         return connection;
+    }
+
+    /**
+     * Opens a connection without setting any request property.
+     */
+    public static HttpURLConnection openConnection(URL url) throws IOException {
+        ConnectionProvider provider = connectionProvider;
+        if (provider != null) {
+            return provider.openConnection(url);
+        }
+
+        return (HttpURLConnection) url.openConnection();
     }
 
     public static HttpURLConnection getConnectionFromRoute(String apiUrl, Route route, String... params) throws IOException {
@@ -40,7 +69,7 @@ public class Requester {
 
     public static HttpURLConnection getConnectionFromCompiledRoute(String apiUrl, Route.CompiledRoute route) throws IOException {
         String url = apiUrl + route.getCompiledRoute();
-        HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
+        HttpURLConnection connection = openConnection(new URL(url));
         // Request data is in the URL parameters and no body is sent.
         // The calling code must set a length if using a request body.
         connection.setFixedLengthStreamingMode(0);

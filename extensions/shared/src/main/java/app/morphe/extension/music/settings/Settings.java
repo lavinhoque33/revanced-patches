@@ -252,6 +252,7 @@ public class Settings extends SharedYouTubeSettings {
     public static final BooleanSetting HIDE_SONG_VIDEO_TOGGLE = new BooleanSetting("revanced_hide_song_video_toggle", FALSE, true);
     // modified by lavinhoque33, 2026-10-17: "Enable audio/video switch" ported from Morphe.
     public static final BooleanSetting ENABLE_AUDIO_VIDEO_SWITCH = new BooleanSetting("morphe_music_enable_audio_video_switch", FALSE, true, Setting.parentInverted(HIDE_SONG_VIDEO_TOGGLE));
+    public static final BooleanSetting JAM_ENABLED = new BooleanSetting("morphe_music_jam_enabled", FALSE, true);
     // modified by lavinhoque33, 2026-10-17: Playlist track tap action port from Morphe
     public static final EnumSetting<TapAction> PLAYLIST_TRACK_TAP_ACTION = new EnumSetting<>("morphe_music_playlist_track_tap_action", TapAction.DEFAULT);
     public static final BooleanSetting REMEMBER_REPEAT_SATE = new BooleanSetting("revanced_remember_repeat_state", TRUE);

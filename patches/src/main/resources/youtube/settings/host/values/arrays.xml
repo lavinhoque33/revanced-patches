@@ -919,6 +919,18 @@
         <item>1</item>
         <item>0</item>
     </string-array>
+    <string-array name="morphe_feed_card_layout_entries">
+        <item>@string/morphe_feed_card_layout_entry_0</item>
+        <item>@string/morphe_feed_card_layout_entry_1</item>
+        <item>@string/morphe_feed_card_layout_entry_2</item>
+        <item>@string/morphe_feed_card_layout_entry_3</item>
+    </string-array>
+    <string-array name="morphe_feed_card_layout_entry_values">
+        <item>DEFAULT</item>
+        <item>CLASSIC</item>
+        <item>CARDS</item>
+        <item>CARDS_WITH_ACTION_BUTTONS</item>
+    </string-array>
     <string-array name="morphe_splash_screen_animation_style_entries">
         <item>@string/revanced_exit_fullscreen_entry_1</item>
         <item>@string/morphe_splash_screen_animation_style_entry_2</item>
@@ -928,6 +940,24 @@
         <item>DISABLED</item>
         <item>FPS_60_ONE_SECOND</item>
         <item>FPS_60_BLACK_AND_WHITE</item>
+    </string-array>
+    <string-array name="morphe_shorts_icon_style_entries">
+        <item>@string/morphe_app_refresh_rate_default</item>
+        <item>@string/morphe_shorts_icon_style_entry_fluent</item>
+        <item>@string/morphe_shorts_icon_style_entry_phosphor</item>
+        <item>@string/morphe_shorts_icon_style_entry_phosphor_light</item>
+        <item>@string/morphe_shorts_icon_style_entry_phosphor_duotone</item>
+        <item>@string/morphe_shorts_icon_style_entry_ionicons</item>
+        <item>@string/morphe_shorts_icon_style_entry_sharp</item>
+    </string-array>
+    <string-array name="morphe_shorts_icon_style_entry_values">
+        <item>AUTO</item>
+        <item>FLUENT</item>
+        <item>PHOSPHOR</item>
+        <item>PHOSPHOR_LIGHT</item>
+        <item>PHOSPHOR_DUOTONE</item>
+        <item>IONICONS</item>
+        <item>SHARP</item>
     </string-array>
     <string-array name="revanced_status_bar_translucency_entries">
         <item>@string/morphe_app_refresh_rate_default</item>
@@ -1202,6 +1232,16 @@
         <item>LOW</item>
         <item>MEDIUM</item>
         <item>MAXIMUM</item>
+    </string-array>
+    <string-array name="morphe_force_animations_entries">
+        <item>@string/morphe_force_animations_entry_default</item>
+        <item>@string/morphe_force_animations_entry_always_on</item>
+        <item>@string/morphe_force_animations_entry_always_off</item>
+    </string-array>
+    <string-array name="morphe_force_animations_entry_values">
+        <item>DEFAULT</item>
+        <item>ALWAYS_ON</item>
+        <item>ALWAYS_OFF</item>
     </string-array>
     <string-array name="morphe_skip_silence_minimum_pause_entries" translatable="false">
         <item>0.5 seconds</item>

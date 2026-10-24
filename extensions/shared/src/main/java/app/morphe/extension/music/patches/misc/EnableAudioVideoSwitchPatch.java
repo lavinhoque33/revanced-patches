@@ -5,7 +5,9 @@
  * See the included NOTICE file for GPLv3 Section 7 terms that apply to this code.
  *
  * modified by lavinhoque33, 2026-10-17: ported to the RVX fork (shared extension module, fork
- * Logger/Utils/Requester packages, inlined queue command encoder, album redirect coexistence).
+ * Logger/Utils/Requester packages, album redirect coexistence).
+ * Modified by lavinhoque33, 2026-10-24: encodes the queue command with the ported Jam
+ * QueueCommand again, like Morphe, instead of an inlined copy.
  */
 
 package app.morphe.extension.music.patches.misc;
@@ -27,7 +29,6 @@ import androidx.annotation.Nullable;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
-import java.io.ByteArrayOutputStream; // modified by lavinhoque33, 2026-10-17: queue command encoder
 import java.io.OutputStream;
 import java.lang.ref.WeakReference;
 import java.net.HttpURLConnection;
@@ -44,6 +45,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 
+import app.morphe.extension.music.patches.jam.QueueCommand;
 import app.morphe.extension.music.settings.Settings;
 import app.morphe.extension.music.shared.VideoInformation;
 import app.morphe.extension.shared.requests.Requester;
@@ -88,13 +90,6 @@ public final class EnableAudioVideoSwitchPatch {
 
     private static final String AUDIO_TYPE = "MUSIC_VIDEO_TYPE_ATV";
     private static final String VIDEO_TYPE = "MUSIC_VIDEO_TYPE_OMV";
-
-    // modified by lavinhoque33, 2026-10-17: protobuf extension field numbers of the native
-    // queue-edit endpoint (InnerTube wire schema, from Morphe's Jam QueueCommand).
-    private static final int QUEUE_EDIT_ENDPOINT_FIELD = 163_162_354;
-    private static final int QUEUE_EDIT_TARGET_FIELD = 1;
-    private static final int QUEUE_EDIT_MODE_FIELD = 2;
-    private static final int QUEUE_EDIT_MODE_PLAY_NEXT = 1;
 
     private static volatile boolean busy;
 
@@ -239,8 +234,7 @@ public final class EnableAudioVideoSwitchPatch {
             Executor executor = access.patch_atvExecutor();
             if (executor == null) return false;
 
-            // modified by lavinhoque33, 2026-10-17: Morphe's Jam QueueCommand is not in the fork.
-            byte[] command = encodePlayNext(targetId);
+            byte[] command = QueueCommand.encode(targetId, true);
             int[] queuedIndex = new int[] {-1};
             runOnQueueExecutor(executor, () -> {
                 Object[] items = access.patch_atvItems();
@@ -596,46 +590,6 @@ public final class EnableAudioVideoSwitchPatch {
             return Requester.parseJSONObject(connection);
         }
         return new JSONObject(Requester.parseErrorString(connection));
-    }
-
-    /**
-     * modified by lavinhoque33, 2026-10-17: minimal port of Morphe's Jam
-     * {@code QueueCommand.encode(videoId, true)}: a "play next" queue edit endpoint.
-     * <pre>
-     * endpoint[163162354] {
-     *   target[1] { video_id[1] }
-     *   mode[2] = 1 (play next)
-     * }
-     * </pre>
-     * Target field 3 (downloaded/local-media route) is intentionally not set.
-     */
-    private static byte[] encodePlayNext(String videoId) {
-        if (videoId == null || !videoId.matches("[A-Za-z0-9_-]{11}")) {
-            throw new IllegalArgumentException("Invalid video ID");
-        }
-        ByteArrayOutputStream target = new ByteArrayOutputStream();
-        protoBytes(target, QUEUE_EDIT_TARGET_FIELD, videoId.getBytes(StandardCharsets.US_ASCII));
-        ByteArrayOutputStream operation = new ByteArrayOutputStream();
-        protoBytes(operation, QUEUE_EDIT_TARGET_FIELD, target.toByteArray());
-        protoVarint(operation, QUEUE_EDIT_MODE_FIELD << 3);
-        protoVarint(operation, QUEUE_EDIT_MODE_PLAY_NEXT);
-        ByteArrayOutputStream endpoint = new ByteArrayOutputStream();
-        protoBytes(endpoint, QUEUE_EDIT_ENDPOINT_FIELD, operation.toByteArray());
-        return endpoint.toByteArray();
-    }
-
-    private static void protoBytes(ByteArrayOutputStream out, int field, byte[] value) {
-        protoVarint(out, (field << 3) | 2);
-        protoVarint(out, value.length);
-        out.write(value, 0, value.length);
-    }
-
-    private static void protoVarint(ByteArrayOutputStream out, int value) {
-        while ((value & ~0x7f) != 0) {
-            out.write((value & 0x7f) | 0x80);
-            value >>>= 7;
-        }
-        out.write(value);
     }
 
     @SuppressWarnings("BooleanMethodIsAlwaysInverted")

@@ -11,6 +11,7 @@
  * - Jav1x (https://github.com/Jav1x)
  *
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-10-24
  *
  * ------------------------------------------------------------------------
  * GPLv3 Section 7 – Additional Terms & Attribution Requirements
@@ -67,6 +68,7 @@ import java.util.function.Consumer;
 
 import app.morphe.extension.shared.utils.Logger;
 import app.morphe.extension.shared.utils.Utils;
+import app.morphe.extension.youtube.patches.SkipLiveShortsPatch;
 import app.morphe.extension.youtube.patches.utils.AlwaysRepeatPatch;
 import app.morphe.extension.youtube.patches.video.CustomPlaybackSpeedPatch;
 import app.morphe.extension.youtube.patches.video.PlaybackSpeedPatch;
@@ -416,6 +418,8 @@ public final class VideoInformation {
 
         if (!videoChanged)
             return;
+
+        SkipLiveShortsPatch.onVideoLoaded(newlyLoadedLiveStreamValue);
 
         mainVideoLikeCount = null;
         isOriginalLikeCountPrecise = false;

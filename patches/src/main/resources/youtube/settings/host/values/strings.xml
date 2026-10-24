@@ -60,6 +60,19 @@ Reports are public and are reviewed before a channel is added to a list. Removal
     <string name="morphe_auto_pause_on_screen_lock_title">Auto pause when device is locked</string>
     <string name="morphe_auto_translate_additional_languages_summary">Adds more languages to the auto-translate menu</string>
     <string name="morphe_auto_translate_additional_languages_title">Add additional auto-translate languages</string>
+    <string name="morphe_channel_search_failed">Could not search this channel</string>
+    <string name="morphe_channel_search_hint">Search channel</string>
+    <string name="morphe_channel_search_no_results">Nothing found on this channel</string>
+    <string name="morphe_channel_search_results">Channel search results</string>
+    <string name="morphe_channel_search_sort_least_viewed">Least viewed</string>
+    <string name="morphe_channel_search_sort_longest">Longest</string>
+    <string name="morphe_channel_search_sort_most_viewed">Most viewed</string>
+    <string name="morphe_channel_search_sort_newest">Newest</string>
+    <string name="morphe_channel_search_sort_oldest">Oldest</string>
+    <string name="morphe_channel_search_sort_relevance">Relevance</string>
+    <string name="morphe_channel_search_sort_shortest">Shortest</string>
+    <string name="morphe_channel_search_summary">Adds a second search button on channel pages to search only that channel</string>
+    <string name="morphe_channel_search_title">Search within channel</string>
     <string name="revanced_copy_comments_success">Comment copied to clipboard</string>
     <string name="revanced_copy_comments_summary">Tap and hold a comment to copy it</string>
     <string name="revanced_copy_comments_title">Copy comments</string>
@@ -101,6 +114,8 @@ Tap here to open DeArrow.ajay.app"</string>
     <string name="morphe_disable_drc_audio_title">Disable DRC audio</string>
     <string name="morphe_disable_icon_only_navigation_buttons_summary">Shows the navigation buttons with labels, if YouTube sends them without labels</string>
     <string name="morphe_disable_icon_only_navigation_buttons_title">Disable navigation buttons without labels</string>
+    <string name="morphe_disable_notification_media_seekbar_summary">Prevents dragging the seekbar on the lock screen and notification panel</string>
+    <string name="morphe_disable_notification_media_seekbar_title">Disable seekbar</string>
     <string name="morphe_disable_quic_protocol_summary_off">QUIC protocol is enabled</string>
     <string name="morphe_disable_quic_protocol_summary_on">QUIC protocol is disabled</string>
     <string name="morphe_disable_quic_protocol_title">Disable QUIC protocol</string>
@@ -115,6 +130,18 @@ To fix this, turn on \'Spoof video streams\' and change the \'Default client\' t
     <string name="morphe_explore_menu_screen_summary">Choose which components appear in the explore menu</string>
     <string name="morphe_explore_menu_screen_title">Explore menu</string>
     <string name="morphe_external_potoken_provider_user_dialog_message">If it does not work, try force-closing MicroG</string>
+    <string name="morphe_feed_card_layout_comments">Comments</string>
+    <string name="morphe_feed_card_layout_entry_0">Default</string>
+    <string name="morphe_feed_card_layout_entry_1">Classic</string>
+    <string name="morphe_feed_card_layout_entry_2">Cards</string>
+    <string name="morphe_feed_card_layout_entry_3">Cards with like, comment and save buttons</string>
+    <string name="morphe_feed_card_layout_title">Feed card layout</string>
+    <string name="morphe_feed_view_count_summary">The view count of feed videos is shown at the bottom left of their thumbnails instead of below the title. Some videos, such as in shelves, may not show a view count</string>
+    <string name="morphe_feed_view_count_title">Show view count on thumbnails</string>
+    <string name="morphe_force_animations_entry_always_off">Always off</string>
+    <string name="morphe_force_animations_entry_always_on">Always on</string>
+    <string name="morphe_force_animations_entry_default">Default</string>
+    <string name="morphe_force_animations_title">Force animations</string>
     <string name="morphe_force_original_audio_not_available">To use this feature, change \'Spoof video streams\' to any client except \'Android Studio\' and \'Android VR Downgraded\'</string>
     <string name="morphe_force_original_audio_summary_off">Using default audio</string>
     <string name="morphe_force_original_audio_summary_on">Using original audio language</string>
@@ -169,6 +196,8 @@ Tap here to open AiSlopList.com and see downloads for other platforms"</string>
     <string name="morphe_hide_movies_menu_title">Hide Movies menu</string>
     <string name="morphe_hide_music_menu_title">Hide \'Music &amp; TV\' menu</string>
     <string name="morphe_hide_news_menu_title">Hide News menu</string>
+    <string name="morphe_hide_notification_media_prev_next_summary">Hides Previous and Next buttons in media notification, lock screen, and headphone controls</string>
+    <string name="morphe_hide_notification_media_prev_next_title">Hide Previous &amp; Next buttons</string>
     <string name="morphe_hide_playables_menu_title">Hide Playables menu</string>
     <string name="morphe_hide_player_flyout_audio_track_not_available">"\'Audio Track\' menu is hidden
 
@@ -200,6 +229,8 @@ To fix this, turn on \'Spoof video streams\' and change the \'Default client\' t
     <string name="morphe_music_package_name_title">Music app package name</string>
     <string name="morphe_notification_dot_color_summary">Changes the color of notification dots</string>
     <string name="morphe_notification_dot_color_title">Notification dot color</string>
+    <string name="morphe_notification_media_screen_summary">Customize the playback controls shown on your lock screen and notification panel</string>
+    <string name="morphe_notification_media_screen_title">Notification media controls</string>
     <string name="morphe_oauth2_connection_failure_auth_error">Cannot sign in to VR: %s</string>
     <string name="morphe_oauth2_connection_failure_auth_not_approved">Cannot sign in to VR, website authentication was not approved</string>
     <string name="morphe_oauth2_connection_failure_generic">OAuth2 is temporarily not available</string>
@@ -241,6 +272,24 @@ To use this feature, turn off \'Spoof video streams\'"</string>
     <string name="morphe_preferred_caption_language_entry_off">Off</string>
     <string name="morphe_preferred_caption_language_summary">Selects provider subtitles first, then automatically translates to the preferred language</string>
     <string name="morphe_preferred_caption_language_title">Preferred caption language</string>
+    <string name="morphe_proxy_allow_direct_fallback_summary">Connect directly if the proxy fails</string>
+    <string name="morphe_proxy_allow_direct_fallback_title">Allow direct fallback</string>
+    <string name="morphe_proxy_auth_enabled_summary">Sends Basic authentication with proxy requests</string>
+    <string name="morphe_proxy_auth_enabled_title">Proxy authentication</string>
+    <string name="morphe_proxy_auth_password_summary">Password for Basic proxy authentication</string>
+    <string name="morphe_proxy_auth_password_title">Proxy password</string>
+    <string name="morphe_proxy_auth_username_summary">Username for Basic proxy authentication</string>
+    <string name="morphe_proxy_auth_username_title">Proxy username</string>
+    <string name="morphe_proxy_enabled_summary">Routes supported network requests through a configured HTTP or HTTPS proxy</string>
+    <string name="morphe_proxy_enabled_title">Enable proxy</string>
+    <string name="morphe_proxy_host_summary">Hostname or IP address of the proxy server</string>
+    <string name="morphe_proxy_host_title">Proxy host</string>
+    <string name="morphe_proxy_https_summary">Use HTTPS to connect to the proxy server instead of HTTP</string>
+    <string name="morphe_proxy_https_title">Use HTTPS proxy</string>
+    <string name="morphe_proxy_port_summary">Port of the proxy server</string>
+    <string name="morphe_proxy_port_title">Proxy port</string>
+    <string name="morphe_proxy_screen_summary">Route supported network requests through a proxy</string>
+    <string name="morphe_proxy_screen_title">Network proxy</string>
     <string name="morphe_queue_manager_check_failed_auth">Not logged in</string>
     <string name="morphe_queue_manager_check_failed_video_id">No video ID</string>
     <string name="morphe_reload_video_summary_off">Reload video button is hidden</string>
@@ -272,6 +321,21 @@ To use this feature, turn off \'Spoof video streams\'"</string>
     <string name="morphe_save_to_watch_later_shorts_flyout_button_summary">Allows saving Shorts to the \'Watch later\' playlist from the feed flyout menu</string>
     <string name="morphe_save_to_watch_later_shorts_flyout_button_title">Save button for Shorts</string>
     <string name="morphe_save_to_watch_later_success_toast">Video successfully saved in watch later playlist</string>
+    <string name="morphe_search_comments_applied">Change the sort order or open the comments again to search them</string>
+    <string name="morphe_search_comments_clear">Clear</string>
+    <string name="morphe_search_comments_cleared">Search cleared. Change the sort order or open the comments again to show all comments</string>
+    <string name="morphe_search_comments_dialog_title">Search comments</string>
+    <string name="morphe_search_comments_hint">Words to search for</string>
+    <string name="morphe_search_comments_search">Search</string>
+    <string name="morphe_search_comments_summary">Tap the search button in the comments to show only the loaded comments that contain all of the searched words. Put words in quotes to search for a phrase</string>
+    <string name="morphe_search_comments_title">Search comments</string>
+    <string name="morphe_seek_notification_media_fast_forward_length_summary">Seconds to fast forward with the Next button</string>
+    <string name="morphe_seek_notification_media_fast_forward_length_title">Fast forward length</string>
+    <string name="morphe_seek_notification_media_length_invalid">Seek length must be between 1 and %d seconds. Using default</string>
+    <string name="morphe_seek_notification_media_prev_next_summary">Rewinds and fast forwards with Previous and Next buttons in media notification, lock screen, and headphone controls, instead of changing videos</string>
+    <string name="morphe_seek_notification_media_prev_next_title">Seek with Previous &amp; Next buttons</string>
+    <string name="morphe_seek_notification_media_rewind_length_summary">Seconds to rewind with the Previous button</string>
+    <string name="morphe_seek_notification_media_rewind_length_title">Rewind length</string>
     <string name="morphe_seekbar_thumbnail_heatmap_peak_point">Most replayed</string>
     <string name="morphe_seekbar_thumbnail_preview_summary">Shows a video thumbnail while dragging the seekbar</string>
     <string name="morphe_seekbar_thumbnail_preview_title">Enable seekbar thumbnails</string>
@@ -286,6 +350,15 @@ To use this feature, turn off \'Spoof video streams\'"</string>
     <string name="morphe_settings_name_entry_3" translatable="false">Tweaks</string>
     <string name="morphe_settings_name_entry_4" translatable="false">Premium</string>
     <string name="morphe_settings_name_title">RVX settings name</string>
+    <string name="morphe_shorts_icon_style_entry_fluent" translatable="false">Fluent</string>
+    <string name="morphe_shorts_icon_style_entry_ionicons" translatable="false">Ionicons</string>
+    <string name="morphe_shorts_icon_style_entry_phosphor" translatable="false">Phosphor</string>
+    <string name="morphe_shorts_icon_style_entry_phosphor_duotone" translatable="false">Phosphor Duotone</string>
+    <string name="morphe_shorts_icon_style_entry_phosphor_light" translatable="false">Phosphor Light</string>
+    <string name="morphe_shorts_icon_style_entry_sharp" translatable="false">Sharp</string>
+    <string name="morphe_shorts_icon_style_title">Shorts icon style</string>
+    <string name="morphe_skip_live_shorts_summary">Skips live streams that appear in the Shorts feed</string>
+    <string name="morphe_skip_live_shorts_title">Skip live Shorts</string>
     <string name="morphe_skip_silence_minimum_pause_summary">Only pauses at least this long are shortened. Takes effect when the next video starts</string>
     <string name="morphe_skip_silence_minimum_pause_title">Minimum pause length</string>
     <string name="morphe_skip_silence_summary">Automatically skips silent pauses in video audio</string>
@@ -390,6 +463,14 @@ Limitation: If \'Restore old video action bar\' is turned off, \'More videos\' o
     <string name="morphe_theme_entry_white">White</string>
     <string name="morphe_theme_settings_summary">Customize the app theme, appearance, and branding</string>
     <string name="morphe_theme_settings_title">Theme settings</string>
+    <string name="morphe_video_delay_bluetooth_only_summary">Only delays the video while Bluetooth audio is connected, so the phone speaker stays in sync</string>
+    <string name="morphe_video_delay_bluetooth_only_title">Only delay with Bluetooth audio</string>
+    <string name="morphe_video_delay_button_flyout_title">Show Video delay menu</string>
+    <string name="morphe_video_delay_button_overlay_summary">Tap and hold to reset the delay to 0 ms</string>
+    <string name="morphe_video_delay_button_overlay_title">Show Video delay button</string>
+    <string name="morphe_video_delay_dialog_input_hint">Delay in milliseconds</string>
+    <string name="morphe_video_delay_summary">Delays the video to keep it in sync with laggy audio, such as Bluetooth headphones (0-5000 ms)</string>
+    <string name="morphe_video_delay_title">Video delay</string>
     <string name="morphe_video_quality_prioritize_dialog">If this setting is turned off, then older videos can show no video quality options</string>
     <string name="morphe_video_quality_prioritize_summary">Prioritizes the highest available video quality over codec efficiency</string>
     <string name="morphe_video_quality_prioritize_title">Prioritize video quality</string>
@@ -2013,6 +2094,17 @@ To show the native playlist download button, turn on \'Spoof app version\' and c
 
 The quality picker is shown for every download"</string>
     <string name="revanced_in_app_downloader_summary_off">Video download buttons use your external downloader</string>
+    <!-- modified by lavinhoque33, 2026-10-24: Quick download menu strings. -->
+    <string name="morphe_external_downloader_quick_menu_title">Quick download menu</string>
+    <string name="morphe_external_downloader_quick_menu_summary">Video download buttons open a menu to download the video or its audio in the background with the default settings of your downloader, or to open the downloader
+
+Works with YTDLnis and YTindir as the video downloader</string>
+    <string name="morphe_external_downloader_quick_menu_video">Video</string>
+    <string name="morphe_external_downloader_quick_menu_audio">Audio</string>
+    <string name="morphe_external_downloader_quick_menu_video_quality">Video (Full HD, 1080p)</string>
+    <string name="morphe_external_downloader_quick_menu_audio_quality">Audio (192 kbps)</string>
+    <string name="morphe_external_downloader_quick_menu_all_options">All options</string>
+    <string name="morphe_external_downloader_quick_menu_title_dialog">Download</string>
     <string name="revanced_replace_downloads_page_title">Replace Downloads page</string>
     <string name="revanced_replace_downloads_page_summary_on">YouTube\'s Downloads page opens the offline library</string>
     <string name="revanced_replace_downloads_page_summary_off">YouTube\'s Downloads page is shown</string>

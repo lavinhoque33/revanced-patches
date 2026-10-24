@@ -10,6 +10,7 @@
  * - Jav1x (https://github.com/Jav1x)
  *
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-10-24.
  *
  * ------------------------------------------------------------------------
  * GPLv3 Section 7 – Additional Terms & Attribution Requirements
@@ -82,6 +83,7 @@ import android.graphics.drawable.Drawable;
 import android.graphics.drawable.ShapeDrawable;
 import android.graphics.drawable.shapes.RoundRectShape;
 import android.media.AudioManager;
+import android.os.Bundle;
 import android.os.SystemClock;
 import android.text.Spannable;
 import android.text.SpannableStringBuilder;
@@ -130,6 +132,7 @@ import app.morphe.extension.shared.utils.IntentUtils;
 import app.morphe.extension.shared.utils.Logger;
 import app.morphe.extension.shared.utils.ResourceUtils;
 import app.morphe.extension.shared.utils.Utils;
+import app.morphe.extension.youtube.patches.general.ExternalDownloaderQuickMenu; // modified by lavinhoque33, 2026-10-24
 import app.morphe.extension.youtube.patches.general.offline.OfflineDownloader; // modified by lavinhoque33, 2026-10-10
 import app.morphe.extension.youtube.patches.video.CustomPlaybackAudioPitchPatch;
 import app.morphe.extension.youtube.patches.video.CustomPlaybackSpeedPatch;
@@ -242,10 +245,26 @@ public class VideoUtils extends IntentUtils {
                 return;
             }
 
-            isExternalDownloaderLaunched.compareAndSet(false, true);
-            launchExternalDownloader(getVideoUrl(videoId), downloaderPackageName);
+            if (ExternalDownloaderQuickMenu.isAvailable(downloaderPackageName)) {
+                ExternalDownloaderQuickMenu.show(downloaderPackageName,
+                        extras -> launchVideoDownloader(videoId, downloaderPackageName, extras));
+                return;
+            }
+
+            launchVideoDownloader(videoId, downloaderPackageName, null);
         } catch (Exception ex) {
             Logger.printException(() -> "launchExternalDownloader failure", ex);
+        }
+    }
+
+    private static void launchVideoDownloader(@NonNull String videoId,
+                                              @NonNull String downloaderPackageName,
+                                              @Nullable Bundle extras) {
+        try {
+            isExternalDownloaderLaunched.compareAndSet(false, true);
+            launchExternalDownloader(getVideoUrl(videoId), downloaderPackageName, extras);
+        } catch (Exception ex) {
+            Logger.printException(() -> "launchVideoDownloader failure", ex);
         } finally {
             runOnMainThreadDelayed(() -> isExternalDownloaderLaunched.compareAndSet(true, false), 500);
         }
@@ -1636,7 +1655,7 @@ public class VideoUtils extends IntentUtils {
      * @param marginEnd   The end margin in pixels (right for LTR, left for RTL).
      * @return A configured {@link Button} with the specified styling and layout parameters.
      */
-    private static Button createStyledButton(Context context, boolean isPlus, int marginStart, int marginEnd) {
+    public static Button createStyledButton(Context context, boolean isPlus, int marginStart, int marginEnd) {
         Button button = new Button(context, null, 0); // Disable default theme style.
         button.setText(""); // No text on button.
         ShapeDrawable background = new ShapeDrawable(new RoundRectShape(

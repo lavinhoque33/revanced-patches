@@ -1207,6 +1207,9 @@ Limitation: Some highlighted search links that do not have a default text style 
     <string name="revanced_hide_comments_translate_button_summary_off">Translate button is shown</string>
     <string name="revanced_hide_comments_translate_button_summary_on">Translate button is hidden</string>
     <string name="revanced_hide_comments_translate_button_title">Hide Translate button</string>
+    <string name="revanced_hide_comments_zero_state_summary_off">\'No comments yet\' message is shown</string>
+    <string name="revanced_hide_comments_zero_state_summary_on">\'No comments yet\' message is hidden</string>
+    <string name="revanced_hide_comments_zero_state_title">Hide \'No comments yet\' message</string>
     <string name="revanced_hide_community_button_summary_off">Community button is shown</string>
     <string name="revanced_hide_community_button_summary_on">Community button is hidden</string>
     <string name="revanced_hide_community_button_title">Hide Community button</string>

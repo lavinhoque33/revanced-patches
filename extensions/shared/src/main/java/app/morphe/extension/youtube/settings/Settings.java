@@ -630,6 +630,7 @@ public class Settings extends SharedYouTubeSettings {
     public static final BooleanSetting HIDE_COMMENTS_DISLIKE_BUTTON = new BooleanSetting("revanced_hide_comments_dislike_button", FALSE);
     public static final BooleanSetting HIDE_COMMENTS_MENU_BUTTON = new BooleanSetting("revanced_hide_comments_menu_button", FALSE);
     public static final BooleanSetting HIDE_COMMENTS_TRANSLATE_BUTTON = new BooleanSetting("revanced_hide_comments_translate_button", FALSE);
+    public static final BooleanSetting HIDE_COMMENTS_ZERO_STATE = new BooleanSetting("revanced_hide_comments_zero_state", FALSE);
     public static final BooleanSetting MINIMAL_COMMENTS_BUTTON = new BooleanSetting("revanced_minimal_comments_button", FALSE);
     public static final BooleanSetting HIDE_COMMENTS_THANKS_BUTTON = new BooleanSetting("revanced_hide_comments_thanks_button", FALSE, true);
     public static final BooleanSetting SANITIZE_COMMENTS_CATEGORY_BAR = new BooleanSetting("revanced_sanitize_comments_category_bar", FALSE);

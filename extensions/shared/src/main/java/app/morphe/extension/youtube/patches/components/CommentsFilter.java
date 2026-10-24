@@ -5,6 +5,8 @@
  * Original hard forked code:
  * https://github.com/ReVanced/revanced-patches/commit/724e6d61b2ecd868c1a9a37d465a688e83a74799
  *
+ * Modified by lavinhoque33, 2026-10-24.
+ *
  * See the included NOTICE file for GPLv3 Section 7 terms that apply to Morphe contributions.
  */
 
@@ -166,6 +168,11 @@ public final class CommentsFilter extends Filter {
                 "composer_timestamp_button"
         );
 
+        final StringFilterGroup commentsZeroState = new StringFilterGroup(
+                Settings.HIDE_COMMENTS_ZERO_STATE,
+                "comment_zero_state"
+        );
+
         final StringFilterGroup liveChatMessages = new StringFilterGroup(
                 Settings.HIDE_LIVE_CHAT_MESSAGES,
                 "live_chat_text_message",
@@ -201,6 +208,7 @@ public final class CommentsFilter extends Filter {
                 commentsFilterBar,
                 comments,
                 commentsByMembers,
+                commentsZeroState,
                 commentComposer,
                 commentComposerButtons,
                 commentsPreviewDots,

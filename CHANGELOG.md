@@ -1,3 +1,9 @@
+## Unreleased
+
+### Features
+
+* **YouTube - Hide comments components:** Added `Hide 'No comments yet' message`. Ported from Morphe.
+
 ## [1.13.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.12.0...v1.13.0) (2026-10-24)
 
 ### Features

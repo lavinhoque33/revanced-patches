@@ -1309,9 +1309,10 @@ public class CrossfadeManager {
     }
 
     // --- REPEAT_SINGLE crossfade-onto-self state ---
-    /** Lnwu loop enum: LOOP_OFF=0, LOOP_ALL=1, LOOP_ONE=2, LOOP_DISABLED=3. */
-    private static final int LOOP_ONE_ORDINAL = 2;
-    /** Live repeat-single state, tracked via the MediaSession loop adapter hook. */
+    /**
+     * Live repeat-single state, tracked via the MediaSession loop adapter hook. The loop enum
+     * (LOOP_OFF, LOOP_ALL, LOOP_ONE, LOOP_DISABLED) is matched by constant name.
+     */
     private static volatile boolean repeatSingleActive = false;
     /**
      * Most recent loadVideo descriptor (aues) — the current track's load intent.
@@ -1326,13 +1327,22 @@ public class CrossfadeManager {
      */
     public static void onLoopStateChanged(Object loopState) {
         try {
-            boolean single = (loopState instanceof Enum)
-                    && ((Enum<?>) loopState).ordinal() == LOOP_ONE_ORDINAL;
+            // modified by lavinhoque33, 2026-10-21: on 9.40+ this callback also receives playback and
+            // shuffle events (Morphe #3916). Update the cached repeat state only for loop states, matched by name.
+            if (!(loopState instanceof Enum<?> state)) return;
+
+            final boolean single;
+            switch (state.name()) {
+                case "LOOP_ONE" -> single = true;
+                case "LOOP_OFF", "LOOP_ALL", "LOOP_DISABLED" -> single = false;
+                default -> {
+                    return;
+                }
+            }
             if (single != repeatSingleActive) {
                 repeatSingleActive = single;
-                final int ord = (loopState instanceof Enum) ? ((Enum<?>) loopState).ordinal() : -1;
                 logInfo(() -> "onLoopStateChanged: repeatSingleActive=" + single
-                        + " (loop ordinal=" + ord + ")");
+                        + " (loop state=" + state.name() + ")");
             }
         } catch (Exception e) {
             logWarn(() -> "onLoopStateChanged error: " + e.getMessage());

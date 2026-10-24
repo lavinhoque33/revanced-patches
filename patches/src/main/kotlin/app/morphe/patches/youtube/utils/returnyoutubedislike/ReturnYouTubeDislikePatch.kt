@@ -9,6 +9,7 @@
  * - inotia00 (https://github.com/inotia00)
  *
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-10-24
  *
  * ------------------------------------------------------------------------
  * GPLv3 Section 7 – Additional Terms & Attribution Requirements
@@ -53,6 +54,7 @@ import app.morphe.patches.youtube.utils.compatibility.Constants.COMPATIBILITY_YO
 import app.morphe.patches.youtube.utils.componentlist.hookElementList
 import app.morphe.patches.youtube.utils.componentlist.lazilyConvertedElementHookPatch
 import app.morphe.patches.youtube.utils.extension.Constants.UTILS_PATH
+import app.morphe.patches.youtube.utils.feedcards.feedVideoCardsHookPatch
 import app.morphe.patches.youtube.utils.fix.litho.lithoLayoutPatch
 import app.morphe.patches.youtube.utils.patch.PatchList.RETURN_YOUTUBE_DISLIKE
 import app.morphe.patches.youtube.utils.playservice.is_18_49_or_greater
@@ -225,6 +227,8 @@ val returnYouTubeDislikePatch = bytecodePatch(
         restoreOldVideoActionBarPatch,
         videoInformationPatch,
         lazilyConvertedElementHookPatch,
+        // Finds the feed video cards for the like counts on their thumbnails.
+        feedVideoCardsHookPatch,
     )
 
     execute {

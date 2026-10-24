@@ -34,6 +34,7 @@ import java.util.regex.Pattern;
 
 import app.morphe.extension.shared.utils.Logger;
 import app.morphe.extension.shared.utils.Utils;
+import app.morphe.extension.youtube.patches.feed.FeedEngagementCountsPatch;
 import app.morphe.extension.youtube.patches.feed.FeedViewCountPatch;
 import app.morphe.extension.youtube.shared.PlayerType;
 import app.morphe.extension.youtube.shared.VideoInformation;
@@ -55,7 +56,7 @@ import kotlin.Unit;
 @SuppressWarnings("unused")
 public final class FeedVideoCardsPatch {
 
-    private static final boolean ENABLED = FeedViewCountPatch.ENABLED;
+    private static final boolean ENABLED = FeedViewCountPatch.ENABLED || FeedEngagementCountsPatch.ENABLED;
 
     /**
      * A card must be as wide as a card of a grid of up to three columns, such as the feed in landscape.
@@ -608,6 +609,7 @@ public final class FeedVideoCardsPatch {
                 }
                 final String cardVideoId = PLAYLIST.equals(videoId) ? null : videoId;
                 FeedViewCountPatch.onCardLaidOut(root, cardVideoId);
+                FeedEngagementCountsPatch.onCardLaidOut(root, cardVideoId);
             }
         } catch (Exception ex) {
             Logger.printException(() -> "updateRoots failure", ex);

@@ -302,7 +302,7 @@ internal enum class PatchList(
     ),
     RETURN_YOUTUBE_DISLIKE(
         "Return YouTube Dislike",
-        "Adds an option to show the dislike count of videos using the Return YouTube Dislike API."
+        "Adds an option to show the dislike count of videos using the Return YouTube Dislike API, and the like count and like percentage on the thumbnails of feed videos."
     ),
     RETURN_YOUTUBE_USERNAME(
         "Return YouTube Username",

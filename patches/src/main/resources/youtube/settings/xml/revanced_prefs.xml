@@ -1227,6 +1227,18 @@
             <app.morphe.extension.shared.settings.preference.SortedListPreference android:entries="@array/morphe_spoof_video_streams_player_js_variant_entries" android:title="@string/morphe_spoof_video_streams_player_js_variant_title" android:key="morphe_spoof_video_streams_player_js_variant" android:entryValues="@array/morphe_spoof_video_streams_player_js_variant_entry_values" />
         </PreferenceScreen>SETTINGS: SPOOF_VIDEO_STREAMS -->
 
+        <!-- SETTINGS: NETWORK_PROXY
+        <PreferenceScreen android:title="@string/morphe_proxy_screen_title" android:key="morphe_proxy_screen" android:summary="@string/morphe_proxy_screen_summary">
+            <SwitchPreference android:title="@string/morphe_proxy_enabled_title" android:key="morphe_proxy_enabled" android:summary="@string/morphe_proxy_enabled_summary" />
+            <app.morphe.extension.shared.settings.preference.ResettableEditTextPreference android:title="@string/morphe_proxy_host_title" android:key="morphe_proxy_host" android:summary="@string/morphe_proxy_host_summary" />
+            <app.morphe.extension.shared.settings.preference.ResettableEditTextPreference android:title="@string/morphe_proxy_port_title" android:key="morphe_proxy_port" android:summary="@string/morphe_proxy_port_summary" android:inputType="number" />
+            <SwitchPreference android:title="@string/morphe_proxy_https_title" android:key="morphe_proxy_https" android:summary="@string/morphe_proxy_https_summary" />
+            <SwitchPreference android:title="@string/morphe_proxy_auth_enabled_title" android:key="morphe_proxy_auth_enabled" android:summary="@string/morphe_proxy_auth_enabled_summary" />
+            <app.morphe.extension.shared.settings.preference.ResettableEditTextPreference android:title="@string/morphe_proxy_auth_username_title" android:key="morphe_proxy_auth_username" android:summary="@string/morphe_proxy_auth_username_summary" />
+            <app.morphe.extension.shared.settings.preference.ResettableEditTextPreference android:title="@string/morphe_proxy_auth_password_title" android:key="morphe_proxy_auth_password" android:summary="@string/morphe_proxy_auth_password_summary" android:inputType="textPassword" />
+            <SwitchPreference android:title="@string/morphe_proxy_allow_direct_fallback_title" android:key="morphe_proxy_allow_direct_fallback" android:summary="@string/morphe_proxy_allow_direct_fallback_summary" />
+        </PreferenceScreen>SETTINGS: NETWORK_PROXY -->
+
         <!-- SETTINGS: DEBUGGING
         <PreferenceScreen android:title="@string/revanced_preference_screen_debugging_title" android:key="revanced_preference_screen_debugging" android:summary="@string/revanced_preference_screen_debugging_summary">
             <SwitchPreference android:title="@string/revanced_debug_title" android:key="revanced_debug" android:summaryOn="@string/revanced_debug_summary_on" android:summaryOff="@string/revanced_debug_summary_off" />
@@ -1401,6 +1413,7 @@
                 <Preference android:title="Change share sheet" android:summary="@string/revanced_patches_excluded" android:selectable="false"/>
                 <Preference android:title="Disable QUIC protocol" android:summary="@string/revanced_patches_excluded" android:selectable="false"/>
                 <Preference android:title="Enable debug logging" android:summary="@string/revanced_patches_excluded" android:selectable="false"/>
+                <Preference android:title="Network proxy" android:summary="@string/revanced_patches_excluded" android:selectable="false"/>
                 <Preference android:title="Open links externally" android:summary="@string/revanced_patches_excluded" android:selectable="false"/>
                 <Preference android:title="Remove background playback restrictions" android:summary="@string/revanced_patches_excluded" android:selectable="false"/>
                 <Preference android:title="Sanitize sharing links" android:summary="@string/revanced_patches_excluded" android:selectable="false"/>

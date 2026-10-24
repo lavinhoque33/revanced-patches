@@ -1,6 +1,8 @@
 /*
  * Copyright 2026 Morphe.
  * https://github.com/MorpheApp/morphe-patches
+ *
+ * Modified by lavinhoque33, 2026-10-24
  */
 
 package app.morphe.extension.shared.spoof.js;
@@ -20,7 +22,6 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
 import java.net.HttpURLConnection;
-import java.net.URL;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -335,7 +336,7 @@ public final class JavaScriptManager {
             final long start = System.currentTimeMillis();
             content = Utils.submitOnBackgroundThread(() -> {
                 final int connectionTimeoutMillis = 5000;
-                HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
+                HttpURLConnection connection = Requester.openConnection(url);
                 connection.setFixedLengthStreamingMode(0);
                 connection.setRequestMethod("GET");
                 connection.setRequestProperty("User-Agent", USER_AGENT);

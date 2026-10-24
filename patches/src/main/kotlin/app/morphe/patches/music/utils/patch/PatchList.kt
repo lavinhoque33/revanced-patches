@@ -71,6 +71,11 @@ internal enum class PatchList(
         "Disable QUIC protocol",
         "Adds an option to disable CronetEngine's QUIC protocol."
     ),
+    NETWORK_PROXY(
+        "Network proxy",
+        "Adds options to route supported network requests through an HTTP or HTTPS proxy. " +
+                "Including this patch may cause connectivity problems on certain devices."
+    ),
     DOWNLOADS(
         "Downloads",
         "Adds support to download songs and playlists for offline playback in YouTube Music's own device files library and player."

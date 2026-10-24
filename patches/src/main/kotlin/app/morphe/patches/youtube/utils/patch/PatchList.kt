@@ -77,6 +77,11 @@ internal enum class PatchList(
         "Disable QUIC protocol",
         "Adds an option to disable CronetEngine's QUIC protocol."
     ),
+    NETWORK_PROXY(
+        "Network proxy",
+        "Adds options to route supported network requests through an HTTP or HTTPS proxy. " +
+                "Including this patch may cause connectivity problems on certain devices."
+    ),
     FORCE_ORIGINAL_AUDIO(
         "Force original audio",
         "Adds an option to disable audio tracks from being automatically enabled."

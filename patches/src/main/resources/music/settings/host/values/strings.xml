@@ -381,6 +381,24 @@ If you are a YouTube Premium user, this setting may not be required"</string>
     <string name="morphe_potoken_provider_unavailable_summary">"Fixes playback issues using the built-in PoToken provider (Experimental)
 
 To use this feature, turn off \'Spoof video streams\'"</string>
+    <string name="morphe_proxy_allow_direct_fallback_summary">Connect directly if the proxy fails</string>
+    <string name="morphe_proxy_allow_direct_fallback_title">Allow direct fallback</string>
+    <string name="morphe_proxy_auth_enabled_summary">Sends Basic authentication with proxy requests</string>
+    <string name="morphe_proxy_auth_enabled_title">Proxy authentication</string>
+    <string name="morphe_proxy_auth_password_summary">Password for Basic proxy authentication</string>
+    <string name="morphe_proxy_auth_password_title">Proxy password</string>
+    <string name="morphe_proxy_auth_username_summary">Username for Basic proxy authentication</string>
+    <string name="morphe_proxy_auth_username_title">Proxy username</string>
+    <string name="morphe_proxy_enabled_summary">Routes supported network requests through a configured HTTP or HTTPS proxy</string>
+    <string name="morphe_proxy_enabled_title">Enable proxy</string>
+    <string name="morphe_proxy_host_summary">Hostname or IP address of the proxy server</string>
+    <string name="morphe_proxy_host_title">Proxy host</string>
+    <string name="morphe_proxy_https_summary">Use HTTPS to connect to the proxy server instead of HTTP</string>
+    <string name="morphe_proxy_https_title">Use HTTPS proxy</string>
+    <string name="morphe_proxy_port_summary">Port of the proxy server</string>
+    <string name="morphe_proxy_port_title">Proxy port</string>
+    <string name="morphe_proxy_screen_summary">Route supported network requests through a proxy</string>
+    <string name="morphe_proxy_screen_title">Network proxy</string>
     <string name="morphe_replace_music_with_youtube_summary">Shared links use youtube.com instead of music.youtube.com</string>
     <string name="morphe_replace_music_with_youtube_summary_off">Shared links use music.youtube.com</string>
     <string name="morphe_replace_music_with_youtube_summary_on">Shared links use youtube.com</string>

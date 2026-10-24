@@ -1233,6 +1233,16 @@
         <item>MEDIUM</item>
         <item>MAXIMUM</item>
     </string-array>
+    <string-array name="morphe_force_animations_entries">
+        <item>@string/morphe_force_animations_entry_default</item>
+        <item>@string/morphe_force_animations_entry_always_on</item>
+        <item>@string/morphe_force_animations_entry_always_off</item>
+    </string-array>
+    <string-array name="morphe_force_animations_entry_values">
+        <item>DEFAULT</item>
+        <item>ALWAYS_ON</item>
+        <item>ALWAYS_OFF</item>
+    </string-array>
     <string-array name="morphe_skip_silence_minimum_pause_entries" translatable="false">
         <item>0.5 seconds</item>
         <item>0.7 seconds</item>

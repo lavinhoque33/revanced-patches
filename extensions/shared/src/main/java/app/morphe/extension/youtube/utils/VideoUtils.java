@@ -1655,7 +1655,7 @@ public class VideoUtils extends IntentUtils {
      * @param marginEnd   The end margin in pixels (right for LTR, left for RTL).
      * @return A configured {@link Button} with the specified styling and layout parameters.
      */
-    private static Button createStyledButton(Context context, boolean isPlus, int marginStart, int marginEnd) {
+    public static Button createStyledButton(Context context, boolean isPlus, int marginStart, int marginEnd) {
         Button button = new Button(context, null, 0); // Disable default theme style.
         button.setText(""); // No text on button.
         ShapeDrawable background = new ShapeDrawable(new RoundRectShape(

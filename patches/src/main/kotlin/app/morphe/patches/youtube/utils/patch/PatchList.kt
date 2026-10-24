@@ -94,6 +94,10 @@ internal enum class PatchList(
         "Feed view count",
         "Adds an option to show the view count at the bottom left of the thumbnails of feed videos."
     ),
+    FORCE_ANIMATIONS(
+        "Force animations",
+        "Adds an option to always turn on or off the app animations that YouTube can turn off, such as the player transitions."
+    ),
     FORCE_ORIGINAL_AUDIO(
         "Force original audio",
         "Adds an option to disable audio tracks from being automatically enabled."
@@ -336,6 +340,10 @@ internal enum class PatchList(
         "Shorts icon style",
         "Adds an option to change the style of the Shorts action button icons."
     ),
+    SKIP_LIVE_SHORTS(
+        "Skip live Shorts",
+        "Adds an option to automatically skip live streams that appear in the Shorts feed."
+    ),
     SNACK_BAR_COMPONENTS(
         "Snack bar components",
         "Adds options to hide or change components related to the snack bar."
@@ -367,6 +375,10 @@ internal enum class PatchList(
     TRANSLATIONS_FOR_YOUTUBE(
         "Translations for YouTube",
         "Add translations or remove string resources."
+    ),
+    VIDEO_DELAY(
+        "Video delay",
+        "Adds an option to delay the video, to keep it in sync with laggy Bluetooth audio."
     ),
     VIDEO_PLAYBACK(
         "Video playback",

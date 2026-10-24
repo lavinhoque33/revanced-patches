@@ -7,6 +7,7 @@
  * https://github.com/anddea/revanced-patches
  *
  * See the included NOTICE file for GPLv3 Section 7 terms that apply to this code.
+ * Modified by lavinhoque33, 2026-10-24
  */
 
 package app.morphe.extension.youtube.patches.utils;
@@ -49,6 +50,8 @@ import app.morphe.extension.shared.utils.Utils;
 import app.morphe.extension.youtube.patches.SaveToWatchLaterPatch;
 import app.morphe.extension.youtube.patches.PictureinPictureButtonPatch;
 import app.morphe.extension.youtube.videoplayer.PictureinPictureButton;
+import app.morphe.extension.youtube.patches.VideoDelayPatch;
+import app.morphe.extension.youtube.videoplayer.VideoDelayDialogButton;
 import app.morphe.extension.youtube.patches.components.PlayerFlyoutMenuFilter;
 import app.morphe.extension.youtube.patches.general.DownloadActionsPatch;
 import app.morphe.extension.youtube.settings.Settings;
@@ -296,6 +299,14 @@ public final class FlyoutUtils {
                     nextButtonIndex,
                     PlayerFlyoutMenuFilter.getTopFlyoutMenuVisible(),
                     videoMarkedAsShorts
+            );
+        }
+
+        if (VideoDelayPatch.isPatchIncluded()) {
+            nextButtonIndex = VideoDelayDialogButton.addFlyoutButton(
+                    flyoutPanel,
+                    nextButtonIndex,
+                    PlayerFlyoutMenuFilter.getTopFlyoutMenuVisible()
             );
         }
 

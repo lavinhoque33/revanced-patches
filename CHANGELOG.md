@@ -1,3 +1,9 @@
+## Unreleased
+
+### Features
+
+* **YouTube Music - Android Auto:** Added a patch (on by default, ported from Morphe) that restores the Home recommendations, all Library collections (Last played, Playlists, Albums, Songs, Artists, Subscriptions, Podcasts and uploads), search with playable results, and a Podcasts tab in Android Auto, and bypasses the certificate checks. It replaces `Restore Android Auto playlists`, which is removed: the Library playlists, their artwork and the reload after changes on the phone are part of the new patch. It needs YouTube Music 9.15 or newer; on older versions it is skipped with a warning, so the Library playlists page is empty there again, and `Certificate spoof` still lets Android Auto connect.
+
 ## [1.12.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.11.0...v1.12.0) (2026-10-24)
 
 ### Features

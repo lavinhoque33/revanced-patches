@@ -1278,6 +1278,33 @@ fun Method.cloneMutableAndPreserveParameters(
 }
 
 /**
+ * Replace this method in its class with a clone that has [count] more registers, and return the clone with
+ * the number of instructions added at its start to copy the parameters to their original registers.
+ *
+ * The new free registers start at the register count of the original method, so they can be too large for
+ * instructions that only accept 4-bit registers. Use the returned method afterward, not this one.
+ */
+context(ctx: BytecodePatchContext)
+fun Method.addFreeRegisters(count: Int): Pair<MutableMethod, Int> {
+    require(count > 0) { "The number of free registers must be positive" }
+
+    val mutableClass = ctx.mutableClassDefBy(definingClass)
+    val originalInstructionCount = implementation?.instructions?.count() ?: 0
+    val clonedMethod = cloneMutable(additionalRegisters = count)
+
+    mutableClass.methods.remove(this)
+    mutableClass.methods.add(clonedMethod)
+
+    val addedInstructionCount = (clonedMethod.implementation?.instructions?.count() ?: 0) - originalInstructionCount
+
+    return clonedMethod to addedInstructionCount
+}
+
+/** Make these access flags public, keeping the other flags. */
+fun Int.toPublicAccessFlags(): Int =
+    (this and (AccessFlags.PRIVATE.value or AccessFlags.PROTECTED.value).inv()) or AccessFlags.PUBLIC.value
+
+/**
  * Clone this method, optionally changing the class that owns the cloned method.
  *
  * The owner must be overridden when a clone is inserted into a different class,

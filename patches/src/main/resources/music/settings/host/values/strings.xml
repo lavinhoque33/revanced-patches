@@ -59,6 +59,13 @@ Tap the continue button and allow optimization changes"</string>
     <string name="morphe_force_original_audio_summary_off">Using default audio</string>
     <string name="morphe_force_original_audio_summary_on">Using original audio language</string>
     <string name="morphe_force_original_audio_title">Force original audio language</string>
+    <string name="morphe_music_android_auto_last_played">Last played</string>
+    <string name="morphe_music_android_auto_other_results">Other results</string>
+    <string name="morphe_music_android_auto_subscriptions">Subscriptions</string>
+    <string name="morphe_music_android_auto_uploaded_albums">Uploaded albums</string>
+    <string name="morphe_music_android_auto_uploaded_artists">Uploaded artists</string>
+    <string name="morphe_music_android_auto_uploaded_songs">Uploaded songs</string>
+    <string name="morphe_music_android_auto_videos">Videos</string>
     <string name="morphe_music_apple_music_token_dialog_hint" translatable="false">media-user-token</string>
     <string name="morphe_music_apple_music_token_dialog_instruction">"Paste the media-user-token cookie from music.apple.com\n\nSteps:\n1. Sign in at music.apple.com as a member user\n2. Open DevTools → Application → Cookies → music.apple.com\n3. Copy the value of \"media-user-token\""</string>
     <string name="morphe_music_apple_music_token_title">Apple Music Media-user-token</string>

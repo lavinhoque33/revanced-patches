@@ -3,6 +3,8 @@
  * https://github.com/MorpheApp/morphe-patches
  *
  * See the included NOTICE file for GPLv3 Section 7 terms that apply to Morphe contributions.
+ *
+ * Modified by lavinhoque33, 2026-10-24
  */
 
 package app.morphe.extension.youtube.videoplayer;
@@ -21,7 +23,9 @@ import java.util.Objects;
 import app.morphe.extension.shared.utils.Logger;
 import app.morphe.extension.shared.utils.ResourceType;
 import app.morphe.extension.shared.utils.ResourceUtils;
+import app.morphe.extension.youtube.patches.LocalQueuePatch;
 import app.morphe.extension.youtube.patches.SaveToWatchLaterPatch;
+import app.morphe.extension.youtube.patches.utils.LocalQueueSheet;
 import app.morphe.extension.youtube.patches.utils.PlaylistPatch;
 import app.morphe.extension.youtube.settings.Settings;
 import app.morphe.extension.youtube.shared.PlayerControlButton;
@@ -55,7 +59,7 @@ public class SaveToWatchLaterButton {
                     Settings.SAVE_TO_WATCH_LATER_BUTTON::get,
                     v -> {
                         if (swapSaveAndQueue) {
-                            PlaylistPatch.prepareDialogBuilder(VideoInformation.getVideoId());
+                            openQueue(controlsView);
                         } else {
                             SaveToWatchLaterPatch.saveVideo(VideoInformation.getVideoId());
                         }
@@ -64,7 +68,7 @@ public class SaveToWatchLaterButton {
                         if (swapSaveAndQueue) {
                             SaveToWatchLaterPatch.saveVideo(VideoInformation.getVideoId());
                         } else {
-                            PlaylistPatch.prepareDialogBuilder(VideoInformation.getVideoId());
+                            openQueue(controlsView);
                         }
                         return true;
                     }
@@ -82,6 +86,17 @@ public class SaveToWatchLaterButton {
             imageView.setImageTintList(ColorStateList.valueOf(Color.WHITE));
         } catch (Exception ex) {
             Logger.printException(() -> "initialize failure", ex);
+        }
+    }
+
+    /**
+     * Opens the Premium-style queue if it is used, or the queue manager.
+     */
+    private static void openQueue(View controlsView) {
+        if (LocalQueuePatch.isEnabled()) {
+            LocalQueueSheet.show(controlsView.getContext());
+        } else {
+            PlaylistPatch.prepareDialogBuilder(VideoInformation.getVideoId());
         }
     }
 

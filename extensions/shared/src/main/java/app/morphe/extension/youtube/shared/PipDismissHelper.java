@@ -3,9 +3,13 @@
  * https://github.com/MorpheApp/morphe-patches
  *
  * See the included NOTICE file for GPLv3 §7(b) and §7(c) terms that apply to this code.
+ *
+ * Modified by lavinhoque33, 2026-10-24
  */
 
 package app.morphe.extension.youtube.shared;
+
+import androidx.annotation.Nullable;
 
 import app.morphe.extension.shared.ui.SheetBottomDialog;
 import app.morphe.extension.shared.utils.Logger;
@@ -21,6 +25,14 @@ public final class PipDismissHelper {
      * and cleans up the observer when the dialog is dismissed for any reason.
      */
     public static void dismissOnPip(SheetBottomDialog.SlideDialog dialog) {
+        dismissOnPip(dialog, null);
+    }
+
+    /**
+     * Same as {@link #dismissOnPip(SheetBottomDialog.SlideDialog)},
+     * and runs {@code onDismiss} when the dialog is dismissed.
+     */
+    public static void dismissOnPip(SheetBottomDialog.SlideDialog dialog, @Nullable Runnable onDismiss) {
         Function1<PlayerType, Unit> observer = new Function1<>() {
             @Override
             public Unit invoke(PlayerType type) {
@@ -34,6 +46,11 @@ public final class PipDismissHelper {
             }
         };
         PlayerType.getOnChange().addObserver(observer);
-        dialog.setOnDismissListener(d -> PlayerType.getOnChange().removeObserver(observer));
+        dialog.setOnDismissListener(d -> {
+            PlayerType.getOnChange().removeObserver(observer);
+            if (onDismiss != null) {
+                onDismiss.run();
+            }
+        });
     }
 }

@@ -93,6 +93,30 @@ public class SheetBottomDialog {
     }
 
     /**
+     * Share of the screen height a scrollable dialog content takes up at most.
+     */
+    public static final int DEFAULT_MAX_HEIGHT_PERCENT = 75;
+
+    /**
+     * Creates a {@link ScrollView} that never grows past {@link #DEFAULT_MAX_HEIGHT_PERCENT} of the screen,
+     * so that a long list still leaves the dialog usable, including in landscape.
+     *
+     * @param context The context used to create the view.
+     */
+    public static ScrollView createCappedScrollView(@NonNull Context context) {
+        ScrollView scrollView = new ScrollView(context) {
+            @Override
+            protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+                final int maxHeight = Dim.getScreenHeight() * DEFAULT_MAX_HEIGHT_PERCENT / 100;
+                super.onMeasure(widthMeasureSpec, MeasureSpec.makeMeasureSpec(maxHeight, MeasureSpec.AT_MOST));
+            }
+        };
+        scrollView.setVerticalScrollBarEnabled(false);
+
+        return scrollView;
+    }
+
+    /**
      * Creates a {@link DraggableLinearLayout} with a rounded background and a centered handle bar,
      * styled for use as the main layout in a {@link SlideDialog}. The layout has vertical orientation,
      * includes padding, and supports drag-to-dismiss functionality with proper handling of nested scrolling

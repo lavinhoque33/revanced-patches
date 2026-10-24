@@ -47,6 +47,8 @@ import app.morphe.extension.shared.utils.Logger;
 import app.morphe.extension.shared.utils.ResourceType;
 import app.morphe.extension.shared.utils.ResourceUtils;
 import app.morphe.extension.shared.utils.Utils;
+import app.morphe.extension.youtube.patches.AddToQueuePatch;
+import app.morphe.extension.youtube.patches.LocalQueuePatch;
 import app.morphe.extension.youtube.patches.SaveToWatchLaterPatch;
 import app.morphe.extension.youtube.patches.PictureinPictureButtonPatch;
 import app.morphe.extension.youtube.videoplayer.PictureinPictureButton;
@@ -255,6 +257,12 @@ public final class FlyoutUtils {
 
         final String flyoutVideoId = DownloadActionsPatch.getFlyoutVideoId();
 
+        String queueVideoId = getSubmittableVideoId();
+        boolean localQueueHistoryFlyout = DownloadActionsPatch.isMyTabHistoryFlyout() && LocalQueuePatch.isEnabled();
+        if (!queueVideoId.isEmpty() && !localQueueHistoryFlyout) {
+            nextButtonIndex = AddToQueuePatch.addFlyoutButton(flyoutPanel, nextButtonIndex, queueVideoId);
+        }
+
         boolean showKidsSaveToWatchLater = Settings.KIDS_SAVE_TO_WATCH_LATER_BUTTON.get()
                 && !flyoutVideoId.isEmpty()
                 && videoMarkedAsForKids;
@@ -373,6 +381,7 @@ public final class FlyoutUtils {
             }
 
             copyListItemTypeface(itemList);
+            AddToQueuePatch.onListBound(itemList);
         } catch (Exception ex) {
             Logger.printException(() -> "onFlyoutListBound failure", ex);
         }

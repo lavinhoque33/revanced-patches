@@ -10,6 +10,8 @@
  *
  * Licensed under the GNU General Public License v3.0.
  *
+ * Modified by lavinhoque33, 2026-10-24
+ *
  * ------------------------------------------------------------------------
  * GPLv3 Section 7 – Additional Terms & Attribution Requirements
  * ------------------------------------------------------------------------
@@ -586,7 +588,7 @@ public class PlaylistPatch {
         Utils.showToastShort(reason);
     }
 
-    private enum QueueManager {
+    public enum QueueManager {
         ADD_TO_QUEUE(
                 "revanced_queue_manager_add_to_queue",
                 "yt_outline_list_add_black_24",

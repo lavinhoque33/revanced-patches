@@ -291,6 +291,13 @@ public class Settings extends SharedYouTubeSettings {
     public static final IntegerSetting CUSTOM_DPI = new IntegerSetting("morphe_custom_dpi", 0,
             true, new SliderConfig(0, 1_000, 1, "dpi"));
     public static final BooleanSetting OPEN_CHANNEL_OF_LIVE_AVATAR = new BooleanSetting("morphe_open_channel_of_live_avatar", FALSE);
+    public static final BooleanSetting LOCAL_QUEUE = new BooleanSetting("morphe_local_queue", FALSE);
+    public static final StringSetting LOCAL_QUEUE_ITEMS =
+            new StringSetting("morphe_local_queue_items", "", false, false);
+    public static final BooleanSetting QUEUE_OVERRIDE_FLYOUT_MENU =
+            new BooleanSetting("morphe_queue_override_flyout_menu", TRUE, true, parentInverted(LOCAL_QUEUE));
+    public static final BooleanSetting QUEUE_ADD_FLYOUT_MENU =
+            new BooleanSetting("morphe_queue_add_flyout_menu", TRUE, parentInverted(LOCAL_QUEUE));
 
     // PreferenceScreen: Feed - Carousel shelf
     public static final BooleanSetting HIDE_CAROUSEL_SHELF_HOME = new BooleanSetting("revanced_hide_carousel_shelf_home", FALSE);

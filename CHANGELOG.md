@@ -1,3 +1,9 @@
+## Unreleased
+
+### Features
+
+* **YouTube - Add to queue:** Added Feed settings that make the feed flyout `Play next in queue` open the RVX queue (on by default), add an `Add to RVX queue` flyout item (on by default), or use a `Premium-style queue` (off by default) that lives on the device, plays the queued videos one after another on its own, and has a queue sheet with drag reordering (also opened from the Save to Watch later player button). When the patch is applied and one of its queue options is on, it takes over the flyout queue entry, and the older `Override Play next in queue` setting of Hook download actions only applies when they are off. It needs YouTube 21.05 or newer; on older versions it is skipped with a warning. Ported from Morphe.
+
 ## [1.13.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.12.0...v1.13.0) (2026-10-24)
 
 ### Features

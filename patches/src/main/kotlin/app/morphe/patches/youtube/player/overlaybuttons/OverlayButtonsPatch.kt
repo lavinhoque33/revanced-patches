@@ -24,6 +24,8 @@
  *
  * Licensed under the GNU General Public License v3.0.
  *
+ * Modified by lavinhoque33, 2026-10-24
+ *
  * ------------------------------------------------------------------------
  * GPLv3 Section 7 – Additional Terms & Attribution Requirements
  * ------------------------------------------------------------------------
@@ -85,7 +87,7 @@ import app.morphe.patches.youtube.utils.settings.settingsPatch
 import app.morphe.patches.youtube.utils.sponsorblock.rectangleFieldInvalidatorFingerprint
 import app.morphe.patches.youtube.general.startpage.IntentActionFingerprint
 import app.morphe.patches.youtube.general.startpage.IntentResolverFingerprint
-import app.morphe.patches.youtube.video.information.playerStatusMethodRef
+import app.morphe.patches.youtube.video.information.playerStatusOverrideHook
 import app.morphe.patches.youtube.video.information.videoEndMethod
 import app.morphe.patches.youtube.video.information.hookVideoInformation
 import app.morphe.patches.youtube.video.information.videoInformationPatch
@@ -149,8 +151,8 @@ private val overlayButtonsBytecodePatch = bytecodePatch(
 
         if (is_21_13_or_greater) {
             // Preserve the legacy priority: an active segment loops before whole-video repeat.
-            hookLoopPlayerStatus(EXTENSION_LOOP_SEGMENT_CLASS_DESCRIPTOR, "videoEnded")
-            hookLoopPlayerStatus(EXTENSION_ALWAYS_REPEAT_CLASS_DESCRIPTOR, "alwaysRepeat")
+            playerStatusOverrideHook(EXTENSION_LOOP_SEGMENT_CLASS_DESCRIPTOR, "videoEnded")
+            playerStatusOverrideHook(EXTENSION_ALWAYS_REPEAT_CLASS_DESCRIPTOR, "alwaysRepeat")
         } else videoEndMethod.apply {
             addInstructionsWithLabels(
                 0, """
@@ -644,32 +646,5 @@ val overlayButtonsPatch = resourcePatch(
 
         // endregion
 
-    }
-}
-
-private fun hookLoopPlayerStatus(extensionClass: String, methodName: String) {
-    playerStatusMethodRef.get()!!.apply {
-        // Add call to start playback again, but must not allow exit fullscreen patch call
-        // to be reached if the video is looped.
-        val insertIndex =
-            indexOfFirstInstructionOrThrow(Opcode.SGET_OBJECT)
-        // Since instructions are added just above Opcode.SGET_OBJECT, instead of calling findFreeRegister(),
-        // a register from Opcode.SGET_OBJECT is used.
-        val freeRegister =
-            getInstruction<OneRegisterInstruction>(insertIndex).registerA
-
-        // Since 'videoInformationPatch' is used as a dependency of this patch,
-        // the loop is implemented through 'VideoInformation.seekTo(0)'.
-        addInstructionsWithLabels(
-            insertIndex,
-            """
-                invoke-static/range { p1 .. p1 }, $extensionClass->$methodName(Ljava/lang/Enum;)Z
-                move-result v$freeRegister
-                if-eqz v$freeRegister, :do_not_loop
-                return-void
-                :do_not_loop
-                nop
-            """
-        )
     }
 }

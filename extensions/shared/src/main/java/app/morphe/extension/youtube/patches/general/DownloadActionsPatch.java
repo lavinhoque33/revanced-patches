@@ -10,6 +10,8 @@
  *
  * Licensed under the GNU General Public License v3.0.
  *
+ * Modified by lavinhoque33, 2026-10-24
+ *
  * ------------------------------------------------------------------------
  * GPLv3 Section 7 – Additional Terms & Attribution Requirements
  * ------------------------------------------------------------------------
@@ -60,6 +62,7 @@ import android.util.Pair;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewParent;
+import android.widget.TextView;
 
 import androidx.annotation.Nullable;
 
@@ -74,6 +77,7 @@ import java.util.Locale;
 import java.util.Map;
 
 import app.morphe.extension.shared.utils.Logger;
+import app.morphe.extension.youtube.patches.AddToQueuePatch;
 import app.morphe.extension.youtube.patches.utils.FlyoutUtils;
 import app.morphe.extension.youtube.patches.utils.PlaylistPatch;
 import app.morphe.extension.youtube.settings.Settings;
@@ -99,6 +103,32 @@ public final class DownloadActionsPatch {
         return flyoutVideoId;
     }
 
+    /**
+     * @return The playlist the flyout belongs to, or an empty string if the flyout is not of a playlist.
+     */
+    public static String getFlyoutPlaylistId() {
+        return flyoutPlaylistId;
+    }
+
+    /**
+     * @return If the flyout belongs to the history shelf of the You tab.
+     */
+    public static boolean isMyTabHistoryFlyout() {
+        return isMyTabHistoryFlyout;
+    }
+
+    public static List<Pair<String, Integer>> getVisibleFlyoutButtons() {
+        return visibleFlyoutButtons;
+    }
+
+    public static String getCurrentButtonName() {
+        return currentFlyoutButtonName;
+    }
+
+    public static void resetCurrentButtonIndex() {
+        currentFlyoutButtonIndex = 0;
+    }
+
     private static final boolean OVERRIDE_PLAY_NEXT_IN_QUEUE =
             Settings.OVERRIDE_PLAY_NEXT_IN_QUEUE.get();
 
@@ -110,11 +140,22 @@ public final class DownloadActionsPatch {
     );
     private static final byte[] HORIZONTAL_SHELF_BYTES =
             "horizontal_shelf.e".getBytes(StandardCharsets.US_ASCII);
+    private static final byte[] HISTORY_BROWSE_ID_BYTES =
+            "FEhistory".getBytes(StandardCharsets.US_ASCII);
+    private static final byte[] PLAYLIST_ID_PREFIX_BYTES =
+            "playlist?list=".getBytes(StandardCharsets.US_ASCII);
+    /**
+     * Elements of the history shelf of the You tab start within this many bytes of the buffer.
+     */
+    private static final int HISTORY_SHELF_MAX_START_INDEX = 30;
+    private static final int MIN_PLAYLIST_ID_LENGTH = 18;
 
     private static WeakReference<View> senderViewRef = new WeakReference<>(null);
     private static final List<Pair<String, Integer>> visibleFlyoutButtons = new ArrayList<>();
     private static Dialog queueBottomSheetFlyout;
     private static String flyoutVideoId = "";
+    private static String flyoutPlaylistId = "";
+    private static boolean isMyTabHistoryFlyout;
     private static String currentFlyoutButtonName = "";
     private static int currentFlyoutButtonIndex;
 
@@ -144,7 +185,7 @@ public final class DownloadActionsPatch {
                 if (dialog.isShowing()) {
                     visibilityHandler.postDelayed(this, 100);
                 } else {
-                    flyoutVideoId = "";
+                    clearFlyoutVideoId();
                 }
             }
         });
@@ -152,6 +193,13 @@ public final class DownloadActionsPatch {
 
     public static void clearFlyoutVideoId() {
         flyoutVideoId = "";
+        flyoutPlaylistId = "";
+        isMyTabHistoryFlyout = false;
+    }
+
+    private static void clearVisibleFlyoutButtons() {
+        visibleFlyoutButtons.clear();
+        currentFlyoutButtonIndex = 0;
     }
 
     private static void dismissQueueBottomSheetFlyout() {
@@ -183,10 +231,12 @@ public final class DownloadActionsPatch {
             FlyoutUtils.setVideoMarkedAsShorts(null);
 
             if (bufferObject instanceof FlyoutMenuVideoIdInterface videoIdInterface) {
+                isMyTabHistoryFlyout = false;
+                flyoutPlaylistId = "";
                 String videoId = videoIdInterface.patch_getVideoId();
                 if (videoId != null) {
                     flyoutVideoId = videoId;
-                    visibleFlyoutButtons.clear();
+                    clearVisibleFlyoutButtons();
                     Logger.printDebug(() -> "Found flyout videoId: " + videoId);
                 }
                 return;
@@ -196,11 +246,14 @@ public final class DownloadActionsPatch {
                 return;
             }
 
-            visibleFlyoutButtons.clear();
+            clearVisibleFlyoutButtons();
             byte[] flyoutBuffer = bufferInterface.patch_getBuffer();
             if (flyoutBuffer == null) {
                 return;
             }
+
+            isMyTabHistoryFlyout = isHistoryShelfBuffer(flyoutBuffer);
+            flyoutPlaylistId = findPlaylistId(flyoutBuffer);
 
             if (indexOf(flyoutBuffer, HORIZONTAL_SHELF_BYTES) >= 0) {
                 View senderView = senderViewRef.get();
@@ -243,6 +296,47 @@ public final class DownloadActionsPatch {
         } catch (Exception ex) {
             Logger.printException(() -> "extractFlyoutVideoId failure", ex);
         }
+    }
+
+    private static boolean isHistoryShelfBuffer(byte[] buffer) {
+        final int shelfIndex = indexOf(buffer, HORIZONTAL_SHELF_BYTES);
+        final int historyIndex = indexOf(buffer, HISTORY_BROWSE_ID_BYTES);
+
+        return shelfIndex >= 0 && historyIndex >= 0
+                && Math.min(shelfIndex, historyIndex) <= HISTORY_SHELF_MAX_START_INDEX;
+    }
+
+    /**
+     * @return The playlist id of the "playlist?list=" link of the buffer, or an empty string.
+     */
+    private static String findPlaylistId(byte[] buffer) {
+        final int prefixIndex = indexOf(buffer, PLAYLIST_ID_PREFIX_BYTES);
+        if (prefixIndex < 0) {
+            return "";
+        }
+
+        final int playlistIdStart = prefixIndex + PLAYLIST_ID_PREFIX_BYTES.length;
+        int playlistIdEnd = playlistIdStart;
+        while (playlistIdEnd < buffer.length && isPlaylistIdByte(buffer[playlistIdEnd])) {
+            playlistIdEnd++;
+        }
+
+        // "playlist?list=" always ends with a character extraneous to the playlist ID,
+        // so the last matched byte does not belong to the ID.
+        final int playlistIdLength = playlistIdEnd - playlistIdStart - 1;
+        if (playlistIdLength < MIN_PLAYLIST_ID_LENGTH) {
+            return "";
+        }
+
+        String playlistId = new String(buffer, playlistIdStart, playlistIdLength, StandardCharsets.US_ASCII);
+        Logger.printDebug(() -> "Found flyout playlistId: " + playlistId);
+
+        return playlistId;
+    }
+
+    private static boolean isPlaylistIdByte(byte value) {
+        return (value >= 'A' && value <= 'Z') || (value >= 'a' && value <= 'z')
+                || (value >= '0' && value <= '9') || value == '-' || value == '_';
     }
 
     private static int indexOf(byte[] haystack, byte[] needle) {
@@ -336,6 +430,21 @@ public final class DownloadActionsPatch {
     }
 
     /**
+     * Injection point. Records the entries of the contextual (popup) flyout menu,
+     * which give the text view of the entry.
+     */
+    public static void setCurrentFlyoutButton(@Nullable Enum<?> buttonEnum, @Nullable Object buttonInfo) {
+        if (buttonInfo instanceof View view && view.getVisibility() == View.GONE) {
+            return;
+        }
+
+        setCurrentFlyoutButton(
+                buttonEnum,
+                buttonInfo instanceof TextView textView ? textView.getText() : null
+        );
+    }
+
+    /**
      * Injection point. Removes only the right-side native queue badge because the
      * left-side row icon still identifies the Play next entry.
      */
@@ -349,6 +458,12 @@ public final class DownloadActionsPatch {
      * Injection point for flyout implementations backed by a Runnable.
      */
     public static Runnable replaceQueueButtonRunnable(Runnable original) {
+        // The Add to queue patch, when it overrides the queue entries, takes the place of this older setting.
+        Runnable addToQueueRunnable = AddToQueuePatch.replaceButtonRunnable(original);
+        if (addToQueueRunnable != original) {
+            return addToQueueRunnable;
+        }
+
         if (!OVERRIDE_PLAY_NEXT_IN_QUEUE || flyoutVideoId.isEmpty()) {
             return original;
         }

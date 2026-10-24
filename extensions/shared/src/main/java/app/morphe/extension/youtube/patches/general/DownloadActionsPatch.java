@@ -428,7 +428,7 @@ public final class DownloadActionsPatch {
      */
     public static String inAppPlaylistDownloadButtonOnClick(String playlistId) {
         try {
-            if (OVERRIDE_PLAYLIST_DOWNLOAD_BUTTON && StringUtils.isNotEmpty(playlistId)) {
+            if ((OVERRIDE_PLAYLIST_DOWNLOAD_BUTTON || Settings.IN_APP_DOWNLOADER.get()) && StringUtils.isNotEmpty(playlistId)) {
                 launchPlaylistExternalDownloader(playlistId);
                 return "";
             }
@@ -447,7 +447,7 @@ public final class DownloadActionsPatch {
      */
     public static boolean inAppPlaylistDownloadMenuOnClick(String playlistId) {
         try {
-            if (OVERRIDE_PLAYLIST_DOWNLOAD_BUTTON && StringUtils.isNotEmpty(playlistId)) {
+            if ((OVERRIDE_PLAYLIST_DOWNLOAD_BUTTON || Settings.IN_APP_DOWNLOADER.get()) && StringUtils.isNotEmpty(playlistId)) {
                 launchPlaylistExternalDownloader(playlistId);
                 return true;
             }
@@ -461,7 +461,7 @@ public final class DownloadActionsPatch {
      * Injection point.
      */
     public static boolean overridePlaylistDownloadButtonVisibility(boolean original) {
-        return OVERRIDE_PLAYLIST_DOWNLOAD_BUTTON || original;
+        return OVERRIDE_PLAYLIST_DOWNLOAD_BUTTON || Settings.IN_APP_DOWNLOADER.get() || original;
     }
 
 }

@@ -42,6 +42,7 @@ final class OfflineNotifications {
     static final int PLAYBACK_ID = 0x52565802;
 
     private static final int FLAGS = PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT;
+    private static final int CANCEL_ALL_REQUEST_CODE = 14;
 
     private OfflineNotifications() {
     }
@@ -98,6 +99,9 @@ final class OfflineNotifications {
                     ? str("revanced_offline_download_starting")
                     : str("revanced_offline_download_progress", percent);
         };
+        final OfflineDownloader.Batch batch = task.batch;
+        // modified by lavinhoque33, 2026-10-23: a playlist shows its place in the list and offers to cancel all of it.
+        if (batch != null) text = task.index + "/" + batch.total + " · " + text;
         if (queued > 0) text = text + " · " + str("revanced_offline_download_queued_count", queued);
 
         builder.setContentTitle(task.title)
@@ -106,6 +110,13 @@ final class OfflineNotifications {
                 .addAction(action(context, android.R.drawable.ic_menu_close_clear_cancel, str("revanced_offline_cancel"),
                         serviceIntent(context, OfflineServiceHooks.KEEP_ALIVE_SERVICE,
                                 OfflineServiceHooks.ACTION_DOWNLOAD_CANCEL, task.videoId, task.videoId.hashCode())));
+        if (batch != null) {
+            if (!batch.title.isEmpty()) builder.setSubText(batch.title);
+            builder.addAction(action(context, android.R.drawable.ic_menu_close_clear_cancel,
+                    str("revanced_offline_cancel_all"),
+                    serviceIntent(context, OfflineServiceHooks.KEEP_ALIVE_SERVICE,
+                            OfflineServiceHooks.ACTION_DOWNLOAD_CANCEL_ALL, null, CANCEL_ALL_REQUEST_CODE)));
+        }
         return builder.build();
     }
 
@@ -140,6 +151,23 @@ final class OfflineNotifications {
                 .setContentIntent(activityIntent(context, OfflineScreens.libraryIntent(context), 1))
                 .build();
         manager.notify(resultId(videoId), notification);
+    }
+
+    /** The one notification of a finished playlist download. */
+    static void showBatchSummary(Context context, OfflineDownloader.Batch batch, String summary) {
+        createChannels(context);
+        NotificationManager manager = manager(context);
+        if (manager == null) return;
+        Notification notification = new Notification.Builder(context, DOWNLOAD_CHANNEL)
+                .setSmallIcon(batch.failed.get() > 0 ? android.R.drawable.stat_notify_error
+                        : android.R.drawable.stat_sys_download_done)
+                .setContentTitle(batch.title.isEmpty() ? str("revanced_offline_batch_title") : batch.title)
+                .setContentText(summary.replace('\n', ' '))
+                .setStyle(new Notification.BigTextStyle().bigText(summary))
+                .setAutoCancel(true)
+                .setContentIntent(activityIntent(context, OfflineScreens.libraryIntent(context), 1))
+                .build();
+        manager.notify(("rvx_offline_batch_" + batch.id).hashCode(), notification);
     }
 
     private static int resultId(String videoId) {

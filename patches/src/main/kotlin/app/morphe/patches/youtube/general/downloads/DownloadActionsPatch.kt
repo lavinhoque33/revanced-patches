@@ -531,6 +531,43 @@ val downloadActionsPatch = bytecodePatch(
             runCatching(block).onFailure { printWarn("$name: ${it.message}") }
         }
 
+        // modified by lavinhoque33, 2026-10-23: the playlist download hooks above only run before 21.04.
+        // The playlist command still takes the playlist id as a String, so the same hooks apply.
+        if (is_21_04_or_greater) {
+            hookOptional("Playlist download command") {
+                offlinePlaylistEndpointFingerprint.method.apply {
+                    val playlistIdParameter = parameterTypes.indexOf("Ljava/lang/String;") + 1
+                    if (playlistIdParameter < 1) throw PatchException("The playlist command has no playlist id")
+                    addInstructionsWithLabels(
+                        0, """
+                            invoke-static {p$playlistIdParameter}, $EXTENSION_CLASS_DESCRIPTOR->inAppPlaylistDownloadMenuOnClick(Ljava/lang/String;)Z
+                            move-result v0
+                            if-eqz v0, :show_native_downloader
+                            return-void
+                            """, ExternalLabel("show_native_downloader", getInstruction(0))
+                    )
+                }
+            }
+
+            hookOptional("Playlist download button visibility") {
+                setPlaylistDownloadButtonVisibilityFingerprint
+                    .match(accessibilityOfflineButtonSyncFingerprint.classDef).let {
+                        it.method.apply {
+                            val insertIndex = it.instructionMatches.first().index + 2
+                            val insertRegister =
+                                getInstruction<OneRegisterInstruction>(insertIndex).registerA
+
+                            addInstructions(
+                                insertIndex, """
+                                    invoke-static {v$insertRegister}, $EXTENSION_CLASS_DESCRIPTOR->overridePlaylistDownloadButtonVisibility(Z)Z
+                                    move-result v$insertRegister
+                                    """
+                            )
+                        }
+                    }
+            }
+        }
+
         // The first local register, which the hooked method must have and must not read afterwards.
         fun MutableMethod.firstLocalRegister(): String {
             val locals = implementation!!.registerCount - parameters.size - 1

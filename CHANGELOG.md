@@ -1,3 +1,9 @@
+## Unreleased
+
+### Features
+
+* **YouTube - Built-in downloader:** A playlist can be downloaded with the built-in downloader. The offline library has a new `Download playlist` button: paste a playlist link or id (a copied playlist link is filled in), then pick a maximum quality (Best available, 1080p, 720p, 480p, 360p). YouTube's own playlist download button and `Download playlist` menu entry also start it where YouTube shows them (YouTube shows them only to some accounts). Each video gets the best quality up to the limit, resolved when its turn comes so long playlists do not outlive their stream links. Videos you already downloaded are skipped, and a playlist shows one summary notification at its end instead of one per video. The download notification shows the place in the playlist and has a `Cancel all` action, and the offline library has a `Cancel all` button. Run the download again after a failure: the finished videos are skipped and the failed ones retried. The queue is kept in memory, so closing the app ends it.
+
 ## [1.10.4](https://github.com/lavinhoque33/revanced-patches/compare/v1.10.3...v1.10.4) (2026-10-23)
 
 ### Features

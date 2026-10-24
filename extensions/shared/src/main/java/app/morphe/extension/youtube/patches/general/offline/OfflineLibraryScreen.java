@@ -12,6 +12,10 @@ package app.morphe.extension.youtube.patches.general.offline;
 
 import static app.morphe.extension.shared.utils.StringRef.str;
 
+import android.app.AlertDialog;
+import android.content.ClipData;
+import android.content.ClipboardManager;
+import android.content.Context;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.Intent;
@@ -22,6 +26,7 @@ import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
 import android.text.TextUtils;
 import android.text.format.Formatter;
+import android.text.InputType;
 import android.util.LruCache;
 import android.util.TypedValue;
 import android.view.Gravity;
@@ -35,6 +40,7 @@ import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ListView;
+import android.widget.EditText;
 import android.widget.ProgressBar;
 import android.widget.SearchView;
 import android.widget.TextView;
@@ -81,6 +87,7 @@ final class OfflineLibraryScreen implements OfflineScreens.Screen {
     private final TextView emptyView;
     private final SearchView searchView;
     private final MenuItem searchItem;
+    private final MenuItem cancelAllItem;
 
     private final List<Object> rows = new ArrayList<>();
     private String query = "";
@@ -176,6 +183,24 @@ final class OfflineLibraryScreen implements OfflineScreens.Screen {
             return true;
         });
 
+        // modified by lavinhoque33, 2026-10-23: a playlist queues many downloads, so they can be cancelled together.
+        cancelAllItem = menu.add(str("revanced_offline_cancel_all"));
+        cancelAllItem.setIcon(OfflineUi.icon(activity, "close", foreground));
+        cancelAllItem.setShowAsAction(MenuItem.SHOW_AS_ACTION_IF_ROOM);
+        cancelAllItem.setVisible(false);
+        cancelAllItem.setOnMenuItemClickListener(clicked -> {
+            confirmCancelAll();
+            return true;
+        });
+
+        MenuItem playlistItem = menu.add(str("revanced_offline_batch_menu"));
+        playlistItem.setIcon(OfflineUi.icon(activity, "download", foreground));
+        playlistItem.setShowAsAction(MenuItem.SHOW_AS_ACTION_IF_ROOM);
+        playlistItem.setOnMenuItemClickListener(clicked -> {
+            askPlaylist();
+            return true;
+        });
+
         FrameLayout content = new FrameLayout(activity);
         ListView list = new ListView(activity);
         list.setDivider(null);
@@ -251,7 +276,9 @@ final class OfflineLibraryScreen implements OfflineScreens.Screen {
     private void reload() {
         if (destroyed) return;
         rows.clear();
-        for (OfflineDownloader.Task task : OfflineDownloader.getTasks()) {
+        List<OfflineDownloader.Task> tasks = OfflineDownloader.getTasks();
+        cancelAllItem.setVisible(tasks.size() > 1);
+        for (OfflineDownloader.Task task : tasks) {
             if (matches(task.title)) rows.add(task);
         }
         for (OfflineVideo video : OfflineScreens.sorted(OfflineIndex.getAll())) {
@@ -359,6 +386,57 @@ final class OfflineLibraryScreen implements OfflineScreens.Screen {
                     }
                     // Otherwise the system asks for consent, and the next resume drops the entry
                     // if the user agreed.
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
+    }
+
+    private void confirmCancelAll() {
+        Utils.getDialogBuilder(activity)
+                .setTitle(str("revanced_offline_cancel_all"))
+                .setMessage(str("revanced_offline_cancel_all_message", OfflineDownloader.getTasks().size()))
+                .setPositiveButton(android.R.string.ok, (dialog, which) -> OfflineDownloader.cancelAll(false))
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
+    }
+
+    /** YouTube shows its own playlist download button only to some accounts, so the library offers a way in. */
+    private void askPlaylist() {
+        AlertDialog.Builder builder = Utils.getDialogBuilder(activity);
+        // The dialog has its own theme, which can differ from the screen's, so its colors are not set here.
+        EditText input = new EditText(builder.getContext());
+        input.setHint(str("revanced_offline_batch_input_hint"));
+        input.setSingleLine();
+        input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_URI);
+        try {
+            ClipboardManager clipboard = (ClipboardManager) activity.getSystemService(Context.CLIPBOARD_SERVICE);
+            ClipData clip = clipboard == null ? null : clipboard.getPrimaryClip();
+            CharSequence copied = clip == null || clip.getItemCount() == 0
+                    ? null : clip.getItemAt(0).coerceToText(activity);
+            if (copied != null && OfflinePlaylist.parseId(copied.toString()) != null) {
+                input.setText(copied.toString().trim());
+                input.selectAll();
+            }
+        } catch (Exception ex) {
+            Logger.printDebug(() -> "Could not read the clipboard", ex);
+        }
+        final int padding = Utils.dipToPixels(24);
+        FrameLayout container = new FrameLayout(builder.getContext());
+        container.setPadding(padding, Utils.dipToPixels(8), padding, 0);
+        container.addView(input, new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+
+        builder
+                .setTitle(str("revanced_offline_batch_menu"))
+                .setMessage(str("revanced_offline_batch_input_message"))
+                .setView(container)
+                .setPositiveButton(android.R.string.ok, (dialog, which) -> {
+                    String playlistId = OfflinePlaylist.parseId(input.getText().toString());
+                    if (playlistId == null) {
+                        Utils.showToastLong(str("revanced_offline_batch_input_invalid"));
+                    } else {
+                        OfflineDownloader.downloadPlaylist(activity, playlistId);
+                    }
                 })
                 .setNegativeButton(android.R.string.cancel, null)
                 .show();
@@ -503,7 +581,11 @@ final class OfflineLibraryScreen implements OfflineScreens.Screen {
                         ? str("revanced_offline_download_starting")
                         : str("revanced_offline_download_progress", percent);
             };
-            status.setText(task.qualityLabel + " · " + state);
+            List<String> parts = new ArrayList<>();
+            if (task.batch != null) parts.add(task.index + "/" + task.batch.total);
+            if (!task.qualityLabel.isEmpty()) parts.add(task.qualityLabel);
+            parts.add(state);
+            status.setText(TextUtils.join(" · ", parts));
         }
     }
 

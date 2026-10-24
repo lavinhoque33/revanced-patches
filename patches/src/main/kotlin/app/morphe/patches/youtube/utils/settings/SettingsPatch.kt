@@ -485,6 +485,7 @@ val settingsPatch = resourcePatch(
                 "revanced_offline_back.xml",
                 "revanced_offline_check.xml",
                 "revanced_offline_close.xml",
+                "revanced_offline_download.xml",
                 "revanced_offline_next.xml",
                 "revanced_offline_pause.xml",
                 "revanced_offline_play.xml",

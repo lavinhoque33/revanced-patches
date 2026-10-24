@@ -76,7 +76,7 @@ final class OfflinePickerSheet {
     private final int divider;
     private final int ripple;
 
-    OfflinePickerSheet(Activity activity, String videoId, Runnable onDismiss) {
+    OfflinePickerSheet(Activity activity, @Nullable String videoId, Runnable onDismiss) {
         this.activity = activity;
         foreground = ThemeUtils.getAppForegroundColor();
         secondary = withAlpha(foreground, 0xAA);
@@ -133,7 +133,7 @@ final class OfflinePickerSheet {
         dialog = SheetBottomDialog.createSlideDialog(activity, root, ANIMATION_DURATION_MS);
         dialog.setOnDismissListener(d -> onDismiss.run());
         PipDismissHelper.dismissOnPip(dialog);
-        loadThumbnail(videoId);
+        if (videoId != null) loadThumbnail(videoId);
     }
 
     void show() {
@@ -146,6 +146,57 @@ final class OfflinePickerSheet {
         } catch (Exception ex) {
             Logger.printDebug(() -> "Could not dismiss the quality picker", ex);
         }
+    }
+
+    void setLoadingText(String text) {
+        title.setText(text);
+    }
+
+    /**
+     * Replaces the loading state of a playlist with the largest video height to download.
+     *
+     * @param onPick Called with the height limit, {@link Integer#MAX_VALUE} for no limit.
+     */
+    void showHeightLimits(String playlistTitle, int videoCount, String firstVideoId, Consumer<Integer> onPick) {
+        // modified by lavinhoque33, 2026-10-23: a playlist is downloaded with a height limit, not a picked format.
+        title.setText(playlistTitle.isEmpty() ? str("revanced_offline_batch_title") : playlistTitle);
+        author.setText(str("revanced_offline_batch_count", videoCount));
+        author.setVisibility(View.VISIBLE);
+        loadThumbnail(firstVideoId);
+        root.removeView(loading);
+
+        View line = new View(activity);
+        line.setBackgroundColor(divider);
+        root.addView(line, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, Dim.dp1));
+
+        TextView section = text(13, secondary, 1);
+        section.setTypeface(Typeface.DEFAULT_BOLD);
+        section.setText(str("revanced_offline_batch_subtitle"));
+        section.setPadding(Dim.dp16, Dim.dp12, Dim.dp16, Dim.dp4);
+        root.addView(section);
+
+        boolean[] picked = {false};
+        int[] limits = {Integer.MAX_VALUE, 1080, 720, 480, 360};
+        for (int limit : limits) {
+            LinearLayout row = baseRow(v -> {
+                if (picked[0]) return; // A second tap while the sheet slides away.
+                picked[0] = true;
+                onPick.accept(limit);
+            });
+            TextView label = text(16, foreground, 1);
+            label.setTypeface(Typeface.DEFAULT_BOLD);
+            label.setText(limit == Integer.MAX_VALUE ? str("revanced_offline_batch_best") : limit + "p");
+            row.addView(label);
+            root.addView(row, new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        }
+
+        TextView footer = text(12, secondary, 3);
+        footer.setText(str("revanced_offline_batch_footer"));
+        footer.setGravity(Gravity.CENTER);
+        footer.setPadding(Dim.dp16, Dim.dp8, Dim.dp16, Dim.dp4);
+        root.addView(footer, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
     }
 
     /**
@@ -197,7 +248,7 @@ final class OfflinePickerSheet {
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
     }
 
-    private View row(OfflineFormats.Stream video, long audioLength, View.OnClickListener onClick) {
+    private LinearLayout baseRow(View.OnClickListener onClick) {
         LinearLayout row = new LinearLayout(activity);
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setGravity(Gravity.CENTER_VERTICAL);
@@ -207,6 +258,11 @@ final class OfflinePickerSheet {
         mask.setColor(Color.WHITE);
         row.setBackground(new RippleDrawable(ColorStateList.valueOf(ripple), null, mask));
         row.setOnClickListener(onClick);
+        return row;
+    }
+
+    private View row(OfflineFormats.Stream video, long audioLength, View.OnClickListener onClick) {
+        LinearLayout row = baseRow(onClick);
 
         LinearLayout texts = new LinearLayout(activity);
         texts.setOrientation(LinearLayout.VERTICAL);

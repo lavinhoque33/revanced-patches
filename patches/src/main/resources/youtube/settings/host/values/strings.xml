@@ -2053,6 +2053,27 @@ The quality picker is shown for every download"</string>
     <string name="revanced_offline_error_space">Not enough free space, %s needed</string>
     <string name="revanced_offline_error_time_limit">Android\'s background download time limit was reached</string>
     <string name="revanced_offline_cancel">Cancel</string>
+    <!-- modified by lavinhoque33, 2026-10-23: playlist download with a quality limit. -->
+    <string name="revanced_offline_cancel_all">Cancel all</string>
+    <string name="revanced_offline_cancel_all_message">Cancel %d queued and running downloads?</string>
+    <string name="revanced_offline_batch_title">Playlist</string>
+    <string name="revanced_offline_batch_menu">Download playlist</string>
+    <string name="revanced_offline_batch_input_message">Paste a playlist link or id. A copied playlist link is filled in.</string>
+    <string name="revanced_offline_batch_input_hint">youtube.com/playlist?list=…</string>
+    <string name="revanced_offline_batch_input_invalid">This is not a playlist link or id</string>
+    <string name="revanced_offline_batch_loading">Loading playlist…</string>
+    <string name="revanced_offline_batch_unavailable">This playlist could not be loaded, or it has no videos</string>
+    <string name="revanced_offline_batch_count">%d videos</string>
+    <string name="revanced_offline_batch_subtitle">Maximum quality</string>
+    <string name="revanced_offline_batch_best">Best available</string>
+    <string name="revanced_offline_batch_footer">Each video is downloaded in the best quality up to this limit. Videos you already downloaded are skipped.</string>
+    <string name="revanced_offline_batch_queued">%d videos queued</string>
+    <string name="revanced_offline_batch_nothing_new">Every video of this playlist is already downloaded or downloading</string>
+    <string name="revanced_offline_batch_no_quality">No quality within the limit</string>
+    <string name="revanced_offline_batch_part_downloaded">%d downloaded</string>
+    <string name="revanced_offline_batch_part_failed">%d failed</string>
+    <string name="revanced_offline_batch_part_cancelled">%d cancelled</string>
+    <string name="revanced_offline_batch_part_already_downloaded">%d already downloaded</string>
     <string name="revanced_offline_previous">Previous</string>
     <string name="revanced_offline_pause">Pause</string>
     <string name="revanced_offline_play">Play</string>

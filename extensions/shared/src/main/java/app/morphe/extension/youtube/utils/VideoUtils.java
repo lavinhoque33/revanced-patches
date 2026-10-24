@@ -273,6 +273,11 @@ public class VideoUtils extends IntentUtils {
     }
 
     public static void launchPlaylistExternalDownloader(@NonNull String playlistId) {
+        // modified by lavinhoque33, 2026-10-23: playlist download entry points funnel through here too.
+        if (Settings.IN_APP_DOWNLOADER.get()) {
+            OfflineDownloader.downloadPlaylist(playlistId);
+            return;
+        }
         try {
             final String downloaderPackageName = Settings.EXTERNAL_DOWNLOADER_PACKAGE_NAME_PLAYLIST.get();
             // If the package is not installed, show a dialog.

@@ -919,6 +919,18 @@
         <item>1</item>
         <item>0</item>
     </string-array>
+    <string-array name="morphe_feed_card_layout_entries">
+        <item>@string/morphe_feed_card_layout_entry_0</item>
+        <item>@string/morphe_feed_card_layout_entry_1</item>
+        <item>@string/morphe_feed_card_layout_entry_2</item>
+        <item>@string/morphe_feed_card_layout_entry_3</item>
+    </string-array>
+    <string-array name="morphe_feed_card_layout_entry_values">
+        <item>DEFAULT</item>
+        <item>CLASSIC</item>
+        <item>CARDS</item>
+        <item>CARDS_WITH_ACTION_BUTTONS</item>
+    </string-array>
     <string-array name="morphe_splash_screen_animation_style_entries">
         <item>@string/revanced_exit_fullscreen_entry_1</item>
         <item>@string/morphe_splash_screen_animation_style_entry_2</item>

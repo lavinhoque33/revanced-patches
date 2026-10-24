@@ -101,6 +101,8 @@ Tap here to open DeArrow.ajay.app"</string>
     <string name="morphe_disable_drc_audio_title">Disable DRC audio</string>
     <string name="morphe_disable_icon_only_navigation_buttons_summary">Shows the navigation buttons with labels, if YouTube sends them without labels</string>
     <string name="morphe_disable_icon_only_navigation_buttons_title">Disable navigation buttons without labels</string>
+    <string name="morphe_disable_notification_media_seekbar_summary">Prevents dragging the seekbar on the lock screen and notification panel</string>
+    <string name="morphe_disable_notification_media_seekbar_title">Disable seekbar</string>
     <string name="morphe_disable_quic_protocol_summary_off">QUIC protocol is enabled</string>
     <string name="morphe_disable_quic_protocol_summary_on">QUIC protocol is disabled</string>
     <string name="morphe_disable_quic_protocol_title">Disable QUIC protocol</string>
@@ -169,6 +171,8 @@ Tap here to open AiSlopList.com and see downloads for other platforms"</string>
     <string name="morphe_hide_movies_menu_title">Hide Movies menu</string>
     <string name="morphe_hide_music_menu_title">Hide \'Music &amp; TV\' menu</string>
     <string name="morphe_hide_news_menu_title">Hide News menu</string>
+    <string name="morphe_hide_notification_media_prev_next_summary">Hides Previous and Next buttons in media notification, lock screen, and headphone controls</string>
+    <string name="morphe_hide_notification_media_prev_next_title">Hide Previous &amp; Next buttons</string>
     <string name="morphe_hide_playables_menu_title">Hide Playables menu</string>
     <string name="morphe_hide_player_flyout_audio_track_not_available">"\'Audio Track\' menu is hidden
 
@@ -200,6 +204,8 @@ To fix this, turn on \'Spoof video streams\' and change the \'Default client\' t
     <string name="morphe_music_package_name_title">Music app package name</string>
     <string name="morphe_notification_dot_color_summary">Changes the color of notification dots</string>
     <string name="morphe_notification_dot_color_title">Notification dot color</string>
+    <string name="morphe_notification_media_screen_summary">Customize the playback controls shown on your lock screen and notification panel</string>
+    <string name="morphe_notification_media_screen_title">Notification media controls</string>
     <string name="morphe_oauth2_connection_failure_auth_error">Cannot sign in to VR: %s</string>
     <string name="morphe_oauth2_connection_failure_auth_not_approved">Cannot sign in to VR, website authentication was not approved</string>
     <string name="morphe_oauth2_connection_failure_generic">OAuth2 is temporarily not available</string>
@@ -272,6 +278,13 @@ To use this feature, turn off \'Spoof video streams\'"</string>
     <string name="morphe_save_to_watch_later_shorts_flyout_button_summary">Allows saving Shorts to the \'Watch later\' playlist from the feed flyout menu</string>
     <string name="morphe_save_to_watch_later_shorts_flyout_button_title">Save button for Shorts</string>
     <string name="morphe_save_to_watch_later_success_toast">Video successfully saved in watch later playlist</string>
+    <string name="morphe_seek_notification_media_fast_forward_length_summary">Seconds to fast forward with the Next button</string>
+    <string name="morphe_seek_notification_media_fast_forward_length_title">Fast forward length</string>
+    <string name="morphe_seek_notification_media_length_invalid">Seek length must be between 1 and %d seconds. Using default</string>
+    <string name="morphe_seek_notification_media_prev_next_summary">Rewinds and fast forwards with Previous and Next buttons in media notification, lock screen, and headphone controls, instead of changing videos</string>
+    <string name="morphe_seek_notification_media_prev_next_title">Seek with Previous &amp; Next buttons</string>
+    <string name="morphe_seek_notification_media_rewind_length_summary">Seconds to rewind with the Previous button</string>
+    <string name="morphe_seek_notification_media_rewind_length_title">Rewind length</string>
     <string name="morphe_seekbar_thumbnail_heatmap_peak_point">Most replayed</string>
     <string name="morphe_seekbar_thumbnail_preview_summary">Shows a video thumbnail while dragging the seekbar</string>
     <string name="morphe_seekbar_thumbnail_preview_title">Enable seekbar thumbnails</string>

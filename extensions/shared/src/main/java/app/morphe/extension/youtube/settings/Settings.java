@@ -724,6 +724,13 @@ public class Settings extends SharedYouTubeSettings {
     public static final BooleanSetting COPY_VIDEO_TITLE = new BooleanSetting("revanced_copy_video_title", TRUE);
     public static final BooleanSetting COPY_COMMENTS = new BooleanSetting("revanced_copy_comments", TRUE);
 
+    // Media notification controls
+    public static final BooleanSetting DISABLE_NOTIFICATION_MEDIA_SEEKBAR = new BooleanSetting("morphe_disable_notification_media_seekbar", FALSE, true);
+    public static final BooleanSetting HIDE_NOTIFICATION_MEDIA_PREV_NEXT = new BooleanSetting("morphe_hide_notification_media_prev_next", FALSE, true);
+    public static final BooleanSetting SEEK_NOTIFICATION_MEDIA_PREV_NEXT = new BooleanSetting("morphe_seek_notification_media_prev_next", FALSE, true, parentInverted(HIDE_NOTIFICATION_MEDIA_PREV_NEXT));
+    public static final IntegerSetting SEEK_NOTIFICATION_MEDIA_REWIND_LENGTH = new IntegerSetting("morphe_seek_notification_media_rewind_length", 10, parent(SEEK_NOTIFICATION_MEDIA_PREV_NEXT));
+    public static final IntegerSetting SEEK_NOTIFICATION_MEDIA_FAST_FORWARD_LENGTH = new IntegerSetting("morphe_seek_notification_media_fast_forward_length", 10, parent(SEEK_NOTIFICATION_MEDIA_PREV_NEXT));
+
     public static final BooleanSetting PIP_OVERLAY_BUTTON = new BooleanSetting("morphe_pip_button_overlay", FALSE, new PipButtonPatchAvailability());
     public static final BooleanSetting PIP_FLYOUT_BUTTON = new BooleanSetting("morphe_pip_button_flyout", FALSE, new PipButtonPatchAvailability());
     public static final BooleanSetting OVERLAY_BUTTON_ALWAYS_REPEAT = new BooleanSetting("revanced_overlay_button_always_repeat", FALSE);

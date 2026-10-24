@@ -533,6 +533,16 @@
         <!-- PREFERENCE_SCREENS: PLAYER_BUTTONS
         </PreferenceScreen>PREFERENCE_SCREENS: PLAYER_BUTTONS -->
 
+        <!-- modified by lavinhoque33, 2026-10-24: Media notification controls ported from Morphe. -->
+        <!-- SETTINGS: MEDIA_NOTIFICATION_CONTROLS
+        <PreferenceScreen android:title="@string/morphe_notification_media_screen_title" android:key="morphe_notification_media_screen" android:summary="@string/morphe_notification_media_screen_summary">
+            <SwitchPreference android:title="@string/morphe_disable_notification_media_seekbar_title" android:key="morphe_disable_notification_media_seekbar" android:summary="@string/morphe_disable_notification_media_seekbar_summary" />
+            <SwitchPreference android:title="@string/morphe_hide_notification_media_prev_next_title" android:key="morphe_hide_notification_media_prev_next" android:summary="@string/morphe_hide_notification_media_prev_next_summary" />
+            <SwitchPreference android:title="@string/morphe_seek_notification_media_prev_next_title" android:key="morphe_seek_notification_media_prev_next" android:summary="@string/morphe_seek_notification_media_prev_next_summary" />
+            <app.morphe.extension.shared.settings.preference.ResettableEditTextPreference android:title="@string/morphe_seek_notification_media_rewind_length_title" android:key="morphe_seek_notification_media_rewind_length" android:summary="@string/morphe_seek_notification_media_rewind_length_summary" android:dependency="morphe_seek_notification_media_prev_next" android:defaultValue="10" android:inputType="number" />
+            <app.morphe.extension.shared.settings.preference.ResettableEditTextPreference android:title="@string/morphe_seek_notification_media_fast_forward_length_title" android:key="morphe_seek_notification_media_fast_forward_length" android:summary="@string/morphe_seek_notification_media_fast_forward_length_summary" android:dependency="morphe_seek_notification_media_prev_next" android:defaultValue="10" android:inputType="number" />
+        </PreferenceScreen>SETTINGS: MEDIA_NOTIFICATION_CONTROLS -->
+
         <!-- SETTINGS: HIDE_ACTION_BUTTONS
         <PreferenceScreen android:title="@string/revanced_preference_category_action_buttons" android:key="revanced_preference_screen_action_buttons" android:summary="@string/revanced_preference_screen_action_buttons_summary">SETTINGS: HIDE_ACTION_BUTTONS -->
             <!-- SETTINGS: RESTORE_OLD_VIDEO_ACTION_BAR

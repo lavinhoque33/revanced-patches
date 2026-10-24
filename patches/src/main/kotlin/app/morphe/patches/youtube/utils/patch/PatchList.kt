@@ -305,6 +305,10 @@ internal enum class PatchList(
         "Shorts components",
         "Adds options to hide or change components related to YouTube Shorts."
     ),
+    SHORTS_ICON_STYLE(
+        "Shorts icon style",
+        "Adds an option to change the style of the Shorts action button icons."
+    ),
     SNACK_BAR_COMPONENTS(
         "Snack bar components",
         "Adds options to hide or change components related to the snack bar."

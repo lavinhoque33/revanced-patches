@@ -1,5 +1,5 @@
 {
-  "version": "v1.10.3",
+  "version": "v1.10.4",
   "patches": [
     {
       "name": "Ambient mode control",
@@ -3479,6 +3479,18 @@
           "type": "kotlin.Boolean",
           "default": true,
           "values": null
+        },
+        {
+          "key": "iconStyle",
+          "title": "Icon style",
+          "description": "The line weight of the settings menu icons.",
+          "required": true,
+          "type": "kotlin.String",
+          "default": "regular",
+          "values": {
+            "Regular": "regular",
+            "Bold": "bold"
+          }
         }
       ]
     },

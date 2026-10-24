@@ -80,6 +80,7 @@
             <app.morphe.extension.youtube.settings.preference.ExternalDownloaderPlaylistPreference android:title="@string/revanced_external_downloader_package_name_playlist_title" android:key="revanced_external_downloader_package_name_playlist" android:summary="@string/revanced_external_downloader_package_name_playlist_summary" />
             <SwitchPreference android:title="@string/revanced_override_video_download_button_title" android:key="revanced_override_video_download_button" android:summaryOn="@string/revanced_override_video_download_button_queue_manager_summary_off" android:summaryOff="@string/revanced_override_video_download_button_summary_off" />
             <app.morphe.extension.youtube.settings.preference.ExternalDownloaderVideoPreference android:title="@string/revanced_external_downloader_package_name_video_title" android:key="revanced_external_downloader_package_name_video" android:summary="@string/revanced_external_downloader_package_name_playlist_summary" />
+            <SwitchPreference android:title="@string/morphe_external_downloader_quick_menu_title" android:key="morphe_external_downloader_quick_menu" android:summary="@string/morphe_external_downloader_quick_menu_summary" />
             <SwitchPreference android:title="@string/revanced_overlay_button_external_downloader_queue_manager_title" android:key="revanced_override_video_download_button_queue_manager" android:summaryOn="@string/revanced_override_video_download_button_queue_manager_summary_on" android:summaryOff="@string/revanced_override_video_download_button_queue_manager_summary_off" />
             <SwitchPreference android:title="@string/revanced_in_app_downloader_title" android:key="revanced_in_app_downloader" android:summaryOn="@string/revanced_in_app_downloader_summary_on" android:summaryOff="@string/revanced_in_app_downloader_summary_off" />
             <SwitchPreference android:title="@string/revanced_replace_downloads_page_title" android:key="revanced_replace_downloads_page" android:summaryOn="@string/revanced_replace_downloads_page_summary_on" android:summaryOff="@string/revanced_replace_downloads_page_summary_off" />
@@ -518,6 +519,7 @@
             <SwitchPreference android:title="@string/revanced_overlay_button_always_repeat_title" android:key="revanced_overlay_button_always_repeat" android:summary="@string/revanced_overlay_button_always_repeat_summary" />
             <SwitchPreference android:title="@string/revanced_overlay_button_external_downloader_title" android:key="revanced_overlay_button_external_downloader" android:summary="@string/revanced_overlay_button_external_downloader_summary" />
             <app.morphe.extension.youtube.settings.preference.ExternalDownloaderVideoPreference android:title="@string/revanced_external_downloader_package_name_video_title" android:key="revanced_external_downloader_package_name_video" android:summary="@string/revanced_external_downloader_package_name_playlist_summary" />
+            <SwitchPreference android:title="@string/morphe_external_downloader_quick_menu_title" android:key="morphe_external_downloader_quick_menu" android:summary="@string/morphe_external_downloader_quick_menu_summary" />
             <app.morphe.extension.youtube.settings.preference.ExternalDownloaderVideoLongPressPreference android:title="@string/revanced_external_downloader_package_name_video_long_press_title" android:key="revanced_external_downloader_package_name_video_long_press" android:summary="@string/revanced_external_downloader_package_name_video_long_press_summary" />
             <SwitchPreference android:title="@string/revanced_overlay_button_external_downloader_queue_manager_title" android:key="revanced_overlay_button_external_downloader_queue_manager" android:summary="@string/revanced_overlay_button_external_downloader_queue_manager_summary" />SETTINGS: OVERLAY_BUTTONS -->
 
@@ -532,6 +534,16 @@
 
         <!-- PREFERENCE_SCREENS: PLAYER_BUTTONS
         </PreferenceScreen>PREFERENCE_SCREENS: PLAYER_BUTTONS -->
+
+        <!-- modified by lavinhoque33, 2026-10-24: Media notification controls ported from Morphe. -->
+        <!-- SETTINGS: MEDIA_NOTIFICATION_CONTROLS
+        <PreferenceScreen android:title="@string/morphe_notification_media_screen_title" android:key="morphe_notification_media_screen" android:summary="@string/morphe_notification_media_screen_summary">
+            <SwitchPreference android:title="@string/morphe_disable_notification_media_seekbar_title" android:key="morphe_disable_notification_media_seekbar" android:summary="@string/morphe_disable_notification_media_seekbar_summary" />
+            <SwitchPreference android:title="@string/morphe_hide_notification_media_prev_next_title" android:key="morphe_hide_notification_media_prev_next" android:summary="@string/morphe_hide_notification_media_prev_next_summary" />
+            <SwitchPreference android:title="@string/morphe_seek_notification_media_prev_next_title" android:key="morphe_seek_notification_media_prev_next" android:summary="@string/morphe_seek_notification_media_prev_next_summary" />
+            <app.morphe.extension.shared.settings.preference.ResettableEditTextPreference android:title="@string/morphe_seek_notification_media_rewind_length_title" android:key="morphe_seek_notification_media_rewind_length" android:summary="@string/morphe_seek_notification_media_rewind_length_summary" android:dependency="morphe_seek_notification_media_prev_next" android:defaultValue="10" android:inputType="number" />
+            <app.morphe.extension.shared.settings.preference.ResettableEditTextPreference android:title="@string/morphe_seek_notification_media_fast_forward_length_title" android:key="morphe_seek_notification_media_fast_forward_length" android:summary="@string/morphe_seek_notification_media_fast_forward_length_summary" android:dependency="morphe_seek_notification_media_prev_next" android:defaultValue="10" android:inputType="number" />
+        </PreferenceScreen>SETTINGS: MEDIA_NOTIFICATION_CONTROLS -->
 
         <!-- SETTINGS: HIDE_ACTION_BUTTONS
         <PreferenceScreen android:title="@string/revanced_preference_category_action_buttons" android:key="revanced_preference_screen_action_buttons" android:summary="@string/revanced_preference_screen_action_buttons_summary">SETTINGS: HIDE_ACTION_BUTTONS -->
@@ -940,6 +952,7 @@
             <SwitchPreference android:title="@string/revanced_shorts_custom_actions_copy_video_url_timestamp_title" android:key="revanced_shorts_custom_actions_copy_video_url_timestamp" android:summaryOn="@string/revanced_shorts_custom_actions_copy_video_url_timestamp_summary_on" android:summaryOff="@string/revanced_shorts_custom_actions_copy_video_url_timestamp_summary_off" />
             <SwitchPreference android:title="@string/revanced_shorts_custom_actions_external_downloader_title" android:key="revanced_shorts_custom_actions_external_downloader" android:summaryOn="@string/revanced_shorts_custom_actions_external_downloader_summary_on" android:summaryOff="@string/revanced_shorts_custom_actions_external_downloader_summary_off" />
             <app.morphe.extension.youtube.settings.preference.ExternalDownloaderVideoPreference android:title="@string/revanced_external_downloader_package_name_video_title" android:key="revanced_external_downloader_package_name_video" android:summary="@string/revanced_external_downloader_package_name_playlist_summary" />
+            <SwitchPreference android:title="@string/morphe_external_downloader_quick_menu_title" android:key="morphe_external_downloader_quick_menu" android:summary="@string/morphe_external_downloader_quick_menu_summary" />
             <SwitchPreference android:title="@string/revanced_shorts_custom_actions_open_video_title" android:key="revanced_shorts_custom_actions_open_video" android:summaryOn="@string/revanced_shorts_custom_actions_open_video_summary_on" android:summaryOff="@string/revanced_shorts_custom_actions_open_video_summary_off" />
             <SwitchPreference android:title="@string/revanced_shorts_custom_actions_speed_dialog_title" android:key="revanced_shorts_custom_actions_speed_dialog" android:summaryOn="@string/revanced_shorts_custom_actions_speed_dialog_summary_on" android:summaryOff="@string/revanced_shorts_custom_actions_speed_dialog_summary_off" />
             <app.morphe.extension.shared.settings.preference.CustomDialogListPreference android:entries="@array/revanced_custom_playback_speed_menu_type_entries" android:title="@string/revanced_overlay_button_speed_dialog_type_title" android:key="revanced_shorts_custom_actions_speed_dialog_type" android:entryValues="@array/revanced_custom_playback_speed_menu_type_entry_values" />
@@ -993,6 +1006,9 @@
 
         <!-- SETTINGS: SHORTS_COMPONENTS
         <app.morphe.extension.shared.settings.preference.CustomDialogListPreference android:entries="@array/revanced_shorts_player_type_entries" android:title="@string/revanced_shorts_player_type_title" android:key="revanced_shorts_player_type" android:entryValues="@array/revanced_shorts_player_type_entry_values" />SETTINGS: SHORTS_COMPONENTS -->
+
+        <!-- SETTINGS: SHORTS_ICON_STYLE
+        <app.morphe.extension.youtube.settings.preference.ShortsIconStyleListPreference android:entries="@array/morphe_shorts_icon_style_entries" android:title="@string/morphe_shorts_icon_style_title" android:key="morphe_shorts_icon_style" android:entryValues="@array/morphe_shorts_icon_style_entry_values" />SETTINGS: SHORTS_ICON_STYLE -->
 
     <!-- PREFERENCE_SCREEN: SHORTS
     </PreferenceScreen>PREFERENCE_SCREEN: SHORTS -->
@@ -1395,6 +1411,7 @@
             <PreferenceCategory android:title="@string/revanced_change_start_page_entry_shorts" >
                 <Preference android:title="Disable resuming Shorts on startup" android:summary="@string/revanced_patches_excluded" android:selectable="false"/>
                 <Preference android:title="Shorts components" android:summary="@string/revanced_patches_excluded" android:selectable="false"/>
+                <Preference android:title="Shorts icon style" android:summary="@string/revanced_patches_excluded" android:selectable="false"/>
             </PreferenceCategory>
 
             <PreferenceCategory android:title="@string/revanced_preference_screen_swipe_controls_title" android:layout="@layout/revanced_settings_preferences_category">

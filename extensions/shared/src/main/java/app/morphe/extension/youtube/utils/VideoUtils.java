@@ -10,6 +10,7 @@
  * - Jav1x (https://github.com/Jav1x)
  *
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-10-24
  *
  * ------------------------------------------------------------------------
  * GPLv3 Section 7 – Additional Terms & Attribution Requirements
@@ -1636,7 +1637,7 @@ public class VideoUtils extends IntentUtils {
      * @param marginEnd   The end margin in pixels (right for LTR, left for RTL).
      * @return A configured {@link Button} with the specified styling and layout parameters.
      */
-    private static Button createStyledButton(Context context, boolean isPlus, int marginStart, int marginEnd) {
+    public static Button createStyledButton(Context context, boolean isPlus, int marginStart, int marginEnd) {
         Button button = new Button(context, null, 0); // Disable default theme style.
         button.setText(""); // No text on button.
         ShapeDrawable background = new ShapeDrawable(new RoundRectShape(

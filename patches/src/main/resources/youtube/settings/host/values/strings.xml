@@ -115,6 +115,10 @@ To fix this, turn on \'Spoof video streams\' and change the \'Default client\' t
     <string name="morphe_explore_menu_screen_summary">Choose which components appear in the explore menu</string>
     <string name="morphe_explore_menu_screen_title">Explore menu</string>
     <string name="morphe_external_potoken_provider_user_dialog_message">If it does not work, try force-closing MicroG</string>
+    <string name="morphe_force_animations_entry_always_off">Always off</string>
+    <string name="morphe_force_animations_entry_always_on">Always on</string>
+    <string name="morphe_force_animations_entry_default">Default</string>
+    <string name="morphe_force_animations_title">Force animations</string>
     <string name="morphe_force_original_audio_not_available">To use this feature, change \'Spoof video streams\' to any client except \'Android Studio\' and \'Android VR Downgraded\'</string>
     <string name="morphe_force_original_audio_summary_off">Using default audio</string>
     <string name="morphe_force_original_audio_summary_on">Using original audio language</string>
@@ -286,6 +290,8 @@ To use this feature, turn off \'Spoof video streams\'"</string>
     <string name="morphe_settings_name_entry_3" translatable="false">Tweaks</string>
     <string name="morphe_settings_name_entry_4" translatable="false">Premium</string>
     <string name="morphe_settings_name_title">RVX settings name</string>
+    <string name="morphe_skip_live_shorts_summary">Skips live streams that appear in the Shorts feed</string>
+    <string name="morphe_skip_live_shorts_title">Skip live Shorts</string>
     <string name="morphe_skip_silence_minimum_pause_summary">Only pauses at least this long are shortened. Takes effect when the next video starts</string>
     <string name="morphe_skip_silence_minimum_pause_title">Minimum pause length</string>
     <string name="morphe_skip_silence_summary">Automatically skips silent pauses in video audio</string>
@@ -390,6 +396,14 @@ Limitation: If \'Restore old video action bar\' is turned off, \'More videos\' o
     <string name="morphe_theme_entry_white">White</string>
     <string name="morphe_theme_settings_summary">Customize the app theme, appearance, and branding</string>
     <string name="morphe_theme_settings_title">Theme settings</string>
+    <string name="morphe_video_delay_bluetooth_only_summary">Only delays the video while Bluetooth audio is connected, so the phone speaker stays in sync</string>
+    <string name="morphe_video_delay_bluetooth_only_title">Only delay with Bluetooth audio</string>
+    <string name="morphe_video_delay_button_flyout_title">Show Video delay menu</string>
+    <string name="morphe_video_delay_button_overlay_summary">Tap and hold to reset the delay to 0 ms</string>
+    <string name="morphe_video_delay_button_overlay_title">Show Video delay button</string>
+    <string name="morphe_video_delay_dialog_input_hint">Delay in milliseconds</string>
+    <string name="morphe_video_delay_summary">Delays the video to keep it in sync with laggy audio, such as Bluetooth headphones (0-5000 ms)</string>
+    <string name="morphe_video_delay_title">Video delay</string>
     <string name="morphe_video_quality_prioritize_dialog">If this setting is turned off, then older videos can show no video quality options</string>
     <string name="morphe_video_quality_prioritize_summary">Prioritizes the highest available video quality over codec efficiency</string>
     <string name="morphe_video_quality_prioritize_title">Prioritize video quality</string>

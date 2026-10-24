@@ -270,6 +270,9 @@
         <!-- SETTINGS: FORCE_SYSTEM_FONT
         <SwitchPreference android:title="@string/revanced_force_system_font_title" android:key="revanced_force_system_font" android:summary="@string/revanced_force_system_font_summary" />SETTINGS: FORCE_SYSTEM_FONT -->
 
+        <!-- SETTINGS: FORCE_ANIMATIONS
+        <app.morphe.extension.shared.settings.preference.CustomDialogListPreference android:title="@string/morphe_force_animations_title" android:key="morphe_force_animations" android:entries="@array/morphe_force_animations_entries" android:entryValues="@array/morphe_force_animations_entry_values" android:defaultValue="DEFAULT" />SETTINGS: FORCE_ANIMATIONS -->
+
         <!-- modified by lavinhoque33, 2026-10-16: Hide status bar preference. -->
         <!-- SETTINGS: HIDE_STATUS_BAR
         <SwitchPreference android:title="@string/revanced_hide_status_bar_title" android:key="revanced_hide_status_bar" android:summary="@string/revanced_hide_status_bar_summary" />SETTINGS: HIDE_STATUS_BAR -->
@@ -494,6 +497,9 @@
             <!-- SETTINGS: RELOAD_VIDEO
             <SwitchPreference android:title="@string/morphe_reload_video_title" android:key="morphe_reload_video" android:summaryOn="@string/morphe_reload_video_summary_on" android:summaryOff="@string/morphe_reload_video_summary_off" />SETTINGS: RELOAD_VIDEO -->
 
+            <!-- SETTINGS: VIDEO_DELAY_OVERLAY_BUTTON
+            <SwitchPreference android:title="@string/morphe_video_delay_button_overlay_title" android:key="morphe_video_delay_button_overlay" android:summary="@string/morphe_video_delay_button_overlay_summary" />SETTINGS: VIDEO_DELAY_OVERLAY_BUTTON -->
+
             <!-- SETTINGS: SAVE_TO_WATCH_LATER
             <SwitchPreference android:title="@string/morphe_save_to_watch_later_button_title" android:key="morphe_save_to_watch_later_button" android:summary="@string/morphe_save_to_watch_later_button_summary" />
             <SwitchPreference android:title="@string/morphe_swap_save_and_queue_actions_title" android:key="morphe_swap_save_and_queue_actions" android:summary="@string/morphe_swap_save_and_queue_actions_summary" />SETTINGS: SAVE_TO_WATCH_LATER -->
@@ -614,6 +620,9 @@
 
             <!-- SETTINGS: PICTURE_IN_PICTURE_FLYOUT_BUTTON
             <SwitchPreference android:title="@string/morphe_pip_button_flyout_title" android:key="morphe_pip_button_flyout" />SETTINGS: PICTURE_IN_PICTURE_FLYOUT_BUTTON -->
+
+            <!-- SETTINGS: VIDEO_DELAY_FLYOUT_BUTTON
+            <SwitchPreference android:title="@string/morphe_video_delay_button_flyout_title" android:key="morphe_video_delay_button_flyout" />SETTINGS: VIDEO_DELAY_FLYOUT_BUTTON -->
 
             <!-- SETTINGS: SAVE_TO_WATCH_LATER
             <SwitchPreference android:title="@string/morphe_save_to_watch_later_kids_flyout_button_title" android:key="morphe_save_to_watch_later_kids_flyout_button" android:summary="@string/morphe_save_to_watch_later_kids_flyout_button_summary" />
@@ -975,6 +984,9 @@
         <!-- SETTINGS: DISABLE_RESUMING_SHORTS_PLAYER
         <SwitchPreference android:title="@string/revanced_disable_resuming_shorts_player_title" android:key="revanced_disable_resuming_shorts_player" android:summaryOn="@string/revanced_disable_resuming_shorts_player_summary_on" android:summaryOff="@string/revanced_disable_resuming_shorts_player_summary_off" />SETTINGS: DISABLE_RESUMING_SHORTS_PLAYER -->
 
+        <!-- SETTINGS: SKIP_LIVE_SHORTS
+        <SwitchPreference android:title="@string/morphe_skip_live_shorts_title" android:key="morphe_skip_live_shorts" android:summary="@string/morphe_skip_live_shorts_summary" />SETTINGS: SKIP_LIVE_SHORTS -->
+
         <!-- SETTINGS: SHORTS_COMPONENTS
         <SwitchPreference android:title="@string/revanced_hide_shorts_floating_button_title" android:key="revanced_hide_shorts_floating_button" android:summaryOn="@string/revanced_hide_shorts_floating_button_summary_on" android:summaryOff="@string/revanced_hide_shorts_floating_button_summary_off" />
         <PreferenceCategory android:title="@string/revanced_preference_category_shorts_shelf" android:layout="@layout/revanced_settings_preferences_category"/>
@@ -1114,6 +1126,10 @@
 
         <!-- SETTINGS: PLAYBACK_BUFFER
         <app.morphe.extension.shared.settings.preference.CustomDialogListPreference android:title="@string/morphe_playback_buffer_size_title" android:key="morphe_playback_buffer_size" android:entries="@array/morphe_playback_buffer_size_entries" android:entryValues="@array/morphe_playback_buffer_size_entry_values" android:defaultValue="DEFAULT" />SETTINGS: PLAYBACK_BUFFER -->
+
+        <!-- SETTINGS: VIDEO_DELAY
+        <app.morphe.extension.shared.settings.preference.SliderPreference android:title="@string/morphe_video_delay_title" android:key="morphe_video_delay" android:summary="@string/morphe_video_delay_summary" android:inputType="number" />
+        <SwitchPreference android:title="@string/morphe_video_delay_bluetooth_only_title" android:key="morphe_video_delay_bluetooth_only" android:summary="@string/morphe_video_delay_bluetooth_only_summary" />SETTINGS: VIDEO_DELAY -->
 
         <!-- SETTINGS: SKIP_SILENCE
         <SwitchPreference android:title="@string/morphe_skip_silence_title" android:key="morphe_skip_silence" android:summary="@string/morphe_skip_silence_summary" />
@@ -1345,6 +1361,7 @@
                 <Preference android:title="Disable layout updates" android:summary="@string/revanced_patches_excluded" android:selectable="false"/>
                 <Preference android:title="Disable sign in to TV popup" android:summary="@string/revanced_patches_excluded" android:selectable="false"/>
                 <Preference android:title="Enable gradient loading screen" android:summary="@string/revanced_patches_excluded" android:selectable="false"/>
+                <Preference android:title="Force animations" android:summary="@string/revanced_patches_excluded" android:selectable="false"/>
                 <Preference android:title="Force original audio" android:summary="@string/revanced_patches_excluded" android:selectable="false"/>
                 <Preference android:title="Hide layout components" android:summary="@string/revanced_patches_excluded" android:selectable="false"/>
                 <Preference android:title="Hook download actions" android:summary="@string/revanced_patches_excluded" android:selectable="false"/>
@@ -1383,6 +1400,7 @@
             <PreferenceCategory android:title="@string/revanced_change_start_page_entry_shorts" >
                 <Preference android:title="Disable resuming Shorts on startup" android:summary="@string/revanced_patches_excluded" android:selectable="false"/>
                 <Preference android:title="Shorts components" android:summary="@string/revanced_patches_excluded" android:selectable="false"/>
+                <Preference android:title="Skip live Shorts" android:summary="@string/revanced_patches_excluded" android:selectable="false"/>
             </PreferenceCategory>
 
             <PreferenceCategory android:title="@string/revanced_preference_screen_swipe_controls_title" android:layout="@layout/revanced_settings_preferences_category">
@@ -1392,6 +1410,7 @@
             <PreferenceCategory android:title="@string/revanced_preference_screen_video_title" android:layout="@layout/revanced_settings_preferences_category">
                 <Preference android:title="Gemini" android:summary="@string/revanced_patches_excluded" android:selectable="false"/>
                 <Preference android:title="Spoof video streams" android:summary="@string/revanced_patches_excluded" android:selectable="false"/>
+                <Preference android:title="Video delay" android:summary="@string/revanced_patches_excluded" android:selectable="false"/>
                 <Preference android:title="Video playback" android:summary="@string/revanced_patches_excluded" android:selectable="false"/>
                 <Preference android:title="Voice Over Translation" android:summary="@string/revanced_patches_excluded" android:selectable="false"/>
             </PreferenceCategory>

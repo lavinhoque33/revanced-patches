@@ -77,6 +77,11 @@ internal enum class PatchList(
         "Disable QUIC protocol",
         "Adds an option to disable CronetEngine's QUIC protocol."
     ),
+    // modified by lavinhoque33, 2026-10-24: Force animations patch entry.
+    FORCE_ANIMATIONS(
+        "Force animations",
+        "Adds an option to always turn on or off the app animations that YouTube can turn off, such as the player transitions."
+    ),
     FORCE_ORIGINAL_AUDIO(
         "Force original audio",
         "Adds an option to disable audio tracks from being automatically enabled."
@@ -305,6 +310,11 @@ internal enum class PatchList(
         "Shorts components",
         "Adds options to hide or change components related to YouTube Shorts."
     ),
+    // modified by lavinhoque33, 2026-10-24: Skip live Shorts patch entry.
+    SKIP_LIVE_SHORTS(
+        "Skip live Shorts",
+        "Adds an option to automatically skip live streams that appear in the Shorts feed."
+    ),
     SNACK_BAR_COMPONENTS(
         "Snack bar components",
         "Adds options to hide or change components related to the snack bar."
@@ -336,6 +346,11 @@ internal enum class PatchList(
     TRANSLATIONS_FOR_YOUTUBE(
         "Translations for YouTube",
         "Add translations or remove string resources."
+    ),
+    // modified by lavinhoque33, 2026-10-24: Video delay patch entry.
+    VIDEO_DELAY(
+        "Video delay",
+        "Adds an option to delay the video, to keep it in sync with laggy Bluetooth audio."
     ),
     VIDEO_PLAYBACK(
         "Video playback",

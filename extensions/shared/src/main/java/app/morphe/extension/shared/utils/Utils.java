@@ -320,6 +320,13 @@ public class Utils {
         return activityRef.get();
     }
 
+    /**
+     * @return If the context has been set by an extension hook, without logging an error when it is missing.
+     */
+    public static boolean isContextSet() {
+        return context != null;
+    }
+
     public static Context getContext() {
         if (context == null) {
             Logger.printException(() -> "Context is not set by extension hook, returning null", null);

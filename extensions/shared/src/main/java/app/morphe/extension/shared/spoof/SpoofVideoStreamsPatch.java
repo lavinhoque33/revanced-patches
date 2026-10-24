@@ -10,6 +10,8 @@
  * https://github.com/ReVanced/revanced-patches/commit/724e6d61b2ecd868c1a9a37d465a688e83a74799
  *
  * See the included NOTICE file for GPLv3 Section 7 terms that apply to Morphe contributions.
+ *
+ * Modified by lavinhoque33, 2026-10-24
  */
 
 package app.morphe.extension.shared.spoof;
@@ -207,6 +209,48 @@ public class SpoofVideoStreamsPatch {
             }
         }
         return originalUrlString;
+    }
+
+    /**
+     * Supplies the length of the video the streams are really of, when it is not the video the
+     * app thinks it is playing.
+     */
+    public interface VideoLengthResolver {
+        /**
+         * @return Length in seconds, or zero to keep the length of the app.
+         */
+        long getVideoLengthSeconds(@NonNull String videoId);
+    }
+
+    @Nullable
+    private static volatile VideoLengthResolver videoLengthResolver;
+
+    public static void setVideoLengthResolver(@Nullable VideoLengthResolver resolver) {
+        videoLengthResolver = resolver;
+    }
+
+    /**
+     * Injection point.
+     * The app takes the length of the track from the response of the video it asked for, which is
+     * not the video the streams are of when another one is served in its place.
+     *
+     * @return Length in seconds, or zero to keep the length of the app.
+     */
+    public static long getVideoLengthSeconds(String videoId) {
+        try {
+            VideoLengthResolver resolver = videoLengthResolver;
+            if (resolver == null || videoId == null) return 0;
+
+            final long lengthSeconds = resolver.getVideoLengthSeconds(videoId);
+            if (lengthSeconds > 0) {
+                Logger.printDebug(() -> "Overriding video length of: " + videoId
+                        + " with: " + lengthSeconds + " seconds");
+            }
+            return lengthSeconds;
+        } catch (Exception ex) {
+            Logger.printException(() -> "getVideoLengthSeconds failure", ex);
+            return 0;
+        }
     }
 
     public static boolean isSpoofingEnabled() {

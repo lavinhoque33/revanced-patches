@@ -314,6 +314,8 @@ Audio files remain after uninstalling Music; playlist organization is app data. 
     <string name="morphe_music_musixmatch_token_toast_cleared">Musixmatch: user token cleared</string>
     <string name="morphe_music_musixmatch_token_toast_invalid">Musixmatch: invalid user token — please check and try again</string>
     <string name="morphe_music_musixmatch_token_toast_saved">Musixmatch: user token saved</string>
+    <string name="morphe_music_play_album_songs_summary">Plays the song version of album tracks instead of music videos. Requires \'Spoof video streams\'</string>
+    <string name="morphe_music_play_album_songs_title">Play albums songs</string>
     <!-- modified by lavinhoque33, 2026-10-17: pitch-with-speed switch -->
     <string name="morphe_music_playback_speed_change_pitch_summary">Pitch rises and falls with playback speed. Applies on the next speed change or track</string>
     <string name="morphe_music_playback_speed_change_pitch_title">Change pitch with speed</string>

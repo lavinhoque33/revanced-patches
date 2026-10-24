@@ -7,6 +7,8 @@
  * https://github.com/anddea/revanced-patches
  *
  * See the included NOTICE file for GPLv3 §7(b) and §7(c) terms that apply to Morphe contributions.
+ *
+ * Modified by lavinhoque33, 2026-10-24
  */
 
 package app.morphe.extension.shared.spoof.requests;
@@ -145,6 +147,44 @@ public class StreamOrDetailsDataRequest {
         }
     }
 
+    /**
+     * Substitutes the video the streams are fetched for, while the streams are still served to the
+     * app under the video id it asked for. Used to play a different recording of the same track
+     * without the app noticing that its queue holds another video.
+     */
+    public interface VideoIdResolver {
+        /**
+         * Called off the main thread, and may block while it resolves.
+         *
+         * @return The video to fetch streams from, or the same video id to leave it alone.
+         */
+        String resolveVideoIdToFetch(String videoId);
+    }
+
+    @Nullable
+    private static volatile VideoIdResolver videoIdResolver;
+
+    public static void setVideoIdResolver(@Nullable VideoIdResolver resolver) {
+        videoIdResolver = resolver;
+    }
+
+    private static String resolveVideoIdToFetch(String videoId) {
+        VideoIdResolver resolver = videoIdResolver;
+        if (resolver == null) {
+            return videoId;
+        }
+        try {
+            String resolved = resolver.resolveVideoIdToFetch(videoId);
+            if (resolved != null && !resolved.equals(videoId)) {
+                Logger.printDebug(() -> "Fetching streams of " + resolved + " for: " + videoId);
+                return resolved;
+            }
+        } catch (Exception ex) {
+            Logger.printException(() -> "resolveVideoIdToFetch failure", ex);
+        }
+        return videoId;
+    }
+
     private final String videoId;
     private final boolean isInline;
 
@@ -171,8 +211,13 @@ public class StreamOrDetailsDataRequest {
         this.videoId = videoId;
         this.isInline = isInline;
 
-        this.future = submitOnBackgroundThread(() ->
-                fetch(endpoint, videoId, isInline, playerHeaders, clientStreamOrderOverride, forDownload));
+        // Only playback streams are substituted. Details and downloads keep the video they were asked for.
+        final boolean isPlaybackStream = endpoint == null && !forDownload;
+
+        this.future = submitOnBackgroundThread(() -> fetch(
+                endpoint,
+                isPlaybackStream ? resolveVideoIdToFetch(videoId) : videoId,
+                isInline, playerHeaders, clientStreamOrderOverride, forDownload));
     }
 
     /**

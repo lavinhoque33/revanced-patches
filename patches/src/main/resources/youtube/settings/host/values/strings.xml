@@ -114,6 +114,8 @@ Tap here to open DeArrow.ajay.app"</string>
     <string name="morphe_disable_drc_audio_title">Disable DRC audio</string>
     <string name="morphe_disable_icon_only_navigation_buttons_summary">Shows the navigation buttons with labels, if YouTube sends them without labels</string>
     <string name="morphe_disable_icon_only_navigation_buttons_title">Disable navigation buttons without labels</string>
+    <string name="morphe_disable_notification_media_seekbar_summary">Prevents dragging the seekbar on the lock screen and notification panel</string>
+    <string name="morphe_disable_notification_media_seekbar_title">Disable seekbar</string>
     <string name="morphe_disable_quic_protocol_summary_off">QUIC protocol is enabled</string>
     <string name="morphe_disable_quic_protocol_summary_on">QUIC protocol is disabled</string>
     <string name="morphe_disable_quic_protocol_title">Disable QUIC protocol</string>
@@ -182,6 +184,8 @@ Tap here to open AiSlopList.com and see downloads for other platforms"</string>
     <string name="morphe_hide_movies_menu_title">Hide Movies menu</string>
     <string name="morphe_hide_music_menu_title">Hide \'Music &amp; TV\' menu</string>
     <string name="morphe_hide_news_menu_title">Hide News menu</string>
+    <string name="morphe_hide_notification_media_prev_next_summary">Hides Previous and Next buttons in media notification, lock screen, and headphone controls</string>
+    <string name="morphe_hide_notification_media_prev_next_title">Hide Previous &amp; Next buttons</string>
     <string name="morphe_hide_playables_menu_title">Hide Playables menu</string>
     <string name="morphe_hide_player_flyout_audio_track_not_available">"\'Audio Track\' menu is hidden
 
@@ -213,6 +217,8 @@ To fix this, turn on \'Spoof video streams\' and change the \'Default client\' t
     <string name="morphe_music_package_name_title">Music app package name</string>
     <string name="morphe_notification_dot_color_summary">Changes the color of notification dots</string>
     <string name="morphe_notification_dot_color_title">Notification dot color</string>
+    <string name="morphe_notification_media_screen_summary">Customize the playback controls shown on your lock screen and notification panel</string>
+    <string name="morphe_notification_media_screen_title">Notification media controls</string>
     <string name="morphe_oauth2_connection_failure_auth_error">Cannot sign in to VR: %s</string>
     <string name="morphe_oauth2_connection_failure_auth_not_approved">Cannot sign in to VR, website authentication was not approved</string>
     <string name="morphe_oauth2_connection_failure_generic">OAuth2 is temporarily not available</string>
@@ -293,6 +299,13 @@ To use this feature, turn off \'Spoof video streams\'"</string>
     <string name="morphe_search_comments_search">Search</string>
     <string name="morphe_search_comments_summary">Tap the search button in the comments to show only the loaded comments that contain all of the searched words. Put words in quotes to search for a phrase</string>
     <string name="morphe_search_comments_title">Search comments</string>
+    <string name="morphe_seek_notification_media_fast_forward_length_summary">Seconds to fast forward with the Next button</string>
+    <string name="morphe_seek_notification_media_fast_forward_length_title">Fast forward length</string>
+    <string name="morphe_seek_notification_media_length_invalid">Seek length must be between 1 and %d seconds. Using default</string>
+    <string name="morphe_seek_notification_media_prev_next_summary">Rewinds and fast forwards with Previous and Next buttons in media notification, lock screen, and headphone controls, instead of changing videos</string>
+    <string name="morphe_seek_notification_media_prev_next_title">Seek with Previous &amp; Next buttons</string>
+    <string name="morphe_seek_notification_media_rewind_length_summary">Seconds to rewind with the Previous button</string>
+    <string name="morphe_seek_notification_media_rewind_length_title">Rewind length</string>
     <string name="morphe_seekbar_thumbnail_heatmap_peak_point">Most replayed</string>
     <string name="morphe_seekbar_thumbnail_preview_summary">Shows a video thumbnail while dragging the seekbar</string>
     <string name="morphe_seekbar_thumbnail_preview_title">Enable seekbar thumbnails</string>
@@ -307,6 +320,13 @@ To use this feature, turn off \'Spoof video streams\'"</string>
     <string name="morphe_settings_name_entry_3" translatable="false">Tweaks</string>
     <string name="morphe_settings_name_entry_4" translatable="false">Premium</string>
     <string name="morphe_settings_name_title">RVX settings name</string>
+    <string name="morphe_shorts_icon_style_entry_fluent" translatable="false">Fluent</string>
+    <string name="morphe_shorts_icon_style_entry_ionicons" translatable="false">Ionicons</string>
+    <string name="morphe_shorts_icon_style_entry_phosphor" translatable="false">Phosphor</string>
+    <string name="morphe_shorts_icon_style_entry_phosphor_duotone" translatable="false">Phosphor Duotone</string>
+    <string name="morphe_shorts_icon_style_entry_phosphor_light" translatable="false">Phosphor Light</string>
+    <string name="morphe_shorts_icon_style_entry_sharp" translatable="false">Sharp</string>
+    <string name="morphe_shorts_icon_style_title">Shorts icon style</string>
     <string name="morphe_skip_silence_minimum_pause_summary">Only pauses at least this long are shortened. Takes effect when the next video starts</string>
     <string name="morphe_skip_silence_minimum_pause_title">Minimum pause length</string>
     <string name="morphe_skip_silence_summary">Automatically skips silent pauses in video audio</string>
@@ -2034,6 +2054,17 @@ To show the native playlist download button, turn on \'Spoof app version\' and c
 
 The quality picker is shown for every download"</string>
     <string name="revanced_in_app_downloader_summary_off">Video download buttons use your external downloader</string>
+    <!-- modified by lavinhoque33, 2026-10-24: Quick download menu strings. -->
+    <string name="morphe_external_downloader_quick_menu_title">Quick download menu</string>
+    <string name="morphe_external_downloader_quick_menu_summary">Video download buttons open a menu to download the video or its audio in the background with the default settings of your downloader, or to open the downloader
+
+Works with YTDLnis and YTindir as the video downloader</string>
+    <string name="morphe_external_downloader_quick_menu_video">Video</string>
+    <string name="morphe_external_downloader_quick_menu_audio">Audio</string>
+    <string name="morphe_external_downloader_quick_menu_video_quality">Video (Full HD, 1080p)</string>
+    <string name="morphe_external_downloader_quick_menu_audio_quality">Audio (192 kbps)</string>
+    <string name="morphe_external_downloader_quick_menu_all_options">All options</string>
+    <string name="morphe_external_downloader_quick_menu_title_dialog">Download</string>
     <string name="revanced_replace_downloads_page_title">Replace Downloads page</string>
     <string name="revanced_replace_downloads_page_summary_on">YouTube\'s Downloads page opens the offline library</string>
     <string name="revanced_replace_downloads_page_summary_off">YouTube\'s Downloads page is shown</string>

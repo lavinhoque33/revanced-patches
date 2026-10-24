@@ -941,6 +941,24 @@
         <item>FPS_60_ONE_SECOND</item>
         <item>FPS_60_BLACK_AND_WHITE</item>
     </string-array>
+    <string-array name="morphe_shorts_icon_style_entries">
+        <item>@string/morphe_app_refresh_rate_default</item>
+        <item>@string/morphe_shorts_icon_style_entry_fluent</item>
+        <item>@string/morphe_shorts_icon_style_entry_phosphor</item>
+        <item>@string/morphe_shorts_icon_style_entry_phosphor_light</item>
+        <item>@string/morphe_shorts_icon_style_entry_phosphor_duotone</item>
+        <item>@string/morphe_shorts_icon_style_entry_ionicons</item>
+        <item>@string/morphe_shorts_icon_style_entry_sharp</item>
+    </string-array>
+    <string-array name="morphe_shorts_icon_style_entry_values">
+        <item>AUTO</item>
+        <item>FLUENT</item>
+        <item>PHOSPHOR</item>
+        <item>PHOSPHOR_LIGHT</item>
+        <item>PHOSPHOR_DUOTONE</item>
+        <item>IONICONS</item>
+        <item>SHARP</item>
+    </string-array>
     <string-array name="revanced_status_bar_translucency_entries">
         <item>@string/morphe_app_refresh_rate_default</item>
         <item>@string/revanced_status_bar_translucency_entry_opaque</item>

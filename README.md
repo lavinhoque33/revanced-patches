@@ -22,6 +22,7 @@
 | `Change player flyout menu toggles` | Adds an option to use text toggles instead of switch toggles within the additional settings menu. | 21.39.525 ~ 20.05.46 |
 | `Change share sheet` | Adds an option to change the in-app share sheet to the system share sheet. | 21.39.525 ~ 20.05.46 |
 | `Change start page` | Adds an option to set which page the app opens in instead of the homepage. | 21.39.525 ~ 20.05.46 |
+| `Channel search` | Adds an option to search inside the channel that is currently open instead of searching all of YouTube. | 21.39.525 ~ 20.05.46 |
 | `Copy text` | Adds options to copy the video title and comments by tapping and holding them. | 21.39.525 ~ 20.05.46 |
 | `Custom DPI` | Forces a higher display density for this app only, so the whole UI scales up without changing system density. | 21.39.525 ~ 20.05.46 |
 | `Custom Shorts action buttons` | Changes, at compile time, the icon of the action buttons of the Shorts player. | 21.39.525 ~ 20.05.46 |
@@ -42,6 +43,9 @@
 | `Disable sign in to TV popup` | Adds an option to disable the popup asking to sign into a TV on the same local network. | 21.39.525 ~ 20.05.46 |
 | `Enable debug logging` | Adds an option for debugging and exporting RVX logs to the clipboard. | 21.39.525 ~ 20.05.46 |
 | `Enable gradient loading screen` | Adds an option to enable the gradient loading screen. | 21.39.525 ~ 20.05.46 |
+| `Feed card layout` | Adds an option to show or hide the card layout of feed videos, which YouTube sends as an A/B test. | 21.39.525 ~ 20.05.46 |
+| `Feed view count` | Adds an option to show the view count at the bottom left of the thumbnails of feed videos. | 21.39.525 ~ 20.05.46 |
+| `Force animations` | Adds an option to always turn on or off the app animations that YouTube can turn off, such as the player transitions. | 21.39.525 ~ 20.05.46 |
 | `Force original audio` | Adds an option to disable audio tracks from being automatically enabled. | 21.39.525 ~ 20.05.46 |
 | `Force system font` | Adds an option to show the app with the device system font instead of YouTube Sans. | 21.39.525 ~ 20.05.46 |
 | `Fullscreen components` | Adds options to hide or change components related to fullscreen. | 21.39.525 ~ 20.05.46 |
@@ -61,8 +65,10 @@
 | `Hide shortcuts` | Remove, at compile time, the app shortcuts that appears when the app icon is long pressed. | 21.39.525 ~ 20.05.46 |
 | `Hide status bar` | Adds an option to hide the system status bar. Swipe down from the top edge to show it for a moment. | 21.39.525 ~ 20.05.46 |
 | `Hook download actions` | Adds support to download videos with the built-in downloader or an external downloader app, and an offline library for downloaded videos. | 21.39.525 ~ 20.05.46 |
+| `Media notification controls` | Adds options to disable the seekbar, hide the previous/next buttons, or make them seek in the media notification and headphone controls. | 21.39.525 ~ 20.05.46 |
 | `Miniplayer` | Adds options to change the in-app minimized player, and if patching target 19.16+ adds options to use modern miniplayers. | 21.39.525 ~ 20.05.46 |
 | `Navigation bar components` | Adds options to hide or change components related to the navigation bar. | 21.39.525 ~ 20.05.46 |
+| `Network proxy` | Adds options to route supported network requests through an HTTP or HTTPS proxy. Including this patch may cause connectivity problems on certain devices. | 21.39.525 ~ 20.05.46 |
 | `Open channel of live avatar` | Adds an option to prevent a channel's current live video from opening when tapping its avatar. | 21.39.525 ~ 20.05.46 |
 | `Open links externally` | Adds an option to always open links in your browser instead of the in-app browser. | 21.39.525 ~ 20.05.46 |
 | `Overlay buttons` | Adds options to display useful overlay buttons in the video player. | 21.39.525 ~ 20.05.46 |
@@ -82,11 +88,14 @@
 | `Return YouTube Username` | Adds an option to replace YouTube handles with usernames in comments using YouTube Data API v3. | 21.39.525 ~ 20.05.46 |
 | `Sanitize sharing links` | Adds an option to sanitize sharing links by removing tracking query parameters. | 21.39.525 ~ 20.05.46 |
 | `Save to Watch later` | Adds options to save videos to Watch later from the video player or feed flyout menu. | 21.39.525 ~ 20.05.46 |
+| `Search comments` | Adds a button to the comments to show only the loaded comments that contain the searched words. | 21.39.525 ~ 20.05.46 |
 | `Seekbar components` | Adds options to hide or change components related to the seekbar. | 21.39.525 ~ 20.05.46 |
 | `Set transcript cookies` | Adds an option to set Cookies in YouTube Transcript API requests. | 21.39.525 ~ 20.05.46 |
 | `Settings for YouTube` | Applies mandatory patches to implement ReVanced Extended settings into the application. | 21.39.525 ~ 20.05.46 |
 | `Settings menu filter` | Adds an option to hide items on the standard YouTube settings screen by their visible name. | 21.39.525 ~ 20.05.46 |
 | `Shorts components` | Adds options to hide or change components related to YouTube Shorts. | 21.39.525 ~ 20.05.46 |
+| `Shorts icon style` | Adds an option to change the style of the Shorts action button icons. | 21.39.525 ~ 20.05.46 |
+| `Skip live Shorts` | Adds an option to automatically skip live streams that appear in the Shorts feed. | 21.39.525 ~ 20.05.46 |
 | `Skip silence` | Adds an option to automatically skip silent pauses in audio playback. | 21.39.525 ~ 20.05.46 |
 | `Snack bar components` | Adds options to hide or change components related to the snack bar. | 21.39.525 ~ 20.05.46 |
 | `SponsorBlock` | Adds options to enable and configure SponsorBlock, which can skip undesired video segments, such as sponsored content. | 21.39.525 ~ 20.05.46 |
@@ -97,6 +106,7 @@
 | `Theme` | Adds options to change the app's themes and splash screen style. | 21.39.525 ~ 20.05.46 |
 | `Toolbar components` | Adds options to hide or change components located on the toolbar, such as the search bar, header, and toolbar buttons. | 21.39.525 ~ 20.05.46 |
 | `Translations for YouTube` | Add translations or remove string resources. | 21.39.525 ~ 20.05.46 |
+| `Video delay` | Adds an option to delay the video, to keep it in sync with laggy Bluetooth audio. | 21.39.525 ~ 20.05.46 |
 | `Video playback` | Adds options to customize settings related to video playback, such as default video quality and playback speed. | 21.39.525 ~ 20.05.46 |
 | `Visual preferences icons for YouTube` | Adds icons to specific preferences in the settings. | 21.39.525 ~ 20.05.46 |
 | `Voice Over Translation` | Adds an option to enable Yandex voice-over translation of video audio tracks. | 21.39.525 ~ 20.05.46 |
@@ -123,6 +133,7 @@
 | `Downloads` | Adds support to download songs and playlists for offline playback in YouTube Music's own device files library and player. | 9.40.51 ~ 8.12.54 |
 | `Enable audio/video switch` | Adds an option to switch between the audio and the video version of a track by redirecting videoId. | 9.40.51 ~ 8.12.54 |
 | `Enable debug logging` | Adds an option for debugging. | 9.40.51 ~ 8.12.54 |
+| `Enable exclusive audio playback` | Enables the option to play audio without video. | 9.40.51 ~ 8.12.54 |
 | `Enable landscape mode` | Adds an option to enable landscape mode when rotating the screen on phones. | 9.40.51 ~ 8.12.54 |
 | `Flyout menu components` | Adds options to hide or change flyout menu components. | 9.40.51 ~ 8.12.54 |
 | `Force original audio` | Adds an option to disable audio tracks from being automatically enabled. | 9.40.51 ~ 8.12.54 |
@@ -134,8 +145,11 @@
 | `Hide layout components` | Adds options to hide general layout components. | 9.40.51 ~ 8.12.54 |
 | `Hide overlay filter` | Removes, at compile time, the dark overlay that appears when player flyout menus are open. | 9.40.51 ~ 8.12.54 |
 | `Hide player overlay filter` | Removes, at compile time, the dark overlay that appears when single-tapping in the player. | 9.40.51 ~ 8.12.54 |
+| `Jam queue sharing` | Shares the host queue and playback controls through an authenticated Jam bridge. Root installation is not supported. | 9.40.51 ~ 8.12.54 |
 | `Media notification controls` | Adds options to disable the seekbar and previous/next buttons in the media notification and headphone controls. | 9.40.51 ~ 8.12.54 |
 | `Navigation bar components` | Adds options to hide or change components related to the navigation bar. | 9.40.51 ~ 8.12.54 |
+| `Network proxy` | Adds options to route supported network requests through an HTTP or HTTPS proxy. Including this patch may cause connectivity problems on certain devices. | 9.40.51 ~ 8.12.54 |
+| `Play albums songs` | Adds an option to play the song version of album tracks instead of music videos. | 9.40.51 ~ 8.12.54 |
 | `Player components` | Adds options to hide or change components related to the player. | 9.40.51 ~ 8.12.54 |
 | `Playlist track tap action` | Adds an option to play only the tapped track of a playlist or album, or to add it to the queue, instead of replacing the queue with the whole playlist. | 9.40.51 ~ 8.12.54 |
 | `PoToken provider` | Adds option to get PoToken using the built-in PoToken provider. | 9.40.51 ~ 8.12.54 |

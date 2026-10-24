@@ -45,6 +45,10 @@ internal enum class PatchList(
         "Change start page",
         "Adds an option to set which page the app opens in instead of the homepage."
     ),
+    CHANNEL_SEARCH(
+        "Channel search",
+        "Adds an option to search inside the channel that is currently open instead of searching all of YouTube."
+    ),
     COPY_TEXT(
         "Copy text",
         "Adds options to copy the video title and comments by tapping and holding them."
@@ -76,6 +80,14 @@ internal enum class PatchList(
     DISABLE_QUIC_PROTOCOL(
         "Disable QUIC protocol",
         "Adds an option to disable CronetEngine's QUIC protocol."
+    ),
+    FEED_CARD_LAYOUT(
+        "Feed card layout",
+        "Adds an option to show or hide the card layout of feed videos, which YouTube sends as an A/B test."
+    ),
+    FEED_VIEW_COUNT(
+        "Feed view count",
+        "Adds an option to show the view count at the bottom left of the thumbnails of feed videos."
     ),
     FORCE_ANIMATIONS(
         "Force animations",
@@ -294,6 +306,10 @@ internal enum class PatchList(
     SANITIZE_SHARING_LINKS(
         "Sanitize sharing links",
         "Adds an option to sanitize sharing links by removing tracking query parameters."
+    ),
+    SEARCH_COMMENTS(
+        "Search comments",
+        "Adds a button to the comments to show only the loaded comments that contain the searched words."
     ),
     SEEKBAR_COMPONENTS(
         "Seekbar components",

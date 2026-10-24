@@ -9,6 +9,8 @@
  * - inotia00 (https://github.com/inotia00)
  *
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-10-24: the search button opens the search box
+ * while a Channel search is pending.
  *
  * ------------------------------------------------------------------------
  * GPLv3 Section 7 – Additional Terms & Attribution Requirements
@@ -138,6 +140,7 @@ import app.morphe.extension.shared.utils.ResourceType;
 import app.morphe.extension.shared.utils.ResourceUtils;
 import app.morphe.extension.shared.utils.Utils;
 import app.morphe.extension.youtube.innertube.ConfigResponseOuterClass.ConfigResponse;
+import app.morphe.extension.youtube.patches.ChannelSearchPatch;
 import app.morphe.extension.youtube.patches.utils.PlaylistPatch;
 import app.morphe.extension.youtube.patches.utils.ReturnYouTubeChannelNamePatch;
 import app.morphe.extension.youtube.settings.Settings;
@@ -1097,7 +1100,8 @@ public class GeneralPatch {
 
     private static void openSearchInChannel(View view) {
         String channelId = RootView.getBrowseId();
-        if (!isChannelBrowseId(channelId)) {
+        // The channel search button presses the search button to open the search box.
+        if (!isChannelBrowseId(channelId) || ChannelSearchPatch.isChannelSearchPending()) {
             openSearchBar(view);
             return;
         }

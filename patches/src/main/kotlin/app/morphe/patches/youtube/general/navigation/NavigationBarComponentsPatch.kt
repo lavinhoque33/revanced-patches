@@ -480,6 +480,8 @@ val navigationBarComponentsPatch = bytecodePatch(
         //
 
         if (is_21_35_or_greater) {
+            settingArray += "SETTINGS: DISABLE_TOOLBAR_NAVIGATION_TABS"
+
             // Allow the extension to read the proto of navigation bar items.
             PivotBarRendererFingerprint.classDef.apply {
                 val messageLiteField = fields.first { field ->
@@ -540,6 +542,11 @@ val navigationBarComponentsPatch = bytecodePatch(
                     "$EXTENSION_SUBSCRIPTIONS_CLASS->hideOfflineSubscriptionsButton(Z)Z"
                 )
             }
+        } else {
+            printWarn(
+                "\"Disable toolbar navigation tabs\" is not supported in this version. " +
+                    "Use YouTube 21.35 or later."
+            )
         }
 
         //

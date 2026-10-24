@@ -675,6 +675,7 @@ private val emptyTitles = setOf(
     "morphe_dearrow_titles_icon",
     "morphe_disable_icon_only_navigation_buttons",
     "morphe_disable_system_splash",
+    "morphe_disable_toolbar_navigation_tabs",
     "morphe_fullscreen_video_scale",
     "morphe_fullscreen_video_scale_button_fullscreen_only",
     "morphe_light_theme_custom_color",

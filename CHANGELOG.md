@@ -1,3 +1,9 @@
+## Unreleased
+
+### Features
+
+* **YouTube Music - Playback speed:** Added a `Playback speed` slider (25-300%, in Video settings) that sets the speed used for all tracks, and applies a changed value within about a second while a track is playing. At 100% the app's own speed, such as the podcast speed, is kept. `Change pitch with speed` now follows the slider too and also takes effect right away. Ported from Morphe.
+
 ## [1.13.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.12.0...v1.13.0) (2026-10-24)
 
 ### Features

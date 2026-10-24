@@ -1106,6 +1106,8 @@ public class Settings extends SharedYouTubeSettings {
     public static final BooleanSetting RYD_COMPACT_LAYOUT = new BooleanSetting("ryd_compact_layout", FALSE, parent(RYD_ENABLED));
     public static final BooleanSetting RYD_ESTIMATED_LIKE = new BooleanSetting("ryd_estimated_like", TRUE, true, parent(RYD_ENABLED));
     public static final BooleanSetting RYD_TOAST_ON_CONNECTION_ERROR = new BooleanSetting("ryd_toast_on_connection_error", TRUE, parent(RYD_ENABLED));
+    public static final BooleanSetting RYD_FEED_LIKE_COUNT = new BooleanSetting("morphe_ryd_feed_like_count", FALSE, true, parent(RYD_ENABLED));
+    public static final BooleanSetting RYD_FEED_LIKE_RATIO = new BooleanSetting("morphe_ryd_feed_like_ratio", FALSE, true, parent(RYD_ENABLED));
 
 
     // PreferenceScreen: Voice Over Translation - Yandex

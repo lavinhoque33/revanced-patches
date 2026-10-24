@@ -1,3 +1,9 @@
+## Unreleased
+
+### Features
+
+* **YouTube - Return YouTube Dislike:** Added two settings (off by default) that show the like count and the like percentage on the right side of feed video thumbnails, using the Return YouTube Dislike API. Ported from Morphe.
+
 ## [1.13.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.12.0...v1.13.0) (2026-10-24)
 
 ### Features

@@ -9,6 +9,7 @@
  * - inotia00 (https://github.com/inotia00)
  *
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-10-24
  *
  * ------------------------------------------------------------------------
  * GPLv3 Section 7 – Additional Terms & Attribution Requirements
@@ -54,6 +55,9 @@ import android.graphics.drawable.Drawable;
 import android.graphics.drawable.ShapeDrawable;
 import android.graphics.drawable.shapes.OvalShape;
 import android.graphics.drawable.shapes.RectShape;
+import android.icu.number.LocalizedNumberFormatter;
+import android.icu.number.Notation;
+import android.icu.number.NumberFormatter;
 import android.icu.text.CompactDecimalFormat;
 import android.icu.text.DecimalFormat;
 import android.icu.text.DecimalFormatSymbols;
@@ -70,7 +74,9 @@ import android.widget.Toast;
 import androidx.annotation.GuardedBy;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.annotation.RequiresApi;
 
+import java.math.RoundingMode;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Locale;
@@ -442,6 +448,43 @@ public class ReturnYouTubeDislike {
         return String.valueOf(dislikeCount);
     }
 
+    /**
+     * Formats the like count the way YouTube does, which truncates instead of rounding (2,589 is 2.5K).
+     * Android 10 and lower lack the formatter that can truncate, and round instead.
+     */
+    public static String formatLikeCount(long likeCount) {
+        if (isSDKAbove(30)) {
+            return TruncatingLikeCountFormatter.format(likeCount);
+        }
+
+        return formatDislikeCount(likeCount);
+    }
+
+    /**
+     * CompactDecimalFormat ignores its rounding mode, so this uses the newer ICU number formatter.
+     * A separate class keeps the Android 11 classes from loading on older devices.
+     */
+    @RequiresApi(30)
+    private static final class TruncatingLikeCountFormatter {
+        // Immutable and thread safe without synchronization.
+        private static final LocalizedNumberFormatter formatter;
+
+        static {
+            Locale locale = Locale.getDefault();
+            DecimalFormatSymbols symbols = DecimalFormatSymbols.getInstance(locale);
+            symbols.setDigitStrings(DecimalFormatSymbols.getInstance(Locale.ENGLISH).getDigitStrings());
+
+            formatter = NumberFormatter.withLocale(locale)
+                    .notation(Notation.compactShort())
+                    .roundingMode(RoundingMode.DOWN)
+                    .symbols(symbols);
+        }
+
+        static String format(long count) {
+            return formatter.format(count).toString();
+        }
+    }
+
     private static String formatDislikePercentage(float dislikePercentage) {
         if (isSDKAbove(24)) {
             synchronized (ReturnYouTubeDislike.class) { // number formatter is not thread safe, must synchronize
@@ -471,6 +514,19 @@ public class ReturnYouTubeDislike {
 
     @NonNull
     public static ReturnYouTubeDislike getFetchForVideoId(@NonNull String videoId) {
+        return getFetchForVideoId(videoId, true);
+    }
+
+    /**
+     * @return The cached fetch of the video, or null if the video was not fetched.
+     */
+    @Nullable
+    public static ReturnYouTubeDislike getFetchForVideoIdOrNull(@NonNull String videoId) {
+        return getFetchForVideoId(videoId, false);
+    }
+
+    @Nullable
+    private static ReturnYouTubeDislike getFetchForVideoId(@NonNull String videoId, boolean createIfNeeded) {
         Objects.requireNonNull(videoId);
         synchronized (fetchCache) {
             // Remove any expired entries.
@@ -494,7 +550,7 @@ public class ReturnYouTubeDislike {
             }
 
             ReturnYouTubeDislike fetch = fetchCache.get(videoId);
-            if (fetch == null) {
+            if (fetch == null && createIfNeeded) {
                 fetch = new ReturnYouTubeDislike(videoId);
                 fetchCache.put(videoId, fetch);
             }

@@ -308,6 +308,8 @@ To use this feature, turn off \'Spoof video streams\'"</string>
     <string name="morphe_restore_original_titles_loading">Loading title…</string>
     <string name="morphe_restore_original_titles_summary">Shows the original video titles, video descriptions and channel descriptions instead of the auto-translated ones</string>
     <string name="morphe_restore_original_titles_title">Restore original titles</string>
+    <string name="morphe_ryd_feed_like_count_title">Show feed thumbnail like count</string>
+    <string name="morphe_ryd_feed_like_ratio_title">Show feed thumbnail like percentage</string>
     <string name="morphe_sanitize_sharing_links_summary_off">Tracking query parameter is not removed from shared links</string>
     <string name="morphe_sanitize_sharing_links_summary_on">Tracking query parameter is removed from shared links</string>
     <string name="morphe_sanitize_sharing_links_title">Sanitize sharing links</string>

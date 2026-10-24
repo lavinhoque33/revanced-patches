@@ -118,6 +118,7 @@
 
 | 💊 Patch | 📜 Description | 🏹 Target Version |
 |:--------:|:--------------:|:-----------------:|
+| `Android Auto` | Bypasses certificate checks and restores YouTube Music Home recommendations, Library collections (including playlists), search and podcasts in Android Auto. Needs YouTube Music 9.15 or newer. | 9.40.51 ~ 8.12.54 |
 | `App refresh rate` | Adds an option to change the app refresh rate. | 9.40.51 ~ 8.12.54 |
 | `Bitrate default value` | Sets the audio quality to 'Always High' when you first install the app. | 9.40.51 ~ 8.12.54 |
 | `Bypass image region restrictions` | Adds an option to use a different host for static images, so that images blocked in some countries can be received. | 9.40.51 ~ 8.12.54 |
@@ -155,7 +156,6 @@
 | `PoToken provider` | Adds option to get PoToken using the built-in PoToken provider. | 9.40.51 ~ 8.12.54 |
 | `Remove background playback restrictions` | Removes restrictions on background playback, including for kids videos. | 9.40.51 ~ 8.12.54 |
 | `Remove viewer discretion dialog` | Adds an option to remove the dialog that appears when opening a video that has been age-restricted by accepting it automatically. This does not bypass the age restriction. | 9.40.51 ~ 8.12.54 |
-| `Restore Android Auto playlists` | Fills the empty Library → Playlists page in Android Auto with your playlists and their tracks, with artwork. Changes made on the phone show up in the car. | 9.40.51 ~ 8.12.54 |
 | `Restore old style library shelf` | Adds an option to return the Library tab to the old style. | 9.40.51 ~ 8.12.54 |
 | `Return YouTube Dislike` | Adds an option to show the dislike count of songs using the Return YouTube Dislike API. | 9.40.51 ~ 8.12.54 |
 | `Return YouTube Username` | Adds an option to replace YouTube handles with usernames in comments using YouTube Data API v3. | 9.40.51 ~ 8.12.54 |

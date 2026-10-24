@@ -1,5 +1,5 @@
 {
-  "version": "v1.12.0",
+  "version": "v1.13.0",
   "patches": [
     {
       "name": "Ambient mode control",
@@ -14,6 +14,26 @@
           "21.39.525",
           "21.13.164",
           "20.05.46"
+        ]
+      },
+      "options": []
+    },
+    {
+      "name": "Android Auto",
+      "description": "Bypasses certificate checks and restores YouTube Music Home recommendations, Library collections (including playlists), search and podcasts in Android Auto. Needs YouTube Music 9.15 or newer.",
+      "use": true,
+      "dependencies": [
+        "BytecodePatch",
+        "ResourcePatch",
+        "ResourcePatch"
+      ],
+      "compatiblePackages": {
+        "com.google.android.apps.youtube.music": [
+          "9.40.51",
+          "9.15.51",
+          "8.30.54",
+          "8.28.54",
+          "8.12.54"
         ]
       },
       "options": []
@@ -2440,25 +2460,6 @@
           "21.39.525",
           "21.13.164",
           "20.05.46"
-        ]
-      },
-      "options": []
-    },
-    {
-      "name": "Restore Android Auto playlists",
-      "description": "Fills the empty Library → Playlists page in Android Auto with your playlists and their tracks, with artwork. Changes made on the phone show up in the car.",
-      "use": true,
-      "dependencies": [
-        "ResourcePatch",
-        "BytecodePatch"
-      ],
-      "compatiblePackages": {
-        "com.google.android.apps.youtube.music": [
-          "9.40.51",
-          "9.15.51",
-          "8.30.54",
-          "8.28.54",
-          "8.12.54"
         ]
       },
       "options": []

@@ -184,6 +184,9 @@
             <SwitchPreference android:title="@string/revanced_search_in_channel_use_webview_title" android:key="revanced_search_in_channel_use_webview" android:summaryOn="@string/revanced_search_in_channel_use_webview_summary_on" android:summaryOff="@string/revanced_search_in_channel_use_webview_summary_off" />
             <SwitchPreference android:title="@string/revanced_hide_search_term_thumbnail_title" android:key="revanced_hide_search_term_thumbnail" android:summaryOn="@string/revanced_hide_search_term_thumbnail_summary_on" android:summaryOff="@string/revanced_hide_search_term_thumbnail_summary_off" />SETTINGS: TOOLBAR_COMPONENTS -->
 
+            <!-- SETTINGS: CHANNEL_SEARCH
+            <SwitchPreference android:title="@string/morphe_channel_search_title" android:key="morphe_channel_search" android:summary="@string/morphe_channel_search_summary" />SETTINGS: CHANNEL_SEARCH -->
+
             <!-- SETTINGS: HIDE_IMAGE_SEARCH_BUTTON
             <SwitchPreference android:title="@string/revanced_hide_image_search_button_title" android:key="revanced_hide_image_search_button" android:summaryOn="@string/revanced_hide_image_search_button_summary_on" android:summaryOff="@string/revanced_hide_image_search_button_summary_off" />SETTINGS: HIDE_IMAGE_SEARCH_BUTTON -->
 
@@ -605,7 +608,12 @@
             <SwitchPreference android:title="@string/revanced_hide_comments_menu_button_title" android:key="revanced_hide_comments_menu_button" android:summaryOn="@string/revanced_hide_comments_menu_button_summary_on" android:summaryOff="@string/revanced_hide_comments_menu_button_summary_off" />
             <SwitchPreference android:title="@string/revanced_hide_comments_translate_button_title" android:key="revanced_hide_comments_translate_button" android:summaryOn="@string/revanced_hide_comments_translate_button_summary_on" android:summaryOff="@string/revanced_hide_comments_translate_button_summary_off" />
             <SwitchPreference android:title="@string/revanced_minimal_comments_button_title" android:key="revanced_minimal_comments_button" android:summaryOn="@string/revanced_minimal_comments_button_summary_on" android:summaryOff="@string/revanced_minimal_comments_button_summary_off" />
-            <SwitchPreference android:title="@string/revanced_sanitize_comments_category_bar_title" android:key="revanced_sanitize_comments_category_bar" android:summaryOn="@string/revanced_sanitize_comments_category_bar_summary_on" android:summaryOff="@string/revanced_sanitize_comments_category_bar_summary_off" />
+            <SwitchPreference android:title="@string/revanced_sanitize_comments_category_bar_title" android:key="revanced_sanitize_comments_category_bar" android:summaryOn="@string/revanced_sanitize_comments_category_bar_summary_on" android:summaryOff="@string/revanced_sanitize_comments_category_bar_summary_off" />SETTINGS: HIDE_COMMENTS_COMPONENTS -->
+
+            <!-- SETTINGS: SEARCH_COMMENTS
+            <SwitchPreference android:title="@string/morphe_search_comments_title" android:key="morphe_search_comments" android:summary="@string/morphe_search_comments_summary" />SETTINGS: SEARCH_COMMENTS -->
+
+        <!-- SETTINGS: HIDE_COMMENTS_COMPONENTS
         </PreferenceScreen>SETTINGS: HIDE_COMMENTS_COMPONENTS -->
         <!-- modified by lavinhoque33, 2026-10-16: added Dislike, Menu, Translate and minimal comments button settings to HIDE_COMMENTS_COMPONENTS above (ported from Morphe). -->
 
@@ -1340,6 +1348,7 @@
             <PreferenceCategory android:title="@string/revanced_preference_screen_general_title" android:layout="@layout/revanced_settings_preferences_category">
                 <Preference android:title="Change form factor" android:summary="@string/revanced_patches_excluded" android:selectable="false"/>
                 <Preference android:title="Change start page" android:summary="@string/revanced_patches_excluded" android:selectable="false"/>
+                <Preference android:title="Channel search" android:summary="@string/revanced_patches_excluded" android:selectable="false"/>
                 <Preference android:title="Custom DPI" android:summary="@string/revanced_patches_excluded" android:selectable="false"/>
                 <Preference android:title="Disable forced auto captions" android:summary="@string/revanced_patches_excluded" android:selectable="false"/>
                 <Preference android:title="Disable layout updates" android:summary="@string/revanced_patches_excluded" android:selectable="false"/>
@@ -1377,6 +1386,7 @@
                 <Preference android:title="Player components" android:summary="@string/revanced_patches_excluded" android:selectable="false"/>
                 <Preference android:title="Reload video" android:summary="@string/revanced_patches_excluded" android:selectable="false"/>
                 <Preference android:title="Save to Watch later" android:summary="@string/revanced_patches_excluded" android:selectable="false"/>
+                <Preference android:title="Search comments" android:summary="@string/revanced_patches_excluded" android:selectable="false"/>
                 <Preference android:title="Seekbar components" android:summary="@string/revanced_patches_excluded" android:selectable="false"/>
             </PreferenceCategory>
 

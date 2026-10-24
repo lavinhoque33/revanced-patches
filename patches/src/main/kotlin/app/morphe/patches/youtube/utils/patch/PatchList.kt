@@ -45,6 +45,10 @@ internal enum class PatchList(
         "Change start page",
         "Adds an option to set which page the app opens in instead of the homepage."
     ),
+    CHANNEL_SEARCH(
+        "Channel search",
+        "Adds an option to search inside the channel that is currently open instead of searching all of YouTube."
+    ),
     COPY_TEXT(
         "Copy text",
         "Adds options to copy the video title and comments by tapping and holding them."
@@ -284,6 +288,10 @@ internal enum class PatchList(
     SANITIZE_SHARING_LINKS(
         "Sanitize sharing links",
         "Adds an option to sanitize sharing links by removing tracking query parameters."
+    ),
+    SEARCH_COMMENTS(
+        "Search comments",
+        "Adds a button to the comments to show only the loaded comments that contain the searched words."
     ),
     SEEKBAR_COMPONENTS(
         "Seekbar components",

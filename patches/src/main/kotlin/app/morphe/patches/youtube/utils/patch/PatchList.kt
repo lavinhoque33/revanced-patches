@@ -81,6 +81,14 @@ internal enum class PatchList(
         "Disable QUIC protocol",
         "Adds an option to disable CronetEngine's QUIC protocol."
     ),
+    FEED_CARD_LAYOUT(
+        "Feed card layout",
+        "Adds an option to show or hide the card layout of feed videos, which YouTube sends as an A/B test."
+    ),
+    FEED_VIEW_COUNT(
+        "Feed view count",
+        "Adds an option to show the view count at the bottom left of the thumbnails of feed videos."
+    ),
     FORCE_ORIGINAL_AUDIO(
         "Force original audio",
         "Adds an option to disable audio tracks from being automatically enabled."

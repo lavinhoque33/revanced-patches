@@ -130,6 +130,14 @@ To fix this, turn on \'Spoof video streams\' and change the \'Default client\' t
     <string name="morphe_explore_menu_screen_summary">Choose which components appear in the explore menu</string>
     <string name="morphe_explore_menu_screen_title">Explore menu</string>
     <string name="morphe_external_potoken_provider_user_dialog_message">If it does not work, try force-closing MicroG</string>
+    <string name="morphe_feed_card_layout_comments">Comments</string>
+    <string name="morphe_feed_card_layout_entry_0">Default</string>
+    <string name="morphe_feed_card_layout_entry_1">Classic</string>
+    <string name="morphe_feed_card_layout_entry_2">Cards</string>
+    <string name="morphe_feed_card_layout_entry_3">Cards with like, comment and save buttons</string>
+    <string name="morphe_feed_card_layout_title">Feed card layout</string>
+    <string name="morphe_feed_view_count_summary">The view count of feed videos is shown at the bottom left of their thumbnails instead of below the title. Some videos, such as in shelves, may not show a view count</string>
+    <string name="morphe_feed_view_count_title">Show view count on thumbnails</string>
     <string name="morphe_force_original_audio_not_available">To use this feature, change \'Spoof video streams\' to any client except \'Android Studio\' and \'Android VR Downgraded\'</string>
     <string name="morphe_force_original_audio_summary_off">Using default audio</string>
     <string name="morphe_force_original_audio_summary_on">Using original audio language</string>

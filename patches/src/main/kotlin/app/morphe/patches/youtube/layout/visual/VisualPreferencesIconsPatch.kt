@@ -347,6 +347,8 @@ private val rvxPreferenceKey = mapOf(
     "morphe_dearrow_titles" to "morphe_custom_branding_name",
     "morphe_disable_auto_feed_refresh" to "morphe_reload_video",
     "morphe_disable_scrolling_speed_limit" to "M 480 687.54 L 659.31 507.46 Q 663.69 503.08 669.92 502.69 Q 676.15 502.31 681.31 507.46 Q 686.46 512.62 686.46 518.46 Q 686.46 524.31 681.31 529.46 L 499.46 711.31 Q 495.23 715.54 490.62 717.54 Q 486 719.54 480 719.54 Q 474 719.54 469.38 717.54 Q 464.77 715.54 460.54 711.31 L 278.69 529.46 Q 274.31 525.08 273.92 518.85 Q 273.54 512.62 278.69 507.46 Q 283.85 502.31 289.69 502.31 Q 295.54 502.31 300.69 507.46 L 480 687.54 Z M 480 443 L 659.31 262.92 Q 663.69 258.54 669.92 258.54 Q 676.15 258.54 681.31 262.92 Q 686.46 268.08 686.46 273.92 Q 686.46 279.77 681.31 284.92 L 499.46 466.77 Q 495.23 471 490.62 473.38 Q 486 475.77 480 475.77 Q 474 475.77 469.38 473.38 Q 464.77 471 460.54 466.77 L 278.69 284.92 Q 274.31 280.54 273.92 274.31 Q 273.54 268.08 278.69 262.92 Q 283.85 257.77 289.69 257.77 Q 295.54 257.77 300.69 262.92 L 480 443 Z",
+    "morphe_feed_card_layout" to "revanced_preference_screen_feed",
+    "morphe_feed_view_count" to "revanced_alt_thumbnail_home",
     "morphe_force_original_audio" to "revanced_hide_player_flyout_menu_audio_track",
     "morphe_fullscreen_video_scale_button" to "revanced_preference_screen_fullscreen",
     "morphe_hide_aislist_screen" to "revanced_preference_screen_gemini",

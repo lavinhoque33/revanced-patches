@@ -96,6 +96,12 @@ internal enum class PatchList(
         "Hide status bar",
         "Adds an option to hide the system status bar. Swipe down from the top edge to show it for a moment."
     ),
+    // modified by lavinhoque33, 2026-10-24: Media notification controls patch entry.
+    MEDIA_NOTIFICATION_CONTROLS(
+        "Media notification controls",
+        "Adds options to disable the seekbar, hide the previous/next buttons, or make them seek in the " +
+                "media notification and headphone controls."
+    ),
     PREFERRED_CAPTION_LANGUAGE(
         "Preferred caption language",
         "Adds an option to automatically select captions in your preferred language."
@@ -310,6 +316,9 @@ internal enum class PatchList(
         "Shorts components",
         "Adds options to hide or change components related to YouTube Shorts."
     ),
+    SHORTS_ICON_STYLE(
+        "Shorts icon style",
+        "Adds an option to change the style of the Shorts action button icons."
     // modified by lavinhoque33, 2026-10-24: Skip live Shorts patch entry.
     SKIP_LIVE_SHORTS(
         "Skip live Shorts",

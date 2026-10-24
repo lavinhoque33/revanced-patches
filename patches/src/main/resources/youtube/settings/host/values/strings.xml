@@ -122,6 +122,8 @@ Tap here to open DeArrow.ajay.app"</string>
     <string name="morphe_disable_scrolling_speed_limit_title">Disable scrolling speed limit</string>
     <string name="morphe_disable_system_splash_summary">Makes the static system splash icon transparent</string>
     <string name="morphe_disable_system_splash_title">Disable system splash</string>
+    <string name="morphe_disable_toolbar_navigation_tabs_summary">Shows Subscriptions in the navigation bar, if YouTube moves it to a tab at the top of Home</string>
+    <string name="morphe_disable_toolbar_navigation_tabs_title">Disable toolbar navigation tabs</string>
     <string name="morphe_expand_livestream_dvr_duration_not_available">"\'Expand livestream DVR duration\' may not be available
 
 To fix this, turn on \'Spoof video streams\' and change the \'Default client\' to \'TV Simply\' or \'visionOS\'"</string>

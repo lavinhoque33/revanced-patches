@@ -230,6 +230,25 @@ To show the \'Audio Track\' menu, change \'Spoof video streams\' to any client e
 To fix this, turn on \'Spoof video streams\' and change the \'Default client\' to \'TV Simply\' or \'visionOS\'"</string>
     <string name="morphe_livestream_dvr_summary">Allows seeking on all livestreams, even those that normally restrict it</string>
     <string name="morphe_livestream_dvr_title">Enable livestream DVR</string>
+    <string name="morphe_local_queue_added">Added to queue</string>
+    <string name="morphe_local_queue_clear">Clear all</string>
+    <string name="morphe_local_queue_empty">Nothing queued</string>
+    <string name="morphe_local_queue_empty_hint">Use Play next in queue on any video</string>
+    <string name="morphe_local_queue_full">Queue is full</string>
+    <string name="morphe_local_queue_now_playing">Now playing</string>
+    <string name="morphe_local_queue_open">Queue (%s)</string>
+    <string name="morphe_local_queue_play_failed">Could not start the video</string>
+    <string name="morphe_local_queue_play_last">Play last in queue</string>
+    <string name="morphe_local_queue_play_next">Play next in queue</string>
+    <string name="morphe_local_queue_playlist_unsupported">Playlists cannot be added to the queue</string>
+    <string name="morphe_local_queue_remove">Remove</string>
+    <string name="morphe_local_queue_reorder">Reorder</string>
+    <string name="morphe_local_queue_sheet_title">Queue</string>
+    <string name="morphe_local_queue_summary">"Replaces the RVX queue with one that lives on the device, plays through on its own, and can be reordered by dragging
+
+Info: The next queued video only starts while YouTube is on screen"</string>
+    <string name="morphe_local_queue_title">Premium-style queue</string>
+    <string name="morphe_local_queue_unavailable">Could not add this video to the queue</string>
     <string name="morphe_music_package_name_summary">Package name of your installed music app</string>
     <string name="morphe_music_package_name_title">Music app package name</string>
     <string name="morphe_notification_dot_color_summary">Changes the color of notification dots</string>
@@ -295,8 +314,13 @@ To use this feature, turn off \'Spoof video streams\'"</string>
     <string name="morphe_proxy_port_title">Proxy port</string>
     <string name="morphe_proxy_screen_summary">Route supported network requests through a proxy</string>
     <string name="morphe_proxy_screen_title">Network proxy</string>
+    <string name="morphe_queue_add_flyout_menu_summary">Adds an additional flyout item. Enable this if \"Add to queue\" is not shown</string>
+    <string name="morphe_queue_add_flyout_menu_title">Add feed flyout queue menu item</string>
+    <string name="morphe_queue_flyout_title">Add to RVX queue</string>
     <string name="morphe_queue_manager_check_failed_auth">Not logged in</string>
     <string name="morphe_queue_manager_check_failed_video_id">No video ID</string>
+    <string name="morphe_queue_override_flyout_menu_summary">Opens the RVX queue instead of the YouTube queue</string>
+    <string name="morphe_queue_override_flyout_menu_title">Override feed flyout queue button</string>
     <string name="morphe_reload_video_summary_off">Reload video button is hidden</string>
     <string name="morphe_reload_video_summary_on">Reload video button is shown</string>
     <string name="morphe_reload_video_title">Show reload video button</string>

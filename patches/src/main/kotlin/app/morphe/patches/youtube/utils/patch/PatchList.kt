@@ -17,6 +17,10 @@ internal enum class PatchList(
         "DeArrow",
         "Adds options to replace video thumbnails and titles using the DeArrow API, or replace video thumbnails with image captures from the video."
     ),
+    ADD_TO_QUEUE(
+        "Add to queue",
+        "Overrides the feed flyout 'Play next in queue' with the RVX video queue."
+    ),
     AMBIENT_MODE_CONTROL(
         "Ambient mode control",
         "Adds options to disable Ambient mode and to bypass Ambient mode restrictions."

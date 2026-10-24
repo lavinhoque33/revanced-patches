@@ -12,6 +12,8 @@
  *
  * Licensed under the GNU General Public License v3.0.
  *
+ * Modified by lavinhoque33, 2026-10-24
+ *
  * ------------------------------------------------------------------------
  * GPLv3 Section 7 – Additional Terms & Attribution Requirements
  * ------------------------------------------------------------------------
@@ -1750,6 +1752,31 @@ fun playerStatusHook(targetMethodClass: String, targetMethodName: String) {
         addInstruction(
             insertIndex,
             "invoke-static/range { p1 .. p1 }, $targetMethodClass->$targetMethodName(Ljava/lang/Enum;)V"
+        )
+    }
+}
+
+/**
+ * Calls a static method with the player status before the status is handled.
+ * The status is not handled if the method returns true. YouTube 21.13+ only.
+ */
+fun playerStatusOverrideHook(targetMethodClass: String, targetMethodName: String) {
+    playerStatusMethodRef.get()!!.apply {
+        // Since instructions are added just above Opcode.SGET_OBJECT, instead of calling findFreeRegister(),
+        // a register from Opcode.SGET_OBJECT is used.
+        val insertIndex = indexOfFirstInstructionOrThrow(Opcode.SGET_OBJECT)
+        val freeRegister = getInstruction<OneRegisterInstruction>(insertIndex).registerA
+
+        addInstructionsWithLabels(
+            insertIndex,
+            """
+                invoke-static/range { p1 .. p1 }, $targetMethodClass->$targetMethodName(Ljava/lang/Enum;)Z
+                move-result v$freeRegister
+                if-eqz v$freeRegister, :continue
+                return-void
+                :continue
+                nop
+            """
         )
     }
 }

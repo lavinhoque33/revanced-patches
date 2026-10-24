@@ -1,3 +1,13 @@
+## Unreleased
+
+### Features
+
+* **YouTube Music - Visual preferences icons:** New `Icon style` patch option, `Regular` (default) or `Bold`. `Bold` draws the settings menu icons, the RVX sub-settings icons and the RVX entry with a heavier line weight, like the YouTube patch (#13).
+
+### Bug Fixes
+
+* **YouTube Music - Crossfade:** With `Crossfade on auto-advance` on, `Repeat one` no longer skips to the next track on YouTube Music 9.40+. The repeat state was reset by playback and shuffle events that share the same callback on these versions. Ported from Morphe (MorpheApp/morphe-patches#3916) (#14).
+
 ## [1.10.3](https://github.com/lavinhoque33/revanced-patches/compare/v1.10.2...v1.10.3) (2026-10-20)
 
 ### Features

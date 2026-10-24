@@ -60,29 +60,8 @@ private const val EMPTY_ICON = "empty_icon"
 private const val REGULAR_ICON_STYLE = "regular"
 private const val BOLD_ICON_STYLE = "bold"
 
-/**
- * Stroke width in viewport units (960 x 960) that thickens the outline icons.
- * The outlines are about 31 units wide, so this roughly doubles them
- * without closing the small gaps inside the icons.
- */
-private const val BOLD_ICON_STROKE_WIDTH = "28"
-
 /** RVX settings menu icons that cannot be thickened with an outline. */
 private val FIXED_WEIGHT_RVX_ICONS = setOf("rvx_letters_bold", "revanced_colored")
-
-private fun ResourcePatchContext.makeBold(drawable: String) {
-    if (!get(drawable).exists()) return
-    document(drawable).use { document ->
-        val paths = document.getElementsByTagName("path")
-        for (i in 0 until paths.length) {
-            (paths.item(i) as? Element)?.apply {
-                setAttribute("android:strokeColor", getAttribute("android:fillColor"))
-                setAttribute("android:strokeWidth", BOLD_ICON_STROKE_WIDTH)
-                setAttribute("android:strokeLineJoin", "round")
-            }
-        }
-    }
-}
 
 @Suppress("unused")
 val visualPreferencesIconsPatch = resourcePatch(

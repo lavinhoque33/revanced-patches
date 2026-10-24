@@ -388,6 +388,34 @@ fun updatePathData(document: org.w3c.dom.Document, pathData: String) {
 }
 
 /**
+ * Stroke width in viewport units (960 x 960) that thickens the outline icons.
+ * The outlines are about 31 units wide, so this roughly doubles them
+ * without closing the small gaps inside the icons.
+ */
+private const val BOLD_ICON_STROKE_WIDTH = "28"
+
+// modified by lavinhoque33, 2026-10-21: shared by the YouTube and YouTube Music visual preferences icons patches.
+/**
+ * Thickens a vector drawable by stroking every path with its own fill color.
+ * Does nothing if the drawable does not exist.
+ *
+ * @param drawable path of the drawable, relative to the decoded APK, e.g. `res/drawable/icon.xml`.
+ */
+fun ResourcePatchContext.makeBold(drawable: String) {
+    if (!get(drawable).exists()) return
+    document(drawable).use { document ->
+        val paths = document.getElementsByTagName("path")
+        for (i in 0 until paths.length) {
+            (paths.item(i) as? Element)?.apply {
+                setAttribute("android:strokeColor", getAttribute("android:fillColor"))
+                setAttribute("android:strokeWidth", BOLD_ICON_STROKE_WIDTH)
+                setAttribute("android:strokeLineJoin", "round")
+            }
+        }
+    }
+}
+
+/**
  * Delete resources from the resource directory.
  *
  * @param resources The resources to delete.

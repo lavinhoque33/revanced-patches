@@ -61,6 +61,8 @@ public class SponsorBlockPreferenceGroup extends PreferenceGroup {
 
     private EditTextPreference importExport;
 
+    private Preference guidelines;
+
     private final List<SegmentCategoryPreference> segmentCategories = new ArrayList<>();
 
     public SponsorBlockPreferenceGroup(Context context, AttributeSet attrs, int defStyleAttr, int defStyleRes) {
@@ -116,6 +118,61 @@ public class SponsorBlockPreferenceGroup extends PreferenceGroup {
         // Must use a delay, so AbstractPreferenceFragment can
         // update the availability of the settings.
         Utils.runOnMainThreadDelayed(this::updateUI, 50);
+    }
+
+    /**
+     * Drawable names are the preference key plus this suffix, see the 'Visual preferences icons' patch.
+     */
+    private static final String ICON_SUFFIX = "_icon";
+
+    private static final String ICON_NAME_GUIDELINES = "sb_guidelines" + ICON_SUFFIX;
+    private static final String ICON_NAME_IMPORT_EXPORT = "sb_import_export" + ICON_SUFFIX;
+
+    /**
+     * Blank icon that keeps the text of dependent preferences aligned with the rows that have an icon.
+     */
+    private static final String ICON_NAME_EMPTY = "empty_icon";
+
+    /**
+     * Sets the icon of every preference. The icon drawables only exist if the
+     * 'Visual preferences icons' patch is applied, otherwise nothing is changed.
+     */
+    private void setPreferenceIcons() {
+        if (ResourceUtils.getDrawableIdentifier(Settings.SB_ENABLED.key + ICON_SUFFIX) == 0) {
+            return;
+        }
+
+        setPreferenceIcons(this);
+    }
+
+    private void setPreferenceIcons(PreferenceGroup group) {
+        for (int i = 0, count = group.getPreferenceCount(); i < count; i++) {
+            Preference preference = group.getPreference(i);
+
+            if (preference instanceof PreferenceGroup childGroup) {
+                setPreferenceIcons(childGroup);
+                continue;
+            }
+
+            int icon = ResourceUtils.getDrawableIdentifier(getIconName(preference));
+            if (icon == 0) {
+                icon = ResourceUtils.getDrawableIdentifier(ICON_NAME_EMPTY);
+            }
+            if (icon != 0) {
+                preference.setIcon(icon);
+            }
+        }
+    }
+
+    private String getIconName(Preference preference) {
+        if (preference == guidelines) {
+            return ICON_NAME_GUIDELINES;
+        }
+        if (preference == importExport) {
+            return ICON_NAME_IMPORT_EXPORT;
+        }
+
+        return preference.getKey() + ICON_SUFFIX;
     }
 
     private void initializePreference(Preference preference, Setting<?> setting, String key) {
@@ -343,14 +400,14 @@ public class SponsorBlockPreferenceGroup extends PreferenceGroup {
             });
             createSegmentCategory.addPreference(newSegmentStep);
 
-            Preference guidelinePreferences = new Preference(context);
-            guidelinePreferences.setTitle(str("revanced_sb_guidelines_preference_title"));
-            guidelinePreferences.setSummary(str("revanced_sb_guidelines_preference_sum"));
-            guidelinePreferences.setOnPreferenceClickListener(preference1 -> {
+            guidelines = new Preference(context);
+            guidelines.setTitle(str("revanced_sb_guidelines_preference_title"));
+            guidelines.setSummary(str("revanced_sb_guidelines_preference_sum"));
+            guidelines.setOnPreferenceClickListener(preference1 -> {
                 openGuidelines();
                 return true;
             });
-            createSegmentCategory.addPreference(guidelinePreferences);
+            createSegmentCategory.addPreference(guidelines);
 
             PreferenceCategory generalCategory = new PreferenceCategory(context);
             generalCategory.setTitle(str("revanced_preference_screen_general_title"));
@@ -571,6 +628,8 @@ public class SponsorBlockPreferenceGroup extends PreferenceGroup {
                 return true;
             });
             generalCategory.addPreference(importExport);
+
+            setPreferenceIcons();
 
             Utils.setPreferenceTitlesToMultiLineIfNeeded(this);
 

@@ -4,6 +4,8 @@
  * https://github.com/MorpheApp/morphe-patches
  *
  * See the included NOTICE file for GPLv3 §7(b) and §7(c) terms that apply to this code.
+ *
+ * Modified by lavinhoque33, 2026-10-25
  */
 
 package app.morphe.patches.youtube.player.miniplayer.general
@@ -13,6 +15,9 @@ import app.morphe.patcher.extensions.InstructionExtensions.addInstruction
 import app.morphe.patcher.extensions.InstructionExtensions.addInstructions
 import app.morphe.patcher.extensions.InstructionExtensions.addInstructionsWithLabels
 import app.morphe.patcher.extensions.InstructionExtensions.getInstruction
+import app.morphe.patcher.util.smali.ExternalLabel
+import app.morphe.patches.youtube.utils.playertype.PlayerTypeEnumFingerprint
+import app.morphe.patches.youtube.utils.playservice.is_21_30_or_greater
 import app.morphe.patcher.extensions.InstructionExtensions.replaceInstruction
 import app.morphe.patcher.methodCall
 import app.morphe.patcher.patch.bytecodePatch
@@ -501,6 +506,51 @@ val miniplayerPatch = bytecodePatch(
                     MINIPLAYER_ANIMATED_EXPAND_FEATURE_KEY,
                     "$EXTENSION_CLASS_DESCRIPTOR->getMaximizeAnimation(Z)Z"
                 )
+            }
+
+            // 21.30+ has no miniplayer config constructor, so the maximize animation is forced on
+            // in the method that starts it. It is only on with horizontal drag.
+            if (!hasModernConstructor && is_21_30_or_greater) {
+                try {
+                    MiniplayerAnimatedExpandFingerprint.let {
+                        it.method.apply {
+                            val insertIndex = it.instructionMatches.first().index
+                            val labelIndex = it.instructionMatches.last().index
+                            val free = findFreeRegister(insertIndex)
+
+                            addInstructionsAtControlFlowLabel(
+                                insertIndex,
+                                """
+                                    invoke-static { }, $EXTENSION_CLASS_DESCRIPTOR->getMaximizeAnimation()Z
+                                    move-result v$free
+                                    if-eqz v$free, :get_maximize_animation
+                                """,
+                                ExternalLabel("get_maximize_animation", getInstruction(labelIndex))
+                            )
+                        }
+                    }
+                } catch (_: Exception) {
+                    printWarn("Maximize animation of the miniplayer not found, it is left unchanged.")
+                }
+            }
+
+            // while the player is maximized, the home is laid out below the
+            // status bar instead of behind it. The home is laid out again when the minimize animation ends, and
+            // the feed is black until it is drawn again. Keep the layout of the minimized player instead.
+            if (is_21_30_or_greater) {
+                try {
+                    getTopBarBehindStatusBarFingerprint(PlayerTypeEnumFingerprint.originalClassDef.type).let {
+                        it.method.apply {
+                            listOf(it.instructionMatches[1].index, it.instructionMatches[3].index)
+                                .sortedDescending().forEach { index ->
+                                    val register = getInstruction<OneRegisterInstruction>(index).registerA
+                                    addInstruction(index + 1, "const/16 v$register, 0x0")
+                                }
+                        }
+                    }
+                } catch (_: Exception) {
+                    printWarn("Top bar layout of the minimize animation not found, it is left unchanged.")
+                }
             }
 
             settingArray += "SETTINGS: MINIPLAYER_HORIZONTAL_DRAG"

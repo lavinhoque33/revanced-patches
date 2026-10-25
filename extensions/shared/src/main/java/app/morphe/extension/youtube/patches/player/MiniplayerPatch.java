@@ -4,6 +4,8 @@
  * https://github.com/MorpheApp/morphe-patches
  *
  * See the included NOTICE file for GPLv3 §7(b) and §7(c) terms that apply to this code.
+ *
+ * Modified by lavinhoque33, 2026-10-25
  */
 
 package app.morphe.extension.youtube.patches.player;
@@ -629,6 +631,13 @@ public final class MiniplayerPatch {
         }
 
         return original;
+    }
+
+    /**
+     * Injection point.
+     */
+    public static boolean getMaximizeAnimation() {
+        return MINIPLAYER_HORIZONTAL_DRAG_ENABLED;
     }
 
     /**

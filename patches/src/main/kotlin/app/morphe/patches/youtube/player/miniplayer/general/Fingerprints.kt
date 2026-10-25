@@ -4,6 +4,8 @@
  * https://github.com/MorpheApp/morphe-patches
  *
  * See the included NOTICE file for GPLv3 §7(b) and §7(c) terms that apply to this code.
+ *
+ * Modified by lavinhoque33, 2026-10-25
  */
 
 @file:Suppress("SpellCheckingInspection")
@@ -398,3 +400,64 @@ internal object MiniplayerRoundedCornersFingerprint : Fingerprint(
         methodCall(smali = "Landroid/view/View;->setOutlineProvider(Landroid/view/ViewOutlineProvider;)V")
     )
 )
+
+/**
+ * The method that starts the maximize animation of the miniplayer.
+ * 21.38+ also read the animated expand feature flag here, 21.30 to 21.35 do not.
+ */
+internal object MiniplayerAnimatedExpandFingerprint : Fingerprint(
+    accessFlags = listOf(AccessFlags.PUBLIC, AccessFlags.FINAL),
+    returnType = "V",
+    parameters = listOf("I"),
+    filters = listOf(
+        opcode(opcode = Opcode.IF_NE),
+        fieldAccess(
+            opcode = Opcode.IGET_OBJECT,
+            definingClass = "this",
+            type = "L",
+            location = MatchAfterImmediately()
+        ),
+        opcode(opcode = Opcode.MOVE, location = MatchAfterWithin(7)),
+        fieldAccess(
+            opcode = Opcode.IGET_OBJECT,
+            definingClass = "this",
+            type = "L",
+            location = MatchAfterWithin(7)
+        )
+    )
+)
+
+private object TopBarControllerFingerprint : Fingerprint(
+    returnType = "Landroid/os/Parcelable;",
+    parameters = listOf(),
+    filters = listOf(
+        string("instance-offset")
+    )
+)
+
+/**
+ * If the top bars of the home and other pages can be laid out behind the status bar.
+ * Returns false while the player is maximized, in fullscreen or sliding between them.
+ *
+ * @param playerTypeEnumType Class type of the player type enum.
+ */
+internal fun getTopBarBehindStatusBarFingerprint(
+    playerTypeEnumType: String
+) = object : Fingerprint(
+    classFingerprint = TopBarControllerFingerprint,
+    returnType = "Z",
+    parameters = listOf(),
+    filters = listOf(
+        methodCall( // Player is sliding.
+            definingClass = playerTypeEnumType,
+            returnType = "Z"
+        ),
+        opcode(Opcode.MOVE_RESULT, location = MatchAfterImmediately()),
+        methodCall( // Player is maximized or in fullscreen.
+            definingClass = playerTypeEnumType,
+            returnType = "Z",
+            location = MatchAfterWithin(5)
+        ),
+        opcode(Opcode.MOVE_RESULT, location = MatchAfterImmediately())
+    )
+) {}

@@ -1,3 +1,14 @@
+## Unreleased
+
+### Features
+
+* **YouTube - Visual preferences icons:** Added icons to about 290 more settings and an empty icon to about 60 of their sub options, so the rows line up. This covers the new settings of the Feed, Player (including fullscreen, seekbar, haptic feedback and swipe controls), Comments, Video description, Ads, General, Navigation bar, Toolbar, Return YouTube Dislike, SponsorBlock, Gemini, Voice Over Translation, Spoof video streams and Proxy screens, plus the built-in downloader options. The icons follow the `Icon style` option (Regular or Bold) of the patch.
+
+### Bug Fixes
+
+* **YouTube - Miniplayer:** On 21.30 and newer, the feed no longer goes black when the player is minimized with animations on (`Force animations`), because the home keeps the layout of the minimized player. Ported from Morphe.
+* **YouTube - Miniplayer:** On 21.30 and newer, the maximize animation of the miniplayer is kept on while horizontal drag is enabled, which stops the glitch when the miniplayer is maximized. Ported from Morphe.
+
 ## [1.16.1](https://github.com/lavinhoque33/revanced-patches/compare/v1.16.0...v1.16.1) (2026-10-25)
 
 ### Features

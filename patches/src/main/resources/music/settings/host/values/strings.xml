@@ -142,6 +142,16 @@ YouTube Music 8.x - crossfade only runs on 9.x and newer"</string>
     <!-- modified by lavinhoque33, 2026-10-17: "Enable audio/video switch" ported from Morphe. -->
     <string name="morphe_music_enable_audio_video_switch_summary">Try to switch Audio Track Version and Official Music Video</string>
     <string name="morphe_music_enable_audio_video_switch_title">Enable audio/video switch</string>
+    <string name="morphe_music_fade_in_duration_summary">Seconds of the track over which the volume rises. Counted in track time, so a faster playback speed shortens it. Shortened in proportion when the track is shorter than both fades</string>
+    <string name="morphe_music_fade_in_duration_title">Fade-in duration</string>
+    <string name="morphe_music_fade_in_enabled_summary">Raises the volume from silence over the first seconds of every track, including a repeat-one loop and a seek back to the start. Not used while Crossfade is on</string>
+    <string name="morphe_music_fade_in_enabled_title">Fade in</string>
+    <string name="morphe_music_fade_out_duration_summary">Seconds before the end of the track over which the volume falls. Counted in track time, so a faster playback speed shortens it. Shortened in proportion when the track is shorter than both fades</string>
+    <string name="morphe_music_fade_out_duration_title">Fade-out duration</string>
+    <string name="morphe_music_fade_out_enabled_summary">Lowers the volume to silence over the last seconds of a track with a known length, such as a song, but not a live stream. Not used while Crossfade is on</string>
+    <string name="morphe_music_fade_out_enabled_title">Fade out</string>
+    <string name="morphe_music_fade_screen_summary">Fade the volume in and out at the start and end of tracks</string>
+    <string name="morphe_music_fade_screen_title">Fade in and out</string>
     <string name="morphe_music_in_app_downloads_summary">Downloads songs and playlists for native offline playback</string>
     <string name="morphe_music_in_app_downloads_title">Download in app</string>
     <!-- modified by lavinhoque33, 2026-10-16: downloads use shared audio storage and Music's native local-file Library/player, with embedded tags. -->

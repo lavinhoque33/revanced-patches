@@ -7,6 +7,8 @@
  * https://github.com/anddea/revanced-patches
  *
  * See the included NOTICE file for GPLv3 Section 7 terms that apply to this code.
+ *
+ * Modified by lavinhoque33, 2026-10-25
  */
 
 package app.morphe.extension.youtube.videoplayer;
@@ -17,8 +19,6 @@ import android.widget.ImageView;
 import androidx.annotation.Nullable;
 
 import app.morphe.extension.shared.utils.Logger;
-import app.morphe.extension.shared.utils.ResourceType;
-import app.morphe.extension.shared.utils.ResourceUtils;
 import app.morphe.extension.shared.utils.Utils;
 import app.morphe.extension.youtube.patches.FullscreenVideoScalePatch;
 import app.morphe.extension.youtube.patches.FullscreenVideoScalePatch.VideoScaleMode;
@@ -109,14 +109,7 @@ public class FullscreenVideoScaleButton {
         }
         ImageView imageView = button.imageView();
         if (imageView != null) {
-            imageView.setImageResource(ResourceUtils.getIdentifierOrThrow(
-                    getIconName(mode),
-                    ResourceType.DRAWABLE
-            ));
+            imageView.setImageResource(PlayerIcons.id(mode.iconBaseName));
         }
-    }
-
-    private static String getIconName(VideoScaleMode mode) {
-        return mode.iconBaseName;
     }
 }

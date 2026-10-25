@@ -281,6 +281,19 @@ Info: The next queued video only starts while YouTube is on screen"</string>
     <string name="morphe_playback_in_feeds_title">Playback in feeds</string>
     <string name="morphe_player_control_buttons_background_opacity_summary">Adjust the opacity of the background behind the player control buttons and the time bar (0 is invisible, 100 is solid)</string>
     <string name="morphe_player_control_buttons_background_opacity_title">Control buttons background opacity</string>
+    <string name="morphe_player_icon_style_entry_auto">Automatic</string>
+    <string name="morphe_player_icon_style_entry_bold">Bold</string>
+    <string name="morphe_player_icon_style_entry_custom">Custom</string>
+    <string name="morphe_player_icon_style_entry_fluent" translatable="false">Fluent</string>
+    <string name="morphe_player_icon_style_entry_ionicons" translatable="false">Ionicons</string>
+    <string name="morphe_player_icon_style_entry_phosphor" translatable="false">Phosphor</string>
+    <string name="morphe_player_icon_style_entry_phosphor_duotone" translatable="false">Phosphor Duotone</string>
+    <string name="morphe_player_icon_style_entry_phosphor_fill" translatable="false">Phosphor Fill</string>
+    <string name="morphe_player_icon_style_entry_phosphor_light" translatable="false">Phosphor Light</string>
+    <string name="morphe_player_icon_style_entry_regular">Thin</string>
+    <string name="morphe_player_icon_style_entry_sharp" translatable="false">Sharp</string>
+    <string name="morphe_player_icon_style_summary">Changes the style of the player button icons. Restart the app to apply a new style</string>
+    <string name="morphe_player_icon_style_title">Player icon style</string>
     <string name="morphe_potoken_provider_expired_dialog_message">"The token built into this version of PoToken provider no longer works
 
 Turn on \'Spoof video streams\' to fix playback"</string>

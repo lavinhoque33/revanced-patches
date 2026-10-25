@@ -4,6 +4,8 @@
  * https://github.com/MorpheApp/morphe-patches
  *
  * See the included NOTICE file for GPLv3 Section 7 terms that apply to Morphe contributions.
+ *
+ * Modified by lavinhoque33, 2026-10-25
  */
 
 package app.morphe.extension.youtube.patches.utils;
@@ -219,8 +221,11 @@ public class PlayerControlsPatch {
         return !restoreOldPlayerButtons();
     }
 
+    /**
+     * @return If the player shows the old thin buttons instead of the bold ones.
+     */
     @SuppressWarnings("BooleanMethodIsAlwaysInverted")
-    private static boolean restoreOldPlayerButtons() {
+    public static boolean restoreOldPlayerButtons() {
         return Settings.RESTORE_OLD_PLAYER_BUTTONS.get()
                 || !ExtendedUtils.IS_20_31_OR_GREATER
                 || ExtendedUtils.isSpoofingToLessThan("20.31.00");

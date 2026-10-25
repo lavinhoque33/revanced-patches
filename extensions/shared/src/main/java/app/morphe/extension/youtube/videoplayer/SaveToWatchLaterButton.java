@@ -5,11 +5,10 @@
  * See the included NOTICE file for GPLv3 Section 7 terms that apply to Morphe contributions.
  *
  * Modified by lavinhoque33, 2026-10-24
+ * Modified by lavinhoque33, 2026-10-25
  */
 
 package app.morphe.extension.youtube.videoplayer;
-
-import static app.morphe.extension.youtube.settings.YouTubeActivityHook.USE_BOLD_ICONS;
 
 import android.content.res.ColorStateList;
 import android.graphics.Color;
@@ -35,12 +34,11 @@ import app.morphe.extension.youtube.shared.VideoInformation;
 public class SaveToWatchLaterButton {
 
     public static final int saveToWatchLaterResourceId =
-            ResourceUtils.getIdentifier(
-                    USE_BOLD_ICONS
-                            ? "yt_outline_experimental_playlist_add_vd_theme_24"
-                            : "yt_outline_list_add_black_24",
-                    ResourceType.DRAWABLE
-            );
+            ResourceUtils.getIdentifier(PlayerIcons.name(
+                    "morphe_add_to_queue_button",
+                    "yt_outline_list_add_black_24",
+                    "yt_outline_experimental_playlist_add_vd_theme_24"
+            ), ResourceType.DRAWABLE);
 
     @Nullable
     private static PlayerControlButton instance;

@@ -11,12 +11,11 @@ import android.graphics.drawable.DrawableWrapper
 import android.view.View
 import android.widget.ImageView
 import app.morphe.extension.shared.utils.Logger
-import app.morphe.extension.shared.utils.ResourceType
 import app.morphe.extension.shared.utils.ResourceUtils
 import app.morphe.extension.shared.utils.Utils
 import app.morphe.extension.youtube.patches.player.PlayerPatch
 import app.morphe.extension.youtube.settings.Settings
-import app.morphe.extension.youtube.settings.YouTubeActivityHook
+import app.morphe.extension.youtube.videoplayer.PlayerIcons
 import java.lang.ref.WeakReference
 import androidx.core.graphics.createBitmap
 
@@ -94,21 +93,15 @@ class PlayerControlButton(
     fun imageView() = activeButton()
 
     /**
-     * Sets the button icon using YouTube's active thin or bold icon style.
+     * Sets the button icon in the selected player icon style.
+     * The Automatic style follows the thin or bold buttons of the player.
      *
-     * @param iconResourceName the drawable name without the optional `_bold` suffix.
+     * @param iconResourceName the drawable name without the optional style suffix such as `_bold`.
      */
     fun setIcon(iconResourceName: String) {
         Utils.verifyOnMainThread()
-        val selectedIconResourceName = if (YouTubeActivityHook.USE_BOLD_ICONS) {
-            "${iconResourceName}_bold"
-        } else {
-            iconResourceName
-        }
         val imageView = activeButton() ?: return
-        imageView.setImageResource(
-            ResourceUtils.getIdentifierOrThrow(selectedIconResourceName, ResourceType.DRAWABLE)
-        )
+        imageView.setImageResource(PlayerIcons.id(iconResourceName))
         applyIconShadow(imageView)
     }
 

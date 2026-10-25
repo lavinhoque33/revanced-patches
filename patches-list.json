@@ -1,5 +1,5 @@
 {
-  "version": "v1.14.0",
+  "version": "v1.15.0",
   "patches": [
     {
       "name": "Add to queue",
@@ -1041,6 +1041,25 @@
       "use": true,
       "dependencies": [
         "ResourcePatch",
+        "ResourcePatch"
+      ],
+      "compatiblePackages": {
+        "com.google.android.apps.youtube.music": [
+          "9.40.51",
+          "9.15.51",
+          "8.30.54",
+          "8.28.54",
+          "8.12.54"
+        ]
+      },
+      "options": []
+    },
+    {
+      "name": "Fade in and fade out",
+      "description": "Adds optional fade-in and fade-out of the volume at the start and end of tracks.",
+      "use": true,
+      "dependencies": [
+        "BytecodePatch",
         "ResourcePatch"
       ],
       "compatiblePackages": {

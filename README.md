@@ -137,6 +137,7 @@
 | `Enable debug logging` | Adds an option for debugging. | 9.40.51 ~ 8.12.54 |
 | `Enable exclusive audio playback` | Enables the option to play audio without video. | 9.40.51 ~ 8.12.54 |
 | `Enable landscape mode` | Adds an option to enable landscape mode when rotating the screen on phones. | 9.40.51 ~ 8.12.54 |
+| `Fade in and fade out` | Adds optional fade-in and fade-out of the volume at the start and end of tracks. | 9.40.51 ~ 8.12.54 |
 | `Flyout menu components` | Adds options to hide or change flyout menu components. | 9.40.51 ~ 8.12.54 |
 | `Force original audio` | Adds an option to disable audio tracks from being automatically enabled. | 9.40.51 ~ 8.12.54 |
 | `Force portrait orientation` | Adds an option to keep the app in portrait orientation when the device is rotated. | 9.40.51 ~ 8.12.54 |

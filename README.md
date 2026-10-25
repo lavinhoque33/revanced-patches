@@ -78,6 +78,7 @@
 | `Playback buffer` | Adds an option to change the video playback buffer size. | 21.39.525 ~ 20.05.46 |
 | `Playback in feeds` | Adds the 'Playback in feeds' setting of YouTube to the RVX settings, where it is always available even if YouTube hides it. | 21.39.525 ~ 20.05.46 |
 | `Player components` | Adds options to hide or change components related to the video player. | 21.39.525 ~ 20.05.46 |
+| `Player icon style` | Adds an option to change the style of the player button icons. | 21.39.525 ~ 20.05.46 |
 | `PoToken provider` | Adds option to get PoToken using the built-in PoToken provider. | 21.39.525 ~ 20.05.46 |
 | `Preferred caption language` | Adds an option to automatically select captions in your preferred language. | 21.39.525 ~ 20.05.46 |
 | `Reload video` | Adds an option to display a button in the video player to reload the current video. | 21.39.525 ~ 20.05.46 |

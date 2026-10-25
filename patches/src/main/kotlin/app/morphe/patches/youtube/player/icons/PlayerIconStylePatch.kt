@@ -315,6 +315,8 @@ private fun ResourcePatchContext.resourceDirectories(type: String) =
 /**
  * Replaces an app icon that exists only as density specific bitmaps with a wrapper.
  * A density specific bitmap wins over a default drawable, so every bitmap is removed.
+ * An installed app can also have bitmaps in a split APK, such as the xxhdpi one, which this patch cannot remove.
+ * The wrapper is therefore also filed under anydpi, which wins over every density.
  *
  * @param originalName Name to keep the original bitmaps under, or null to drop them.
  * @return false if the app has no such icon.
@@ -336,7 +338,10 @@ internal fun ResourcePatchContext.wrapAppBitmapIcon(
         }
         delete("res/$directory/${bitmap.name}")
     }
-    get("res/drawable/$appName.xml").writeText(appPlayerIconWrapper(wrapperClass))
+
+    val wrapper = appPlayerIconWrapper(wrapperClass)
+    get("res/drawable/$appName.xml").writeText(wrapper)
+    get("res/drawable-anydpi/$appName.xml").apply { parentFile.mkdirs() }.writeText(wrapper)
     return true
 }
 

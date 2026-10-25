@@ -1,3 +1,9 @@
+## Unreleased
+
+### Features
+
+* **YouTube Music - Fade in and fade out:** Added a `Fade in and out` screen next to Crossfade in the Player settings, with a `Fade in` and a `Fade out` switch (both off by default) and a duration for each (1-30 seconds, 3 by default, counted in track time). The fade-in raises the volume from silence over the first seconds of every track, also after a repeat-one loop or a seek to the start; the fade-out lowers it over the last seconds of a track with a known length (not live streams). Pausing, seeking and skipping never leave the volume low, a track shorter than both fades shortens them in proportion, and the effects are not used while Crossfade is on, as Crossfade already blends the tracks.
+
 ## [1.14.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.13.0...v1.14.0) (2026-10-24)
 
 ### Features

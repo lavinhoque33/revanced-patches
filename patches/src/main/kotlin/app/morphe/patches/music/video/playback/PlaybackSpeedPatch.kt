@@ -37,7 +37,7 @@ private const val EXTENSION_EXOPLAYER_INTERFACE =
 /**
  * Matches method {androidx.media3.common.PlaybackParameters}.toString()
  */
-private object MusicPlaybackParametersToStringFingerprint : Fingerprint(
+internal object MusicPlaybackParametersToStringFingerprint : Fingerprint(
     name = "toString",
     accessFlags = listOf(AccessFlags.PUBLIC, AccessFlags.FINAL),
     returnType = "Ljava/lang/String;",
@@ -54,7 +54,7 @@ private object MusicPlaybackParametersToStringFingerprint : Fingerprint(
 /**
  * Matches method {androidx.media3.exoplayer.ExoPlayerImpl.setPlaybackParameters(PlaybackParameters p1)}
  */
-private fun getMusicPlaybackParametersSetterFingerprint(playbackParametersType: String) =
+internal fun getMusicPlaybackParametersSetterFingerprint(playbackParametersType: String) =
     object : Fingerprint(
         accessFlags = listOf(AccessFlags.PUBLIC, AccessFlags.FINAL),
         returnType = "V",
@@ -68,7 +68,7 @@ private fun getMusicPlaybackParametersSetterFingerprint(playbackParametersType: 
 /**
  * Matches the constructors of the ExoPlayerImpl class that holds setPlaybackParameters.
  */
-private fun getMusicExoPlayerImplFingerprint(playbackParametersType: String) =
+internal fun getMusicExoPlayerImplFingerprint(playbackParametersType: String) =
     object : Fingerprint(
         classFingerprint = getMusicPlaybackParametersSetterFingerprint(playbackParametersType),
         name = "<init>",

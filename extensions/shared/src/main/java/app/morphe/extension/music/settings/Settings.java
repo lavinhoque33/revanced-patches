@@ -5,6 +5,7 @@ import static java.lang.Boolean.TRUE;
 import static app.morphe.extension.music.sponsorblock.objects.CategoryBehaviour.IGNORE;
 import static app.morphe.extension.music.sponsorblock.objects.CategoryBehaviour.SKIP_AUTOMATICALLY;
 import static app.morphe.extension.shared.settings.Setting.parent;
+import static app.morphe.extension.shared.settings.Setting.parentInverted;
 import static app.morphe.extension.shared.settings.Setting.parentsAll;
 import static app.morphe.extension.shared.settings.Setting.parentsAny;
 import static app.morphe.extension.shared.utils.StringRef.str;
@@ -230,6 +231,16 @@ public class Settings extends SharedYouTubeSettings {
     public static final BooleanSetting CROSSFADE_ON_SKIP = new BooleanSetting("morphe_music_crossfade_on_skip", TRUE);
     public static final BooleanSetting CROSSFADE_ON_AUTO_ADVANCE = new BooleanSetting("morphe_music_crossfade_on_auto_advance", TRUE);
     public static final BooleanSetting CROSSFADE_SESSION_CONTROL = new BooleanSetting("morphe_music_crossfade_session_control", TRUE);
+    public static final BooleanSetting FADE_IN_ENABLED = new BooleanSetting("morphe_music_fade_in_enabled", FALSE,
+            false, parentInverted(CROSSFADE_ENABLED));
+    public static final IntegerSetting FADE_IN_DURATION = new IntegerSetting("morphe_music_fade_in_duration", 3,
+            false, new Setting.SliderConfig(1, 30, 1, " s"),
+            parentsAll(parent(FADE_IN_ENABLED), parentInverted(CROSSFADE_ENABLED)));
+    public static final BooleanSetting FADE_OUT_ENABLED = new BooleanSetting("morphe_music_fade_out_enabled", FALSE,
+            false, parentInverted(CROSSFADE_ENABLED));
+    public static final IntegerSetting FADE_OUT_DURATION = new IntegerSetting("morphe_music_fade_out_duration", 3,
+            false, new Setting.SliderConfig(1, 30, 1, " s"),
+            parentsAll(parent(FADE_OUT_ENABLED), parentInverted(CROSSFADE_ENABLED)));
     public static final StringSetting CUSTOM_PLAYER_BACKGROUND_COLOR_PRIMARY = new StringSetting("revanced_custom_player_background_color_primary", "#000000", true);
     public static final StringSetting CUSTOM_PLAYER_BACKGROUND_COLOR_SECONDARY = new StringSetting("revanced_custom_player_background_color_secondary", "#000000", true);
     public static final BooleanSetting CHANGE_SEEK_BAR_POSITION = new BooleanSetting("revanced_change_seekbar_position", FALSE, true);

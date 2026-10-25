@@ -28,6 +28,8 @@
  * All other terms of the Morphe Patches LICENSE, including Section 7c
  * (Project Name Restriction) and the GPLv3 itself, remain fully
   * applicable to this file.
+ *
+ * Modified by lavinhoque33, 2026-10-24.
  */
 
 package app.morphe.util
@@ -123,7 +125,7 @@ class FreeRegisterProvider internal constructor(
         if (freeRegisters.isEmpty()) {
             throw IllegalStateException("No free registers available")
         }
-        val register = freeRegisters.removeFirst()
+        val register = freeRegisters.removeAt(0)
         allocatedFreeRegisters.add(register)
         return register
     }

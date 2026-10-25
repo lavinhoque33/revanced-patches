@@ -1,3 +1,9 @@
+## Unreleased
+
+### Bug Fixes
+
+* **YouTube, YouTube Music:** Fix patching failing on Android 14 and older with `NoSuchMethodError: List.removeFirst()`. The patch code called a method that Android only has from version 15, so the patcher crashed in Morphe Manager when it ran on the phone.
+
 ## [1.14.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.13.0...v1.14.0) (2026-10-24)
 
 ### Features

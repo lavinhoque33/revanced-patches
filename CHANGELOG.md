@@ -1,3 +1,13 @@
+## Unreleased
+
+### Features
+
+* **YouTube - Player icon style:** Added a `Player icon style` setting (Player buttons) that changes the look of the player icons: Automatic (default, unchanged), Thin, Bold, Fluent, Phosphor, Phosphor Light, Phosphor Fill, Phosphor Duotone, Ionicons or Sharp, plus a `Custom` style when the patch option `Custom icons` points to a zip file or folder with your own icons. It restyles the previous, play, pause, next and replay buttons, the settings, captions, cast, close and fullscreen buttons, and the Picture-in-picture, Reload video, Save to Watch later and video scale buttons. A new style applies after restarting the app. Ported from Morphe.
+
+### Bug Fixes
+
+* **YouTube - Player buttons:** The Picture-in-picture, Reload video, Save to Watch later and Video delay icons (and the SponsorBlock buttons) are no longer drawn thin next to the bold cast, captions and settings icons when `Disable bold icons` or `Restore old YouTube settings screen` is on. They now follow the player's own thin or bold buttons (`Restore old player button style`) instead of the settings screen style.
+
 ## [1.15.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.14.0...v1.15.0) (2026-10-24)
 
 ### Features

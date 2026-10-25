@@ -659,10 +659,11 @@ val playerIconStylePatch = resourcePatch(
         customPlayerIcons = customIcons?.takeIf { it.isNotBlank() }?.let(::CustomIcons)
 
         // The variant with the Custom entry is shown only when the user gave custom icons.
+        // The names must not start with each other, the markers are matched as plain text.
         val styleSetting = if (customPlayerIcons == null) {
-            "SETTINGS: PLAYER_ICON_STYLE"
+            "SETTINGS: PLAYER_ICON_STYLE_BUNDLED"
         } else {
-            "SETTINGS: PLAYER_ICON_STYLE_CUSTOM"
+            "SETTINGS: PLAYER_ICON_STYLE_WITH_CUSTOM"
         }
         addPreference(
             arrayOf(

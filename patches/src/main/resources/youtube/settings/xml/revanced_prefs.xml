@@ -549,11 +549,11 @@
             <!-- SETTINGS: RESTORE_OLD_PLAYER_BUTTONS
             <SwitchPreference android:title="@string/morphe_restore_old_player_buttons_title" android:key="morphe_restore_old_player_buttons" android:summary="@string/morphe_restore_old_player_buttons_summary" />SETTINGS: RESTORE_OLD_PLAYER_BUTTONS -->
 
-            <!-- SETTINGS: PLAYER_ICON_STYLE
-            <app.morphe.extension.youtube.settings.preference.PlayerIconStyleListPreference android:title="@string/morphe_player_icon_style_title" android:key="morphe_player_icon_style" android:summary="@string/morphe_player_icon_style_summary" android:entries="@array/morphe_player_icon_style_entries" android:entryValues="@array/morphe_player_icon_style_entry_values" />SETTINGS: PLAYER_ICON_STYLE -->
+            <!-- SETTINGS: PLAYER_ICON_STYLE_BUNDLED
+            <app.morphe.extension.youtube.settings.preference.PlayerIconStyleListPreference android:title="@string/morphe_player_icon_style_title" android:key="morphe_player_icon_style" android:summary="@string/morphe_player_icon_style_summary" android:entries="@array/morphe_player_icon_style_entries" android:entryValues="@array/morphe_player_icon_style_entry_values" />SETTINGS: PLAYER_ICON_STYLE_BUNDLED -->
 
-            <!-- SETTINGS: PLAYER_ICON_STYLE_CUSTOM
-            <app.morphe.extension.youtube.settings.preference.PlayerIconStyleListPreference android:title="@string/morphe_player_icon_style_title" android:key="morphe_player_icon_style" android:summary="@string/morphe_player_icon_style_summary" android:entries="@array/morphe_player_icon_style_custom_entries" android:entryValues="@array/morphe_player_icon_style_custom_entry_values" />SETTINGS: PLAYER_ICON_STYLE_CUSTOM -->
+            <!-- SETTINGS: PLAYER_ICON_STYLE_WITH_CUSTOM
+            <app.morphe.extension.youtube.settings.preference.PlayerIconStyleListPreference android:title="@string/morphe_player_icon_style_title" android:key="morphe_player_icon_style" android:summary="@string/morphe_player_icon_style_summary" android:entries="@array/morphe_player_icon_style_custom_entries" android:entryValues="@array/morphe_player_icon_style_custom_entry_values" />SETTINGS: PLAYER_ICON_STYLE_WITH_CUSTOM -->
 
             <!-- SETTINGS: OVERLAY_BUTTONS
             <PreferenceCategory android:title="@string/revanced_overlay_button" android:layout="@layout/revanced_settings_preferences_category" />

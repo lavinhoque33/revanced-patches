@@ -1,5 +1,5 @@
 {
-  "version": "v1.16.0",
+  "version": "v1.16.1",
   "patches": [
     {
       "name": "Add to queue",

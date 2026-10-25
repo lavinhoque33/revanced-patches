@@ -89,6 +89,30 @@
             <!-- SETTINGS: OFFLINE_USE_YOUTUBE_PLAYER
             <SwitchPreference android:title="@string/revanced_offline_use_youtube_player_title" android:key="revanced_offline_use_youtube_player" android:summaryOn="@string/revanced_offline_use_youtube_player_summary_on" android:summaryOff="@string/revanced_offline_use_youtube_player_summary_off" />SETTINGS: OFFLINE_USE_YOUTUBE_PLAYER -->
 
+            <!-- SETTINGS: OFFLINE_DOWNLOAD_OPTIONS
+            <PreferenceScreen android:title="@string/revanced_offline_download_options_title" android:key="revanced_preference_screen_offline_download_options" android:summary="@string/revanced_offline_download_options_summary">
+                <PreferenceCategory android:title="@string/revanced_offline_category_formats" android:layout="@layout/revanced_settings_preferences_category">
+                    <SwitchPreference android:title="@string/revanced_offline_codec_h264_title" android:key="revanced_offline_codec_h264" android:summaryOn="@string/revanced_offline_codec_h264_summary_on" android:summaryOff="@string/revanced_offline_codec_h264_summary_off" />
+                    <SwitchPreference android:title="@string/revanced_offline_codec_vp9_title" android:key="revanced_offline_codec_vp9" android:summaryOn="@string/revanced_offline_codec_vp9_summary_on" android:summaryOff="@string/revanced_offline_codec_vp9_summary_off" />
+                    <SwitchPreference android:title="@string/revanced_offline_codec_av1_title" android:key="revanced_offline_codec_av1" android:summaryOn="@string/revanced_offline_codec_av1_summary_on" android:summaryOff="@string/revanced_offline_codec_av1_summary_off" />
+                    <SwitchPreference android:title="@string/revanced_offline_audio_opus_title" android:key="revanced_offline_audio_opus" android:summaryOn="@string/revanced_offline_audio_opus_summary_on" android:summaryOff="@string/revanced_offline_audio_opus_summary_off" />
+                    <SwitchPreference android:title="@string/revanced_offline_audio_aac_title" android:key="revanced_offline_audio_aac" android:summaryOn="@string/revanced_offline_audio_aac_summary_on" android:summaryOff="@string/revanced_offline_audio_aac_summary_off" />
+                    <SwitchPreference android:title="@string/revanced_offline_show_format_ids_title" android:key="revanced_offline_show_format_ids" android:summaryOn="@string/revanced_offline_show_format_ids_summary_on" android:summaryOff="@string/revanced_offline_show_format_ids_summary_off" />
+                </PreferenceCategory>
+                <PreferenceCategory android:title="@string/revanced_offline_category_quality" android:layout="@layout/revanced_settings_preferences_category">
+                    <app.morphe.extension.shared.settings.preference.CustomDialogListPreference android:title="@string/revanced_offline_min_height_title" android:key="revanced_offline_min_height" android:entries="@array/revanced_offline_height_entries" android:entryValues="@array/revanced_offline_height_entry_values" />
+                    <app.morphe.extension.shared.settings.preference.CustomDialogListPreference android:title="@string/revanced_offline_max_height_title" android:key="revanced_offline_max_height" android:entries="@array/revanced_offline_height_entries" android:entryValues="@array/revanced_offline_height_entry_values" />
+                </PreferenceCategory>
+                <PreferenceCategory android:title="@string/revanced_offline_category_folders" android:layout="@layout/revanced_settings_preferences_category">
+                    <app.morphe.extension.shared.settings.preference.ResettableEditTextPreference android:title="@string/revanced_offline_video_folder_title" android:key="revanced_offline_video_folder" android:summary="@string/revanced_offline_video_folder_summary" />
+                    <app.morphe.extension.shared.settings.preference.ResettableEditTextPreference android:title="@string/revanced_offline_audio_folder_title" android:key="revanced_offline_audio_folder" android:summary="@string/revanced_offline_audio_folder_summary" />
+                    <app.morphe.extension.shared.settings.preference.ResettableEditTextPreference android:title="@string/revanced_offline_thumbnail_folder_title" android:key="revanced_offline_thumbnail_folder" android:summary="@string/revanced_offline_thumbnail_folder_summary" />
+                </PreferenceCategory>
+                <PreferenceCategory android:title="@string/revanced_offline_category_thumbnails" android:layout="@layout/revanced_settings_preferences_category">
+                    <SwitchPreference android:title="@string/revanced_offline_save_thumbnail_title" android:key="revanced_offline_save_thumbnail" android:summaryOn="@string/revanced_offline_save_thumbnail_summary_on" android:summaryOff="@string/revanced_offline_save_thumbnail_summary_off" />
+                </PreferenceCategory>
+            </PreferenceScreen>SETTINGS: OFFLINE_DOWNLOAD_OPTIONS -->
+
             <!-- SETTINGS: SHOW_OFFLINE_LIBRARY_BUTTON
             <SwitchPreference android:title="@string/revanced_show_offline_library_button_title" android:key="revanced_show_offline_library_button" android:summaryOn="@string/revanced_show_offline_library_button_summary_on" android:summaryOff="@string/revanced_show_offline_library_button_summary_off" />SETTINGS: SHOW_OFFLINE_LIBRARY_BUTTON -->
 

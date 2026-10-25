@@ -2,6 +2,14 @@
 
 ### Features
 
+* **YouTube - Built-in downloader:** VP9 qualities are now offered at every resolution, from 144p to 8K.
+* **YouTube - Built-in downloader:** Added `Download options` with switches for the H.264, VP9 and AV1 video codecs and the Opus and AAC audio formats (all on by default). They apply to the quality picker and to playlist downloads; when every video codec is off, all codecs are used and the picker says so.
+* **YouTube - Built-in downloader:** Added a `Lowest quality` and `Highest quality` setting (144p to 4320p by default) that limit the qualities in the picker and the limits offered for playlist downloads.
+* **YouTube - Built-in downloader:** The picker offers the `1080p Premium` stream (enhanced-bitrate VP9) when YouTube serves it, saved as WebM with Opus audio.
+* **YouTube - Built-in downloader:** Added audio-only downloads as Opus (Ogg) or M4A, with title, channel and thumbnail tags. They are listed in the offline library and play in the built-in player.
+* **YouTube - Built-in downloader:** Added a `Show format IDs` setting (off by default) that shows `id: <itag>` for each format in the picker.
+* **YouTube - Built-in downloader:** Videos and audio are saved to separate folders, `Movies/RVX/Video` and `Music/RVX/Audio` by default, which can be changed in `Download options`. Downloads in the old `Movies/RVX` folder stay in the library.
+* **YouTube - Built-in downloader:** Added a thumbnail-only download to `Pictures/RVX/Thumbnails` and a `Save thumbnail with downloads` setting (off by default) that also applies to playlist downloads.
 * **YouTube Music - Fade in and fade out:** Added a `Fade in and out` screen next to Crossfade in the Player settings, with a `Fade in` and a `Fade out` switch (both off by default) and a duration for each (1-30 seconds, 3 by default, counted in track time). The fade-in raises the volume from silence over the first seconds of every track, also after a repeat-one loop or a seek to the start; the fade-out lowers it over the last seconds of a track with a known length (not live streams). Pausing, seeking and skipping never leave the volume low, a track shorter than both fades shortens them in proportion, and the effects are not used while Crossfade is on, as Crossfade already blends the tracks.
 
 ### Bug Fixes

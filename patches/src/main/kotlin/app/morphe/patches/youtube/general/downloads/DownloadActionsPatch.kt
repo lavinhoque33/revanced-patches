@@ -9,6 +9,7 @@
  * - inotia00 (https://github.com/inotia00)
  *
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-10-24.
  *
  * ------------------------------------------------------------------------
  * GPLv3 Section 7 – Additional Terms & Attribution Requirements
@@ -168,6 +169,7 @@ val downloadActionsPatch = bytecodePatch(
                     "SETTINGS: HOOK_BUTTONS",
                     "SETTINGS: HOOK_DOWNLOAD_ACTIONS",
                     "SETTINGS: OFFLINE_USE_YOUTUBE_PLAYER",
+                    "SETTINGS: OFFLINE_DOWNLOAD_OPTIONS",
                     "SETTINGS: OVERRIDE_PLAY_NEXT_IN_QUEUE",
                 )
                 // modified by lavinhoque33, 2026-10-10: the setting is not shown when it has no effect.

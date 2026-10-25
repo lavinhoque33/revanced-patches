@@ -6,6 +6,7 @@
  *
  * Licensed under the GNU General Public License v3.0.
  * Written by lavinhoque33, 2026-10-10.
+ * Modified by lavinhoque33, 2026-10-24.
  */
 
 package app.morphe.extension.youtube.patches.general.offline;
@@ -334,8 +335,8 @@ public final class OfflineServiceHooks {
                         OfflineDownloader.buildProgressNotification(service));
                 if (!OfflineDownloader.hasWork()) stopDownloadForeground();
             } else if (ACTION_DOWNLOAD_CANCEL.equals(action)) {
-                String videoId = intent.getStringExtra(OfflineScreens.EXTRA_VIDEO_ID);
-                if (videoId != null) OfflineDownloader.cancel(videoId);
+                String key = intent.getStringExtra(OfflineScreens.EXTRA_VIDEO_ID);
+                if (key != null) OfflineDownloader.cancel(key);
             } else if (ACTION_DOWNLOAD_CANCEL_ALL.equals(action)) {
                 OfflineDownloader.cancelAll(false);
             }

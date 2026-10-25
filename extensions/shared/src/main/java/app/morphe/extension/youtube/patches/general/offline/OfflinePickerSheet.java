@@ -6,6 +6,7 @@
  *
  * Licensed under the GNU General Public License v3.0.
  * Written by lavinhoque33, 2026-10-10.
+ * Modified by lavinhoque33, 2026-10-24.
  */
 
 package app.morphe.extension.youtube.patches.general.offline;
@@ -41,6 +42,7 @@ import androidx.annotation.Nullable;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.function.Consumer;
@@ -54,8 +56,8 @@ import app.morphe.extension.youtube.shared.PipDismissHelper;
 import app.morphe.extension.youtube.utils.ThemeUtils;
 
 /**
- * Bottom sheet of the built-in downloader. Shows the video while its formats load,
- * then one row per downloadable quality.
+ * Bottom sheet of the built-in downloader. Shows the video while its formats load, then one row
+ * per downloadable video quality, the audio-only formats and the thumbnail.
  */
 final class OfflinePickerSheet {
     private static final String THUMBNAIL_URL = "https://i.ytimg.com/vi/%s/mqdefault.jpg";
@@ -176,8 +178,7 @@ final class OfflinePickerSheet {
         root.addView(section);
 
         boolean[] picked = {false};
-        int[] limits = {Integer.MAX_VALUE, 1080, 720, 480, 360};
-        for (int limit : limits) {
+        for (int limit : heightLimits()) {
             LinearLayout row = baseRow(v -> {
                 if (picked[0]) return; // A second tap while the sheet slides away.
                 picked[0] = true;
@@ -191,48 +192,49 @@ final class OfflinePickerSheet {
                     ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         }
 
-        TextView footer = text(12, secondary, 3);
-        footer.setText(str("revanced_offline_batch_footer"));
-        footer.setGravity(Gravity.CENTER);
-        footer.setPadding(Dim.dp16, Dim.dp8, Dim.dp16, Dim.dp4);
-        root.addView(footer, new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        String footerText = str("revanced_offline_batch_footer");
+        if (OfflineOptions.isRangeNarrowed()) {
+            footerText += "\n" + str("revanced_offline_batch_range",
+                    OfflineOptions.minHeight() + "p", OfflineOptions.maxHeight() + "p");
+        }
+        if (OfflineOptions.allVideoCodecsOff()) footerText += "\n" + str("revanced_offline_codecs_all_off");
+        addFooter(root, footerText);
+    }
+
+    /** Best, then the usual limits that lie within the quality range of the settings. */
+    private static List<Integer> heightLimits() {
+        List<Integer> limits = new ArrayList<>();
+        limits.add(Integer.MAX_VALUE);
+        for (int limit : new int[]{1080, 720, 480, 360}) {
+            if (limit >= OfflineOptions.minHeight() && limit <= OfflineOptions.maxHeight()) limits.add(limit);
+        }
+        return limits;
     }
 
     /**
-     * Replaces the loading state with one row per quality.
+     * Replaces the loading state with the video qualities, the audio-only formats and the thumbnail.
      */
-    void showFormats(OfflineFormats.Resolved resolved, Consumer<OfflineFormats.Stream> onPick) {
-        title.setText(resolved.title());
-        author.setText(resolved.author());
-        author.setVisibility(TextUtils.isEmpty(resolved.author()) ? View.GONE : View.VISIBLE);
-        if (resolved.lengthMs() > 0) {
-            duration.setText(OfflineLibraryScreen.formatDuration(resolved.lengthMs()));
-            duration.setVisibility(View.VISIBLE);
-        }
+    void showFormats(OfflineFormats.Resolved resolved, Consumer<OfflineFormats.Stream> onPick,
+                     Runnable onThumbnail) {
+        showDetails(resolved);
         root.removeView(loading);
 
         View line = new View(activity);
         line.setBackgroundColor(divider);
         root.addView(line, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, Dim.dp1));
 
-        TextView section = text(13, secondary, 1);
-        section.setTypeface(Typeface.DEFAULT_BOLD);
-        section.setText(str("revanced_offline_picker_subtitle"));
-        section.setPadding(Dim.dp16, Dim.dp12, Dim.dp16, Dim.dp4);
-        root.addView(section);
-
+        boolean[] picked = {false};
+        Consumer<Runnable> once = action -> {
+            if (picked[0]) return; // A second tap while the sheet slides away.
+            picked[0] = true;
+            action.run();
+        };
         LinearLayout list = new LinearLayout(activity);
         list.setOrientation(LinearLayout.VERTICAL);
-        List<OfflineFormats.Stream> videos = resolved.videos();
-        boolean[] picked = {false};
-        for (OfflineFormats.Stream video : videos) {
-            list.addView(row(video, resolved.audioFor(video).contentLength(), v -> {
-                if (picked[0]) return; // A second tap while the sheet slides away.
-                picked[0] = true;
-                onPick.accept(video);
-            }));
-        }
+        addVideoSection(list, resolved, video -> once.accept(() -> onPick.accept(video)));
+        addAudioSection(list, resolved, audio -> once.accept(() -> onPick.accept(audio)));
+        addThumbnailSection(list, () -> once.accept(onThumbnail));
+
         ScrollView scroll = new MaxHeightScrollView(activity,
                 (int) (activity.getResources().getDisplayMetrics().heightPixels * MAX_LIST_HEIGHT_FRACTION));
         scroll.setVerticalScrollBarEnabled(false);
@@ -240,11 +242,81 @@ final class OfflinePickerSheet {
         root.addView(scroll, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
-        TextView footer = text(12, secondary, 1);
-        footer.setText(str("revanced_offline_picker_footer"));
+        addFooter(root, str("revanced_offline_picker_footer",
+                OfflineMediaStore.Collection.VIDEO.relativePath(OfflineOptions.videoFolder()),
+                OfflineMediaStore.Collection.AUDIO.relativePath(OfflineOptions.audioFolder())));
+    }
+
+    private void showDetails(OfflineFormats.Resolved resolved) {
+        title.setText(resolved.title());
+        author.setText(resolved.author());
+        author.setVisibility(TextUtils.isEmpty(resolved.author()) ? View.GONE : View.VISIBLE);
+        if (resolved.lengthMs() > 0) {
+            duration.setText(OfflineLibraryScreen.formatDuration(resolved.lengthMs()));
+            duration.setVisibility(View.VISIBLE);
+        }
+    }
+
+    private void addVideoSection(LinearLayout list, OfflineFormats.Resolved resolved,
+                                 Consumer<OfflineFormats.Stream> onPick) {
+        list.addView(sectionTitle(str("revanced_offline_picker_subtitle")));
+        if (OfflineOptions.allVideoCodecsOff()) list.addView(note(str("revanced_offline_codecs_all_off")));
+
+        List<OfflineFormats.Stream> videos = OfflineOptions.filterVideos(resolved.videos());
+        if (videos.isEmpty()) list.addView(note(str("revanced_offline_picker_no_video_match")));
+        for (OfflineFormats.Stream video : videos) {
+            long size = video.contentLength() > 0 && resolved.audioFor(video).contentLength() > 0
+                    ? video.contentLength() + resolved.audioFor(video).contentLength()
+                    : -1;
+            list.addView(row(OfflineDownloader.qualityLabel(video), badge(video), videoDetail(video), size,
+                    v -> onPick.accept(video)));
+        }
+    }
+
+    private void addAudioSection(LinearLayout list, OfflineFormats.Resolved resolved,
+                                 Consumer<OfflineFormats.Stream> onPick) {
+        List<OfflineFormats.Stream> audio = OfflineOptions.filterAudio(resolved.audioOnly());
+        if (audio.isEmpty()) return;
+
+        list.addView(sectionTitle(str("revanced_offline_picker_audio_section")));
+        for (OfflineFormats.Stream stream : audio) {
+            boolean opus = OfflineFormats.CODEC_OPUS.equals(stream.codec());
+            String label = str(opus ? "revanced_offline_picker_audio_opus" : "revanced_offline_picker_audio_m4a");
+            String detail = stream.codec() + " · " + Math.round(stream.bitrate() / 1000f) + " kbps · "
+                    + str(opus ? "revanced_offline_picker_opus_hint" : "revanced_offline_picker_m4a_hint");
+            list.addView(row(label, null, withFormatId(detail, stream), stream.contentLength(),
+                    v -> onPick.accept(stream)));
+        }
+    }
+
+    private void addThumbnailSection(LinearLayout list, Runnable onPick) {
+        list.addView(sectionTitle(str("revanced_offline_picker_thumbnail_section")));
+        String folder = OfflineMediaStore.Collection.IMAGE.relativePath(OfflineOptions.thumbnailFolder());
+        list.addView(row(str("revanced_offline_picker_thumbnail"), null,
+                str("revanced_offline_picker_thumbnail_hint", folder), -1, v -> onPick.run()));
+    }
+
+    private TextView sectionTitle(String text) {
+        TextView section = text(13, secondary, 1);
+        section.setTypeface(Typeface.DEFAULT_BOLD);
+        section.setText(text);
+        section.setPadding(Dim.dp16, Dim.dp12, Dim.dp16, Dim.dp4);
+        return section;
+    }
+
+    private TextView note(String text) {
+        TextView note = text(13, warningColor(), 3);
+        note.setText(text);
+        note.setPadding(Dim.dp16, Dim.dp4, Dim.dp16, Dim.dp4);
+        return note;
+    }
+
+    private void addFooter(LinearLayout parent, String text) {
+        TextView footer = text(12, secondary, 4);
+        footer.setText(text);
         footer.setGravity(Gravity.CENTER);
         footer.setPadding(Dim.dp16, Dim.dp8, Dim.dp16, Dim.dp4);
-        root.addView(footer, new LinearLayout.LayoutParams(
+        parent.addView(footer, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
     }
 
@@ -261,20 +333,23 @@ final class OfflinePickerSheet {
         return row;
     }
 
-    private View row(OfflineFormats.Stream video, long audioLength, View.OnClickListener onClick) {
+    /**
+     * @param size Bytes, or -1 to show none.
+     */
+    private View row(String label, @Nullable String badgeText, CharSequence detail, long size,
+                     View.OnClickListener onClick) {
         LinearLayout row = baseRow(onClick);
 
         LinearLayout texts = new LinearLayout(activity);
         texts.setOrientation(LinearLayout.VERTICAL);
 
-        LinearLayout qualityLine = new LinearLayout(activity);
-        qualityLine.setOrientation(LinearLayout.HORIZONTAL);
-        qualityLine.setGravity(Gravity.CENTER_VERTICAL);
-        TextView quality = text(16, foreground, 1);
-        quality.setTypeface(Typeface.DEFAULT_BOLD);
-        quality.setText(OfflineDownloader.qualityLabel(video));
-        qualityLine.addView(quality);
-        String badgeText = video.height() >= 2160 ? "4K" : video.height() >= 1440 ? "2K" : video.height() >= 720 ? "HD" : null;
+        LinearLayout labelLine = new LinearLayout(activity);
+        labelLine.setOrientation(LinearLayout.HORIZONTAL);
+        labelLine.setGravity(Gravity.CENTER_VERTICAL);
+        TextView labelView = text(16, foreground, 1);
+        labelView.setTypeface(Typeface.DEFAULT_BOLD);
+        labelView.setText(label);
+        labelLine.addView(labelView);
         if (badgeText != null) {
             TextView badge = text(10, foreground, 1);
             badge.setTypeface(Typeface.DEFAULT_BOLD);
@@ -284,36 +359,57 @@ final class OfflinePickerSheet {
             LinearLayout.LayoutParams badgeParams = new LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
             badgeParams.setMarginStart(Dim.dp8);
-            qualityLine.addView(badge, badgeParams);
+            labelLine.addView(badge, badgeParams);
         }
-        texts.addView(qualityLine);
+        texts.addView(labelLine);
 
-        TextView codec = text(13, secondary, 1);
-        boolean av1 = video.codec().toUpperCase(Locale.ROOT).startsWith("AV1");
-        boolean vp9 = OfflineFormats.CODEC_VP9.equals(video.codec());
-        // modified by lavinhoque33, 2026-10-14: AV1 this device cannot decode is listed, with a warning note.
-        SpannableStringBuilder codecText = new SpannableStringBuilder(video.codec() + " · "
-                + str(av1 ? "revanced_offline_picker_av1_hint"
-                : vp9 ? "revanced_offline_picker_vp9_hint" : "revanced_offline_picker_h264_hint"));
-        if (!video.playable()) {
-            int start = codecText.length();
-            codecText.append(" [").append(str("revanced_offline_picker_av1_unplayable")).append(']');
-            codecText.setSpan(new ForegroundColorSpan(
-                            BaseThemeUtils.isDarkModeEnabled() ? 0xFFFFA040 : 0xFFD84315),
-                    start, codecText.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-            codec.setMaxLines(2);
-        }
-        codec.setText(codecText);
-        texts.addView(codec);
+        TextView detailView = text(13, secondary, 2);
+        detailView.setText(detail);
+        texts.addView(detailView);
         row.addView(texts, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
-        TextView size = text(14, foreground, 1);
-        size.setText(video.contentLength() > 0 && audioLength > 0
-                ? Formatter.formatShortFileSize(activity, video.contentLength() + audioLength)
-                : "—");
-        size.setPadding(Dim.dp12, 0, 0, 0);
-        row.addView(size);
+        if (size != -1) {
+            TextView sizeView = text(14, foreground, 1);
+            sizeView.setText(size > 0 ? Formatter.formatShortFileSize(activity, size) : "—");
+            sizeView.setPadding(Dim.dp12, 0, 0, 0);
+            row.addView(sizeView);
+        }
         return row;
+    }
+
+    @Nullable
+    private static String badge(OfflineFormats.Stream video) {
+        if (video.height() >= 2160) return "4K";
+        if (video.height() >= 1440) return "2K";
+        return video.height() >= 720 ? "HD" : null;
+    }
+
+    private CharSequence videoDetail(OfflineFormats.Stream video) {
+        String hint = switch (video.codec()) {
+            case OfflineFormats.CODEC_AV1 -> "revanced_offline_picker_av1_hint";
+            case OfflineFormats.CODEC_VP9 -> "revanced_offline_picker_vp9_hint";
+            default -> "revanced_offline_picker_h264_hint";
+        };
+        SpannableStringBuilder detail = new SpannableStringBuilder(withFormatId(
+                video.codec() + " · " + str(hint), video));
+        // modified by lavinhoque33, 2026-10-14: AV1 this device cannot decode is listed, with a warning note.
+        if (!video.playable()) {
+            int start = detail.length();
+            detail.append(" [").append(str("revanced_offline_picker_av1_unplayable")).append(']');
+            detail.setSpan(new ForegroundColorSpan(warningColor()), start, detail.length(),
+                    Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        }
+        return detail;
+    }
+
+    /** Appends {@code id: <itag>} when the setting asks for it. */
+    private static String withFormatId(String detail, OfflineFormats.Stream stream) {
+        if (!OfflineOptions.showFormatIds()) return detail;
+        return detail + " · " + str("revanced_offline_picker_format_id", stream.itag());
+    }
+
+    private static int warningColor() {
+        return BaseThemeUtils.isDarkModeEnabled() ? 0xFFFFA040 : 0xFFD84315;
     }
 
     private void loadThumbnail(String videoId) {

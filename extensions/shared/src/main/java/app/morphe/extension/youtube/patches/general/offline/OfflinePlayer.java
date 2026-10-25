@@ -6,6 +6,7 @@
  *
  * Licensed under the GNU General Public License v3.0.
  * Written by lavinhoque33, 2026-10-10.
+ * Modified by lavinhoque33, 2026-10-24.
  */
 
 package app.morphe.extension.youtube.patches.general.offline;
@@ -123,6 +124,12 @@ public final class OfflinePlayer {
         return current;
     }
 
+    /** The thumbnail of the current entry, which the player screen shows for audio. */
+    @Nullable
+    static Bitmap getArtwork() {
+        return artwork;
+    }
+
     static long getPosition() {
         try {
             return player != null && prepared ? player.getCurrentPosition() : 0;
@@ -152,12 +159,12 @@ public final class OfflinePlayer {
     }
 
     static boolean hasPrevious() {
-        return current != null && queue.indexOf(current.videoId) > 0;
+        return current != null && queue.indexOf(current.key()) > 0;
     }
 
     static boolean hasNext() {
         if (current == null) return false;
-        int index = queue.indexOf(current.videoId);
+        int index = queue.indexOf(current.key());
         return index >= 0 && index < queue.size() - 1;
     }
 
@@ -168,14 +175,14 @@ public final class OfflinePlayer {
     /**
      * Starts playing a video, or keeps playing it if it is already the current one.
      *
-     * @param order The video ids of the library in display order, for previous and next.
+     * @param order The entry keys of the library in display order, for previous and next.
      */
     static void play(OfflineVideo video, List<String> order) {
         queue.clear();
         queue.addAll(order);
-        if (!queue.contains(video.videoId)) queue.add(video.videoId);
+        if (!queue.contains(video.key())) queue.add(video.key());
 
-        if (current != null && current.videoId.equals(video.videoId) && player != null) {
+        if (current != null && current.key().equals(video.key()) && player != null) {
             if (!isPlaying()) resume();
             return;
         }
@@ -188,7 +195,7 @@ public final class OfflinePlayer {
         Context context = Utils.getContext();
         current = video;
         // modified by lavinhoque33, 2026-10-14: say so instead of showing a grey picture when the AV1 cannot be decoded.
-        if (OfflineFormats.CODEC_AV1.equals(video.codec)) {
+        if (!video.audioOnly && OfflineFormats.CODEC_AV1.equals(video.codec)) {
             java.util.regex.Matcher quality = java.util.regex.Pattern.compile("^(\\d+)p(\\d+)?").matcher(video.qualityLabel);
             if (quality.find() && !OfflineFormats.canDecodeAv1(0, Integer.parseInt(quality.group(1)),
                     quality.group(2) != null ? Integer.parseInt(quality.group(2)) : 30, "video/mp4; codecs=\"av01.0.08m.08\"")) {
@@ -205,7 +212,9 @@ public final class OfflinePlayer {
         player = mediaPlayer;
         mediaPlayer.setAudioAttributes(new AudioAttributes.Builder()
                 .setUsage(AudioAttributes.USAGE_MEDIA)
-                .setContentType(AudioAttributes.CONTENT_TYPE_MOVIE)
+                .setContentType(video.audioOnly
+                        ? AudioAttributes.CONTENT_TYPE_MUSIC
+                        : AudioAttributes.CONTENT_TYPE_MOVIE)
                 .build());
         mediaPlayer.setWakeMode(context, android.os.PowerManager.PARTIAL_WAKE_LOCK);
         mediaPlayer.setOnPreparedListener(mp -> {
@@ -216,7 +225,7 @@ public final class OfflinePlayer {
                 mp.seekTo((int) resume);
             }
             applySpeed();
-            Logger.printInfo(() -> "Prepared " + video.videoId + " (" + mp.getDuration() + " ms), resume at " + resume);
+            Logger.printInfo(() -> "Prepared " + video.key() + " (" + mp.getDuration() + " ms), resume at " + resume);
             if (playWhenPrepared) resume();
             else onStateChanged();
         });
@@ -227,8 +236,8 @@ public final class OfflinePlayer {
         });
         mediaPlayer.setOnCompletionListener(mp -> {
             if (mp != player) return;
-            Logger.printInfo(() -> "Completed " + video.videoId);
-            OfflineIndex.savePosition(video.videoId, 0);
+            Logger.printInfo(() -> "Completed " + video.key());
+            OfflineIndex.savePosition(video.key(), 0);
             video.lastPositionMs = 0;
             if (hasNext()) {
                 skip(1);
@@ -238,7 +247,7 @@ public final class OfflinePlayer {
             }
         });
         mediaPlayer.setOnErrorListener((mp, what, extra) -> {
-            Logger.printException(() -> "Playback error " + what + "/" + extra + " for " + video.videoId);
+            Logger.printException(() -> "Playback error " + what + "/" + extra + " for " + video.key());
             Utils.showToastShort(app.morphe.extension.shared.utils.StringRef.str("revanced_offline_playback_error"));
             close();
             return true;
@@ -355,7 +364,7 @@ public final class OfflinePlayer {
             seekTo(0);
             return;
         }
-        int index = queue.indexOf(current.videoId) + direction;
+        int index = queue.indexOf(current.key()) + direction;
         while (index >= 0 && index < queue.size()) {
             OfflineVideo next = OfflineIndex.get(queue.get(index));
             if (next != null) {
@@ -383,9 +392,9 @@ public final class OfflinePlayer {
         notifyListeners();
     }
 
-    /** Ends the session if it plays the given video, which is about to be deleted. */
-    static void closeIfPlaying(String videoId) {
-        if (current != null && current.videoId.equals(videoId)) close();
+    /** Ends the session if it plays the given entry, which is about to be deleted. */
+    static void closeIfPlaying(String key) {
+        if (current != null && current.key().equals(key)) close();
     }
 
     private static void releasePlayer() {
@@ -442,8 +451,8 @@ public final class OfflinePlayer {
         if (video == null || player == null || !prepared) return;
         long position = getPosition();
         video.lastPositionMs = position;
-        final String videoId = video.videoId;
-        Utils.runOnBackgroundThread(() -> OfflineIndex.savePosition(videoId, position));
+        final String key = video.key();
+        Utils.runOnBackgroundThread(() -> OfflineIndex.savePosition(key, position));
     }
 
     // endregion
@@ -616,7 +625,7 @@ public final class OfflinePlayer {
         OfflineVideo video = current;
         if (video == null || player == null) return null;
         return OfflineNotifications.buildPlayback(context, ensureSession().getSessionToken(),
-                video.title, video.author, artwork, isPlaying(), video.videoId);
+                video.title, video.author, artwork, isPlaying(), video.key());
     }
 
     private static void onStateChanged() {

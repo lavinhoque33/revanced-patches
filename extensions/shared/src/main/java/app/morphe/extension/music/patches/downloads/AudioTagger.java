@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-10-24.
  */
 package app.morphe.extension.music.patches.downloads;
 
@@ -23,15 +24,16 @@ import java.util.concurrent.ThreadLocalRandom;
 // modified by lavinhoque33, 2026-10-16: Music's device-files library shows only the tags Android's
 // media scanner extracts. MatroskaExtractor reports no tags at all, so Opus is repackaged losslessly
 // into Ogg Opus (comment tags + METADATA_BLOCK_PICTURE), and MP4 gets an iTunes ilst in its moov.
-final class AudioTagger {
+// The YouTube built-in downloader writes its audio-only downloads with it as well.
+public final class AudioTagger {
     /** Tags written into a download. {@code album} and {@code artwork} (JPEG or PNG) may be null. */
-    static final class Tags {
+    public static final class Tags {
         final String title;
         final String artist;
         final String album;
         final byte[] artwork;
 
-        Tags(String title, String artist, String album, byte[] artwork) {
+        public Tags(String title, String artist, String album, byte[] artwork) {
             this.title = title;
             this.artist = artist;
             this.album = album;
@@ -55,7 +57,7 @@ final class AudioTagger {
     }
 
     /** @return The image MIME type, or null if the bytes are neither JPEG nor PNG. */
-    static String imageMimeType(byte[] image) {
+    public static String imageMimeType(byte[] image) {
         if (image.length > 3 && (image[0] & 0xFF) == 0xFF && (image[1] & 0xFF) == 0xD8 && (image[2] & 0xFF) == 0xFF) {
             return "image/jpeg";
         }
@@ -66,7 +68,7 @@ final class AudioTagger {
     }
 
     /** Writes {@code input} (a downloaded stream of {@code mimeType}) with {@code tags} to {@code output}. */
-    static void write(File input, String mimeType, OutputStream output, Tags tags) throws IOException {
+    public static void write(File input, String mimeType, OutputStream output, Tags tags) throws IOException {
         BufferedOutputStream out = new BufferedOutputStream(output, 64 * 1024);
         try (RandomAccessFile file = new RandomAccessFile(input, "r")) {
             if (isMp4(mimeType)) {

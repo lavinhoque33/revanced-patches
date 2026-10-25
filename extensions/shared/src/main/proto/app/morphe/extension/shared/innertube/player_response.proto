@@ -58,6 +58,8 @@ enum Status {
 message StreamingData {
   repeated Format formats = 2;
   repeated Format adaptiveFormats = 3;
+  // The built-in downloader reads the 1080p Premium (itag 616) HLS stream from it.
+  optional string hlsManifestUrl = 5;
   optional string serverAbrStreamingUrl = 15;
 }
 

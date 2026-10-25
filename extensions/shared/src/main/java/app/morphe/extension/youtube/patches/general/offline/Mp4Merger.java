@@ -6,6 +6,7 @@
  *
  * Licensed under the GNU General Public License v3.0.
  * Written by lavinhoque33, 2026-10-10.
+ * Modified by lavinhoque33, 2026-10-24.
  */
 
 package app.morphe.extension.youtube.patches.general.offline;
@@ -85,6 +86,16 @@ final class Mp4Merger {
         } catch (ErrnoException ex) {
             throw new IOException("Could not restart the video file", ex);
         }
+        mergeWithMuxer(video, audio, output, cancelled, MediaMuxer.OutputFormat.MUXER_OUTPUT_WEBM);
+    }
+
+    /**
+     * Same contract as {@link #merge}, for the 1080p Premium stream: VP9 in fragmented MP4 (the
+     * joined HLS segments) and Opus in WebM, written as WebM. Only the platform muxer reads both
+     * containers.
+     */
+    static void mergeHlsVp9(File video, File audio, FileDescriptor output, BooleanSupplier cancelled)
+            throws IOException {
         mergeWithMuxer(video, audio, output, cancelled, MediaMuxer.OutputFormat.MUXER_OUTPUT_WEBM);
     }
 

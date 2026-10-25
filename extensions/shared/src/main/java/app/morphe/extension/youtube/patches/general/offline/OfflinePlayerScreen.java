@@ -6,6 +6,7 @@
  *
  * Licensed under the GNU General Public License v3.0.
  * Written by lavinhoque33, 2026-10-10.
+ * Modified by lavinhoque33, 2026-10-24.
  */
 
 package app.morphe.extension.youtube.patches.general.offline;
@@ -38,6 +39,7 @@ import android.view.WindowInsetsController;
 import android.view.WindowManager;
 import android.widget.FrameLayout;
 import android.widget.ImageButton;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.SeekBar;
 import android.widget.TextView;
@@ -62,6 +64,8 @@ final class OfflinePlayerScreen implements OfflineScreens.Screen, OfflinePlayer.
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final FrameLayout root;
     private final SurfaceView surfaceView;
+    /** Stands in for the picture of an audio-only download. */
+    private final ImageView artworkView;
     private final View controls;
     private final TextView title;
     private final ImageButton playPause;
@@ -117,6 +121,11 @@ final class OfflinePlayerScreen implements OfflineScreens.Screen, OfflinePlayer.
                 OfflinePlayer.detachSurface(holder.getSurface());
             }
         });
+        artworkView = new ImageView(activity);
+        artworkView.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        artworkView.setVisibility(View.GONE);
+        root.addView(artworkView, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT, Gravity.CENTER));
         root.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> {
             if (r - l != or - ol || b - t != ob - ot) fitVideo();
         });
@@ -265,14 +274,14 @@ final class OfflinePlayerScreen implements OfflineScreens.Screen, OfflinePlayer.
 
     /** @return False if there is nothing to show. */
     private boolean openRequestedVideo() {
-        String videoId = activity.getIntent().getStringExtra(OfflineScreens.EXTRA_VIDEO_ID);
-        if (videoId == null) {
+        String key = activity.getIntent().getStringExtra(OfflineScreens.EXTRA_VIDEO_ID);
+        if (key == null) {
             // From the playback notification: show whatever plays.
             if (OfflinePlayer.isSessionActive()) return true;
             Utils.showToastShort(str("revanced_offline_nothing_playing"));
             return false;
         }
-        OfflineVideo video = OfflineIndex.get(videoId);
+        OfflineVideo video = OfflineIndex.get(key);
         if (video == null) {
             Utils.showToastShort(str("revanced_offline_video_missing"));
             return false;
@@ -470,6 +479,7 @@ final class OfflinePlayerScreen implements OfflineScreens.Screen, OfflinePlayer.
             return;
         }
         title.setText(video.title);
+        showArtwork(video);
         final boolean playing = OfflinePlayer.isPlaying();
         setIcon(playPause, playing ? "pause" : "play");
         playPause.setContentDescription(playing ? str("revanced_offline_pause") : str("revanced_offline_play"));
@@ -486,6 +496,11 @@ final class OfflinePlayerScreen implements OfflineScreens.Screen, OfflinePlayer.
         }
         fitVideo();
         updateProgress();
+    }
+
+    private void showArtwork(OfflineVideo video) {
+        artworkView.setVisibility(video.audioOnly ? View.VISIBLE : View.GONE);
+        artworkView.setImageBitmap(video.audioOnly ? OfflinePlayer.getArtwork() : null);
     }
 
     @Override

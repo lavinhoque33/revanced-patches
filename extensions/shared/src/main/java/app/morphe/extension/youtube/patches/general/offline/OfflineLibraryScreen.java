@@ -6,6 +6,7 @@
  *
  * Licensed under the GNU General Public License v3.0.
  * Written by lavinhoque33, 2026-10-10.
+ * Modified by lavinhoque33, 2026-10-24.
  */
 
 package app.morphe.extension.youtube.patches.general.offline;
@@ -208,7 +209,7 @@ final class OfflineLibraryScreen implements OfflineScreens.Screen {
         list.setOnItemClickListener((parent, view, position, id) -> {
             Object row = rows.get(position);
             if (row instanceof OfflineVideo video) {
-                OfflineScreens.openPlayer(activity, video.videoId);
+                OfflineScreens.openPlayer(activity, video.key());
             }
         });
         list.setOnItemLongClickListener((parent, view, position, id) -> {
@@ -300,9 +301,9 @@ final class OfflineLibraryScreen implements OfflineScreens.Screen {
         Utils.runOnBackgroundThread(() -> {
             for (OfflineVideo video : videos) {
                 if (!OfflineMediaStore.exists(activity.getApplicationContext(), video.contentUri)) {
-                    Logger.printInfo(() -> "File of " + video.videoId + " is gone, removing it from the library");
-                    Utils.runOnMainThread(() -> OfflinePlayer.closeIfPlaying(video.videoId));
-                    OfflineIndex.remove(video.videoId);
+                    Logger.printInfo(() -> "File of " + video.key() + " is gone, removing it from the library");
+                    Utils.runOnMainThread(() -> OfflinePlayer.closeIfPlaying(video.key()));
+                    OfflineIndex.remove(video.key());
                 }
             }
         });
@@ -326,7 +327,7 @@ final class OfflineLibraryScreen implements OfflineScreens.Screen {
                 .setTitle(video.title)
                 .setItems(actions, (dialog, which) -> {
                     if (builtInEntry && which == 0) {
-                        OfflineScreens.openBuiltInPlayer(activity, video.videoId);
+                        OfflineScreens.openBuiltInPlayer(activity, video.key());
                         return;
                     }
                     switch (which - offset) {
@@ -379,10 +380,10 @@ final class OfflineLibraryScreen implements OfflineScreens.Screen {
                 .setTitle(str("revanced_offline_delete_title"))
                 .setMessage(str("revanced_offline_delete_message", video.title))
                 .setPositiveButton(android.R.string.ok, (dialog, which) -> {
-                    OfflinePlayer.closeIfPlaying(video.videoId);
+                    OfflinePlayer.closeIfPlaying(video.key());
                     if (OfflineMediaStore.delete(activity, video.contentUri)) {
-                        Logger.printInfo(() -> "Deleted " + video.videoId);
-                        OfflineIndex.remove(video.videoId);
+                        Logger.printInfo(() -> "Deleted " + video.key());
+                        OfflineIndex.remove(video.key());
                     }
                     // Otherwise the system asks for consent, and the next resume drops the entry
                     // if the user agreed.
@@ -539,7 +540,7 @@ final class OfflineLibraryScreen implements OfflineScreens.Screen {
         private final TextView title = text(15, foreground, 2);
         private final TextView status = text(13, secondary, 1);
         private final ProgressBar progress = new ProgressBar(activity, null, android.R.attr.progressBarStyleHorizontal);
-        private String videoId;
+        private String taskKey;
 
         TaskRow() {
             super(activity);
@@ -561,13 +562,13 @@ final class OfflineLibraryScreen implements OfflineScreens.Screen {
             cancel.setBackgroundColor(Color.TRANSPARENT);
             cancel.setContentDescription(str("revanced_offline_cancel"));
             cancel.setOnClickListener(v -> {
-                if (videoId != null) OfflineDownloader.cancel(videoId);
+                if (taskKey != null) OfflineDownloader.cancel(taskKey);
             });
             addView(cancel, new LayoutParams(Utils.dipToPixels(48), Utils.dipToPixels(48)));
         }
 
         void bind(OfflineDownloader.Task task) {
-            videoId = task.videoId;
+            taskKey = task.key;
             title.setText(task.title);
             final int percent = task.getPercent();
             final boolean determinate = task.getState() == OfflineDownloader.State.DOWNLOADING && percent >= 0;
@@ -595,7 +596,7 @@ final class OfflineLibraryScreen implements OfflineScreens.Screen {
         private final TextView title = text(15, foreground, 2);
         private final TextView channel = text(13, secondary, 1);
         private final TextView details = text(13, secondary, 1);
-        private String videoId;
+        private String videoKey;
 
         VideoRow() {
             super(activity);
@@ -635,7 +636,7 @@ final class OfflineLibraryScreen implements OfflineScreens.Screen {
         }
 
         void bind(OfflineVideo video) {
-            videoId = video.videoId;
+            videoKey = video.key();
             title.setText(video.title);
             channel.setText(video.author);
             channel.setVisibility(video.author.isEmpty() ? GONE : VISIBLE);
@@ -652,21 +653,21 @@ final class OfflineLibraryScreen implements OfflineScreens.Screen {
         }
 
         private void loadThumbnail(OfflineVideo video) {
-            Bitmap cached = thumbnails.get(video.videoId);
+            final String key = video.key();
+            Bitmap cached = thumbnails.get(key);
             thumbnail.setImageBitmap(cached);
-            if (cached != null || video.thumbnailPath.isEmpty()
-                    || !thumbnailsLoading.add(video.videoId)) {
+            if (cached != null || video.thumbnailPath.isEmpty() || !thumbnailsLoading.add(key)) {
                 return;
             }
             Utils.runOnBackgroundThread(() -> {
                 BitmapFactory.Options options = new BitmapFactory.Options();
                 options.inSampleSize = 2;
                 Bitmap bitmap = BitmapFactory.decodeFile(video.thumbnailPath, options);
-                thumbnailsLoading.remove(video.videoId);
+                thumbnailsLoading.remove(key);
                 if (bitmap == null) return;
-                thumbnails.put(video.videoId, bitmap);
+                thumbnails.put(key, bitmap);
                 Utils.runOnMainThread(() -> {
-                    if (video.videoId.equals(videoId)) thumbnail.setImageBitmap(bitmap);
+                    if (key.equals(videoKey)) thumbnail.setImageBitmap(bitmap);
                 });
             });
         }

@@ -1,6 +1,29 @@
 {
-  "version": "v1.13.0",
+  "version": "v1.14.0",
   "patches": [
+    {
+      "name": "Add to queue",
+      "description": "Overrides the feed flyout 'Play next in queue' with the RVX video queue.",
+      "use": true,
+      "dependencies": [
+        "ResourcePatch",
+        "BytecodePatch",
+        "BytecodePatch",
+        "BytecodePatch",
+        "BytecodePatch",
+        "BytecodePatch",
+        "ResourcePatch",
+        "ResourcePatch"
+      ],
+      "compatiblePackages": {
+        "com.google.android.youtube": [
+          "21.39.525",
+          "21.13.164",
+          "20.05.46"
+        ]
+      },
+      "options": []
+    },
     {
       "name": "Ambient mode control",
       "description": "Adds options to disable Ambient mode and to bypass Ambient mode restrictions.",
@@ -2527,10 +2550,11 @@
     },
     {
       "name": "Return YouTube Dislike",
-      "description": "Adds an option to show the dislike count of videos using the Return YouTube Dislike API.",
+      "description": "Adds an option to show the dislike count of videos using the Return YouTube Dislike API, and the like count and like percentage on the thumbnails of feed videos.",
       "use": true,
       "dependencies": [
         "ResourcePatch",
+        "BytecodePatch",
         "BytecodePatch",
         "BytecodePatch",
         "BytecodePatch",

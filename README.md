@@ -14,6 +14,7 @@
 
 | 💊 Patch | 📜 Description | 🏹 Target Version |
 |:--------:|:--------------:|:-----------------:|
+| `Add to queue` | Overrides the feed flyout 'Play next in queue' with the RVX video queue. | 21.39.525 ~ 20.05.46 |
 | `Ambient mode control` | Adds options to disable Ambient mode and to bypass Ambient mode restrictions. | 21.39.525 ~ 20.05.46 |
 | `App refresh rate` | Adds an option to change the app refresh rate. | 21.39.525 ~ 20.05.46 |
 | `Bypass URL redirects` | Adds an option to bypass URL redirects and open the original URL directly. | 21.39.525 ~ 20.05.46 |
@@ -84,7 +85,7 @@
 | `Remove background playback restrictions` | Removes restrictions on background playback, including for music and kids videos. | 21.39.525 ~ 20.05.46 |
 | `Remove viewer discretion dialog` | Adds an option to remove the dialog that appears when opening a video that has been age-restricted by accepting it automatically. This does not bypass the age restriction. | 21.39.525 ~ 20.05.46 |
 | `Restore original titles` | Adds an option to show the original video titles and descriptions instead of the auto-translated ones. | 21.39.525 ~ 20.05.46 |
-| `Return YouTube Dislike` | Adds an option to show the dislike count of videos using the Return YouTube Dislike API. | 21.39.525 ~ 20.05.46 |
+| `Return YouTube Dislike` | Adds an option to show the dislike count of videos using the Return YouTube Dislike API, and the like count and like percentage on the thumbnails of feed videos. | 21.39.525 ~ 20.05.46 |
 | `Return YouTube Username` | Adds an option to replace YouTube handles with usernames in comments using YouTube Data API v3. | 21.39.525 ~ 20.05.46 |
 | `Sanitize sharing links` | Adds an option to sanitize sharing links by removing tracking query parameters. | 21.39.525 ~ 20.05.46 |
 | `Save to Watch later` | Adds options to save videos to Watch later from the video player or feed flyout menu. | 21.39.525 ~ 20.05.46 |

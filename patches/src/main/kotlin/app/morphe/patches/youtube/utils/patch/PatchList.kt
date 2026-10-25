@@ -276,6 +276,10 @@ internal enum class PatchList(
         "Player components",
         "Adds options to hide or change components related to the video player."
     ),
+    PLAYER_ICON_STYLE(
+        "Player icon style",
+        "Adds an option to change the style of the player button icons."
+    ),
     POTOKEN_PROVIDER(
         "PoToken provider",
         "Adds option to get PoToken using the built-in PoToken provider."

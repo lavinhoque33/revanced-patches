@@ -6,6 +6,7 @@
  *
  * Licensed under the GNU General Public License v3.0.
  * Written by lavinhoque33, 2026-10-10.
+ * Modified by lavinhoque33, 2026-10-24.
  */
 
 package app.morphe.extension.youtube.patches.general.offline;
@@ -41,6 +42,7 @@ import app.morphe.extension.youtube.settings.Settings;
 public final class OfflineScreens {
     public static final String LIBRARY_INTENT = "rvx_offline_library_intent";
     public static final String PLAYER_INTENT = "rvx_offline_player_intent";
+    /** {@link OfflineVideo#key()} of a library entry, or {@link OfflineDownloader.Task#key} of a download. */
     static final String EXTRA_VIDEO_ID = "rvx_offline_video_id";
     static final String EXTRA_PREFER_YOUTUBE = "rvx_offline_prefer_youtube_player";
 
@@ -83,15 +85,15 @@ public final class OfflineScreens {
         return hostIntent(context, LIBRARY_INTENT);
     }
 
-    static Intent playerIntent(Context context, @Nullable String videoId) {
+    static Intent playerIntent(Context context, @Nullable String key) {
         Intent intent = hostIntent(context, PLAYER_INTENT);
-        if (videoId != null) intent.putExtra(EXTRA_VIDEO_ID, videoId);
+        if (key != null) intent.putExtra(EXTRA_VIDEO_ID, key);
         return intent;
     }
 
     /** A player intent that opens YouTube's player when it can play the video, else the built-in player. */
-    static Intent preferYouTubePlayerIntent(Context context, String videoId) {
-        return playerIntent(context, videoId).putExtra(EXTRA_PREFER_YOUTUBE, true);
+    static Intent preferYouTubePlayerIntent(Context context, String key) {
+        return playerIntent(context, key).putExtra(EXTRA_PREFER_YOUTUBE, true);
     }
 
     private static Intent hostIntent(Context context, String key) {
@@ -121,16 +123,16 @@ public final class OfflineScreens {
      * Plays a download, in YouTube's player if the setting is on and it can play the file,
      * otherwise in the built-in player.
      */
-    static void openPlayer(@Nullable Context context, @Nullable String videoId) {
+    static void openPlayer(@Nullable Context context, @Nullable String key) {
         // modified by lavinhoque33, 2026-10-20: YouTube's player first, the built-in player as the fallback.
-        OfflineVideo video = videoId == null ? null : OfflineIndex.get(videoId);
+        OfflineVideo video = key == null ? null : OfflineIndex.get(key);
         if (video != null && OfflineStreamSource.open(context, video)) return;
-        openBuiltInPlayer(context, videoId);
+        openBuiltInPlayer(context, key);
     }
 
-    static void openBuiltInPlayer(@Nullable Context context, @Nullable String videoId) {
+    static void openBuiltInPlayer(@Nullable Context context, @Nullable String key) {
         Context base = context != null ? context : Utils.getContext();
-        start(context, playerIntent(base, videoId));
+        start(context, playerIntent(base, key));
     }
 
     // endregion
@@ -150,8 +152,8 @@ public final class OfflineScreens {
 
         // modified by lavinhoque33, 2026-10-20: a tap on a finished download goes to YouTube's player when it can play the file.
         if (player && activity.getIntent().getBooleanExtra(EXTRA_PREFER_YOUTUBE, false)) {
-            String videoId = activity.getIntent().getStringExtra(EXTRA_VIDEO_ID);
-            OfflineVideo video = videoId == null ? null : OfflineIndex.get(videoId);
+            String key = activity.getIntent().getStringExtra(EXTRA_VIDEO_ID);
+            OfflineVideo video = key == null ? null : OfflineIndex.get(key);
             if (video != null && OfflineStreamSource.open(activity, video)) {
                 activity.finish();
                 return true;
@@ -361,9 +363,9 @@ public final class OfflineScreens {
     }
 
     static List<String> order() {
-        List<String> ids = new ArrayList<>();
-        for (OfflineVideo video : sorted(OfflineIndex.getAll())) ids.add(video.videoId);
-        return ids;
+        List<String> keys = new ArrayList<>();
+        for (OfflineVideo video : sorted(OfflineIndex.getAll())) keys.add(video.key());
+        return keys;
     }
 
     // endregion

@@ -6,6 +6,7 @@
  *
  * Licensed under the GNU General Public License v3.0.
  * Written by lavinhoque33, 2026-10-20.
+ * Modified by lavinhoque33, 2026-10-24.
  */
 
 package app.morphe.extension.youtube.patches.general.offline;
@@ -98,11 +99,12 @@ public final class OfflineStreamSource {
      * Opens a download on the video page of YouTube's player.
      *
      * @return False if the video cannot be played that way, and the built-in player must be used:
-     * the setting is off, the patch is missing, there is no internet, the file is unreadable or
-     * the device cannot decode it.
+     * the setting is off, the patch is missing, there is no internet, the file is unreadable, the
+     * device cannot decode it, or it is an audio-only download (the video page needs a picture).
      */
     public static boolean open(@Nullable Context context, OfflineVideo video) {
         try {
+            if (video.audioOnly) return false;
             if (!Settings.OFFLINE_USE_YOUTUBE_PLAYER.get() || !SpoofVideoStreamsPatch.isPatchIncluded()) return false;
             if (!Utils.isNetworkConnected()) {
                 Logger.printDebug(() -> "No network, using the built-in player for " + video.videoId);

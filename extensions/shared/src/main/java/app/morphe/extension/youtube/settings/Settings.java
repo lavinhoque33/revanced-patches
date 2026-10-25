@@ -483,6 +483,30 @@ public class Settings extends SharedYouTubeSettings {
     // modified by lavinhoque33, 2026-10-20: open downloads in YouTube's own player.
     public static final BooleanSetting OFFLINE_USE_YOUTUBE_PLAYER = new BooleanSetting("revanced_offline_use_youtube_player", TRUE, parent(IN_APP_DOWNLOADER));
     public static final StringSetting OFFLINE_LIBRARY_SORT = new StringSetting("revanced_offline_library_sort", "NEWEST", false, false);
+    public static final BooleanSetting OFFLINE_CODEC_H264 = new BooleanSetting(
+            "revanced_offline_codec_h264", TRUE, parent(IN_APP_DOWNLOADER));
+    public static final BooleanSetting OFFLINE_CODEC_VP9 = new BooleanSetting(
+            "revanced_offline_codec_vp9", TRUE, parent(IN_APP_DOWNLOADER));
+    public static final BooleanSetting OFFLINE_CODEC_AV1 = new BooleanSetting(
+            "revanced_offline_codec_av1", TRUE, parent(IN_APP_DOWNLOADER));
+    public static final BooleanSetting OFFLINE_AUDIO_OPUS = new BooleanSetting(
+            "revanced_offline_audio_opus", TRUE, parent(IN_APP_DOWNLOADER));
+    public static final BooleanSetting OFFLINE_AUDIO_AAC = new BooleanSetting(
+            "revanced_offline_audio_aac", TRUE, parent(IN_APP_DOWNLOADER));
+    public static final BooleanSetting OFFLINE_SHOW_FORMAT_IDS = new BooleanSetting(
+            "revanced_offline_show_format_ids", FALSE, parent(IN_APP_DOWNLOADER));
+    public static final IntegerSetting OFFLINE_MIN_HEIGHT = new IntegerSetting(
+            "revanced_offline_min_height", 144, parent(IN_APP_DOWNLOADER));
+    public static final IntegerSetting OFFLINE_MAX_HEIGHT = new IntegerSetting(
+            "revanced_offline_max_height", 4320, parent(IN_APP_DOWNLOADER));
+    public static final StringSetting OFFLINE_VIDEO_FOLDER = new StringSetting(
+            "revanced_offline_video_folder", "RVX/Video", parent(IN_APP_DOWNLOADER));
+    public static final StringSetting OFFLINE_AUDIO_FOLDER = new StringSetting(
+            "revanced_offline_audio_folder", "RVX/Audio", parent(IN_APP_DOWNLOADER));
+    public static final StringSetting OFFLINE_THUMBNAIL_FOLDER = new StringSetting(
+            "revanced_offline_thumbnail_folder", "RVX/Thumbnails", parent(IN_APP_DOWNLOADER));
+    public static final BooleanSetting OFFLINE_SAVE_THUMBNAIL = new BooleanSetting(
+            "revanced_offline_save_thumbnail", FALSE, parent(IN_APP_DOWNLOADER));
     public static final StringSetting EXTERNAL_DOWNLOADER_PACKAGE_NAME_PLAYLIST = new StringSetting("revanced_external_downloader_package_name_playlist", "com.deniscerri.ytdl");
     public static final StringSetting EXTERNAL_DOWNLOADER_PACKAGE_NAME_VIDEO = new StringSetting("revanced_external_downloader_package_name_video", "com.deniscerri.ytdl", false, parentInverted(IN_APP_DOWNLOADER));
     public static final StringSetting EXTERNAL_DOWNLOADER_PACKAGE_NAME_VIDEO_LONG_PRESS = new StringSetting("revanced_external_downloader_package_name_video_long_press", "com.maheshtechnicals.sealplus");

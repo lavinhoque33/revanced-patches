@@ -8,6 +8,7 @@ import android.graphics.Paint
 import android.graphics.Rect
 import android.graphics.drawable.Drawable
 import android.graphics.drawable.DrawableWrapper
+import android.graphics.drawable.StateListDrawable
 import android.view.View
 import android.widget.ImageView
 import app.morphe.extension.shared.utils.Logger
@@ -102,6 +103,33 @@ class PlayerControlButton(
         Utils.verifyOnMainThread()
         val imageView = activeButton() ?: return
         imageView.setImageResource(PlayerIcons.id(iconResourceName))
+        applyIconShadow(imageView)
+    }
+
+    /**
+     * Sets the button icon to its variant of the selected player icon style, such as Fluent or Phosphor.
+     * The Automatic, Thin and Bold styles have no variant, so the button keeps the icon it was created with.
+     *
+     * @param iconName the drawable name without the style suffix.
+     * @param activatedIconName the icon of the activated state of the button, if it has two icons.
+     *                          Both icons must exist in the style.
+     */
+    fun setStyledIcon(iconName: String, activatedIconName: String? = null) {
+        Utils.verifyOnMainThread()
+        val imageView = activeButton() ?: return
+        val icon = PlayerIcons.styledDrawable(iconName) ?: return
+
+        if (activatedIconName == null) {
+            imageView.setImageDrawable(icon)
+        } else {
+            val activatedIcon = PlayerIcons.styledDrawable(activatedIconName) ?: return
+
+            imageView.setImageDrawable(StateListDrawable().apply {
+                addState(intArrayOf(android.R.attr.state_activated), activatedIcon)
+                addState(intArrayOf(), icon)
+            })
+        }
+
         applyIconShadow(imageView)
     }
 

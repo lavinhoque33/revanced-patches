@@ -3,7 +3,7 @@
  * https://github.com/MorpheApp/morphe-patches/pull/3287
  *
  * See the included NOTICE file for GPLv3 Section 7 terms that apply to this code.
- * Modified by lavinhoque33, 2026-10-24
+ * Modified by lavinhoque33, 2026-10-25
  */
 
 package app.morphe.patches.youtube.layout.shortsicons
@@ -122,6 +122,8 @@ val shortsIconStylePatch = resourcePatch(
 /**
  * Replaces app icons that are density specific bitmaps with a wrapper drawable.
  * A density specific bitmap wins over a default drawable, so every bitmap is removed.
+ * The app can still have bitmaps this patch cannot remove, like the density splits of an installed bundle,
+ * so the wrapper is also put in drawable-anydpi, which wins over every density.
  * The original bitmaps stay under a new name for the default style.
  * An icon the app does not have is left out.
  *
@@ -148,7 +150,9 @@ private fun ResourcePatchContext.wrapAppBitmapIcons(icons: List<Pair<String, Str
             bitmap.delete()
         }
 
-        get("res/drawable/$appName.xml").writeText(iconWrapper(wrapperClass))
+        val wrapper = iconWrapper(wrapperClass)
+        get("res/drawable/$appName.xml").writeText(wrapper)
+        get("res/drawable-anydpi/$appName.xml").apply { parentFile.mkdirs() }.writeText(wrapper)
         wrapped++
     }
     return wrapped

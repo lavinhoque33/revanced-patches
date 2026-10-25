@@ -12,6 +12,7 @@ package app.morphe.patches.youtube.player.icons
 
 import app.morphe.patcher.Fingerprint
 import app.morphe.patcher.extensions.InstructionExtensions.addInstruction
+import app.morphe.patcher.extensions.InstructionExtensions.addInstructions
 import app.morphe.patcher.extensions.InstructionExtensions.getInstruction
 import app.morphe.patcher.extensions.InstructionExtensions.replaceInstruction
 import app.morphe.patcher.methodCall
@@ -26,6 +27,7 @@ import app.morphe.patcher.util.proxy.mutableTypes.MutableMethod
 import app.morphe.patches.shared.mapping.ResourceType
 import app.morphe.patches.shared.mapping.getResourceId
 import app.morphe.patches.shared.mapping.resourceMappingPatch
+import app.morphe.patches.youtube.player.miniplayer.general.MiniplayerModernCloseButtonFingerprint
 import app.morphe.patches.youtube.utils.compatibility.Constants.COMPATIBILITY_YOUTUBE
 import app.morphe.patches.youtube.utils.extension.sharedExtensionPatch
 import app.morphe.patches.youtube.utils.patch.PatchList.PLAYER_ICON_STYLE
@@ -46,6 +48,7 @@ import com.android.tools.smali.dexlib2.iface.instruction.RegisterRangeInstructio
 import com.android.tools.smali.dexlib2.iface.instruction.TwoRegisterInstruction
 import com.android.tools.smali.dexlib2.iface.instruction.WideLiteralInstruction
 import com.android.tools.smali.dexlib2.iface.reference.FieldReference
+import com.android.tools.smali.dexlib2.iface.reference.MethodReference
 import org.w3c.dom.Element
 import java.io.File
 import java.util.logging.Logger
@@ -253,7 +256,7 @@ internal fun customIconsOptionDescription(example: String) = """
     Icons missing from the file keep the 'Automatic' style.
 """
 
-private const val PLAYER_ICONS_RESOURCE_DIRECTORY = "youtube/playericons"
+internal const val PLAYER_ICONS_RESOURCE_DIRECTORY = "youtube/playericons"
 
 private const val APP_PLAYER_ICON_DRAWABLE =
     "app.morphe.extension.youtube.videoplayer.AppPlayerIconDrawable"
@@ -610,6 +613,69 @@ private fun BytecodePatchContext.hookPlayPauseIcons() {
     }
 }
 
+private const val DRAWABLE_TYPE = "Landroid/graphics/drawable/Drawable;"
+
+/**
+ * Hooks the icon of the miniplayer's play, pause and replay button.
+ * The app sets it together with the content description of its state, which tells the extension what it shows.
+ */
+private fun BytecodePatchContext.hookMiniplayerActionIcons() {
+    val method = runCatching { MiniplayerActionButtonStateFingerprint.methodOrNull }.getOrNull()
+    if (method == null) {
+        printWarn(
+            "Player icon style: the miniplayer play and pause button is not found, its icons keep the default style."
+        )
+        return
+    }
+
+    method.apply {
+        val ownClass = definingClass
+
+        findInstructionIndicesReversed {
+            opcode == Opcode.INVOKE_VIRTUAL && getReference<MethodReference>()?.let { reference ->
+                reference.definingClass == ownClass &&
+                        reference.returnType == "V" &&
+                        reference.parameterTypes.map { it.toString() } == listOf(DRAWABLE_TYPE, "I")
+            } == true
+        }.forEach { index ->
+            val call = getInstruction<FiveRegisterInstruction>(index)
+            val icon = call.registerD
+            val description = call.registerE
+
+            addInstructions(
+                index,
+                "invoke-static { v$icon, v$description }, $EXTENSION_PLAY_PAUSE_ICONS->miniplayerIcon" +
+                        "(${DRAWABLE_TYPE}I)$DRAWABLE_TYPE\n" +
+                        "move-result-object v$icon"
+            )
+        }
+    }
+}
+
+/**
+ * Hooks the icon of the miniplayer's close button, which the app tints right after loading it.
+ */
+private fun BytecodePatchContext.hookMiniplayerCloseIcon() {
+    val method = runCatching { MiniplayerModernCloseButtonFingerprint.methodOrNull }.getOrNull()
+    val index = method?.findInstructionIndicesReversed {
+        opcode == Opcode.INVOKE_VIRTUAL && getReference<MethodReference>()?.let { reference ->
+            reference.definingClass == DRAWABLE_TYPE && reference.name == "setTint"
+        } == true
+    }?.lastOrNull()
+    if (method == null || index == null) {
+        printWarn("Player icon style: the miniplayer close button is not found, its icon keeps the default style.")
+        return
+    }
+
+    val icon = method.getInstruction<FiveRegisterInstruction>(index).registerC
+    method.addInstructions(
+        index,
+        "invoke-static { v$icon }, $EXTENSION_PLAYER_BUTTON_ICONS->miniplayerCloseIcon" +
+                "($DRAWABLE_TYPE)$DRAWABLE_TYPE\n" +
+                "move-result-object v$icon"
+    )
+}
+
 /**
  * Applies the style to the app's player buttons that get their icons from code.
  */
@@ -633,6 +699,8 @@ private val playerButtonIconStylePatch = bytecodePatch {
         }
 
         hookPlayPauseIcons()
+        hookMiniplayerActionIcons()
+        hookMiniplayerCloseIcon()
     }
 }
 

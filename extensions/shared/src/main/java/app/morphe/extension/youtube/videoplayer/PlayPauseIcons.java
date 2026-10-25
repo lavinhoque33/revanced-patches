@@ -25,6 +25,8 @@ import android.widget.ImageView;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
+import app.morphe.extension.shared.utils.ResourceUtils;
+
 /**
  * Applies the player icon style to the app's play, pause and replay button.
  * <p>
@@ -76,6 +78,27 @@ public final class PlayPauseIcons {
      */
     public static void setReplay(ImageView view, Drawable original) {
         view.setImageDrawable(icon(original, null, REPLAY));
+    }
+
+    /**
+     * Injection point.
+     * The miniplayer sets the icon of its action button together with the content description of the state.
+     *
+     * @param descriptionId String id of the content description, which tells what the button shows.
+     */
+    public static Drawable miniplayerIcon(Drawable original, int descriptionId) {
+        final String baseName;
+        if (descriptionId == ResourceUtils.getStringIdentifier("accessibility_play")) {
+            baseName = PLAY;
+        } else if (descriptionId == ResourceUtils.getStringIdentifier("accessibility_pause")) {
+            baseName = PAUSE;
+        } else if (descriptionId == ResourceUtils.getStringIdentifier("accessibility_replay")) {
+            baseName = REPLAY;
+        } else {
+            return original;
+        }
+
+        return icon(original, null, baseName);
     }
 
     private static Drawable icon(Drawable original, @Nullable String fromName, String toName) {

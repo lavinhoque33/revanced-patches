@@ -17,6 +17,7 @@ import android.os.Vibrator;
 import android.support.v7.widget.RecyclerView;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.ViewTreeObserver;
 import android.view.ViewConfiguration;
 import android.view.ViewStub;
 import android.widget.FrameLayout;
@@ -451,11 +452,19 @@ public class PlayerPatch {
         final boolean hideView = Settings.HIDE_PLAYER_FULLSCREEN_BUTTON.get();
 
         if (!hideView) {
-            if (imageView != null) {
-                Drawable background = imageView.getBackground();
-                if (background != null) {
-                    imageView.setBackground(applyControlButtonsBackgroundOpacity(background));
-                }
+            if (imageView == null) {
+                return null;
+            }
+
+            // The other buttons are handled by styleControlButtonsBackground.
+            if (Settings.HIDE_PLAYER_CONTROL_BUTTONS_BACKGROUND.get()) {
+                keepBackgroundHidden(imageView);
+                return imageView;
+            }
+
+            Drawable background = imageView.getBackground();
+            if (background != null) {
+                imageView.setBackground(applyControlButtonsBackgroundOpacity(background));
             }
             return imageView;
         }
@@ -473,6 +482,52 @@ public class PlayerPatch {
         // to control fade in/out. Move it offscreen instead.
         imageView.setY(imageView.getY() - FULLSCREEN_HIDDEN_Y_OFFSET);
         return imageView;
+    }
+
+    /**
+     * The app gives the fullscreen button a new background after it is created,
+     * so the background is removed on every draw pass instead of once.
+     */
+    private static void keepBackgroundHidden(ImageView imageView) {
+        BackgroundRemover remover = new BackgroundRemover(imageView);
+        imageView.addOnAttachStateChangeListener(remover);
+
+        // The attach callback is not sent for a view that is already attached.
+        if (imageView.isAttachedToWindow()) {
+            remover.onViewAttachedToWindow(imageView);
+        }
+    }
+
+    private static final class BackgroundRemover
+            implements ViewTreeObserver.OnPreDrawListener, View.OnAttachStateChangeListener {
+        private final ImageView imageView;
+        private ViewTreeObserver observer;
+
+        BackgroundRemover(ImageView imageView) {
+            this.imageView = imageView;
+        }
+
+        @Override
+        public boolean onPreDraw() {
+            if (imageView.getBackground() != null) {
+                imageView.setBackground(null);
+            }
+            return true;
+        }
+
+        @Override
+        public void onViewAttachedToWindow(@NonNull View view) {
+            observer = view.getViewTreeObserver();
+            observer.addOnPreDrawListener(this);
+        }
+
+        @Override
+        public void onViewDetachedFromWindow(@NonNull View view) {
+            if (observer != null && observer.isAlive()) {
+                observer.removeOnPreDrawListener(this);
+            }
+            observer = null;
+        }
     }
 
     public static boolean hidePreviousNextButton(boolean previousOrNextButtonVisible) {

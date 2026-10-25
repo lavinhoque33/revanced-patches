@@ -30,6 +30,7 @@ object PlaybackSpeedDialogButton {
                     true
                 }
             )
+            instance?.setStyledIcon("morphe_player_speed")
         } catch (ex: Exception) {
             Logger.printException({ "initializeButton failure" }, ex)
         }

@@ -26,6 +26,7 @@ object MuteVolumeButton {
                 buttonVisibility = { isButtonEnabled() },
                 onClickListener = { view: View -> onClick(view) },
             )
+            instance?.setStyledIcon("morphe_player_volume_unmuted", "morphe_player_volume_muted")
             audioManager =
                 controlsView.context.getSystemService(Context.AUDIO_SERVICE) as AudioManager?
         } catch (ex: Exception) {

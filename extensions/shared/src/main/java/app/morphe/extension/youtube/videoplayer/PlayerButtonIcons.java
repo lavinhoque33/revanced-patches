@@ -60,6 +60,15 @@ public final class PlayerButtonIcons {
 
     /**
      * Injection point.
+     * The miniplayer's close button, which the app tints right after loading its icon.
+     */
+    public static Drawable miniplayerCloseIcon(Drawable original) {
+        Drawable icon = PlayerIcons.styledDrawable("morphe_player_close");
+        return icon != null ? icon : original;
+    }
+
+    /**
+     * Injection point.
      * Replaces {@link ImageView#setImageResource(int)}.
      */
     public static void setImageResource(ImageView view, int resId) {

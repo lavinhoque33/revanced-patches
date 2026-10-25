@@ -69,3 +69,18 @@ internal object PlayerCaptionsButtonFingerprint : Fingerprint(
         resourceLiteral(ResourceType.DRAWABLE, "quantum_ic_closed_caption_off_white_24"),
     )
 )
+
+/**
+ * Sets the icon of the miniplayer's play, pause and replay button for a new player state.
+ * The icon goes to a method of its own together with the content description it belongs to.
+ * The states are set in the order replay, play, pause.
+ */
+internal object MiniplayerActionButtonStateFingerprint : Fingerprint(
+    returnType = "V",
+    parameters = listOf("I", "Ljava/lang/Runnable;"),
+    filters = listOf(
+        resourceLiteral(ResourceType.STRING, "accessibility_replay"),
+        resourceLiteral(ResourceType.STRING, "accessibility_play"),
+        resourceLiteral(ResourceType.STRING, "accessibility_pause"),
+    )
+)

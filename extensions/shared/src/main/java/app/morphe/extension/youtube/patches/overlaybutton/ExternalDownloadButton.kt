@@ -29,6 +29,7 @@ object ExternalDownloadButton {
                     true
                 }
             )
+            instance?.setStyledIcon("morphe_player_download")
         } catch (ex: Exception) {
             Logger.printException({ "initializeButton failure" }, ex)
         }

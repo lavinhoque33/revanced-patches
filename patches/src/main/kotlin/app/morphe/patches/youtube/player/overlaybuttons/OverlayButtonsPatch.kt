@@ -24,7 +24,7 @@
  *
  * Licensed under the GNU General Public License v3.0.
  *
- * Modified by lavinhoque33, 2026-10-24
+ * Modified by lavinhoque33, 2026-10-25
  *
  * ------------------------------------------------------------------------
  * GPLv3 Section 7 – Additional Terms & Attribution Requirements
@@ -67,6 +67,8 @@ import app.morphe.patcher.patch.resourcePatch
 import app.morphe.patcher.patch.stringOption
 import app.morphe.patcher.util.smali.ExternalLabel
 import app.morphe.patcher.util.proxy.mutableTypes.MutableMethod
+import app.morphe.patches.youtube.player.icons.PLAYER_ICONS_RESOURCE_DIRECTORY
+import app.morphe.patches.youtube.player.icons.copyPlayerIconStyles
 import app.morphe.patches.youtube.utils.compatibility.Constants.COMPATIBILITY_YOUTUBE
 import app.morphe.patches.youtube.utils.dismiss.dismissPlayerHookPatch
 import app.morphe.patches.youtube.utils.dismiss.hookDismissObserver
@@ -350,6 +352,16 @@ val overlayButtonsPatch = resourcePatch(
                 "revanced_repeat_button.xml",
                 "revanced_vot_button.xml",
             )
+        )
+
+        // Only the style variants are added when the player icon style patch is included.
+        // The Automatic, Thin and Bold styles keep the icons of the selected icon type.
+        copyPlayerIconStyles(
+            PLAYER_ICONS_RESOURCE_DIRECTORY,
+            "morphe_player_speed",
+            "morphe_player_volume_unmuted",
+            "morphe_player_volume_muted",
+            "morphe_player_download",
         )
 
         // Apply the selected icon type to the overlay buttons.

@@ -1,3 +1,15 @@
+## Unreleased
+
+### Features
+
+* **YouTube - Player icon style:** The speed, mute and download buttons of the `Overlay buttons` patch now follow the `Player icon style` too (Fluent, Phosphor, Phosphor Light, Phosphor Fill, Phosphor Duotone, Ionicons, Sharp and Custom). The Automatic, Thin and Bold styles keep the icons of the patch's `Icon type` option.
+* **YouTube - Player icon style:** The miniplayer's play, pause, replay and close buttons now follow the `Player icon style` (Fluent, Phosphor, Phosphor Light, Phosphor Fill, Phosphor Duotone, Ionicons, Sharp and Custom). The Automatic, Thin and Bold styles keep the original miniplayer icons.
+
+### Bug Fixes
+
+* **YouTube - Player buttons:** `Hide player control buttons background` now also removes the circle behind the fullscreen button.
+* **YouTube - Shorts icon style:** The `Shorts icon style` now also works on devices that install YouTube from split APKs, where the Shorts action buttons kept their original icons.
+
 ## [1.16.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.15.0...v1.16.0) (2026-10-25)
 
 ### Features

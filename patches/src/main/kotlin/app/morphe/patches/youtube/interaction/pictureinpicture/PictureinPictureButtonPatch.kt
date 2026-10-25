@@ -3,6 +3,8 @@
  * https://github.com/MorpheApp/morphe-patches/pull/3397
  *
  * See the included NOTICE file for GPLv3 Section 7 terms that apply to this code.
+ *
+ * Modified by lavinhoque33, 2026-10-25
  */
 
 package app.morphe.patches.youtube.interaction.pictureinpicture
@@ -10,6 +12,7 @@ package app.morphe.patches.youtube.interaction.pictureinpicture
 import app.morphe.patcher.patch.bytecodePatch
 import app.morphe.patcher.patch.resourcePatch
 import app.morphe.patches.youtube.general.downloads.downloadActionsPatch
+import app.morphe.patches.youtube.player.icons.copyPlayerIconStyles
 import app.morphe.patches.youtube.utils.compatibility.Constants.COMPATIBILITY_YOUTUBE
 import app.morphe.patches.youtube.utils.extension.sharedExtensionPatch
 import app.morphe.patches.youtube.utils.patch.PatchList.PICTURE_IN_PICTURE_BUTTON
@@ -37,6 +40,8 @@ private val pictureinPictureButtonResourcePatch = resourcePatch {
                 "morphe_pip_button_bold.xml",
             ),
         )
+
+        copyPlayerIconStyles("youtube/pictureinpicturebutton", "morphe_pip_button")
 
         addPreference(
             arrayOf(

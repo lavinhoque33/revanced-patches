@@ -7,6 +7,8 @@
  * https://github.com/anddea/revanced-patches
  *
  * See the included NOTICE file for GPLv3 Section 7 terms that apply to this code.
+ *
+ * Modified by lavinhoque33, 2026-10-25
  */
 
 package app.morphe.patches.youtube.player.fullscreen
@@ -15,6 +17,7 @@ import app.morphe.patcher.Fingerprint
 import app.morphe.patcher.extensions.InstructionExtensions.addInstruction
 import app.morphe.patcher.patch.bytecodePatch
 import app.morphe.patcher.patch.resourcePatch
+import app.morphe.patches.youtube.player.icons.copyPlayerIconStyles
 import app.morphe.patches.youtube.player.overlaybuttons.overlayButtonsPatch
 import app.morphe.patches.youtube.utils.compatibility.Constants.COMPATIBILITY_YOUTUBE
 import app.morphe.patches.youtube.utils.extension.sharedExtensionPatch
@@ -48,6 +51,14 @@ private val fullscreenVideoScaleResourcePatch = resourcePatch {
                 "SETTINGS: FULLSCREEN_VIDEO_SCALE",
             ),
             FULLSCREEN_VIDEO_SCALE,
+        )
+
+        // The mode icons are copied by the overlay buttons patch, only their style variants are added here.
+        copyPlayerIconStyles(
+            "youtube/overlaybuttons/shared",
+            "revanced_fullscreen_video_scale_fit",
+            "revanced_fullscreen_video_scale_stretch",
+            "revanced_fullscreen_video_scale_zoom",
         )
     }
 }

@@ -3,6 +3,8 @@
  * https://github.com/MorpheApp/morphe-patches
  *
  * See the included NOTICE file for GPLv3 Section 7 terms that apply to Morphe contributions.
+ *
+ * Modified by lavinhoque33, 2026-10-25
  */
 
 package app.morphe.patches.youtube.interaction.savetowatchlater
@@ -10,6 +12,7 @@ package app.morphe.patches.youtube.interaction.savetowatchlater
 import app.morphe.patcher.patch.bytecodePatch
 import app.morphe.patcher.patch.resourcePatch
 import app.morphe.patches.youtube.general.downloads.downloadActionsPatch
+import app.morphe.patches.youtube.player.icons.copyPlayerIconStyles
 import app.morphe.patches.youtube.utils.auth.authHookPatch
 import app.morphe.patches.youtube.utils.compatibility.Constants.COMPATIBILITY_YOUTUBE
 import app.morphe.patches.youtube.utils.patch.PatchList.SAVE_TO_WATCH_LATER
@@ -49,6 +52,13 @@ private val saveToWatchLaterButtonResourcePatch = resourcePatch {
                 "morphe_save_to_watch_later_button.xml",
                 "morphe_save_to_watch_later_button_bold.xml",
             ),
+        )
+
+        // The button can also show the app's add to queue icon, only its style variants are bundled.
+        copyPlayerIconStyles(
+            "youtube/savetowatchlaterbutton/default",
+            "morphe_save_to_watch_later_button",
+            "morphe_add_to_queue_button",
         )
     }
 }

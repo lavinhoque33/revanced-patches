@@ -3,6 +3,8 @@
  * https://github.com/MorpheApp/morphe-patches
  *
  * See the included NOTICE file for GPLv3 §7(b) and §7(c) terms that apply to Morphe contributions.
+ *
+ * Modified by lavinhoque33, 2026-10-25
  */
 
 package app.morphe.patches.youtube.interaction.reload
@@ -12,6 +14,7 @@ import app.morphe.patcher.extensions.InstructionExtensions.addInstructions
 import app.morphe.patcher.patch.bytecodePatch
 import app.morphe.patcher.patch.resourcePatch
 import app.morphe.patcher.util.proxy.mutableTypes.MutableMethod.Companion.toMutable
+import app.morphe.patches.youtube.player.icons.copyPlayerIconStyles
 import app.morphe.patches.youtube.utils.compatibility.Constants.COMPATIBILITY_YOUTUBE_RELOAD_VIDEO
 import app.morphe.patches.youtube.utils.mainactivity.mainActivityFingerprint
 import app.morphe.patches.youtube.utils.patch.PatchList.RELOAD_VIDEO
@@ -61,6 +64,8 @@ private val reloadVideoResourcePatch = resourcePatch {
                     "morphe_reload_video_bold.xml",
                 ),
             )
+
+            copyPlayerIconStyles("youtube/reloadbutton/default", "morphe_reload_video")
         }
     }
 }

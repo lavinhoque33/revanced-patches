@@ -1,4 +1,4 @@
-## Unreleased
+## [1.18.1](https://github.com/lavinhoque33/revanced-patches/compare/v1.18.0...v1.18.1) (2026-10-26)
 
 ### Bug Fixes
 

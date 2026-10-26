@@ -11,6 +11,7 @@
 package app.morphe.patches.youtube.player.icons
 
 import app.morphe.patcher.Fingerprint
+import app.morphe.patcher.checkCast
 import app.morphe.patcher.methodCall
 import app.morphe.patches.shared.mapping.ResourceType
 import app.morphe.patches.shared.mapping.resourceLiteral
@@ -82,5 +83,19 @@ internal object MiniplayerActionButtonStateFingerprint : Fingerprint(
         resourceLiteral(ResourceType.STRING, "accessibility_replay"),
         resourceLiteral(ResourceType.STRING, "accessibility_play"),
         resourceLiteral(ResourceType.STRING, "accessibility_pause"),
+    )
+)
+
+/**
+ * The getter of the miniplayer's close button, for a version where the parent view class
+ * or the access flags of the fingerprint in the miniplayer patch changed.
+ * The getter finds the close view, loads its icon and tints it before it is shown.
+ */
+internal object MiniplayerCloseButtonFallbackFingerprint : Fingerprint(
+    returnType = "L",
+    filters = listOf(
+        resourceLiteral(ResourceType.ID, "modern_miniplayer_close"),
+        checkCast("Landroid/widget/ImageView;"),
+        methodCall(definingClass = "Landroid/graphics/drawable/Drawable;", name = "setTint"),
     )
 )

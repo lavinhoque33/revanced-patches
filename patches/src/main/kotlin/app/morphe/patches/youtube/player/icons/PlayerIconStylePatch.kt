@@ -14,6 +14,7 @@ import app.morphe.patcher.Fingerprint
 import app.morphe.patcher.extensions.InstructionExtensions.addInstruction
 import app.morphe.patcher.extensions.InstructionExtensions.addInstructions
 import app.morphe.patcher.extensions.InstructionExtensions.getInstruction
+import app.morphe.patcher.extensions.InstructionExtensions.instructions
 import app.morphe.patcher.extensions.InstructionExtensions.replaceInstruction
 import app.morphe.patcher.methodCall
 import app.morphe.patcher.patch.BytecodePatchContext
@@ -28,6 +29,7 @@ import app.morphe.patches.shared.mapping.ResourceType
 import app.morphe.patches.shared.mapping.getResourceId
 import app.morphe.patches.shared.mapping.resourceMappingPatch
 import app.morphe.patches.youtube.player.miniplayer.general.MiniplayerModernCloseButtonFingerprint
+import app.morphe.patches.youtube.player.miniplayer.general.MiniplayerSetIconsFingerprint
 import app.morphe.patches.youtube.utils.compatibility.Constants.COMPATIBILITY_YOUTUBE
 import app.morphe.patches.youtube.utils.extension.sharedExtensionPatch
 import app.morphe.patches.youtube.utils.patch.PatchList.PLAYER_ICON_STYLE
@@ -44,6 +46,7 @@ import app.morphe.util.indexOfFirstInstructionReversed
 import app.morphe.util.inputStreamFromBundledResource
 import com.android.tools.smali.dexlib2.Opcode
 import com.android.tools.smali.dexlib2.iface.instruction.FiveRegisterInstruction
+import com.android.tools.smali.dexlib2.iface.instruction.OneRegisterInstruction
 import com.android.tools.smali.dexlib2.iface.instruction.RegisterRangeInstruction
 import com.android.tools.smali.dexlib2.iface.instruction.TwoRegisterInstruction
 import com.android.tools.smali.dexlib2.iface.instruction.WideLiteralInstruction
@@ -646,9 +649,23 @@ private const val DRAWABLE_TYPE = "Landroid/graphics/drawable/Drawable;"
 
 /**
  * Hooks the icon of the miniplayer's play, pause and replay button.
- * The app sets it together with the content description of its state, which tells the extension what it shows.
+ * The setter receives the icon together with the content description of its state,
+ * which tells the extension what it shows. Hooking it covers every caller.
  */
 private fun BytecodePatchContext.hookMiniplayerActionIcons() {
+    val setter = runCatching { MiniplayerSetIconsFingerprint.methodOrNull }.getOrNull()
+    if (setter != null) {
+        // The icon is the first parameter and the description the second, both set before the call.
+        setter.addInstructions(
+            0,
+            "invoke-static { p1, p2 }, $EXTENSION_PLAY_PAUSE_ICONS->miniplayerIcon" +
+                    "(${DRAWABLE_TYPE}I)$DRAWABLE_TYPE\n" +
+                    "move-result-object p1"
+        )
+        return
+    }
+
+    // Targets without the setter set the icon in the method that picks the state of the button.
     val method = runCatching { MiniplayerActionButtonStateFingerprint.methodOrNull }.getOrNull()
     if (method == null) {
         printWarn(
@@ -682,26 +699,60 @@ private fun BytecodePatchContext.hookMiniplayerActionIcons() {
 }
 
 /**
+ * Finds where the close icon is in a register, the app tints it or hands it to the view right after loading it.
+ *
+ * @return Instruction index that uses the icon, and its register.
+ */
+private fun MutableMethod.closeIconLocation(): Pair<Int, Int>? {
+    for (name in listOf("setTint", "setTintMode")) {
+        val index = findInstructionIndicesReversed {
+            opcode == Opcode.INVOKE_VIRTUAL && getReference<MethodReference>()?.let { reference ->
+                reference.definingClass == DRAWABLE_TYPE && reference.name == name
+            } == true
+        }.firstOrNull()
+
+        if (index != null) {
+            return index to getInstruction<FiveRegisterInstruction>(index).registerC
+        }
+    }
+
+    // A version that hands the icon on without tinting it, such as a shadow wrapper.
+    val index = findInstructionIndicesReversed {
+        getReference<MethodReference>()?.returnType == DRAWABLE_TYPE
+    }.firstOrNull()
+    if (index != null) {
+        val result = instructions.getOrNull(index + 1)
+        if (result?.opcode == Opcode.MOVE_RESULT_OBJECT) {
+            return index + 1 to getInstruction<OneRegisterInstruction>(index + 1).registerA
+        }
+    }
+
+    return null
+}
+
+/**
  * Hooks the icon of the miniplayer's close button, which the app tints right after loading it.
  */
 private fun BytecodePatchContext.hookMiniplayerCloseIcon() {
     val method = runCatching { MiniplayerModernCloseButtonFingerprint.methodOrNull }.getOrNull()
-    val index = method?.findInstructionIndicesReversed {
-        opcode == Opcode.INVOKE_VIRTUAL && getReference<MethodReference>()?.let { reference ->
-            reference.definingClass == DRAWABLE_TYPE && reference.name == "setTint"
-        } == true
-    }?.lastOrNull()
-    if (method == null || index == null) {
+        ?: runCatching { MiniplayerCloseButtonFallbackFingerprint.methodOrNull }.getOrNull()
+    if (method == null) {
         printWarn("Player icon style: the miniplayer close button is not found, its icon keeps the default style.")
         return
     }
 
-    val icon = method.getInstruction<FiveRegisterInstruction>(index).registerC
+    val location = method.closeIconLocation()
+    if (location == null) {
+        printWarn("Player icon style: the miniplayer close icon is not found, its icon keeps the default style.")
+        return
+    }
+
+    val (index, register) = location
     method.addInstructions(
         index,
-        "invoke-static { v$icon }, $EXTENSION_PLAYER_BUTTON_ICONS->miniplayerCloseIcon" +
+        "invoke-static { v$register }, $EXTENSION_PLAYER_BUTTON_ICONS->miniplayerCloseIcon" +
                 "($DRAWABLE_TYPE)$DRAWABLE_TYPE\n" +
-                "move-result-object v$icon"
+                "move-result-object v$register"
     )
 }
 

@@ -4,6 +4,8 @@
  * https://github.com/MorpheApp/morphe-patches/pull/2928
  *
  * See the included NOTICE file for GPLv3 Section 7 terms that apply to this code.
+ *
+ * Modified by lavinhoque33, 2026-10-25
  */
 
 package app.morphe.extension.youtube.patches.player;
@@ -49,6 +51,8 @@ import app.morphe.extension.youtube.shared.PlayerType;
 import app.morphe.extension.youtube.shared.ShortsPlayerState;
 import app.morphe.extension.youtube.shared.VideoInformation;
 import app.morphe.extension.youtube.utils.ThemeUtils;
+import app.morphe.extension.youtube.videoplayer.PlayerIcons;
+import app.morphe.extension.youtube.videoplayer.PlayPauseIcons;
 import kotlin.Unit;
 
 /**
@@ -123,6 +127,11 @@ public final class MinimalMiniplayerPatch {
             getStringIdentifier("accessibility_pause");
 
     private static final long MORPH_MILLIS = 220;
+
+    /**
+     * The close icon of the player icon style, which the bar uses when the style has one.
+     */
+    private static final String CLOSE_ICON = "morphe_player_close";
 
     /**
      * Reused, because the bounds hooks run for every frame of a drag.
@@ -248,7 +257,12 @@ public final class MinimalMiniplayerPatch {
             if (close != null) {
                 close.setOnClickListener(v -> closeBar());
                 holdTouch(close);
-                setIcon(close, "yt_outline_experimental_x_vd_theme_24", "yt_outline_x_black_24");
+                setStyledIcon(
+                        close,
+                        CLOSE_ICON,
+                        "yt_outline_experimental_x_vd_theme_24",
+                        "yt_outline_x_black_24"
+                );
                 styleButton(close);
             }
 
@@ -1059,6 +1073,13 @@ public final class MinimalMiniplayerPatch {
         ImageView playPause = playPauseRef.get();
         if (playPause == null) return;
 
+        // A style icon has no morph animation, and the app one would draw its own icons instead.
+        Drawable styled = PlayerIcons.styledDrawable(playing ? PlayPauseIcons.PAUSE : PlayPauseIcons.PLAY);
+        if (styled != null) {
+            playPause.setImageDrawable(styled);
+            return;
+        }
+
         if (morph && startIconMorph(playPause)) return;
 
         if (playing) {
@@ -1150,6 +1171,20 @@ public final class MinimalMiniplayerPatch {
         if (drawable != null) {
             view.setImageDrawable(drawable);
         }
+    }
+
+    /**
+     * Uses the icon of the selected player icon style when it has one for the button,
+     * and the stock icon that matches the bar otherwise.
+     */
+    private static void setStyledIcon(ImageView view, String styleName, String boldName, String legacyName) {
+        Drawable styled = PlayerIcons.styledDrawable(styleName);
+        if (styled != null) {
+            view.setImageDrawable(styled);
+            return;
+        }
+
+        setIcon(view, boldName, legacyName);
     }
 
     /**

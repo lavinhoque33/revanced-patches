@@ -65,6 +65,7 @@ final class FeedCardSpacing {
     static final int ITEM_SHELF_ROW = 3;
     static final int ITEM_OTHER = 4;
     static final int ITEM_SPACER = 5;
+    static final int ITEM_SHELF_FOOTER = 6;
 
     /**
      * Kind of the items of the feeds, by the view of the item, which is cleared when the view is reused.
@@ -127,7 +128,9 @@ final class FeedCardSpacing {
     static void setItemOffsetsInfo(Rect outRect, View item) {
         offsetsRect = outRect;
         offsetsItemView = new WeakReference<>(item);
+        // The view is reused for another item, and the layout of the previous item does not apply.
         itemTypes.remove(item);
+        invisibleItems.remove(item);
     }
 
     /**
@@ -166,7 +169,7 @@ final class FeedCardSpacing {
             final int gap = FeedCardLayoutPatch.CARD_VERTICAL_SPACING;
             final int type = getItemType(item);
             switch (type) {
-                case ITEM_CARD, ITEM_SHELF_ROW, ITEM_UNKNOWN, ITEM_SPACER -> {
+                case ITEM_CARD, ITEM_SHELF_ROW, ITEM_UNKNOWN, ITEM_SPACER, ITEM_SHELF_FOOTER -> {
                     // The cards and the rows of the shelves space themselves, and the spacers are not visible.
                 }
                 case ITEM_SHELF_HEADER -> {
@@ -181,22 +184,24 @@ final class FeedCardSpacing {
             }
 
             View above = findItemBefore(list, position);
-            final boolean afterRow = above != null && getItemType(above) == ITEM_SHELF_ROW;
+            final int aboveType = above == null ? ITEM_UNKNOWN : getItemType(above);
             if (type == ITEM_SHELF_ROW) {
                 // The rows of a shelf keep their own gap, which is below the gap of the cards.
-                if (afterRow) {
+                if (aboveType == ITEM_SHELF_ROW) {
                     outRect.top += FeedCardLayoutPatch.SHORTS_ROW_SPACING;
                 }
-            } else if (afterRow && type != ITEM_SPACER) {
-                // The card of the shelf ends at the last Short, and the row keeps an area below it,
-                // so the item below the last row gets the rest of the gap.
+            } else if (aboveType == ITEM_SHELF_FOOTER) {
+                // The footer of a shelf is not visible, but it takes the height of its own view,
+                // so the item below it cancels that height.
+                final int footerHeight = above.getHeight() > 0
+                        ? above.getHeight()
+                        : FeedCardLayoutPatch.SHELF_FOOTER_HEIGHT;
                 final int inset = type == ITEM_CARD ? gap : 0;
-                final int trailing = FeedCardLayoutPatch.getShortsShelfTrailing();
-                outRect.top = Math.max(-4 * gap, 2 * gap - trailing - inset);
+                outRect.top = Math.max(-6 * gap, 2 * gap - footerHeight - inset);
                 if (shelfEndItems.put(above, Boolean.TRUE) == null) {
                     final int top = outRect.top;
-                    Logger.printDebug(() -> "Spacing below the shelf: " + position + ", " + trailing
-                            + " / " + top);
+                    Logger.printDebug(() -> "Spacing below the shelf footer: " + position + ", "
+                            + footerHeight + " / " + top);
                 }
             }
 
@@ -316,6 +321,7 @@ final class FeedCardSpacing {
             case ITEM_SHELF_ROW -> "shelf row";
             case ITEM_OTHER -> "other";
             case ITEM_SPACER -> "spacer";
+            case ITEM_SHELF_FOOTER -> "shelf footer";
             default -> "unknown";
         };
     }

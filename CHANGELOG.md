@@ -1,3 +1,14 @@
+## Unreleased
+
+### Bug Fixes
+
+* **YouTube - Player icon style:** The always repeat overlay button now follows `Player icon style` (Fluent, Phosphor, Phosphor Light, Phosphor Fill, Phosphor Duotone, Ionicons, Sharp and Custom). The selected state keeps its highlight color. Automatic, Thin and Bold keep the original icon.
+* **YouTube - Player icon style:** The `Minimal bar` and `Minimal bar 2` miniplayer types now use the chosen style for the play, pause and close buttons, and the miniplayer play, pause, replay and close icons are replaced wherever the app sets them, not only in one place.
+* **YouTube - Player icon style:** The Picture-in-picture button now has its own Ionicons icon instead of the default bold one.
+* **YouTube - Player icon style:** Custom icon packs made for Morphe now work for the Reload video, video scale (fit, stretch, zoom), speed, mute, and download buttons: their Morphe file names (for example `morphe_reload_video_button`) are accepted. A file with the fork's own name wins when both are in the pack.
+* **YouTube - Visual preferences icons:** `Notification media controls`, `Download options` and both Voice over translation provider screens now have an icon.
+* **YouTube - Feed flyout:** The `Add to RVX queue`, Picture-in-picture and similar flyout rows added by RVX use the bold icon of the app's own flyout rows on YouTube 21.12 and later, so they match the other icons even when `Disable bold icons` is on.
+
 ## [1.18.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.17.0...v1.18.0) (2026-10-25)
 
 ### Features

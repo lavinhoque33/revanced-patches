@@ -460,6 +460,11 @@ public class FeedCardLayoutPatch {
      */
     private static final Map<byte[], Boolean> shelfCardElements = Collections.synchronizedMap(new WeakHashMap<>());
     /**
+     * Whether the elements are video cards of the feed, by the bytes of the element.
+     * The arrays are compared by identity.
+     */
+    private static final Map<byte[], Boolean> videoCardElements = Collections.synchronizedMap(new WeakHashMap<>());
+    /**
      * Backgrounds of the items of the feed that were not mounted yet when their color was looked up.
      */
     private static final Map<Drawable, Boolean> unmountedItemBackgrounds = new WeakHashMap<>();
@@ -637,7 +642,7 @@ public class FeedCardLayoutPatch {
                         template.fromElement = true;
                     }
                 }
-                return bytes;
+                return enableColorSampledBackground(bytes);
             }
 
             Element element = Element.parseFrom(bytes);
@@ -1225,7 +1230,8 @@ public class FeedCardLayoutPatch {
         try {
             if (CARD_LAYOUT && Color.alpha(color) == 255) {
                 boolean inCard = false;
-                View view = getDrawableView(drawable);
+                final View drawableView = getDrawableView(drawable);
+                View view = drawableView;
                 while (view != null) {
                     // The card can be drawn before it's added to the list.
                     CardOutlineProvider outline = getCardOutline(view.getContentDescription());
@@ -1250,6 +1256,14 @@ public class FeedCardLayoutPatch {
                 }
 
                 if (inCard) {
+                    // The background of a card is tinted with the color sampled from its thumbnail.
+                    // The tint is not one of the colors of the theme, so the theme patch keeps it.
+                    Integer tint = FeedCardColorSampler.getCardColor(
+                            findFeedItem(drawableView), drawableView, drawable);
+                    if (tint != null) {
+                        return tint;
+                    }
+
                     // The theme patch changes only some exact colors, such as the background of the cards.
                     // The lowest bit of blue is not visible.
                     return color ^ 1;
@@ -1354,6 +1368,10 @@ public class FeedCardLayoutPatch {
                 return;
             }
 
+            // The cards are tinted with the color of their thumbnail, and a recycled view must not keep
+            // the tint of the card it showed.
+            FeedCardColorSampler.setCardItem(view, isVideoCardElement(bytes));
+
             Boolean shelf = shelfCardElements.get(bytes);
             if (shelf == null) {
                 shelf = false;
@@ -1439,6 +1457,37 @@ public class FeedCardLayoutPatch {
         return CARD_LAYOUT;
     }
 
+    /**
+     * @return Whether the element of a list item is a video card of the feed, such as a card
+     *         that YouTube sends or a video that the patch converted to a card.
+     */
+    private static boolean isVideoCardElement(byte[] bytes) {
+        Boolean videoCard = videoCardElements.get(bytes);
+        if (videoCard != null) {
+            return videoCard;
+        }
+
+        videoCard = false;
+        if (CARD.search.matches(bytes)) {
+            try {
+                ElementModel model = Element.parseFrom(bytes).getType().getComponentType().getModel();
+                if (model.hasLockupModel()) {
+                    LockupViewModel lockup =
+                            model.getLockupModel().getViewModel().getLockupViewModel();
+                    final int contentType = lockup.getContentType();
+                    videoCard = lockup.getContentImage().hasThumbnailViewModel()
+                            && (contentType == LOCKUP_CONTENT_TYPE_VIDEO
+                            || contentType == LOCKUP_CONTENT_TYPE_PLAYLIST);
+                }
+            } catch (Exception ex) {
+                Logger.printException(() -> "isVideoCardElement failure", ex);
+            }
+        }
+
+        videoCardElements.put(bytes, videoCard);
+        return videoCard;
+    }
+
     @Nullable
     private static View getDrawableView(Drawable drawable) {
         Drawable.Callback callback = drawable.getCallback();
@@ -1446,6 +1495,22 @@ public class FeedCardLayoutPatch {
             callback = parent.getCallback();
         }
         return callback instanceof View view ? view : null;
+    }
+
+    /**
+     * @return The item of the feed that contains the view, or null if the view is not in the feed.
+     */
+    @Nullable
+    private static View findFeedItem(@Nullable View view) {
+        while (view != null) {
+            ViewParent parent = view.getParent();
+            if (parent instanceof RecyclerView recyclerView) {
+                // The items of a shelf are the items of a list inside the list of the feed, not cards.
+                return FeedCardColorSampler.isNestedList(recyclerView) ? null : view;
+            }
+            view = parent instanceof View parentView ? parentView : null;
+        }
+        return null;
     }
 
     private static void updateCardOutline(View child) {
@@ -1647,6 +1712,10 @@ public class FeedCardLayoutPatch {
                             }
 
                             final boolean feed = current.getId() == getFeedId();
+
+                            // The cards are tinted with the colors sampled from their thumbnails.
+                            FeedCardColorSampler.updateCardTints(current);
+
                             if (feed) {
                                 // The autoplay of a Short shows the player in a container above the Short, outside
                                 // the list, which clips the player with its own rounded background. It has the clip
@@ -2420,6 +2489,59 @@ public class FeedCardLayoutPatch {
                         .setCardLayoutExperiments(experiments.getCardLayoutExperiments().toBuilder()
                                 .setEnableColorSampledBackground(enabled)
                                 .setEnableMetadataBackground(enabled)))
+                .build();
+    }
+
+    /**
+     * The cards that YouTube sends keep their layout, but the server can send the colors sampled from
+     * their thumbnails, which are shown by the experiment of the background of the cards.
+     *
+     * @return The element with the experiment enabled, or the same bytes if the element is not a card.
+     */
+    private static byte[] enableColorSampledBackground(byte[] bytes) {
+        if (!Settings.FEED_CARD_LAYOUT_DYNAMIC_COLORS.get() || !CARD.search.matches(bytes)) {
+            return bytes;
+        }
+
+        try {
+            Element element = Element.parseFrom(bytes);
+            ComponentType componentType = element.getType().getComponentType();
+            String uri = componentType.getTemplateConfig().getUriTemplateConfig().getUri();
+            ElementModel model = componentType.getModel();
+            if (!isTemplate(uri, CARD_TEMPLATE) || !model.hasLockupModel()) {
+                return bytes;
+            }
+
+            LockupModel card = model.getLockupModel();
+            ElementContext context = card.getContext();
+            if (context.getElementsExperiments().getCardLayoutExperiments()
+                    .getEnableColorSampledBackground()) {
+                return bytes;
+            }
+
+            Logger.printDebug(() -> "Card color: enabling the sampled background of a card");
+            return element.toBuilder()
+                    .setType(element.getType().toBuilder().setComponentType(componentType.toBuilder()
+                            .setModel(ElementModel.newBuilder().setLockupModel(card.toBuilder()
+                                    .setContext(setColorSampledBackground(context, true))))))
+                    .build()
+                    .toByteArray();
+        } catch (Exception ex) {
+            Logger.printException(() -> "enableColorSampledBackground failure", ex);
+            return bytes;
+        }
+    }
+
+    /**
+     * Enables only the background sampled from the thumbnail, which every supported app version reads.
+     * The background of the metadata of newer app versions needs data that the server does not send.
+     */
+    private static ElementContext setColorSampledBackground(ElementContext context, boolean enabled) {
+        ElementsExperiments experiments = context.getElementsExperiments();
+        return context.toBuilder()
+                .setElementsExperiments(experiments.toBuilder()
+                        .setCardLayoutExperiments(experiments.getCardLayoutExperiments().toBuilder()
+                                .setEnableColorSampledBackground(enabled)))
                 .build();
     }
 

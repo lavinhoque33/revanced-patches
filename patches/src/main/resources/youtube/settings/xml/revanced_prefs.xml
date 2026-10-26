@@ -463,7 +463,8 @@
 
         <!-- SETTINGS: FEED_CARD_LAYOUT
         <app.morphe.extension.shared.settings.preference.CustomDialogListPreference android:title="@string/morphe_feed_card_layout_title" android:key="morphe_feed_card_layout" android:entries="@array/morphe_feed_card_layout_entries" android:entryValues="@array/morphe_feed_card_layout_entry_values" />
-        <app.morphe.extension.shared.settings.preference.SliderPreference android:title="@string/morphe_feed_card_layout_corner_radius_title" android:key="morphe_feed_card_layout_corner_radius" android:summary="@string/morphe_feed_card_layout_corner_radius_summary" android:inputType="number" />SETTINGS: FEED_CARD_LAYOUT -->
+        <app.morphe.extension.shared.settings.preference.SliderPreference android:title="@string/morphe_feed_card_layout_corner_radius_title" android:key="morphe_feed_card_layout_corner_radius" android:summary="@string/morphe_feed_card_layout_corner_radius_summary" android:inputType="number" />
+        <SwitchPreference android:title="@string/revanced_feed_card_layout_dynamic_colors_title" android:key="revanced_feed_card_layout_dynamic_colors" android:summary="@string/revanced_feed_card_layout_dynamic_colors_summary" />SETTINGS: FEED_CARD_LAYOUT -->
 
         <!-- SETTINGS: FEED_VIEW_COUNT
         <SwitchPreference android:title="@string/morphe_feed_view_count_title" android:key="morphe_feed_view_count" android:summary="@string/morphe_feed_view_count_summary" />SETTINGS: FEED_VIEW_COUNT -->

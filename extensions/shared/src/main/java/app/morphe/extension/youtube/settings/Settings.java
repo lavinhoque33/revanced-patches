@@ -289,6 +289,8 @@ public class Settings extends SharedYouTubeSettings {
     public static final EnumSetting<FeedCardLayout> FEED_CARD_LAYOUT = new EnumSetting<>("morphe_feed_card_layout", FeedCardLayout.DEFAULT, true);
     public static final IntegerSetting FEED_CARD_LAYOUT_CORNER_RADIUS = new IntegerSetting(
             "morphe_feed_card_layout_corner_radius", 12, true, new SliderConfig(0, 28, 1, "dp"));
+    public static final BooleanSetting FEED_CARD_LAYOUT_DYNAMIC_COLORS =
+            new BooleanSetting("revanced_feed_card_layout_dynamic_colors", TRUE);
     public static final BooleanSetting FEED_VIEW_COUNT = new BooleanSetting("morphe_feed_view_count", FALSE, true);
     public static final StringSetting FEED_VIEW_COUNT_PATHS = new StringSetting("morphe_feed_view_count_paths", "", false, false);
     public static final IntegerSetting CUSTOM_DPI = new IntegerSetting("morphe_custom_dpi", 0,

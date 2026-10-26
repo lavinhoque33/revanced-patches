@@ -1,3 +1,15 @@
+## Unreleased
+
+### Features
+
+* **YouTube - Feed card layout:** Added `Dynamic card colors` (Feed, on by default). Each video card gets a background tinted with a color taken from its thumbnail, like the stock app, in light and dark themes. Turn it off to keep the plain card color.
+* **YouTube - Feed card layout:** Added `Card corner radius` (Feed, 0 to 28 dp, default 12). It sets the corners of the cards, the Shorts and the video that plays inside a card. A restart applies it.
+
+### Bug Fixes
+
+* **YouTube - Feed card layout:** The Shorts in the feed are rounded and clipped cleanly in the card, without dark wedges at the corners or between the rows.
+* **YouTube - Feed card layout:** The gaps between the items of the feed are the same everywhere: between video cards, Shorts shelves and their rows, and other items. Not applied on YouTube 20.05.46, which keeps its own spacing.
+
 ## [1.18.1](https://github.com/lavinhoque33/revanced-patches/compare/v1.18.0...v1.18.1) (2026-10-26)
 
 ### Bug Fixes

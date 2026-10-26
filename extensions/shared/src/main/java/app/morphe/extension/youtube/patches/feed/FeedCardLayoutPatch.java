@@ -228,6 +228,11 @@ public class FeedCardLayoutPatch {
      */
     static final int CARD_VERTICAL_SPACING = Dim.dp(CARD_VERTICAL_PADDING_DP);
     /**
+     * Spacing between the rows of a Shorts shelf, in addition to the spacing of the Shorts themselves,
+     * which makes the gap between the rows the same as the gap between the cards.
+     */
+    static final int SHORTS_ROW_SPACING = Dim.dp(5);
+    /**
      * The padding of the outline of a card is laid out from dp with rounding, and the inline player
      * can be a pixel or two larger than the thumbnail of the card.
      */
@@ -400,6 +405,10 @@ public class FeedCardLayoutPatch {
      * Clips of the Shorts of the Shorts shelves, by the screen bounds of the Shorts and of their thumbnails.
      */
     private static final Map<String, ViewOutlineProvider> shortsCellOutlines = new HashMap<>();
+    /**
+     * Height of the area below the last Short of the last row of a Shorts shelf, which is not part of the card.
+     */
+    private static volatile int shortsShelfTrailing;
     /**
      * View that clips the thumbnail of the Shorts of the shelf, to log the hierarchy only when it changes.
      */
@@ -1634,6 +1643,9 @@ public class FeedCardLayoutPatch {
                                         shelfList.getPaddingBottom());
                             }
 
+                            // The list inserts items without a height between some items, which are not visible.
+                            FeedCardSpacing.updateInvisibleItems(current);
+
                             // Updates the clips of the Shorts of the Shorts shelves, without drawing the shelves.
                             shortsCellOutlines.clear();
                             for (int i = 0, count = current.getChildCount(); i < count; i++) {
@@ -1888,6 +1900,11 @@ public class FeedCardLayoutPatch {
                 setShortsCellOutline(cell, SHORTS_CELL_OUTLINE);
             }
         }
+
+        // The rows above the last row are not in the list while only the last row is, so its height
+        // is needed with the item of the last row.
+        updateShortsShelfTrailing((int) (rows.get(rows.size() - 1).getY()
+                + rows.get(rows.size() - 1).getHeight() - bottom));
 
         if (canvas == null) {
             return;
@@ -2154,6 +2171,21 @@ public class FeedCardLayoutPatch {
         }
         bounds[0] = Math.min(bounds[0], left);
         bounds[1] = Math.max(bounds[1], left + view.getWidth());
+    }
+
+    /**
+     * @return The height of the area below the last Short of the last row of a Shorts shelf.
+     */
+    static int getShortsShelfTrailing() {
+        return shortsShelfTrailing;
+    }
+
+    private static void updateShortsShelfTrailing(int trailing) {
+        final int value = Math.max(0, trailing);
+        if (value != shortsShelfTrailing) {
+            shortsShelfTrailing = value;
+            Logger.printDebug(() -> "Area below the last Short of the shelf: " + value);
+        }
     }
 
     @Nullable

@@ -8,7 +8,7 @@
 ### Bug Fixes
 
 * **YouTube - Feed card layout:** The Shorts in the feed are rounded and clipped cleanly in the card, without dark wedges at the corners or between the rows.
-* **YouTube - Feed card layout:** The gaps between the items of the feed are 12 dp everywhere: between video cards, before a Shorts shelf and after it, and across hidden items such as banners and the chips shelf. The space inside a Shorts shelf between its rows is unchanged. Not applied on YouTube 20.05.46, which keeps its own spacing.
+* **YouTube - Feed card layout:** The gaps between the items of the feed are 12 dp everywhere: between video cards, before a Shorts shelf and after it, and across hidden items such as banners and the chips shelf. The space between the rows inside a Shorts shelf is unchanged, and a few hidden items that the patch does not know can still add extra space. Not applied on YouTube 20.05.46, which keeps its own spacing.
 
 ## [1.18.1](https://github.com/lavinhoque33/revanced-patches/compare/v1.18.0...v1.18.1) (2026-10-26)
 

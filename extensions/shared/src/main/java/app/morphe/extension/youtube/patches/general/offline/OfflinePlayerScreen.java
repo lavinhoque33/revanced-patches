@@ -6,7 +6,7 @@
  *
  * Licensed under the GNU General Public License v3.0.
  * Written by lavinhoque33, 2026-10-10.
- * Modified by lavinhoque33, 2026-10-24.
+ * Modified by lavinhoque33, 2026-10-25.
  */
 
 package app.morphe.extension.youtube.patches.general.offline;
@@ -49,6 +49,7 @@ import java.util.Locale;
 import app.morphe.extension.shared.utils.Logger;
 import app.morphe.extension.shared.utils.Utils;
 import app.morphe.extension.youtube.patches.player.SeekbarColorPatch;
+import app.morphe.extension.youtube.settings.Settings;
 
 /**
  * Video screen of the offline player. The player itself is {@link OfflinePlayer}; this screen
@@ -72,6 +73,7 @@ final class OfflinePlayerScreen implements OfflineScreens.Screen, OfflinePlayer.
     private final ImageButton previous;
     private final ImageButton next;
     private final ImageButton speedButton;
+    private final ImageButton aspectButton;
     private final ImageButton fullscreenButton;
     private final SeekBar seekBar;
     private final TextView position;
@@ -150,6 +152,8 @@ final class OfflinePlayerScreen implements OfflineScreens.Screen, OfflinePlayer.
         LinearLayout top = new LinearLayout(activity);
         top.setOrientation(LinearLayout.HORIZONTAL);
         top.setGravity(Gravity.CENTER_VERTICAL);
+        // Taps on the very top edge are taken by the system (swipe to show the hidden bars).
+        top.setPadding(0, Utils.dipToPixels(16), 0, 0);
         ImageButton back = button("back", str("revanced_settings_navigate_up"));
         back.setOnClickListener(v -> activity.finish());
         top.addView(back);
@@ -160,6 +164,9 @@ final class OfflinePlayerScreen implements OfflineScreens.Screen, OfflinePlayer.
         speedButton = button("speed", str("revanced_offline_player_speed"));
         speedButton.setOnClickListener(this::showSpeedMenu);
         top.addView(speedButton);
+        aspectButton = button("aspect", str("revanced_offline_player_aspect"));
+        aspectButton.setOnClickListener(v -> cycleAspectMode());
+        top.addView(aspectButton);
         overlay.addView(top, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.TOP));
 
@@ -402,15 +409,74 @@ final class OfflinePlayerScreen implements OfflineScreens.Screen, OfflinePlayer.
         final int width = root.getWidth();
         final int height = root.getHeight();
         if (videoWidth <= 0 || videoHeight <= 0 || width <= 0 || height <= 0) return;
-        float scale = Math.min((float) width / videoWidth, (float) height / videoHeight);
+
+        int[] size = surfaceSize(currentAspectMode(), videoWidth, videoHeight, width, height);
         FrameLayout.LayoutParams params = (FrameLayout.LayoutParams) surfaceView.getLayoutParams();
-        int newWidth = Math.round(videoWidth * scale);
-        int newHeight = Math.round(videoHeight * scale);
-        if (params.width != newWidth || params.height != newHeight) {
-            params.width = newWidth;
-            params.height = newHeight;
-            params.gravity = Gravity.CENTER;
-            surfaceView.setLayoutParams(params);
+        if (params.width == size[0] && params.height == size[1]) return;
+
+        params.width = size[0];
+        params.height = size[1];
+        params.gravity = Gravity.CENTER;
+        surfaceView.setLayoutParams(params);
+    }
+
+    /**
+     * The surface size of a mode. The surface is centered in the root, which clips a surface that
+     * is larger than itself, so Zoom crops the picture and Original shows the native pixels.
+     */
+    private static int[] surfaceSize(AspectMode mode, int videoWidth, int videoHeight, int width, int height) {
+        if (mode == AspectMode.STRETCH) return new int[]{width, height};
+        if (mode == AspectMode.ORIGINAL) return new int[]{videoWidth, videoHeight};
+
+        final float scale = mode == AspectMode.ZOOM
+                ? Math.max((float) width / videoWidth, (float) height / videoHeight)
+                : Math.min((float) width / videoWidth, (float) height / videoHeight);
+        return new int[]{Math.round(videoWidth * scale), Math.round(videoHeight * scale)};
+    }
+
+    /** The next mode of the cycle, saved so the next video and the next start use it too. */
+    private void cycleAspectMode() {
+        final AspectMode mode = currentAspectMode().next();
+        Settings.OFFLINE_ASPECT_MODE.save(mode.name());
+        fitVideo();
+        Utils.showToastShort(str(mode.labelKey()));
+        scheduleHide();
+    }
+
+    private static AspectMode currentAspectMode() {
+        return AspectMode.fromSetting(Settings.OFFLINE_ASPECT_MODE.get());
+    }
+
+    /** How the picture fills the screen, cycled by the aspect ratio button. */
+    private enum AspectMode {
+        /** Letterboxed, the whole picture is visible. */
+        FIT,
+        /** Fills the screen, the picture is distorted. */
+        STRETCH,
+        /** Fills the screen, the edges of the picture are cropped. */
+        ZOOM,
+        /** Native pixel size, centered. */
+        ORIGINAL;
+
+        AspectMode next() {
+            final AspectMode[] modes = values();
+            return modes[(ordinal() + 1) % modes.length];
+        }
+
+        static AspectMode fromSetting(String value) {
+            for (AspectMode mode : values()) {
+                if (mode.name().equals(value)) return mode;
+            }
+            return FIT;
+        }
+
+        String labelKey() {
+            return switch (this) {
+                case STRETCH -> "revanced_offline_aspect_stretch";
+                case ZOOM -> "revanced_offline_aspect_zoom";
+                case ORIGINAL -> "revanced_offline_aspect_original";
+                default -> "revanced_offline_aspect_fit";
+            };
         }
     }
 
@@ -480,6 +546,7 @@ final class OfflinePlayerScreen implements OfflineScreens.Screen, OfflinePlayer.
         }
         title.setText(video.title);
         showArtwork(video);
+        aspectButton.setVisibility(video.audioOnly ? View.GONE : View.VISIBLE);
         final boolean playing = OfflinePlayer.isPlaying();
         setIcon(playPause, playing ? "pause" : "play");
         playPause.setContentDescription(playing ? str("revanced_offline_pause") : str("revanced_offline_play"));

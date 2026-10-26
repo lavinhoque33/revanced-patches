@@ -1,3 +1,15 @@
+## Unreleased
+
+### Features
+
+* **YouTube - Built-in downloader:** The offline player has an aspect ratio button that cycles through Fit (letterboxed, the default), Stretch, Zoom (cropped) and Original (100%, the native pixel size). The chosen mode is shown in a toast, applies again after turning the device and to the next video, and is remembered across app restarts. The button is hidden for audio-only downloads.
+* **YouTube - Built-in downloader:** The download cards in the offline library show the technical details of the file in the accent color: the codec and the format ID of a video (`1080p60 · 74 MB · VP9 · id: 303`) and the bitrate and the format ID of an audio download (`Opus · 5,8 MB · 132kbps · id: 251`). Audio downloads are named `Opus` or `M4A`, and the resume position moves to a line of its own. Downloads from before this version keep their old text.
+
+### Bug Fixes
+
+* **YouTube - Built-in downloader:** The offline player and YouTube no longer play over each other. Starting a video pauses the offline player, and starting an offline track pauses the video; silent feed previews leave the offline track alone, while Shorts pause it like any other video. The offline player also gives up the audio focus when it is paused, so other apps can play, and a pause during a short focus loss (such as a call) no longer resumes it later.
+* **YouTube - Built-in downloader:** The back, speed and aspect buttons of the offline player can be tapped in landscape again; they sat on the screen edge where the system swallowed the taps.
+
 ## [1.17.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.16.1...v1.17.0) (2026-10-25)
 
 ### Features

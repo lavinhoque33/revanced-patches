@@ -82,6 +82,8 @@ import app.morphe.patches.youtube.utils.settings.ResourceUtils.addPreference
 import app.morphe.patches.youtube.utils.toolBarButtonFingerprint
 import app.morphe.patches.youtube.utils.toolbar.hookToolBar
 import app.morphe.patches.youtube.utils.toolbar.toolBarHookPatch
+import app.morphe.patches.youtube.video.information.hookPlayWhenReady
+import app.morphe.patches.youtube.video.information.videoInformationPatch
 import app.morphe.util.Utils.printWarn
 import app.morphe.util.findFreeRegister
 import app.morphe.util.findInstructionIndicesReversedOrThrow
@@ -114,12 +116,14 @@ private const val EXTENSION_PROTOCOL_BUFFER_INTERFACE =
 
 private const val EXTENSION_FLYOUT_UTILS_CLASS_DESCRIPTOR = "Lapp/morphe/extension/youtube/patches/utils/FlyoutUtils;"
 
-// modified by lavinhoque33, 2026-10-10: Built-in downloader and offline player.
 private const val EXTENSION_OFFLINE_SERVICE_HOOKS =
     "$GENERAL_PATH/offline/OfflineServiceHooks;"
 
 private const val EXTENSION_OFFLINE_SCREENS =
     "$GENERAL_PATH/offline/OfflineScreens;"
+
+private const val EXTENSION_OFFLINE_PLAYER =
+    "$GENERAL_PATH/offline/OfflinePlayer;"
 
 private const val EXTENSION_NAVIGATION_BUTTONS =
     "$GENERAL_PATH/NavigationButtonsPatch;"
@@ -156,6 +160,9 @@ val downloadActionsPatch = bytecodePatch(
         // Keep the bottom sheet 3-dots menu that the custom flyout items
         // (Save to Watch later, download) are added to.
         bottomSheetFlyoutMenuPatch,
+        // The offline player and the main player pause each other through the shared player
+        // state; this also brings the PlayerType and VideoState hooks.
+        videoInformationPatch,
     )
 
     execute {
@@ -728,6 +735,15 @@ val downloadActionsPatch = bytecodePatch(
                     "return-void",
                 )
             }
+        }
+
+        // YouTube's player is built without audio focus handling, so starting a video never sends
+        // a focus loss that could pause the offline player. The hook pauses it explicitly, and
+        // OfflinePlayer.resume() pauses the main player before it plays in return.
+        hookOptional("Main player playback") {
+            hookPlayWhenReady(
+                "$EXTENSION_OFFLINE_PLAYER->onMainPlayerPlayWhenReady(Ljava/lang/Object;Z)Z",
+            )
         }
 
         // Replace the Downloads page: cancel the navigation to "FEdownloads" in the browse

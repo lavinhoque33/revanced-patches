@@ -6,7 +6,7 @@
  *
  * Licensed under the GNU General Public License v3.0.
  * Written by lavinhoque33, 2026-10-10.
- * Modified by lavinhoque33, 2026-10-24.
+ * Modified by lavinhoque33, 2026-10-25.
  */
 
 package app.morphe.extension.youtube.patches.general.offline;
@@ -37,6 +37,13 @@ public final class OfflineVideo {
     public final long sizeBytes;
     public final String qualityLabel;
     public final String codec;
+    /**
+     * Format id of the downloaded stream, 0 for entries made before it was stored.
+     * The library shows it next to the codec.
+     */
+    public final int itag;
+    /** Bitrate of the downloaded audio in kbps, 0 for entries that do not store it. */
+    public final int bitrateKbps;
     public final long downloadedAt;
     public final String thumbnailPath;
     public final boolean audioOnly;
@@ -45,8 +52,8 @@ public final class OfflineVideo {
     public OfflineVideo(@NonNull String videoId, @NonNull String title, @NonNull String author,
                         @NonNull String channelId, long lengthMs, @NonNull String contentUri,
                         @NonNull String displayName, long sizeBytes, @NonNull String qualityLabel,
-                        @NonNull String codec, long downloadedAt, @NonNull String thumbnailPath,
-                        boolean audioOnly, long lastPositionMs) {
+                        @NonNull String codec, int itag, int bitrateKbps, long downloadedAt,
+                        @NonNull String thumbnailPath, boolean audioOnly, long lastPositionMs) {
         this.videoId = videoId;
         this.title = title;
         this.author = author;
@@ -57,6 +64,8 @@ public final class OfflineVideo {
         this.sizeBytes = sizeBytes;
         this.qualityLabel = qualityLabel;
         this.codec = codec;
+        this.itag = itag;
+        this.bitrateKbps = bitrateKbps;
         this.downloadedAt = downloadedAt;
         this.thumbnailPath = thumbnailPath;
         this.audioOnly = audioOnly;
@@ -84,6 +93,8 @@ public final class OfflineVideo {
         json.put("sizeBytes", sizeBytes);
         json.put("qualityLabel", qualityLabel);
         json.put("codec", codec);
+        json.put("itag", itag);
+        json.put("bitrateKbps", bitrateKbps);
         json.put("downloadedAt", downloadedAt);
         json.put("thumbnailPath", thumbnailPath);
         json.put("audioOnly", audioOnly);
@@ -107,6 +118,8 @@ public final class OfflineVideo {
                 json.optLong("sizeBytes", 0),
                 json.optString("qualityLabel", ""),
                 json.optString("codec", ""),
+                json.optInt("itag", 0),
+                json.optInt("bitrateKbps", 0),
                 json.optLong("downloadedAt", 0),
                 json.optString("thumbnailPath", ""),
                 json.optBoolean("audioOnly", false),

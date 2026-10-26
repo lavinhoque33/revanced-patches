@@ -2280,6 +2280,7 @@ Audio is saved to %2$s"</string>
     <string name="revanced_offline_library_empty">No downloaded videos yet</string>
     <string name="revanced_offline_library_no_results">No downloads match your search</string>
     <string name="revanced_offline_library_resume">Resume at %s</string>
+    <string name="revanced_offline_library_bitrate">%dkbps</string>
     <string name="revanced_offline_action_play_background">Play in background</string>
     <string name="revanced_offline_action_share">Share</string>
     <string name="revanced_offline_action_play_builtin">Play in built-in player</string>
@@ -2295,6 +2296,12 @@ Audio is saved to %2$s"</string>
     <string name="revanced_offline_player_speed">Playback speed</string>
     <string name="revanced_offline_player_speed_normal">Normal</string>
     <string name="revanced_offline_player_fullscreen">Fullscreen</string>
+    <!-- Aspect ratio button of the built-in offline player. -->
+    <string name="revanced_offline_player_aspect">Aspect ratio</string>
+    <string name="revanced_offline_aspect_fit">Fit</string>
+    <string name="revanced_offline_aspect_stretch">Stretch</string>
+    <string name="revanced_offline_aspect_zoom">Zoom</string>
+    <string name="revanced_offline_aspect_original">Original (100%)</string>
     <string name="revanced_patched_date_title">Patched date</string>
     <string name="revanced_patches_excluded"><font color="#EA4335">Excluded</font></string>
     <string name="revanced_patches_included"><font color="#4CAF50">Included</font></string>

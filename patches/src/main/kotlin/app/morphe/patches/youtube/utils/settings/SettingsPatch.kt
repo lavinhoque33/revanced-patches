@@ -482,6 +482,7 @@ val settingsPatch = resourcePatch(
                 "revanced_settings_cursor.xml",
                 "revanced_settings_custom_checkmark.xml",
                 // modified by lavinhoque33, 2026-10-20: icons of the built-in offline library and player.
+                "revanced_offline_aspect.xml",
                 "revanced_offline_back.xml",
                 "revanced_offline_check.xml",
                 "revanced_offline_close.xml",

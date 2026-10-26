@@ -6,7 +6,7 @@
  *
  * Licensed under the GNU General Public License v3.0.
  * Written by lavinhoque33, 2026-10-10.
- * Modified by lavinhoque33, 2026-10-24.
+ * Modified by lavinhoque33, 2026-10-25.
  */
 
 package app.morphe.extension.youtube.patches.general.offline;
@@ -25,9 +25,12 @@ import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
+import android.text.SpannableStringBuilder;
+import android.text.Spanned;
 import android.text.TextUtils;
 import android.text.format.Formatter;
 import android.text.InputType;
+import android.text.style.ForegroundColorSpan;
 import android.util.LruCache;
 import android.util.TypedValue;
 import android.view.Gravity;
@@ -595,7 +598,7 @@ final class OfflineLibraryScreen implements OfflineScreens.Screen {
         private final TextView duration = text(12, Color.WHITE, 1);
         private final TextView title = text(15, foreground, 2);
         private final TextView channel = text(13, secondary, 1);
-        private final TextView details = text(13, secondary, 1);
+        private final TextView details = text(13, secondary, 2);
         private String videoKey;
 
         VideoRow() {
@@ -640,16 +643,77 @@ final class OfflineLibraryScreen implements OfflineScreens.Screen {
             title.setText(video.title);
             channel.setText(video.author);
             channel.setVisibility(video.author.isEmpty() ? GONE : VISIBLE);
-            List<String> parts = new ArrayList<>();
-            if (!video.qualityLabel.isEmpty()) parts.add(video.qualityLabel);
-            if (video.sizeBytes > 0) parts.add(Formatter.formatShortFileSize(activity, video.sizeBytes));
-            if (video.lastPositionMs > 0 && video.lengthMs > 0) {
-                parts.add(str("revanced_offline_library_resume", formatDuration(video.lastPositionMs)));
-            }
-            details.setText(TextUtils.join(" · ", parts));
+            details.setText(describe(video));
             duration.setText(formatDuration(video.lengthMs));
             duration.setVisibility(video.lengthMs > 0 ? VISIBLE : GONE);
             loadThumbnail(video);
+        }
+
+        /**
+         * The meta line of the card: the quality and the size, then the technical details in the
+         * accent color. The resume position gets a line of its own.
+         */
+        private CharSequence describe(OfflineVideo video) {
+            StringBuilder head = new StringBuilder();
+            appendPart(head, video.audioOnly ? audioCodecName(video) : video.qualityLabel);
+            if (video.sizeBytes > 0) {
+                appendPart(head, Formatter.formatShortFileSize(activity, video.sizeBytes));
+            }
+
+            SpannableStringBuilder text = new SpannableStringBuilder(head);
+            String technical = technicalDetails(video);
+            if (!technical.isEmpty()) {
+                final int start = text.length();
+                if (start > 0) text.append(" · ");
+                text.append(technical);
+                text.setSpan(new ForegroundColorSpan(technicalColor()), start, text.length(),
+                        Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            }
+
+            if (video.lastPositionMs > 0 && video.lengthMs > 0) {
+                if (text.length() > 0) text.append('\n');
+                text.append(str("revanced_offline_library_resume", formatDuration(video.lastPositionMs)));
+            }
+            return text;
+        }
+
+        /**
+         * The codec and the format id of a video, or the bitrate and the format id of an audio
+         * download. Entries made before these were stored show nothing here.
+         */
+        private String technicalDetails(OfflineVideo video) {
+            if (video.codec.isEmpty()) return "";
+
+            List<String> parts = new ArrayList<>(2);
+            if (video.audioOnly) {
+                if (video.bitrateKbps > 0) parts.add(str("revanced_offline_library_bitrate", video.bitrateKbps));
+            } else {
+                parts.add(video.codec);
+            }
+            if (video.itag > 0) parts.add(str("revanced_offline_picker_format_id", video.itag));
+            return TextUtils.join(" · ", parts);
+        }
+
+        /** {@code Opus} and {@code M4A} instead of the {@code Opus audio} label of the picker. */
+        private String audioCodecName(OfflineVideo video) {
+            if (OfflineFormats.CODEC_OPUS.equals(video.codec)) {
+                return str("revanced_offline_picker_audio_opus");
+            }
+            if (OfflineFormats.CODEC_AAC.equals(video.codec)) {
+                return str("revanced_offline_picker_audio_m4a");
+            }
+            return video.qualityLabel;
+        }
+
+        private void appendPart(StringBuilder text, String part) {
+            if (part.isEmpty()) return;
+            if (text.length() > 0) text.append(" · ");
+            text.append(part);
+        }
+
+        /** Readable on both the dark and the light settings theme. */
+        private int technicalColor() {
+            return BaseThemeUtils.isDarkModeEnabled() ? 0xFF81C784 : 0xFF2E7D32;
         }
 
         private void loadThumbnail(OfflineVideo video) {

@@ -6,7 +6,7 @@
  *
  * Licensed under the GNU General Public License v3.0.
  * Written by lavinhoque33, 2026-10-10.
- * Modified by lavinhoque33, 2026-10-24.
+ * Modified by lavinhoque33, 2026-10-25.
  */
 
 package app.morphe.extension.youtube.patches.general.offline;
@@ -298,6 +298,11 @@ public final class OfflineDownloader {
         if (stream.isAudioOnly()) return str("revanced_offline_audio_label", stream.codec());
         String label = stream.height() + "p" + (stream.fps() > 30 ? String.valueOf(stream.fps()) : "");
         return stream.premium() ? label + " " + str("revanced_offline_premium") : label;
+    }
+
+    /** The bitrate the library shows on the download cards. */
+    private static int bitrateKbps(OfflineFormats.Stream stream) {
+        return Math.round(stream.bitrate() / 1000f);
     }
 
     /** Saves only the thumbnail of a video. It is not a library entry, so it does not go through the queue. */
@@ -1199,7 +1204,7 @@ public final class OfflineDownloader {
         String thumbnail = saveLibraryThumbnail(context, task.key, task.videoId, resolved.thumbnailUrl());
         return new OfflineVideo(task.videoId, resolved.title(), resolved.author(), resolved.channelId(),
                 resolved.lengthMs(), published.uri().toString(), displayName, published.size(), task.qualityLabel,
-                video.codec(), System.currentTimeMillis(), thumbnail, false, 0);
+                video.codec(), video.itag(), bitrateKbps(video), System.currentTimeMillis(), thumbnail, false, 0);
     }
 
     // modified by lavinhoque33, 2026-10-14: .webm for VP9 downloads.
@@ -1239,7 +1244,7 @@ public final class OfflineDownloader {
         String thumbnail = saveLibraryThumbnail(context, task.key, task.videoId, resolved.thumbnailUrl());
         return new OfflineVideo(task.videoId, resolved.title(), resolved.author(), resolved.channelId(),
                 resolved.lengthMs(), published.uri().toString(), displayName, published.size(), task.qualityLabel,
-                audio.codec(), System.currentTimeMillis(), thumbnail, true, 0);
+                audio.codec(), audio.itag(), bitrateKbps(audio), System.currentTimeMillis(), thumbnail, true, 0);
     }
 
     /** @return The thumbnail as embedded cover art (JPEG or PNG only), or null. */

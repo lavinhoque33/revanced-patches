@@ -41,6 +41,8 @@ import java.util.concurrent.CopyOnWriteArrayList;
 
 import app.morphe.extension.shared.utils.Logger;
 import app.morphe.extension.shared.utils.Utils;
+import app.morphe.extension.youtube.shared.PlayerType;
+import app.morphe.extension.youtube.shared.VideoInformation;
 
 /**
  * Process-wide offline player. It outlives the player screen, which only attaches and detaches
@@ -275,10 +277,12 @@ public final class OfflinePlayer {
             playWhenPrepared = true;
             return;
         }
+        resumeOnFocusGain = false;
         if (!requestFocus()) {
             Logger.printInfo(() -> "Audio focus denied, not resuming");
             return;
         }
+        pauseMainPlayer();
         try {
             mediaPlayer.start();
         } catch (IllegalStateException ex) {
@@ -294,6 +298,26 @@ public final class OfflinePlayer {
     }
 
     static void pause() {
+        resumeOnFocusGain = false;
+        pausePlayback(true);
+    }
+
+    /**
+     * Pauses without giving up the audio focus, so the matching gain resumes playback.
+     */
+    private static void pauseOnFocusLoss() {
+        // A second transient loss must not forget the resume that the first one waits for.
+        boolean wasPlaying = isPlaying() || resumeOnFocusGain;
+
+        pausePlayback(false);
+        resumeOnFocusGain = wasPlaying;
+    }
+
+    /**
+     * @param abandonFocus whether to give up the focus, letting other apps play.
+     *                     Only the transient focus loss keeps it, to resume on the matching gain.
+     */
+    private static void pausePlayback(boolean abandonFocus) {
         playWhenPrepared = false;
         MediaPlayer mediaPlayer = player;
         if (mediaPlayer != null && prepared) {
@@ -304,6 +328,7 @@ public final class OfflinePlayer {
         }
         unregisterNoisyReceiver();
         savePosition();
+        if (abandonFocus) abandonFocus();
         onStateChanged();
     }
 
@@ -414,6 +439,51 @@ public final class OfflinePlayer {
 
     // endregion
 
+    // region main player coordination
+
+    /**
+     * Injection point, called before the main player applies a play-when-ready value.
+     * <p>
+     * YouTube's player is built without audio focus handling, so the app never receives a focus
+     * loss when a video starts and the focus listener above cannot stop the overlap. The two
+     * directions are therefore explicit: this hook pauses the offline player when the main player
+     * starts, and {@link #resume()} pauses the main player.
+     *
+     * @return the given value unchanged, the main player keeps its own state.
+     */
+    public static boolean onMainPlayerPlayWhenReady(Object player, boolean playing) {
+        // setPlayWhenReady can run off the main thread, and everything here is main thread only.
+        if (playing && VideoInformation.isCurrentPlayer(player)) {
+            Utils.runOnMainThreadNowOrLater(() -> pauseForMainPlayer(player));
+        }
+        return playing;
+    }
+
+    private static void pauseForMainPlayer(Object player) {
+        if (!VideoInformation.isCurrentPlayer(player) || !isPlaying() || isQuietPlayback()) return;
+
+        Logger.printInfo(() -> "Main player started, pausing offline playback");
+        pause();
+    }
+
+    /** Pauses the main player, which otherwise plays over the offline track. */
+    private static void pauseMainPlayer() {
+        if (!VideoInformation.isPlayerPlaying() || isQuietPlayback()) return;
+
+        Logger.printInfo(() -> "Offline playback started, pausing the main player");
+        VideoInformation.setPlayerPlaying(false);
+    }
+
+    /**
+     * Feed previews have no sound, so they do not stop the offline track. Shorts do play sound and take
+     * audio focus themselves, which pauses the offline track like any other video.
+     */
+    private static boolean isQuietPlayback() {
+        return PlayerType.getCurrent() == PlayerType.INLINE_MINIMAL;
+    }
+
+    // endregion
+
     // region surface
 
     static void attachSurface(@Nullable Surface newSurface) {
@@ -465,14 +535,9 @@ public final class OfflinePlayer {
             case AudioManager.AUDIOFOCUS_LOSS -> {
                 // Another player, for example YouTube's own, took over for good.
                 Logger.printInfo(() -> "Audio focus lost, pausing offline playback");
-                resumeOnFocusGain = false;
-                pause();
-                abandonFocus();
-            }
-            case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
-                resumeOnFocusGain = isPlaying();
                 pause();
             }
+            case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> pauseOnFocusLoss();
             case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
                 if (mediaPlayer != null) mediaPlayer.setVolume(DUCK_VOLUME, DUCK_VOLUME);
             }
@@ -505,8 +570,14 @@ public final class OfflinePlayer {
     }
 
     private static void abandonFocus() {
+        // Null out the request first: a listener callback dispatched by the framework must not
+        // abandon twice and re-enter itself.
+        AudioFocusRequest request = focusRequest;
+        focusRequest = null;
+        if (request == null) return;
+
         AudioManager audio = (AudioManager) Utils.getContext().getSystemService(Context.AUDIO_SERVICE);
-        if (audio != null && focusRequest != null) audio.abandonAudioFocusRequest(focusRequest);
+        if (audio != null) audio.abandonAudioFocusRequest(request);
     }
 
     private static final BroadcastReceiver noisyReceiver = new BroadcastReceiver() {

@@ -484,6 +484,8 @@ public class Settings extends SharedYouTubeSettings {
     // modified by lavinhoque33, 2026-10-20: open downloads in YouTube's own player.
     public static final BooleanSetting OFFLINE_USE_YOUTUBE_PLAYER = new BooleanSetting("revanced_offline_use_youtube_player", TRUE, parent(IN_APP_DOWNLOADER));
     public static final StringSetting OFFLINE_LIBRARY_SORT = new StringSetting("revanced_offline_library_sort", "NEWEST", false, false);
+    public static final StringSetting OFFLINE_ASPECT_MODE =
+            new StringSetting("revanced_offline_aspect_mode", "FIT", false, false);
     public static final BooleanSetting OFFLINE_CODEC_H264 = new BooleanSetting(
             "revanced_offline_codec_h264", TRUE, parent(IN_APP_DOWNLOADER));
     public static final BooleanSetting OFFLINE_CODEC_VP9 = new BooleanSetting(

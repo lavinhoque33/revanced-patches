@@ -1318,7 +1318,8 @@ public class FeedCardLayoutPatch {
                 // The feed items are spaced by FeedCardSpacing, which keeps the gaps between the cards uniform.
                 // The items of the other lists keep the spacing of the list.
                 if (FeedCardSpacing.isSpacingAvailable() && item instanceof ElementItemInterface
-                        && itemView != null && isFeedListItem(itemView) && !isChipBar(itemView)) {
+                        && itemView != null && isFeedListItem(itemView)
+                        && (!isChipBar(itemView) || isChipShelfInFeed(itemView))) {
                     return ITEM_WITHOUT_DIVIDER;
                 }
                 if (item instanceof ElementItemInterface element) {
@@ -1486,6 +1487,17 @@ public class FeedCardLayoutPatch {
             cardElements.put(bytes, card);
         }
         return card;
+    }
+
+    /**
+     * @return Whether the item is a shelf of chips below the top of the feed, which is not the bar of chips
+     *         and is not visible.
+     */
+    private static boolean isChipShelfInFeed(View item) {
+        if (!(item.getParent() instanceof RecyclerView list)) {
+            return false;
+        }
+        return RecyclerView.patch_getChildAdapterPosition(list, item) > 1;
     }
 
     private static boolean isFeedListItem(View item) {

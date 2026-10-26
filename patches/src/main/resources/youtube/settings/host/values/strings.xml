@@ -133,6 +133,8 @@ To fix this, turn on \'Spoof video streams\' and change the \'Default client\' t
     <string name="morphe_explore_menu_screen_title">Explore menu</string>
     <string name="morphe_external_potoken_provider_user_dialog_message">If it does not work, try force-closing MicroG</string>
     <string name="morphe_feed_card_layout_comments">Comments</string>
+    <string name="morphe_feed_card_layout_corner_radius_summary">Corner radius of the cards and of the Shorts of the feed, in dp. Restart the app to apply changes</string>
+    <string name="morphe_feed_card_layout_corner_radius_title">Card corner radius</string>
     <string name="morphe_feed_card_layout_entry_0">Default</string>
     <string name="morphe_feed_card_layout_entry_1">Classic</string>
     <string name="morphe_feed_card_layout_entry_2">Cards</string>

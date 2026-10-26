@@ -34,6 +34,7 @@ import androidx.annotation.Nullable;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.CodedInputStream;
 import com.google.protobuf.CodedOutputStream;
+import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.MessageLite;
 import com.google.protobuf.WireFormat;
 
@@ -210,15 +211,27 @@ public class FeedCardLayoutPatch {
      */
     private static final int CARD_TITLE_STYLE = 29;
     /**
-     * Corner radius of the cards.
+     * Corner radius of the cards, in dp, chosen in the settings.
      */
-    private static final int CARD_CORNER_RADIUS = Dim.dp(12);
+    private static final int CARD_CORNER_RADIUS_DP = Math.max(0, Math.min(28,
+            Settings.FEED_CARD_LAYOUT_CORNER_RADIUS.get()));
+    private static final int CARD_CORNER_RADIUS = Dim.dp(CARD_CORNER_RADIUS_DP);
     /**
      * Padding of the cards, in dp, which is the spacing between the cards in every list.
      * The spacing that the lists add between the cards is removed.
      */
     private static final int CARD_HORIZONTAL_PADDING_DP = 12;
     private static final int CARD_VERTICAL_PADDING_DP = 6;
+    /**
+     * Spacing that every feed item adds above and below itself, which the list adds to the items
+     * that are not converted cards, to keep the gaps between the cards uniform.
+     */
+    static final int CARD_VERTICAL_SPACING = Dim.dp(CARD_VERTICAL_PADDING_DP);
+    /**
+     * The padding of the outline of a card is laid out from dp with rounding, and the inline player
+     * can be a pixel or two larger than the thumbnail of the card.
+     */
+    private static final int CARD_OUTLINE_BOUNDS_TOLERANCE = Dim.dp(2);
     /**
      * The videos of the vertical shelves are laid out almost to the edges of the list,
      * with the menu button near the right edge, so their card is wider than the other cards.
@@ -237,17 +250,17 @@ public class FeedCardLayoutPatch {
      */
     private static final CardOutlineProvider FEED_ITEM_OUTLINE = new CardOutlineProvider(0, 0);
     /**
-     * Clips of the Shorts of the Shorts shelves, by their rounded corners
-     * (top left, top right, bottom left and bottom right bits).
+     * Clip of the Shorts of the Shorts shelves: every Short is a card with rounded corners.
      */
-    private static final ShortsCellOutlineProvider[] SHORTS_CELL_OUTLINES = new ShortsCellOutlineProvider[16];
-    static {
-        for (int corners = 0; corners < SHORTS_CELL_OUTLINES.length; corners++) {
-            SHORTS_CELL_OUTLINES[corners] = new ShortsCellOutlineProvider(
-                    (corners & 8) != 0, (corners & 4) != 0, (corners & 2) != 0, (corners & 1) != 0);
-        }
-    }
-    private static final ShortsCellOutlineProvider SHORTS_CELL_OUTLINE = SHORTS_CELL_OUTLINES[0];
+    private static final ShortsCellOutlineProvider SHORTS_CELL_OUTLINE = new ShortsCellOutlineProvider();
+    /**
+     * Depth of the hierarchy of a Short that is looked through for the views that clip its thumbnail.
+     */
+    private static final int SHORTS_CELL_MAX_DEPTH = 8;
+    /**
+     * The views that clip the thumbnail of a Short can be inset by a pixel, and are still its clip.
+     */
+    private static final int SHORTS_CELL_WIDTH_TOLERANCE = Dim.dp(1);
 
     private static final int BUTTON_STYLE_MONO = 9;
     private static final int BUTTON_TYPE_TEXT = 3;
@@ -329,10 +342,19 @@ public class FeedCardLayoutPatch {
                     : ByteTrieSearch.convertStringsToBytes(CARD_TEMPLATE)
     );
     /**
-     * Label of the shelf headers, in the bytes of the converted elements.
+     * Label of the shelf headers, in the bytes of the converted elements. The header of a vertical shelf
+     * is a list item of its own.
      */
     private static final ByteTrieSearch shelfHeaderLabelSearch = new ByteTrieSearch(
-            ByteTrieSearch.convertStringsToBytes(String.valueOf(SHELF_HEADER_LABEL_MARKER))
+            ByteTrieSearch.convertStringsToBytes(String.valueOf(SHELF_HEADER_LABEL_MARKER),
+                    String.valueOf(VIDEO_SHELF_HEADER_LABEL_MARKER))
+    );
+    /**
+     * Label of the rows of the Shorts shelves and of the vertical shelves, in the bytes of the elements.
+     */
+    private static final ByteTrieSearch shelfRowLabelSearch = new ByteTrieSearch(
+            ByteTrieSearch.convertStringsToBytes(String.valueOf(SHORTS_CELL_LABEL_MARKER),
+                    String.valueOf(VIDEO_SHELF_ROW_LABEL_MARKER))
     );
     /**
      * Thumbnails of the Shorts, the same that the Shorts filter looks for.
@@ -363,6 +385,14 @@ public class FeedCardLayoutPatch {
      */
     private static final Map<byte[], Boolean> cardElements = Collections.synchronizedMap(new WeakHashMap<>());
     /**
+     * Kind of the list items of the feeds, by the bytes of their element, which the list items keep.
+     */
+    private static final Map<byte[], Integer> elementTypes = Collections.synchronizedMap(new WeakHashMap<>());
+    /**
+     * List item that is classified by {@link #setDividerItem(Object)}, until its element is looked up.
+     */
+    private static WeakReference<View> dividerLookupView = new WeakReference<>(null);
+    /**
      * List item without the spacing of the list.
      */
     private static final Object ITEM_WITHOUT_DIVIDER = new Object();
@@ -370,6 +400,11 @@ public class FeedCardLayoutPatch {
      * Clips of the Shorts of the Shorts shelves, by the screen bounds of the Shorts and of their thumbnails.
      */
     private static final Map<String, ViewOutlineProvider> shortsCellOutlines = new HashMap<>();
+    /**
+     * View that clips the thumbnail of the Shorts of the shelf, to log the hierarchy only when it changes.
+     */
+    private static final Map<View, String> shortsCellClipOutcomes =
+            Collections.synchronizedMap(new WeakHashMap<>());
     @Nullable
     private static WeakReference<View> inlinePlayerContainer;
     private static long inlinePlayerSearchTime;
@@ -1230,21 +1265,24 @@ public class FeedCardLayoutPatch {
      * Injection point.
      * Called when the spacing of a list item is looked up.
      *
-     * @return The item, or an item without spacing if the item is a card, which has its own spacing.
+     * @return The item, or an item without spacing if the item is a card, which has its own spacing,
+     *         or if the gap of the item is added by {@link FeedCardSpacing}.
      */
     public static Object getDividerItem(@Nullable Object item) {
         try {
-            if (CARD_LAYOUT && item instanceof ElementItemInterface element) {
-                byte[] bytes = element.patch_getElementBytes();
-                if (bytes != null) {
-                    Boolean card = cardElements.get(bytes);
-                    if (card == null) {
-                        card = CARD.search.matches(bytes) && isCardLabel(Element.parseFrom(bytes).getType()
-                                .getComponentType().getModel().getLockupModel().getViewModel().getLockupViewModel()
-                                .getRendererContext().getAccessibilityContext().getLabel());
-                        cardElements.put(bytes, card);
-                    }
-                    if (card) {
+            if (CARD_LAYOUT) {
+                View itemView = dividerLookupView.get();
+                dividerLookupView.clear();
+
+                // The feed items are spaced by FeedCardSpacing, which keeps the gaps between the cards uniform.
+                // The items of the other lists keep the spacing of the list.
+                if (FeedCardSpacing.isSpacingAvailable() && item instanceof ElementItemInterface
+                        && itemView != null && isFeedListItem(itemView) && !isChipBar(itemView)) {
+                    return ITEM_WITHOUT_DIVIDER;
+                }
+                if (item instanceof ElementItemInterface element) {
+                    byte[] bytes = element.patch_getElementBytes();
+                    if (bytes != null && isCardElement(bytes)) {
                         return ITEM_WITHOUT_DIVIDER;
                     }
                 }
@@ -1257,16 +1295,21 @@ public class FeedCardLayoutPatch {
 
     /**
      * Injection point.
-     * Called when the list sets the spacing of an item, with the view of the item.
+     * Called when the list sets the spacing of an item, with the rectangle of the spacing and the view
+     * of the item.
      */
-    public static void setDividerItemView(View view) {
+    public static void setDividerItemView(Rect outRect, View view) {
         try {
+            // The spacing of the item is set at the end of the method.
+            FeedCardSpacing.setItemOffsetsInfo(outRect, view);
+
             if (!CARD_LAYOUT) {
                 return;
             }
 
             shelfCardItems.remove(view);
             dividerItemView = new WeakReference<>(view);
+            dividerLookupView = new WeakReference<>(view);
         } catch (Exception ex) {
             Logger.printException(() -> "setDividerItemView failure", ex);
         }
@@ -1274,9 +1317,26 @@ public class FeedCardLayoutPatch {
 
     /**
      * Injection point.
-     * Called with the item of the view of {@link #setDividerItemView(View)}, before the spacing is looked up.
+     * Called at the start of the method that sets the spacing of an item, which calls {@link #setItemOffsets()}
+     * at its end, so the spacing of the feed items is replaced.
+     */
+    public static void markFeedSpacingAvailable() {
+        FeedCardSpacing.markSpacingAvailable();
+    }
+
+    /**
+     * Injection point.
+     * Called at the end of the method that sets the spacing of an item, after the spacing of the list is set.
+     */
+    public static void setItemOffsets() {
+        FeedCardSpacing.setItemOffsets();
+    }
+
+    /**
+     * Injection point.
+     * Called with the item of the view of {@link #setDividerItemView(Rect, View)}, before the spacing is looked up.
      * The item is a shelf with the card layout if the header of its horizontal shelf or Shorts carousel
-     * has the label of the shelf header.
+     * has the label of the shelf header. The kind of the item is kept for the spacing of the feed.
      */
     public static void setDividerItem(@Nullable Object item) {
         try {
@@ -1313,9 +1373,70 @@ public class FeedCardLayoutPatch {
             if (shelf) {
                 shelfCardItems.put(view, Boolean.TRUE);
             }
+
+            FeedCardSpacing.setItemType(view, getElementType(bytes));
+            // The list sets the spacing from the lookup of the item, which has no spacing if it is removed
+            // below, so the spacing of the item is set before the lookup.
+            FeedCardSpacing.setItemOffsets();
         } catch (Exception ex) {
             Logger.printException(() -> "setDividerItem failure", ex);
         }
+    }
+
+    /**
+     * @return The kind of the list item that the element of these bytes renders, one of the
+     *         {@code FeedCardSpacing.ITEM_} constants.
+     */
+    private static int getElementType(byte[] bytes) throws InvalidProtocolBufferException {
+        Integer type = elementTypes.get(bytes);
+        if (type == null) {
+            type = classifyElement(bytes);
+            elementTypes.put(bytes, type);
+        }
+        return type;
+    }
+
+    private static int classifyElement(byte[] bytes) throws InvalidProtocolBufferException {
+        if (isCardElement(bytes)) {
+            return FeedCardSpacing.ITEM_CARD;
+        }
+
+        // The rows of the shelves fill the card below their header.
+        if (shelfRowLabelSearch.matches(bytes)) {
+            return FeedCardSpacing.ITEM_SHELF_ROW;
+        }
+        if (!shelfHeaderLabelSearch.matches(bytes)) {
+            return FeedCardSpacing.ITEM_OTHER;
+        }
+
+        ElementModel model = Element.parseFrom(bytes).getType().getComponentType().getModel();
+        if (model.hasHorizontalShelfModel() || model.hasShortsShelfModel()) {
+            // The header and the videos are the same list item, which is a card.
+            return FeedCardSpacing.ITEM_CARD;
+        }
+        return FeedCardSpacing.ITEM_SHELF_HEADER;
+    }
+
+    private static boolean isCardElement(byte[] bytes) throws InvalidProtocolBufferException {
+        Boolean card = cardElements.get(bytes);
+        if (card == null) {
+            card = CARD.search.matches(bytes) && isCardLabel(Element.parseFrom(bytes).getType()
+                    .getComponentType().getModel().getLockupModel().getViewModel().getLockupViewModel()
+                    .getRendererContext().getAccessibilityContext().getLabel());
+            cardElements.put(bytes, card);
+        }
+        return card;
+    }
+
+    private static boolean isFeedListItem(View item) {
+        return item.getParent() instanceof RecyclerView list && list.getId() == getFeedId();
+    }
+
+    /**
+     * @return Whether the cards of the feed are enabled.
+     */
+    static boolean isCardLayoutEnabled() {
+        return CARD_LAYOUT;
     }
 
     @Nullable
@@ -1342,7 +1463,7 @@ public class FeedCardLayoutPatch {
      * with the chips in a nested list, and it's not a card. The horizontal shelves also have a nested list,
      * but they are cards with a shelf header.
      */
-    private static boolean isChipBar(View item) {
+    static boolean isChipBar(View item) {
         return hasNestedList(item, 0) && !isShelfHeader(item);
     }
 
@@ -1371,8 +1492,15 @@ public class FeedCardLayoutPatch {
         return isCardLabel(label) ? CARD_OUTLINE : null;
     }
 
-    private static boolean isCardLabel(@Nullable CharSequence label) {
+    static boolean isCardLabel(@Nullable CharSequence label) {
         return endsWith(label, CARD_LABEL_MARKER);
+    }
+
+    /**
+     * @return Whether the item of the feed is a card, which has its own spacing.
+     */
+    static boolean isCardItem(View item) {
+        return item.getOutlineProvider() == CARD_OUTLINE || isCardLabel(item.getContentDescription());
     }
 
     /**
@@ -1513,7 +1641,7 @@ public class FeedCardLayoutPatch {
                                 if (item.getHeight() > 0 && isShortsRow(item)) {
                                     View above = findItemAbove(current, item);
                                     if (above == null || !isShortsRow(above)) {
-                                        drawShortsShelfCard(current, getShortsShelfHeader(above), item, null);
+                                        drawShortsShelfCard(current, above, item, null);
                                     }
                                 }
                             }
@@ -1638,8 +1766,7 @@ public class FeedCardLayoutPatch {
                 if (isShortsRow(item)) {
                     View above = findItemAbove(list, item);
                     if (above == null || !isShortsRow(above)) {
-                        drawShortsShelfCard(list, getShortsShelfHeader(above),
-                                item, canvas);
+                        drawShortsShelfCard(list, above, item, canvas);
                     }
                     continue;
                 }
@@ -1698,20 +1825,23 @@ public class FeedCardLayoutPatch {
         return above != null && (isShelfHeader(above) || isVideoShelfHeader(above)) ? above : null;
     }
 
-    private static boolean isVideoShelfRow(View item) {
+    static boolean isVideoShelfRow(View item) {
         return hasLabelMarker(item, VIDEO_SHELF_ROW_LABEL_MARKER, 0);
     }
 
-    private static boolean isVideoShelfHeader(View item) {
+    static boolean isVideoShelfHeader(View item) {
         return hasLabelMarker(item, VIDEO_SHELF_HEADER_LABEL_MARKER, 0);
     }
 
     /**
      * The Shorts shelf is one card, with the header and the rows of Shorts below it.
-     * Only the outer corners of the card are rounded, and the Shorts fill the card.
+     * The card and every Short are rounded, and the Shorts are laid out on the card.
+     *
+     * @param above The list item above the first row of Shorts, or null if the item above it is not in the list.
      */
-    private static void drawShortsShelfCard(RecyclerView list, @Nullable View header, View firstRow,
+    private static void drawShortsShelfCard(RecyclerView list, @Nullable View above, View firstRow,
                                             @Nullable Canvas canvas) {
+        View header = getShortsShelfHeader(above);
         // The rows of Shorts are the list items below the header, which can be scrolled out of the list.
         List<View> rows = new ArrayList<>();
         View item = firstRow;
@@ -1721,6 +1851,9 @@ public class FeedCardLayoutPatch {
         }
 
         // The card is as wide as the Shorts, and ends at the bottom of the last row of Shorts.
+        // The Shorts are laid out in columns centered in the row, and the last row can have fewer Shorts,
+        // such as one Short on the left. The card is centered in the row too, so it keeps its width
+        // while only the last row is in the list.
         int left = Integer.MAX_VALUE;
         int right = Integer.MIN_VALUE;
         final float top = header != null ? header.getY() : firstRow.getY();
@@ -1735,8 +1868,9 @@ public class FeedCardLayoutPatch {
             for (View cell : cells) {
                 cell.getLocationOnScreen(cellLocation);
                 final int cellLeft = cellLocation[0] - rowLocation[0];
-                left = Math.min(left, cellLeft);
-                right = Math.max(right, cellLeft + cell.getWidth());
+                final int cellRight = cellLeft + cell.getWidth();
+                left = Math.min(left, Math.min(cellLeft, row.getWidth() - cellRight));
+                right = Math.max(right, Math.max(cellRight, row.getWidth() - cellLeft));
                 bottom = Math.max(bottom, row.getY() + cellLocation[1] - rowLocation[1] + cell.getHeight());
             }
             rowCells.add(cells);
@@ -1747,29 +1881,29 @@ public class FeedCardLayoutPatch {
         shortsCardLeft = left;
         shortsCardRight = right;
 
-        // The outer Shorts have rounded outer corners: the top corners in the first row,
-        // also below the header, and the bottom corners of the card in the last row.
-        for (int i = 0; i < rows.size(); i++) {
-            final boolean topRow = i == 0;
-            final boolean bottomRow = i == rows.size() - 1;
-            rows.get(i).getLocationOnScreen(rowLocation);
-            for (View cell : rowCells.get(i)) {
-                cell.getLocationOnScreen(cellLocation);
-                final int cellLeft = cellLocation[0] - rowLocation[0];
-                final boolean leftColumn = cellLeft <= left;
-                final boolean rightColumn = cellLeft + cell.getWidth() >= right;
-                final int corners = (topRow && leftColumn ? 8 : 0) | (topRow && rightColumn ? 4 : 0)
-                        | (bottomRow && leftColumn ? 2 : 0) | (bottomRow && rightColumn ? 1 : 0);
-                setShortsCellOutline(cell, SHORTS_CELL_OUTLINES[corners]);
+        // Every Short is a card with rounded corners. The views are recycled, so the clips
+        // are set every time that the list is drawn.
+        for (List<View> cells : rowCells) {
+            for (View cell : cells) {
+                setShortsCellOutline(cell, SHORTS_CELL_OUTLINE);
             }
         }
 
         if (canvas == null) {
             return;
         }
+        // The first row in the list is the first row of the shelf only if an item is above it,
+        // or if the list is scrolled to the top. Otherwise the rows above it are scrolled out of the list,
+        // and the card continues above the list, without rounded top corners.
+        final boolean firstRowOfShelf = above != null || !list.canScrollVertically(-1);
         final float x = firstRow.getX();
-        canvas.drawRoundRect(x + left, top, x + right, bottom,
-                CARD_CORNER_RADIUS, CARD_CORNER_RADIUS, getShelfPaint(list.getContext()));
+        canvas.save();
+        if (!firstRowOfShelf) {
+            canvas.clipRect(x + left, top, x + right, bottom);
+        }
+        canvas.drawRoundRect(x + left, firstRowOfShelf ? top : top - CARD_CORNER_RADIUS,
+                x + right, bottom, CARD_CORNER_RADIUS, CARD_CORNER_RADIUS, getShelfPaint(list.getContext()));
+        canvas.restore();
     }
 
     /**
@@ -1842,17 +1976,19 @@ public class FeedCardLayoutPatch {
                 continue;
             }
             item.getLocationOnScreen(itemLocation);
-            // The padding of the card is laid out from dp with rounding, so it can differ by a pixel on each side.
-            if (Math.abs(viewLocation[0] - itemLocation[0] - CARD_OUTLINE.horizontalPadding) <= 1
-                    && Math.abs(viewLocation[1] - itemLocation[1] - CARD_OUTLINE.verticalPadding) <= 1
-                    && Math.abs(view.getWidth() - item.getWidth() + 2 * CARD_OUTLINE.horizontalPadding) <= 2) {
+            if (Math.abs(viewLocation[0] - itemLocation[0] - CARD_OUTLINE.horizontalPadding)
+                    <= CARD_OUTLINE_BOUNDS_TOLERANCE
+                    && Math.abs(viewLocation[1] - itemLocation[1] - CARD_OUTLINE.verticalPadding)
+                    <= CARD_OUTLINE_BOUNDS_TOLERANCE
+                    && Math.abs(view.getWidth() - item.getWidth() + 2 * CARD_OUTLINE.horizontalPadding)
+                    <= CARD_OUTLINE_BOUNDS_TOLERANCE) {
                 return true;
             }
         }
         return false;
     }
 
-    private static boolean isShortsRow(View item) {
+    static boolean isShortsRow(View item) {
         return hasLabelMarker(item, SHORTS_CELL_LABEL_MARKER, 0);
     }
 
@@ -1870,10 +2006,18 @@ public class FeedCardLayoutPatch {
 
     /**
      * The Shorts clip their thumbnail with the rounded outline of a view inside the Short,
-     * which is replaced. The views are recycled, so it's checked every time the list is drawn.
+     * which is replaced. If the Short has no such view, the Short itself is clipped.
+     * The views are recycled, so it's checked every time the list is drawn.
      */
     private static void setShortsCellOutline(View cell, ViewOutlineProvider outline) {
-        setShortsCellOutline(cell, cell.getWidth(), outline, 0);
+        final boolean clipped = setShortsCellOutline(cell, cell.getWidth(), outline, 0);
+        if (!clipped) {
+            if (cell.getOutlineProvider() != outline) {
+                cell.setOutlineProvider(outline);
+            }
+            cell.setClipToOutline(true);
+        }
+        logShortsCellClip(cell, clipped);
 
         // The screen bounds of the Short, for the inline player above it.
         shortsCellOutlines.put(getScreenBounds(cell), outline);
@@ -1888,62 +2032,82 @@ public class FeedCardLayoutPatch {
     /**
      * The thumbnail and the animated preview of the Short have their own clipping views,
      * as wide as the Short.
+     *
+     * @return Whether a view that clips the thumbnail of the Short was found.
      */
-    private static void setShortsCellOutline(View view, int cellWidth, ViewOutlineProvider outline, int depth) {
-        if (depth > 0 && view.getClipToOutline() && view.getWidth() == cellWidth) {
+    private static boolean setShortsCellOutline(View view, int cellWidth, ViewOutlineProvider outline, int depth) {
+        boolean clipped = false;
+        if (depth > 0 && view.getClipToOutline()
+                && Math.abs(view.getWidth() - cellWidth) <= SHORTS_CELL_WIDTH_TOLERANCE) {
             if (view.getOutlineProvider() != outline) {
                 view.setOutlineProvider(outline);
             }
             // The screen bounds of the clipped thumbnail, for the inline player above it.
             // The Shorts of the grids have the title below the thumbnail, so the player is shorter than the Short.
             shortsCellOutlines.put(getScreenBounds(view), outline);
+            clipped = true;
+        }
+        if (depth < SHORTS_CELL_MAX_DEPTH && view instanceof ViewGroup group) {
+            for (int i = 0, count = group.getChildCount(); i < count; i++) {
+                clipped |= setShortsCellOutline(group.getChildAt(i), cellWidth, outline, depth + 1);
+            }
+        }
+        return clipped;
+    }
+
+    /**
+     * Logs the hierarchy of a Short when the way that it is clipped changes, which finds the views
+     * that could clip its thumbnail.
+     */
+    private static void logShortsCellClip(View cell, boolean clipped) {
+        final String outcome = clipped ? "thumbnail clip" : "cell";
+        if (outcome.equals(shortsCellClipOutcomes.get(cell))) {
+            return;
+        }
+        shortsCellClipOutcomes.put(cell, outcome);
+
+        Logger.printDebug(() -> "Shorts cell clipped by the " + outcome + describeShortsCell(cell));
+    }
+
+    private static String describeShortsCell(View cell) {
+        StringBuilder description = new StringBuilder();
+        appendViewDescription(cell, 0, description);
+        return description.toString();
+    }
+
+    private static void appendViewDescription(View view, int depth, StringBuilder description) {
+        if (description.length() > 800) {
+            return;
+        }
+
+        description.append('\n');
+        for (int i = 0; i < depth; i++) {
+            description.append("  ");
+        }
+        description.append(view.getClass().getSimpleName())
+                .append(' ').append(view.getWidth()).append('x').append(view.getHeight())
+                .append(" clip=").append(view.getClipToOutline());
+        if (view.getOutlineProvider() != ViewOutlineProvider.BACKGROUND) {
+            description.append(" outline=").append(view.getOutlineProvider().getClass().getSimpleName());
         }
         if (depth < 4 && view instanceof ViewGroup group) {
             for (int i = 0, count = group.getChildCount(); i < count; i++) {
-                setShortsCellOutline(group.getChildAt(i), cellWidth, outline, depth + 1);
+                appendViewDescription(group.getChildAt(i), depth + 1, description);
             }
         }
     }
 
     /**
-     * Outline of the Shorts of the Shorts shelf, with only the rounded corners of the card.
-     * The rounded rectangle extends beyond the view on the sides that have no rounded corners.
+     * Outline of the Shorts of the Shorts shelves: every Short is a rounded card.
      */
     private static final class ShortsCellOutlineProvider extends ViewOutlineProvider {
-        private final boolean topLeft;
-        private final boolean topRight;
-        private final boolean bottomLeft;
-        private final boolean bottomRight;
-
-        ShortsCellOutlineProvider(boolean topLeft, boolean topRight, boolean bottomLeft, boolean bottomRight) {
-            this.topLeft = topLeft;
-            this.topRight = topRight;
-            this.bottomLeft = bottomLeft;
-            this.bottomRight = bottomRight;
-        }
-
-        /**
-         * The outline has one radius for all the corners, so the sides without rounded corners
-         * are moved out of the view, which keeps their corners square.
-         */
         @Override
         public void getOutline(View view, Outline outline) {
-            final int width = view.getWidth();
-            final int height = view.getHeight();
-            if (!topLeft && !topRight && !bottomLeft && !bottomRight) {
-                outline.setRect(0, 0, width, height);
-                return;
-            }
-            outline.setRoundRect(
-                    topLeft || bottomLeft ? 0 : -CARD_CORNER_RADIUS,
-                    topLeft || topRight ? 0 : -CARD_CORNER_RADIUS,
-                    topRight || bottomRight ? width : width + CARD_CORNER_RADIUS,
-                    bottomLeft || bottomRight ? height : height + CARD_CORNER_RADIUS,
-                    CARD_CORNER_RADIUS);
+            outline.setRoundRect(0, 0, view.getWidth(), view.getHeight(), CARD_CORNER_RADIUS);
         }
     }
 
-    private static boolean hasNestedList(View view, int depth) {
+    static boolean hasNestedList(View view, int depth) {
         return findNestedList(view, depth) != null;
     }
 
@@ -2014,7 +2178,7 @@ public class FeedCardLayoutPatch {
         return null;
     }
 
-    private static boolean isShelfHeader(View item) {
+    static boolean isShelfHeader(View item) {
         return hasLabelMarker(item, SHELF_HEADER_LABEL_MARKER, 0);
     }
 
@@ -2170,7 +2334,7 @@ public class FeedCardLayoutPatch {
         }
     }
 
-    private static int getFeedId() {
+    static int getFeedId() {
         if (feedId == 0) {
             feedId = ResourceUtils.getIdentifier(ResourceType.ID, "results");
         }

@@ -29,6 +29,7 @@ import app.morphe.patches.youtube.utils.proto.hookElement
 import app.morphe.patches.youtube.utils.settings.ResourceUtils.addPreference
 import app.morphe.patches.youtube.utils.settings.settingsPatch
 import app.morphe.util.getReference
+import app.morphe.util.indexOfFirstInstruction
 import app.morphe.util.indexOfFirstInstructionReversedOrThrow
 import com.android.tools.smali.dexlib2.AccessFlags
 import com.android.tools.smali.dexlib2.Opcode
@@ -121,16 +122,9 @@ val feedCardLayoutPatch = bytecodePatch(
 
         // Some lists, such as the Home feed, add a spacing between the items, and the cards have their own spacing.
         // The item is replaced by an item without spacing.
+        var adapterPositionMethod: MethodReference? = null
         DividerInfoToStringFingerprint.originalClassDefOrNull?.let { dividerInfoClass ->
             DividerInfoLookupFingerprint(dividerInfoClass.type).methodOrNull?.let { dividerInfoLookupMethod ->
-                dividerInfoLookupMethod.addInstructions(
-                    0,
-                    """
-                        invoke-static { p1 }, $EXTENSION_CLASS->getDividerItem(Ljava/lang/Object;)Ljava/lang/Object;
-                        move-result-object p1
-                    """
-                )
-
                 // The header of a horizontal shelf has the label that finds the shelf in the list, and it is
                 // not mounted while it is scrolled out of the list. The shelves are also found by their element,
                 // which the list looks up with the view of the item when it sets the spacing of the item.
@@ -139,16 +133,45 @@ val feedCardLayoutPatch = bytecodePatch(
                         val lookupIndex = it.instructionMatches.first().index
                         val itemRegister = getInstruction<FiveRegisterInstruction>(lookupIndex).registerD
 
-                        addInstruction(
+                        // The item is replaced at the lookup of this list, so the other lookups of the item
+                        // keep the spacing of the item.
+                        addInstructions(
                             lookupIndex,
                             "invoke-static/range { v$itemRegister .. v$itemRegister }, " +
-                                    "$EXTENSION_CLASS->setDividerItem(Ljava/lang/Object;)V"
+                                    "$EXTENSION_CLASS->setDividerItem(Ljava/lang/Object;)V\n" +
+                                    "invoke-static/range { v$itemRegister .. v$itemRegister }, " +
+                                    "$EXTENSION_CLASS->getDividerItem" +
+                                    "(Ljava/lang/Object;)Ljava/lang/Object;\n" +
+                                    "move-result-object v$itemRegister"
                         )
                         addInstruction(
                             0,
-                            "invoke-static/range { p2 .. p2 }, " +
-                                    "$EXTENSION_CLASS->setDividerItemView(Landroid/view/View;)V"
+                            "invoke-static { p1, p2 }, " +
+                                    "$EXTENSION_CLASS->setDividerItemView(" +
+                                    "Landroid/graphics/Rect;Landroid/view/View;)V"
                         )
+
+                        // The spacing of the item is set at the end of the method, after the spacing of the list,
+                        // and the item above it is found with its position, which the list looks up with a method
+                        // that is obfuscated.
+                        val positionIndex = indexOfFirstInstruction {
+                            opcode == Opcode.INVOKE_VIRTUAL &&
+                                    getReference<MethodReference>()?.let { reference ->
+                                        reference.definingClass == RECYCLER_VIEW_CLASS &&
+                                                reference.returnType == "I" &&
+                                                reference.parameterTypes.singleOrNull()?.toString() ==
+                                                "Landroid/view/View;"
+                                    } == true
+                        }
+
+                        if (positionIndex >= 0) {
+                            adapterPositionMethod = getInstruction(positionIndex).getReference<MethodReference>()
+
+                            addInstruction(
+                                0,
+                                "invoke-static {}, $EXTENSION_CLASS->markFeedSpacingAvailable()V"
+                            )
+                        }
                     }
                 }
             }
@@ -185,6 +208,35 @@ val feedCardLayoutPatch = bytecodePatch(
         }
 
         mutableClassDefBy(RECYCLER_VIEW_CLASS).apply {
+            // The extension gets the position of an item, which the class looks up with a method
+            // that is obfuscated.
+            adapterPositionMethod?.let { positionMethod ->
+                methods.add(
+                    ImmutableMethod(
+                        type,
+                        "patch_getChildAdapterPosition",
+                        listOf(
+                            ImmutableMethodParameter(RECYCLER_VIEW_CLASS, null, null),
+                            ImmutableMethodParameter("Landroid/view/View;", null, null),
+                        ),
+                        "I",
+                        AccessFlags.PUBLIC.value or AccessFlags.STATIC.value,
+                        null,
+                        null,
+                        MutableMethodImplementation(3),
+                    ).toMutable().apply {
+                        addInstructions(
+                            0,
+                            """
+                                invoke-virtual {p0, p1}, $positionMethod
+                                move-result v0
+                                return v0
+                            """
+                        )
+                    }
+                )
+            }
+
             // The cards have rounded corners, which are not part of the element.
             hookViewGroupMethod("onViewAdded", "Landroid/view/View;", "onChildAdded")
 

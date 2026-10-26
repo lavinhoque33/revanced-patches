@@ -113,8 +113,15 @@ class PlayerControlButton(
      * @param iconName the drawable name without the style suffix.
      * @param activatedIconName the icon of the activated state of the button, if it has two icons.
      *                          Both icons must exist in the style.
+     * @param activatedState the view state that shows the activated icon.
+     * @param activatedTintColor the color of the activated icon, or null to use the icon color as it is.
      */
-    fun setStyledIcon(iconName: String, activatedIconName: String? = null) {
+    fun setStyledIcon(
+        iconName: String,
+        activatedIconName: String? = null,
+        activatedState: Int = android.R.attr.state_activated,
+        activatedTintColor: Int? = null,
+    ) {
         Utils.verifyOnMainThread()
         val imageView = activeButton() ?: return
         val icon = PlayerIcons.styledDrawable(iconName) ?: return
@@ -123,9 +130,12 @@ class PlayerControlButton(
             imageView.setImageDrawable(icon)
         } else {
             val activatedIcon = PlayerIcons.styledDrawable(activatedIconName) ?: return
+            if (activatedTintColor != null) {
+                activatedIcon.setTint(activatedTintColor)
+            }
 
             imageView.setImageDrawable(StateListDrawable().apply {
-                addState(intArrayOf(android.R.attr.state_activated), activatedIcon)
+                addState(intArrayOf(activatedState), activatedIcon)
                 addState(intArrayOf(), icon)
             })
         }

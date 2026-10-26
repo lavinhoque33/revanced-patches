@@ -362,6 +362,9 @@ val overlayButtonsPatch = resourcePatch(
             "morphe_player_volume_unmuted",
             "morphe_player_volume_muted",
             "morphe_player_download",
+            // The two states of the always repeat button.
+            "morphe_loop_video_button_off",
+            "morphe_loop_video_button_on",
         )
 
         // Apply the selected icon type to the overlay buttons.

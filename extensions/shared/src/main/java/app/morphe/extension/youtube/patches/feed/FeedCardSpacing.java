@@ -64,6 +64,7 @@ final class FeedCardSpacing {
     static final int ITEM_SHELF_HEADER = 2;
     static final int ITEM_SHELF_ROW = 3;
     static final int ITEM_OTHER = 4;
+    static final int ITEM_SPACER = 5;
 
     /**
      * Kind of the items of the feeds, by the view of the item, which is cleared when the view is reused.
@@ -165,8 +166,8 @@ final class FeedCardSpacing {
             final int gap = FeedCardLayoutPatch.CARD_VERTICAL_SPACING;
             final int type = getItemType(item);
             switch (type) {
-                case ITEM_CARD, ITEM_SHELF_ROW, ITEM_UNKNOWN -> {
-                    // The cards and the rows of the shelves space themselves.
+                case ITEM_CARD, ITEM_SHELF_ROW, ITEM_UNKNOWN, ITEM_SPACER -> {
+                    // The cards and the rows of the shelves space themselves, and the spacers are not visible.
                 }
                 case ITEM_SHELF_HEADER -> {
                     // The card of the shelf starts at the header, so the header has the whole gap above it.
@@ -186,7 +187,7 @@ final class FeedCardSpacing {
                 if (afterRow) {
                     outRect.top += FeedCardLayoutPatch.SHORTS_ROW_SPACING;
                 }
-            } else if (afterRow) {
+            } else if (afterRow && type != ITEM_SPACER) {
                 // The card of the shelf ends at the last Short, and the row keeps an area below it,
                 // so the item below the last row gets the rest of the gap.
                 final int inset = type == ITEM_CARD ? gap : 0;
@@ -287,7 +288,7 @@ final class FeedCardSpacing {
             if (item == null) {
                 return null;
             }
-            if (!invisibleItems.containsKey(item)) {
+            if (!invisibleItems.containsKey(item) && getItemType(item) != ITEM_SPACER) {
                 return item;
             }
         }
@@ -314,6 +315,7 @@ final class FeedCardSpacing {
             case ITEM_SHELF_HEADER -> "shelf header";
             case ITEM_SHELF_ROW -> "shelf row";
             case ITEM_OTHER -> "other";
+            case ITEM_SPACER -> "spacer";
             default -> "unknown";
         };
     }

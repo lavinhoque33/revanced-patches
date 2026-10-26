@@ -235,6 +235,11 @@ public class FeedCardLayoutPatch {
      */
     static final int SHORTS_ROW_SPACING = Dim.dp(11);
     /**
+     * Height of the footer of a Shorts shelf, which is not visible, if the view is not laid out yet.
+     */
+    static final int SHELF_FOOTER_HEIGHT = Dim.dp(23);
+    private static final String SHORTS_SHELF_FOOTER_TEMPLATE = "shorts_grid_shelf_footer";
+    /**
      * The padding of the outline of a card is laid out from dp with rounding, and the inline player
      * can be a pixel or two larger than the thumbnail of the card.
      */
@@ -368,8 +373,7 @@ public class FeedCardLayoutPatch {
      * such as the spacing of the feed around the shelves.
      */
     private static final ByteTrieSearch spacerTemplateSearch = new ByteTrieSearch(
-            ByteTrieSearch.convertStringsToBytes("spacer", "divider", "spacing_cell", "statement_banner",
-                    "shorts_grid_shelf_footer")
+            ByteTrieSearch.convertStringsToBytes("spacer", "divider", "spacing_cell", "statement_banner")
     );
     /**
      * Templates of the items that are not cards, which are logged once to find the templates of the spacers.
@@ -1431,6 +1435,11 @@ public class FeedCardLayoutPatch {
         if (!shelfHeaderLabelSearch.matches(bytes)) {
             if (spacerTemplateSearch.matches(bytes)) {
                 return FeedCardSpacing.ITEM_SPACER;
+            }
+            if (bytes.length < 2000 && Element.parseFrom(bytes).getType().getComponentType()
+                    .getTemplateConfig().getUriTemplateConfig().getUri()
+                    .contains(SHORTS_SHELF_FOOTER_TEMPLATE)) {
+                return FeedCardSpacing.ITEM_SHELF_FOOTER;
             }
 
             final String template = Element.parseFrom(bytes).getType().getComponentType()

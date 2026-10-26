@@ -84,6 +84,15 @@ final class FeedCardSpacing {
      */
     private static WeakReference<View> offsetsItemView = new WeakReference<>(null);
     /**
+     * Items of the feed that are laid out without a height, which are the spacers of the list. They are not
+     * visible, so the spacing of the neighbours is the whole gap.
+     */
+    private static final Map<View, Boolean> invisibleItems = Collections.synchronizedMap(new WeakHashMap<>());
+    /**
+     * Number of items above an item that are looked through for the item that is not a spacer.
+     */
+    private static final int PREVIOUS_ITEM_SEARCH = 8;
+    /**
      * Views that the spacing below the last row of a shelf was logged for, which is not logged repeatedly.
      */
     private static final Map<View, Boolean> shelfEndItems = Collections.synchronizedMap(new WeakHashMap<>());
@@ -142,6 +151,10 @@ final class FeedCardSpacing {
             if (!(item.getParent() instanceof RecyclerView list) || list.getId() != FeedCardLayoutPatch.getFeedId()) {
                 return;
             }
+            // The spacers of the list are not visible, and the spacing of the items around them makes the gap.
+            if (invisibleItems.containsKey(item)) {
+                return;
+            }
 
             // The item is not in the adapter while it is removed, and its spacing does not matter.
             int position = RecyclerView.patch_getChildAdapterPosition(list, item);
@@ -166,15 +179,23 @@ final class FeedCardSpacing {
                 }
             }
 
-            // The rows of a shelf fill the card of the shelf, so the gap below the shelf is added
-            // to the item below the last row, which is the item after a row that is not a row.
-            if (type != ITEM_SHELF_ROW) {
-                View above = findItemAtPosition(list, position - 1);
-                if (above != null && getItemType(above) == ITEM_SHELF_ROW) {
-                    outRect.top += gap;
-                    if (shelfEndItems.put(above, Boolean.TRUE) == null) {
-                        Logger.printDebug(() -> "Spacing below the shelf: " + position);
-                    }
+            View above = findItemBefore(list, position);
+            final boolean afterRow = above != null && getItemType(above) == ITEM_SHELF_ROW;
+            if (type == ITEM_SHELF_ROW) {
+                // The rows of a shelf keep their own gap, which is below the gap of the cards.
+                if (afterRow) {
+                    outRect.top += FeedCardLayoutPatch.SHORTS_ROW_SPACING;
+                }
+            } else if (afterRow) {
+                // The card of the shelf ends at the last Short, and the row keeps an area below it,
+                // so the item below the last row gets the rest of the gap.
+                final int inset = type == ITEM_CARD ? gap : 0;
+                final int trailing = FeedCardLayoutPatch.getShortsShelfTrailing();
+                outRect.top = Math.max(-4 * gap, 2 * gap - trailing - inset);
+                if (shelfEndItems.put(above, Boolean.TRUE) == null) {
+                    final int top = outRect.top;
+                    Logger.printDebug(() -> "Spacing below the shelf: " + position + ", " + trailing
+                            + " / " + top);
                 }
             }
 
@@ -228,6 +249,49 @@ final class FeedCardSpacing {
             return ITEM_CARD;
         }
         return ITEM_UNKNOWN;
+    }
+
+    /**
+     * Updates the items that are not visible, which the list lays out with no height. The spacing of an item
+     * is set before the item is laid out, so the list is laid out again when an item is found.
+     */
+    static void updateInvisibleItems(RecyclerView list) {
+        if (!FeedCardLayoutPatch.isCardLayoutEnabled() || list.getId() != FeedCardLayoutPatch.getFeedId()) {
+            return;
+        }
+
+        boolean found = false;
+        for (int i = 0, count = list.getChildCount(); i < count; i++) {
+            View item = list.getChildAt(i);
+            if (item.getHeight() == 0 && item.getWidth() > 0
+                    && invisibleItems.put(item, Boolean.TRUE) == null) {
+                found = true;
+
+                final int position = RecyclerView.patch_getChildAdapterPosition(list, item);
+                Logger.printDebug(() -> "Invisible item of the feed: " + position);
+            }
+        }
+        if (found) {
+            // The spacing of the item was set before its height was known.
+            list.requestLayout();
+        }
+    }
+
+    /**
+     * @return The item above the item with this position that is not a spacer, if it is in the list.
+     */
+    @Nullable
+    private static View findItemBefore(RecyclerView list, int position) {
+        for (int p = position - 1, minimum = Math.max(0, position - PREVIOUS_ITEM_SEARCH); p >= minimum; p--) {
+            View item = findItemAtPosition(list, p);
+            if (item == null) {
+                return null;
+            }
+            if (!invisibleItems.containsKey(item)) {
+                return item;
+            }
+        }
+        return null;
     }
 
     /**

@@ -47,8 +47,10 @@ import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.WeakHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -362,6 +364,17 @@ public class FeedCardLayoutPatch {
                     String.valueOf(VIDEO_SHELF_ROW_LABEL_MARKER))
     );
     /**
+     * Templates of the items that are inserted between the items of the lists and are not visible,
+     * such as the spacing of the feed around the shelves.
+     */
+    private static final ByteTrieSearch spacerTemplateSearch = new ByteTrieSearch(
+            ByteTrieSearch.convertStringsToBytes("spacer", "divider")
+    );
+    /**
+     * Templates of the items that are not cards, which are logged once to find the templates of the spacers.
+     */
+    private static final Set<String> otherTemplates = Collections.synchronizedSet(new HashSet<>());
+    /**
      * Thumbnails of the Shorts, the same that the Shorts filter looks for.
      */
     private static final ByteTrieSearch shortsThumbnailSearch = new ByteTrieSearch(
@@ -408,7 +421,7 @@ public class FeedCardLayoutPatch {
     /**
      * Height of the area below the last Short of the last row of a Shorts shelf, which is not part of the card.
      */
-    private static volatile int shortsShelfTrailing;
+    private static volatile int shortsShelfTrailing = -1;
     /**
      * View that clips the thumbnail of the Shorts of the shelf, to log the hierarchy only when it changes.
      */
@@ -1433,6 +1446,16 @@ public class FeedCardLayoutPatch {
             return FeedCardSpacing.ITEM_SHELF_ROW;
         }
         if (!shelfHeaderLabelSearch.matches(bytes)) {
+            if (spacerTemplateSearch.matches(bytes)) {
+                return FeedCardSpacing.ITEM_SPACER;
+            }
+
+            final String template = Element.parseFrom(bytes).getType().getComponentType()
+                    .getTemplateConfig().getUriTemplateConfig().getUri();
+            if (otherTemplates.add(template)) {
+                Logger.printDebug(() -> "Item without a card template: " + template
+                        + ", " + bytes.length + " bytes");
+            }
             return FeedCardSpacing.ITEM_OTHER;
         }
 
@@ -2248,14 +2271,16 @@ public class FeedCardLayoutPatch {
      * @return The height of the area below the last Short of the last row of a Shorts shelf.
      */
     static int getShortsShelfTrailing() {
-        return shortsShelfTrailing;
+        return Math.max(0, shortsShelfTrailing);
     }
 
     private static void updateShortsShelfTrailing(int trailing) {
         final int value = Math.max(0, trailing);
         if (value != shortsShelfTrailing) {
+            final int previous = shortsShelfTrailing;
             shortsShelfTrailing = value;
-            Logger.printDebug(() -> "Area below the last Short of the shelf: " + value);
+            Logger.printDebug(() -> "Area below the last Short of the shelf: " + value
+                    + " (was " + previous + ")");
         }
     }
 

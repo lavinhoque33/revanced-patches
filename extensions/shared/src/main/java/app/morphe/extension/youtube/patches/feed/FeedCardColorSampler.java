@@ -11,24 +11,29 @@
 package app.morphe.extension.youtube.patches.feed;
 
 import android.graphics.Bitmap;
+import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.PorterDuff;
 import android.graphics.Rect;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
+import android.graphics.drawable.DrawableWrapper;
 import android.graphics.drawable.LayerDrawable;
 import android.support.v7.widget.RecyclerView;
+import android.text.TextUtils;
 import android.view.View;
 import android.view.ViewGroup;
-import android.view.ViewParent;
 import android.widget.ImageView;
 
 import androidx.annotation.Nullable;
 
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.WeakHashMap;
 
 import app.morphe.extension.shared.utils.BaseThemeUtils;
@@ -39,9 +44,12 @@ import app.morphe.extension.youtube.settings.Settings;
  * Tints the background of the cards of the feed with a color sampled from their thumbnail, like the stock
  * app, which receives the sampled color from the server.
  * <p>
- * The tint is taken from the thumbnail of the card, and it's cached by the bitmap of the thumbnail, so the
- * same thumbnail is not sampled again while scrolling. Only the background of the card is tinted: the
- * surfaces inside it keep their colors and are drawn over the tint.
+ * The thumbnail of a card is an image of the element of the card, which can be a bitmap drawable or a
+ * drawable that draws the image itself, such as the drawable of the image library. Both are sampled:
+ * the bitmap is read, and the other drawables are drawn in a small bitmap.
+ * <p>
+ * Only the background of the card is tinted: the surfaces inside it keep their colors and are drawn
+ * over the tint.
  */
 final class FeedCardColorSampler {
     /**
@@ -72,16 +80,31 @@ final class FeedCardColorSampler {
      */
     private static final int MINIMUM_BITMAP_SIZE = 48;
     /**
+     * Smallest image of a card, in pixels. The avatars and the icons are smaller, and they are square.
+     */
+    private static final int MINIMUM_THUMBNAIL_WIDTH = 96;
+    /**
      * Limits of the work of one frame, which keeps scrolling smooth.
      */
     private static final int MAXIMUM_SEARCHES_PER_FRAME = 4;
     private static final int MAXIMUM_SAMPLES_PER_FRAME = 4;
+    private static final int MAXIMUM_DRAWN_SAMPLES_PER_FRAME = 2;
     private static final int MAXIMUM_HARDWARE_SAMPLES_PER_FRAME = 1;
     private static final int MAXIMUM_THUMBNAIL_DEPTH = 12;
     /**
-     * Number of cards that are logged to help diagnose the sampling.
+     * A thumbnail that is not readable yet, such as a placeholder that the image replaces while it loads,
+     * is sampled again after this delay, up to this number of times.
+     */
+    private static final int MAXIMUM_SAMPLE_ATTEMPTS = 5;
+    private static final long SAMPLE_RETRY_INTERVAL_MILLIS = 400;
+    /**
+     * Number of the log lines that help diagnose the sampling. The logs are limited because they are
+     * written for every card that is seen, while scrolling.
      */
     private static final int MAXIMUM_LOGS = 32;
+    private static final int MAXIMUM_SURFACE_LOGS = 6;
+    private static final int MAXIMUM_MISSING_THUMBNAIL_LOGS = 6;
+    private static final int MAXIMUM_NOT_CARD_LOGS = 6;
     private static final long SLOW_UPDATE_NANOS = 8_000_000L;
     private static final long SLOW_UPDATE_INTERVAL_MILLIS = 5_000;
     /**
@@ -107,28 +130,37 @@ final class FeedCardColorSampler {
      */
     private static final Map<View, List<WeakReference<Drawable>>> cardBackgrounds = new WeakHashMap<>();
     /**
-     * Hue of the thumbnail of a drawable. NaN if the thumbnail has no color to tint the card with.
+     * Hue of the thumbnail of a bitmap drawable. NaN if the thumbnail has no color to tint the card with.
      * The drawables are compared by identity: Glide reuses the drawable of a cached image, but the bitmap
      * inside it can be reused for other images after the drawable is discarded.
      */
     private static final Map<Drawable, Float> thumbnailHues = new WeakHashMap<>();
     /**
-     * Views of the cards that were logged.
+     * Views of the cards and the surfaces that were logged.
      */
     private static final Map<View, Boolean> loggedCards = new WeakHashMap<>();
+    private static final Map<RecyclerView, Boolean> loggedLists = new WeakHashMap<>();
+    /**
+     * Classes of the drawables that could not be sampled, which are logged once.
+     */
+    private static final Set<Class<?>> loggedDrawableClasses = new HashSet<>();
     /**
      * Row of pixels of a thumbnail, reused by the samplings.
      */
     private static int[] rowPixels = new int[0];
     private static final float[] sampleHsv = new float[3];
     private static final float[] tintHsv = new float[3];
+    /**
+     * Small bitmap that a drawable is drawn in, for the thumbnails which are not bitmap drawables.
+     */
+    private static Bitmap drawableBitmap;
+    private static Canvas drawableCanvas;
     private static boolean darkMode;
     private static int logs;
+    private static int surfaceLogs;
+    private static int missingThumbnailLogs;
+    private static int notCardLogs;
     private static long slowUpdateLogTime;
-    /**
-     * Items without a thumbnail of a card, to log the drawable that was not sampled.
-     */
-    private static int cardsWithoutThumbnail;
 
     private FeedCardColorSampler() {
     }
@@ -145,24 +177,6 @@ final class FeedCardColorSampler {
             cardTints.remove(view);
             cardThumbnails.remove(view);
         }
-    }
-
-    /**
-     * @return Whether the list is the list of an item of another list, such as the videos of a shelf,
-     *         which are not cards.
-     */
-    static boolean isNestedList(View list) {
-        ViewParent parent = list.getParent();
-        while (parent != null) {
-            if (parent instanceof RecyclerView) {
-                return true;
-            }
-            if (!(parent instanceof View parentView)) {
-                return false;
-            }
-            parent = parentView.getParent();
-        }
-        return false;
     }
 
     /**
@@ -189,10 +203,19 @@ final class FeedCardColorSampler {
      */
     @Nullable
     static Integer getCardColor(@Nullable View item, @Nullable View drawableView, Drawable drawable) {
-        if (item == null || drawableView == null
-                || !Settings.FEED_CARD_LAYOUT_DYNAMIC_COLORS.get()
-                || !isCardItem(item)
-                || !isCardSurface(item, drawableView, drawable)) {
+        if (!Settings.FEED_CARD_LAYOUT_DYNAMIC_COLORS.get()) {
+            return null;
+        }
+        if (item == null || drawableView == null) {
+            logSurfaceRejected(drawableView, drawable, "its drawable is not in the feed");
+            return null;
+        }
+        if (!isCardItem(item)) {
+            logSurfaceRejected(drawableView, drawable, "the item is not a card");
+            return null;
+        }
+        if (!isCardSurface(item, drawableView, drawable)) {
+            logSurfaceRejected(drawableView, drawable, "the drawable is inside the card");
             return null;
         }
 
@@ -208,6 +231,7 @@ final class FeedCardColorSampler {
 
     /**
      * Samples the thumbnails of the cards in the list and updates their tint, before the list is drawn.
+     * Called for the list of the feed only, so the items of the shelves are never sampled.
      */
     static void updateCardTints(RecyclerView list) {
         try {
@@ -216,9 +240,8 @@ final class FeedCardColorSampler {
                 return;
             }
 
-            // The videos of a shelf are not cards, and the card of the shelf is drawn by the list.
-            if (isNestedList(list)) {
-                return;
+            if (loggedLists.put(list, Boolean.TRUE) == null) {
+                Logger.printDebug(() -> "Card colors: list with " + list.getChildCount() + " items");
             }
 
             final boolean currentDarkMode = BaseThemeUtils.isDarkModeEnabled();
@@ -234,10 +257,15 @@ final class FeedCardColorSampler {
             final long startTime = System.nanoTime();
             int searches = 0;
             int samples = 0;
+            int drawnSamples = 0;
 
             for (int i = 0, count = list.getChildCount(); i < count; i++) {
                 View item = list.getChildAt(i);
-                if (item.getHeight() <= 0 || !isCardItem(item)) {
+                if (item.getHeight() <= 0) {
+                    continue;
+                }
+                if (!isCardItem(item)) {
+                    logNotCard(item);
                     continue;
                 }
 
@@ -247,43 +275,57 @@ final class FeedCardColorSampler {
                         continue;
                     }
                     searches++;
-                    thumbnail = findThumbnail(item);
-                    if (thumbnail == null) {
+
+                    ImageView imageView = findThumbnailView(item, 0);
+                    if (imageView == null) {
                         cardThumbnails.remove(item);
                         removeTint(item);
                         logMissingThumbnail(item);
                         continue;
                     }
+                    thumbnail = new Thumbnail(imageView);
                     cardThumbnails.put(item, thumbnail);
                 }
 
-                BitmapDrawable drawable = thumbnail.currentDrawable();
+                ImageView imageView = thumbnail.imageView();
+                Drawable drawable = imageView == null ? null : imageView.getDrawable();
                 if (drawable == null) {
+                    cardThumbnails.remove(item);
                     removeTint(item);
                     continue;
                 }
 
-                // The drawable of the item is new, such as after a recycled view shows another video.
-                if (drawable != thumbnail.sampledDrawable()) {
-                    final int maximumSamples = drawable.getBitmap().getConfig() == Bitmap.Config.HARDWARE
-                            ? MAXIMUM_HARDWARE_SAMPLES_PER_FRAME
-                            : MAXIMUM_SAMPLES_PER_FRAME;
-                    if (samples >= maximumSamples) {
-                        continue;
-                    }
-                    samples++;
-
-                    final float hue = getThumbnailHue(drawable);
-                    final int tint = Float.isNaN(hue) ? NO_TINT : getTint(hue);
-                    thumbnail = new Thumbnail(thumbnail.imageView.get(), drawable, tint);
-                    cardThumbnails.put(item, thumbnail);
-
-                    if (tint != NO_TINT) {
-                        logTint(item, hue, tint);
-                    }
+                final long now = System.currentTimeMillis();
+                final CharSequence label = item.getContentDescription();
+                if (!thumbnail.needsSample(drawable, label, now)) {
+                    applyTint(item, thumbnail.tint());
+                    continue;
                 }
 
-                applyTint(item, thumbnail.tint);
+                BitmapDrawable bitmapDrawable = getBitmapDrawable(drawable);
+                final boolean drawn = bitmapDrawable == null;
+                final int maximumSamples = bitmapDrawable != null && isHardware(bitmapDrawable)
+                        ? MAXIMUM_HARDWARE_SAMPLES_PER_FRAME
+                        : MAXIMUM_SAMPLES_PER_FRAME;
+                if (samples >= maximumSamples || (drawn && drawnSamples >= MAXIMUM_DRAWN_SAMPLES_PER_FRAME)) {
+                    continue;
+                }
+                samples++;
+                if (drawn) {
+                    drawnSamples++;
+                }
+
+                final float hue = drawn ? sampleDrawn(drawable) : getBitmapHue(bitmapDrawable);
+                final int tint = Float.isNaN(hue) ? NO_TINT : getTint(hue);
+                thumbnail = thumbnail.sampled(drawable, label, now, tint);
+                cardThumbnails.put(item, thumbnail);
+
+                if (tint != NO_TINT) {
+                    logTint(item, hue, tint);
+                } else {
+                    logUntinted(item, drawable);
+                }
+                applyTint(item, tint);
             }
 
             logSlowUpdate(startTime, samples);
@@ -333,15 +375,9 @@ final class FeedCardColorSampler {
         backgrounds.add(new WeakReference<>(drawable));
     }
 
-    @Nullable
-    private static Thumbnail findThumbnail(View item) {
-        ImageView imageView = findThumbnailView(item, 0);
-        return imageView == null ? null : new Thumbnail(imageView, null, NO_TINT);
-    }
-
     /**
-     * @return The image of the item with the largest bitmap, which is the thumbnail of a card,
-     *         or null if the item has no readable image.
+     * @return The image of the item with the largest view, which is the thumbnail of a card,
+     *         or null if the item has no image.
      */
     @Nullable
     private static ImageView findThumbnailView(View view, int depth) {
@@ -350,13 +386,10 @@ final class FeedCardColorSampler {
         }
 
         ImageView best = null;
-        int bestArea = MINIMUM_BITMAP_SIZE * MINIMUM_BITMAP_SIZE;
-        if (view instanceof ImageView imageView) {
-            final int area = thumbnailArea(imageView);
-            if (area >= bestArea) {
-                best = imageView;
-                bestArea = area;
-            }
+        int bestArea = 0;
+        if (view instanceof ImageView imageView && isThumbnailView(imageView)) {
+            best = imageView;
+            bestArea = imageView.getWidth() * imageView.getHeight();
         }
 
         if (view instanceof ViewGroup group) {
@@ -365,7 +398,7 @@ final class FeedCardColorSampler {
                 if (child == null) {
                     continue;
                 }
-                final int area = thumbnailArea(child);
+                final int area = child.getWidth() * child.getHeight();
                 if (area > bestArea) {
                     best = child;
                     bestArea = area;
@@ -376,16 +409,15 @@ final class FeedCardColorSampler {
         return best;
     }
 
-    private static int thumbnailArea(ImageView view) {
-        BitmapDrawable drawable = getBitmapDrawable(view.getDrawable());
-        if (drawable != null) {
-            Bitmap bitmap = drawable.getBitmap();
-            return bitmap.getWidth() * bitmap.getHeight();
-        }
-
-        // The image of the thumbnails of some app versions is not a bitmap drawable, and the largest image
-        // of the card is still the thumbnail.
-        return view.getWidth() > 0 && view.getHeight() > 0 ? view.getWidth() * view.getHeight() : 0;
+    /**
+     * The thumbnail of a card is wide, and the avatars and the icons are not.
+     */
+    private static boolean isThumbnailView(ImageView view) {
+        return view.getVisibility() == View.VISIBLE
+                && view.getDrawable() != null
+                && view.getWidth() > 0 && view.getHeight() > 0
+                && view.getWidth() >= MINIMUM_THUMBNAIL_WIDTH
+                && view.getWidth() * 5 >= view.getHeight() * 6;
     }
 
     /**
@@ -404,6 +436,10 @@ final class FeedCardColorSampler {
                 return null;
             }
             return bitmapDrawable;
+        }
+
+        if (drawable instanceof DrawableWrapper wrapper) {
+            return getBitmapDrawable(wrapper.getDrawable());
         }
 
         if (drawable instanceof LayerDrawable layerDrawable) {
@@ -428,11 +464,67 @@ final class FeedCardColorSampler {
         return null;
     }
 
+    private static boolean isHardware(BitmapDrawable drawable) {
+        Bitmap bitmap = drawable.getBitmap();
+        return bitmap != null && bitmap.getConfig() == Bitmap.Config.HARDWARE;
+    }
+
+    /**
+     * @return The hue of a bitmap thumbnail, or NaN if the thumbnail is gray or too dark.
+     */
+    private static float getBitmapHue(BitmapDrawable drawable) {
+        Float hue = thumbnailHues.get(drawable);
+        if (hue == null) {
+            hue = sampleBitmap(drawable.getBitmap());
+            thumbnailHues.put(drawable, hue);
+        }
+        return hue;
+    }
+
+    /**
+     * @return The hue of a thumbnail that is not a bitmap drawable, which is drawn in a small bitmap,
+     *         or NaN if it has no bitmap to draw or it's gray.
+     */
+    private static float sampleDrawn(Drawable drawable) {
+        if (!prepareDrawableCanvas()) {
+            return Float.NaN;
+        }
+
+        Rect bounds = drawable.copyBounds();
+        try {
+            drawable.setBounds(0, 0, GRID_SIZE, GRID_SIZE);
+            drawable.draw(drawableCanvas);
+        } catch (Exception ex) {
+            // A hardware bitmap can't be drawn in a software canvas, but the image library copies it
+            // to a bitmap that can, and the ones that fail keep the color of the card.
+            logUnreadableDrawable(drawable, ex);
+            return Float.NaN;
+        } finally {
+            drawable.setBounds(bounds);
+        }
+
+        return sampleHue(drawableBitmap);
+    }
+
+    private static boolean prepareDrawableCanvas() {
+        if (drawableBitmap == null || drawableBitmap.isRecycled()) {
+            try {
+                drawableBitmap = Bitmap.createBitmap(GRID_SIZE, GRID_SIZE, Bitmap.Config.ARGB_8888);
+                drawableCanvas = new Canvas(drawableBitmap);
+            } catch (Exception ex) {
+                Logger.printException(() -> "Card colors: canvas failure", ex);
+                return false;
+            }
+        }
+
+        drawableCanvas.drawColor(Color.TRANSPARENT, PorterDuff.Mode.CLEAR);
+        return true;
+    }
+
     /**
      * @return The hue of the thumbnail, or NaN if the thumbnail is gray or too dark.
      */
-    private static float sampleThumbnail(BitmapDrawable drawable) {
-        Bitmap bitmap = drawable.getBitmap();
+    private static float sampleBitmap(Bitmap bitmap) {
         Bitmap readable = bitmap;
 
         // The pixels of a hardware bitmap can't be read, but it can be copied to a bitmap that can.
@@ -464,7 +556,7 @@ final class FeedCardColorSampler {
     private static float sampleHue(Bitmap bitmap) {
         final int width = bitmap.getWidth();
         final int height = bitmap.getHeight();
-        if (width < MINIMUM_BITMAP_SIZE || height < MINIMUM_BITMAP_SIZE) {
+        if (width <= 0 || height <= 0) {
             return Float.NaN;
         }
 
@@ -521,18 +613,6 @@ final class FeedCardColorSampler {
         }
 
         refreshBackground(item);
-    }
-
-    /**
-     * @return The hue of a thumbnail, or NaN if the thumbnail has no color to tint the card with.
-     */
-    private static float getThumbnailHue(BitmapDrawable drawable) {
-        Float hue = thumbnailHues.get(drawable);
-        if (hue == null) {
-            hue = sampleThumbnail(drawable);
-            thumbnailHues.put(drawable, hue);
-        }
-        return hue;
     }
 
     private static int getTint(float hue) {
@@ -620,23 +700,109 @@ final class FeedCardColorSampler {
         logs++;
 
         Thumbnail thumbnail = cardThumbnails.get(item);
-        ImageView imageView = thumbnail == null ? null : thumbnail.imageView.get();
+        ImageView imageView = thumbnail == null ? null : thumbnail.imageView();
+        Drawable drawable = imageView == null ? null : imageView.getDrawable();
         Logger.printDebug(() -> String.format(Locale.US,
-                "Card color: tint #%06X of hue %.1f, thumbnail %s, background known %b",
+                "Card color: tint #%06X of hue %.1f, thumbnail %s with %s, background known %b",
                 tint & 0xFFFFFF, hue,
                 imageView == null ? "none" : imageView.getClass().getSimpleName(),
+                drawable == null ? "no drawable" : drawable.getClass().getSimpleName(),
                 cardBackgrounds.containsKey(item)));
     }
 
+    private static void logUntinted(View item, Drawable drawable) {
+        if (logs >= MAXIMUM_LOGS || loggedCards.containsKey(item)) {
+            return;
+        }
+        logs++;
+        loggedCards.put(item, Boolean.TRUE);
+
+        Logger.printDebug(() -> "Card colors: no color in the thumbnail of "
+                + drawable.getClass().getSimpleName() + " to tint the card with");
+    }
+
+    private static void logNotCard(View item) {
+        if (notCardLogs >= MAXIMUM_NOT_CARD_LOGS) {
+            return;
+        }
+        notCardLogs++;
+
+        CharSequence label = item.getContentDescription();
+        Logger.printDebug(() -> "Card colors: " + describeView(item) + " is not a card, label="
+                + (label == null ? "none" : shorten(label.toString())));
+    }
+
     private static void logMissingThumbnail(View item) {
-        cardsWithoutThumbnail++;
-        if (cardsWithoutThumbnail != 10) {
+        if (missingThumbnailLogs >= MAXIMUM_MISSING_THUMBNAIL_LOGS) {
+            return;
+        }
+        missingThumbnailLogs++;
+
+        Logger.printDebug(() -> "Card colors: no thumbnail in " + describeChildren(item));
+    }
+
+    private static void logSurfaceRejected(@Nullable View drawableView, Drawable drawable, String reason) {
+        if (surfaceLogs >= MAXIMUM_SURFACE_LOGS) {
+            return;
+        }
+        surfaceLogs++;
+
+        Logger.printDebug(() -> {
+            Rect bounds = drawable.copyBounds();
+            return "Card colors: " + drawable.getClass().getSimpleName() + " of "
+                    + (drawableView == null ? "an unknown view" : describeView(drawableView))
+                    + " (" + bounds.width() + "x" + bounds.height() + ") is not the card surface: " + reason;
+        });
+    }
+
+    private static void logUnreadableDrawable(Drawable drawable, Exception ex) {
+        if (!loggedDrawableClasses.add(drawable.getClass())) {
             return;
         }
 
-        Logger.printDebug(() -> "Card color: no readable thumbnail in a card, such as a " + item.getClass()
-                .getSimpleName() + " with the drawable "
-                + (item.getBackground() == null ? "none" : item.getBackground().getClass().getSimpleName()));
+        Logger.printDebug(() -> "Card colors: cannot sample the thumbnail of "
+                + drawable.getClass().getSimpleName() + ": " + ex);
+    }
+
+    /**
+     * @return The view and the classes of the drawables and the backgrounds of the views inside it,
+     *         which are the images that could be the thumbnail of a card.
+     */
+    private static String describeChildren(View item) {
+        StringBuilder description = new StringBuilder(describeView(item));
+        appendChildDescriptions(item, 0, description);
+        return description.toString();
+    }
+
+    private static void appendChildDescriptions(View view, int depth, StringBuilder description) {
+        if (depth > 3 || description.length() > 500 || !(view instanceof ViewGroup group)) {
+            return;
+        }
+
+        for (int i = 0, count = group.getChildCount(); i < count; i++) {
+            View child = group.getChildAt(i);
+            description.append(", ").append(describeView(child));
+            appendChildDescriptions(child, depth + 1, description);
+            if (description.length() > 500) {
+                return;
+            }
+        }
+    }
+
+    private static String describeView(View view) {
+        StringBuilder description = new StringBuilder(view.getClass().getSimpleName())
+                .append(' ').append(view.getWidth()).append('x').append(view.getHeight());
+        if (view instanceof ImageView imageView && imageView.getDrawable() != null) {
+            description.append(' ').append(imageView.getDrawable().getClass().getSimpleName());
+        }
+        if (view.getBackground() != null) {
+            description.append(" on ").append(view.getBackground().getClass().getSimpleName());
+        }
+        return description.toString();
+    }
+
+    private static String shorten(String text) {
+        return text.length() <= 80 ? text : text.substring(0, 80) + "...";
     }
 
     private static void logSlowUpdate(long startTime, int samples) {
@@ -666,12 +832,33 @@ final class FeedCardColorSampler {
         private final WeakReference<ImageView> imageView;
         @Nullable
         private final WeakReference<Drawable> sampledDrawable;
+        @Nullable
+        private final CharSequence sampledLabel;
+        private final long sampledTime;
+        private final int attempts;
         private final int tint;
 
-        Thumbnail(ImageView imageView, @Nullable BitmapDrawable sampledDrawable, int tint) {
+        Thumbnail(ImageView imageView) {
+            this(imageView, null, null, 0, 0, NO_TINT);
+        }
+
+        private Thumbnail(ImageView imageView, @Nullable Drawable sampledDrawable, @Nullable CharSequence sampledLabel,
+                          long sampledTime, int attempts, int tint) {
             this.imageView = new WeakReference<>(imageView);
             this.sampledDrawable = sampledDrawable == null ? null : new WeakReference<>(sampledDrawable);
+            this.sampledLabel = sampledLabel;
+            this.sampledTime = sampledTime;
+            this.attempts = attempts;
             this.tint = tint;
+        }
+
+        @Nullable
+        ImageView imageView() {
+            return imageView.get();
+        }
+
+        int tint() {
+            return tint;
         }
 
         /**
@@ -689,17 +876,43 @@ final class FeedCardColorSampler {
         }
 
         /**
-         * @return The drawable that was sampled, or null if it was discarded.
+         * @return Whether the thumbnail must be sampled again, because it's new or it was not readable yet.
          */
-        @Nullable
-        Drawable sampledDrawable() {
-            return sampledDrawable == null ? null : sampledDrawable.get();
+        boolean needsSample(Drawable drawable, @Nullable CharSequence label, long now) {
+            if (sampledDrawable == null || drawable != sampledDrawable.get()) {
+                return true;
+            }
+            if (!sameLabel(label)) {
+                return true;
+            }
+
+            // The image can be set after the drawable of the item, such as a placeholder that the image
+            // replaces while it loads.
+            return tint == NO_TINT && attempts < MAXIMUM_SAMPLE_ATTEMPTS
+                    && now - sampledTime >= SAMPLE_RETRY_INTERVAL_MILLIS;
         }
 
-        @Nullable
-        BitmapDrawable currentDrawable() {
+        /**
+         * Compares the labels by identity first, which is the same object until the view shows another item,
+         * and without copying the label of every card.
+         */
+        private boolean sameLabel(@Nullable CharSequence label) {
+            if (label == sampledLabel) {
+                return true;
+            }
+            if (label == null || sampledLabel == null) {
+                return false;
+            }
+            return TextUtils.equals(label, sampledLabel);
+        }
+
+        Thumbnail sampled(Drawable drawable, @Nullable CharSequence label, long now, int tint) {
             ImageView view = imageView.get();
-            return view == null ? null : getBitmapDrawable(view.getDrawable());
+            if (view == null) {
+                return this;
+            }
+
+            return new Thumbnail(view, drawable, label, now, attempts + 1, tint);
         }
     }
 }

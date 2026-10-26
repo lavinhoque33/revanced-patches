@@ -1508,14 +1508,15 @@ public class FeedCardLayoutPatch {
 
     /**
      * @return The item of the feed that contains the view, or null if the view is not in the feed.
+     *         The feed list is inside the list of the main app, so the ancestors of the list are not checked.
      */
     @Nullable
     private static View findFeedItem(@Nullable View view) {
         while (view != null) {
             ViewParent parent = view.getParent();
-            if (parent instanceof RecyclerView recyclerView) {
+            if (parent instanceof RecyclerView list) {
                 // The items of a shelf are the items of a list inside the list of the feed, not cards.
-                return FeedCardColorSampler.isNestedList(recyclerView) ? null : view;
+                return list.getId() == getFeedId() ? view : null;
             }
             view = parent instanceof View parentView ? parentView : null;
         }
@@ -1725,10 +1726,11 @@ public class FeedCardLayoutPatch {
 
                             final boolean feed = current.getId() == getFeedId();
 
-                            // The cards are tinted with the colors sampled from their thumbnails.
-                            FeedCardColorSampler.updateCardTints(current);
-
                             if (feed) {
+                                // The cards are tinted with the colors sampled from their thumbnails. The feed list
+                                // is one of the lists of the main app, and its items are the cards.
+                                FeedCardColorSampler.updateCardTints(current);
+
                                 // The autoplay of a Short shows the player in a container above the Short, outside
                                 // the list, which clips the player with its own rounded background. It has the clip
                                 // of the Short below it.

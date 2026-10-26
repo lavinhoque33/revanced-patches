@@ -1020,6 +1020,8 @@ Please download %2$s from the website"</string>
     <string name="revanced_external_downloader_package_not_found_warning">"Could not find installed app with package name: %s
 
 Verify the package name is correct and the app is installed"</string>
+    <string name="revanced_feed_card_layout_dynamic_colors_summary">Tints the background of the cards of the feed with a color sampled from the thumbnail of each video</string>
+    <string name="revanced_feed_card_layout_dynamic_colors_title">Dynamic card colors</string>
     <string name="revanced_fix_hype_button_icon_summary_off">Hype button icon is hidden</string>
     <string name="revanced_fix_hype_button_icon_summary_on">Hype button icon is shown</string>
     <string name="revanced_fix_hype_button_icon_title">Fix Hype button icon</string>

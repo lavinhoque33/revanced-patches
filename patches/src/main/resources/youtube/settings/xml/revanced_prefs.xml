@@ -462,7 +462,8 @@
         <app.morphe.extension.youtube.settings.preference.PlaybackInFeedsListPreference android:title="@string/morphe_playback_in_feeds_title" android:key="morphe_playback_in_feeds" android:entries="@array/morphe_playback_in_feeds_entries" android:entryValues="@array/morphe_playback_in_feeds_entry_values" />SETTINGS: PLAYBACK_IN_FEEDS -->
 
         <!-- SETTINGS: FEED_CARD_LAYOUT
-        <app.morphe.extension.shared.settings.preference.CustomDialogListPreference android:title="@string/morphe_feed_card_layout_title" android:key="morphe_feed_card_layout" android:entries="@array/morphe_feed_card_layout_entries" android:entryValues="@array/morphe_feed_card_layout_entry_values" />SETTINGS: FEED_CARD_LAYOUT -->
+        <app.morphe.extension.shared.settings.preference.CustomDialogListPreference android:title="@string/morphe_feed_card_layout_title" android:key="morphe_feed_card_layout" android:entries="@array/morphe_feed_card_layout_entries" android:entryValues="@array/morphe_feed_card_layout_entry_values" />
+        <SwitchPreference android:title="@string/revanced_feed_card_layout_dynamic_colors_title" android:key="revanced_feed_card_layout_dynamic_colors" android:summary="@string/revanced_feed_card_layout_dynamic_colors_summary" />SETTINGS: FEED_CARD_LAYOUT -->
 
         <!-- SETTINGS: FEED_VIEW_COUNT
         <SwitchPreference android:title="@string/morphe_feed_view_count_title" android:key="morphe_feed_view_count" android:summary="@string/morphe_feed_view_count_summary" />SETTINGS: FEED_VIEW_COUNT -->

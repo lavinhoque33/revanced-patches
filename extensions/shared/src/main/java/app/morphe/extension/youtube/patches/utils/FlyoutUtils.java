@@ -13,7 +13,7 @@
 package app.morphe.extension.youtube.patches.utils;
 
 import static app.morphe.extension.shared.utils.StringRef.str;
-import static app.morphe.extension.youtube.settings.YouTubeActivityHook.USE_BOLD_ICONS;
+import static app.morphe.extension.youtube.settings.YouTubeActivityHook.useBoldFlyoutIcons;
 
 import android.annotation.SuppressLint;
 import android.app.Dialog;
@@ -107,18 +107,19 @@ public final class FlyoutUtils {
     }
 
     private static Drawable getSaveToWatchLaterDrawable() {
-        Drawable drawable = ResourceUtils.getDrawable(USE_BOLD_ICONS
+        final boolean bold = useBoldFlyoutIcons();
+        Drawable drawable = ResourceUtils.getDrawable(bold
                 ? "yt_outline_experimental_clock_vd_theme_24"
                 : "yt_outline_clock_black_24");
         return drawable != null
                 ? drawable
-                : ResourceUtils.getDrawable(USE_BOLD_ICONS
+                : ResourceUtils.getDrawable(bold
                         ? "morphe_save_to_watch_later_button_bold"
                         : "morphe_save_to_watch_later_button");
     }
 
     private static Drawable getAiSListSubmitDrawable() {
-        Drawable drawable = ResourceUtils.getDrawable(USE_BOLD_ICONS
+        Drawable drawable = ResourceUtils.getDrawable(useBoldFlyoutIcons()
                 ? "yt_outline_experimental_flag_vd_theme_24"
                 : "yt_outline_flag_black_24");
         return drawable != null

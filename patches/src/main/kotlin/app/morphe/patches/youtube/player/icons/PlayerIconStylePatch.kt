@@ -73,6 +73,28 @@ private fun iconStyleVariants(resourceDirectory: String, baseNames: Array<out St
 private val logger = Logger.getLogger(ResourcePatchContext::class.java.name)
 
 /**
+ * Names used by Morphe icon packs, by the base name this fork registers for the same button.
+ * Such a pack names its files after Morphe's player icon style option, so it works unchanged.
+ * A pack that supplies both names keeps the fork's own one.
+ */
+private val morpheIconNames = mapOf(
+    "morphe_reload_video_button" to "morphe_reload_video",
+    "morphe_fullscreen_video_scale_fit" to "revanced_fullscreen_video_scale_fit",
+    "morphe_fullscreen_video_scale_stretch" to "revanced_fullscreen_video_scale_stretch",
+    "morphe_fullscreen_video_scale_zoom" to "revanced_fullscreen_video_scale_zoom",
+    "morphe_ic_sc_speed" to "morphe_player_speed",
+    // Morphe names the state of the mute button, the fork names the volume icon it shows.
+    "morphe_mute_video_button_on" to "morphe_player_volume_muted",
+    "morphe_mute_video_button_off" to "morphe_player_volume_unmuted",
+    "morphe_yt_download_button" to "morphe_player_download",
+)
+
+// The reverse direction, the icons of the included patches are copied by the fork's base name.
+private val morpheIconNamesByBaseName = morpheIconNames.entries.associate { (morpheName, baseName) ->
+    baseName to morpheName
+}
+
+/**
  * User provided icons of the Custom style, by the base name of the icon each one replaces.
  * Only the icons of the included patches are copied, so the file can have more than those.
  */
@@ -95,7 +117,8 @@ internal class CustomIcons(path: String) {
 
     fun copy(context: ResourcePatchContext, baseNames: Array<out String>) {
         baseNames.forEach { baseName ->
-            val icon = icons[baseName] ?: return@forEach
+            val aliasName = morpheIconNamesByBaseName[baseName]
+            val icon = icons[baseName] ?: aliasName?.let(icons::get) ?: return@forEach
             // A bitmap of the highest density, the system scales it down for the other densities.
             val file = if (icon.png) {
                 context["res/drawable-xxxhdpi/${baseName}_custom.png"].also { it.parentFile.mkdirs() }
@@ -103,7 +126,12 @@ internal class CustomIcons(path: String) {
                 context["res/drawable/${baseName}_custom.xml"]
             }
             file.writeBytes(icon.bytes)
+
             copied += baseName
+            // Both names are valid for this icon, so the unused one is not a misspelled file name.
+            if (aliasName != null && icons.containsKey(aliasName)) {
+                copied += aliasName
+            }
         }
     }
 
@@ -253,6 +281,7 @@ internal fun customIconsOptionDescription(example: String) = """
 
     Each icon is named after the icon it replaces, such as '$example'.
     An icon is a vector drawable (.xml), or a white square PNG image (.png, 96x96 pixels is recommended).
+    Icons of Morphe icon packs are accepted too, their file names are matched to the same icon here.
     Icons missing from the file keep the 'Automatic' style.
 """
 

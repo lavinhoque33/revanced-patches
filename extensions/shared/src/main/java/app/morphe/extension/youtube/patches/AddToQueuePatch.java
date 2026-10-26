@@ -30,6 +30,7 @@ import app.morphe.extension.youtube.patches.utils.FlyoutUtils;
 import app.morphe.extension.youtube.patches.utils.LocalQueueSheet;
 import app.morphe.extension.youtube.patches.utils.PlaylistPatch;
 import app.morphe.extension.youtube.settings.Settings;
+import app.morphe.extension.youtube.settings.YouTubeActivityHook;
 
 @SuppressWarnings("unused")
 public final class AddToQueuePatch {
@@ -39,12 +40,31 @@ public final class AddToQueuePatch {
             "QUEUE_PLAY_LAST"
     );
 
-    private static final Drawable queueButtonDrawable = Utils.getContext()
-            .getDrawable(PlaylistPatch.QueueManager.OPEN_QUEUE.drawableId);
+    private static final Drawable queueButtonDrawable = getQueueButtonDrawable();
     private static final String queueButtonName = str("morphe_queue_flyout_title");
 
     private static final int SECONDARY_CONTAINER_ID =
             ResourceUtils.getIdentifier(ResourceType.ID, "list_item_secondary_container");
+
+    private static Drawable getQueueButtonDrawable() {
+        final String iconName = YouTubeActivityHook.useBoldFlyoutIcons()
+                ? "yt_outline_experimental_queue_vd_theme_24"
+                : "yt_outline_experimental_queue_black_24";
+
+        Drawable drawable = ResourceUtils.getDrawable(iconName);
+        if (drawable != null) {
+            return drawable;
+        }
+
+        // The plain list icon is a small bitmap, but it exists on every version the patch supports.
+        drawable = ResourceUtils.getDrawable("yt_outline_list_view_black_24");
+        if (drawable != null) {
+            return drawable;
+        }
+
+        final int fallbackId = PlaylistPatch.QueueManager.OPEN_QUEUE.drawableId;
+        return fallbackId == 0 ? null : Utils.getContext().getDrawable(fallbackId);
+    }
 
     public static boolean isPatchIncluded() {
         return false; // Modified during patching.

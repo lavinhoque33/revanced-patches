@@ -1,6 +1,7 @@
 package app.morphe.extension.youtube.settings;
 
 import static app.morphe.extension.youtube.utils.ExtendedUtils.IS_20_31_OR_GREATER;
+import static app.morphe.extension.youtube.utils.ExtendedUtils.IS_21_12_OR_GREATER;
 import static app.morphe.extension.youtube.utils.ExtendedUtils.isSpoofingToLessThan;
 
 import android.annotation.SuppressLint;
@@ -166,6 +167,20 @@ public class YouTubeActivityHook extends BaseActivityHook {
     @SuppressWarnings("unused")
     public static boolean useBoldIcons(boolean original) {
         return USE_BOLD_ICONS;
+    }
+
+    /**
+     * Returns whether flyout rows created by the extension should use the bold drawables.
+     * <p>
+     * On 21.12 and later YouTube's own flyout menu always shows bold icons, because the bold-icons
+     * feature flag hook only runs on older versions. The 'Disable bold icons' and
+     * 'Restore old YouTube settings screen' switches must not make the extension rows thinner than
+     * the stock rows next to them there.
+     *
+     * @return whether the extension flyout buttons should use the bold resources.
+     */
+    public static boolean useBoldFlyoutIcons() {
+        return IS_21_12_OR_GREATER || USE_BOLD_ICONS;
     }
 
     /**

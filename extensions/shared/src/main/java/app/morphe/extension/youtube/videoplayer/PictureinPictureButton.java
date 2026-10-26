@@ -3,12 +3,13 @@
  * https://github.com/MorpheApp/morphe-patches/pull/3397
  *
  * See the included NOTICE file for GPLv3 Section 7 terms that apply to this code.
+ * Modified by lavinhoque33, 2026-10-25
  */
 
 package app.morphe.extension.youtube.videoplayer;
 
 import static app.morphe.extension.shared.utils.StringRef.str;
-import static app.morphe.extension.youtube.settings.YouTubeActivityHook.USE_BOLD_ICONS;
+import static app.morphe.extension.youtube.settings.YouTubeActivityHook.useBoldFlyoutIcons;
 
 import android.graphics.drawable.Drawable;
 import android.view.View;
@@ -68,7 +69,7 @@ public class PictureinPictureButton {
     public static int addFlyoutButton(Object flyoutPanel, int nextButtonIndex, boolean isTopFlyout, boolean isShortFlyout) {
         if (Settings.PIP_FLYOUT_BUTTON.get() && (isTopFlyout || isShortFlyout)) {
 
-            Drawable icon = ResourceUtils.getDrawable(USE_BOLD_ICONS
+            Drawable icon = ResourceUtils.getDrawable(useBoldFlyoutIcons()
                     ? "morphe_pip_button_bold"
                     : "morphe_pip_button");
 

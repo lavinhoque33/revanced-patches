@@ -23,6 +23,7 @@ import android.support.v7.widget.RecyclerView;
 import android.text.TextUtils;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.ViewParent;
 import android.widget.ImageView;
 
 import androidx.annotation.Nullable;
@@ -139,6 +140,7 @@ final class FeedCardColorSampler {
      * Views of the cards and the surfaces that were logged.
      */
     private static final Map<View, Boolean> loggedCards = new WeakHashMap<>();
+    private static final Map<View, Boolean> loggedSurfaces = new WeakHashMap<>();
     private static final Map<RecyclerView, Boolean> loggedLists = new WeakHashMap<>();
     /**
      * Classes of the drawables that could not be sampled, which are logged once.
@@ -157,6 +159,7 @@ final class FeedCardColorSampler {
     private static Canvas drawableCanvas;
     private static boolean darkMode;
     private static int logs;
+    private static int surfaceAcceptedLogs;
     private static int surfaceLogs;
     private static int missingThumbnailLogs;
     private static int notCardLogs;
@@ -207,23 +210,30 @@ final class FeedCardColorSampler {
             return null;
         }
         if (item == null || drawableView == null) {
-            logSurfaceRejected(drawableView, drawable, "its drawable is not in the feed");
+            logSurfaceRejected(null, drawableView, drawable, null, "the drawable is not in the feed");
             return null;
         }
         if (!isCardItem(item)) {
-            logSurfaceRejected(drawableView, drawable, "the item is not a card");
-            return null;
-        }
-        if (!isCardSurface(item, drawableView, drawable)) {
-            logSurfaceRejected(drawableView, drawable, "the drawable is inside the card");
+            logSurfaceRejected(item, drawableView, drawable, null, "the item is not a card");
             return null;
         }
 
-        addBackground(item, drawable);
+        final Rect bounds = getCardBounds(item, drawableView, drawable);
+        // The backgrounds of the card are set again when its tint changes, also before it has a tint,
+        // because a background looks up the color of the card only when its bounds are set.
+        if (bounds != null && bounds.width() * 10 >= item.getWidth() * 9) {
+            addBackground(item, drawable);
+        }
+
+        final String rejection = getSurfaceRejection(item, drawableView, bounds);
+        if (rejection != null) {
+            logSurfaceRejected(item, drawableView, drawable, bounds, rejection);
+            return null;
+        }
 
         Integer tint = cardTints.get(item);
         if (tint != null) {
-            logCardSurface(item, drawableView, drawable, tint);
+            logCardSurface(item, drawableView, drawable, bounds, tint);
         }
 
         return tint;
@@ -335,24 +345,53 @@ final class FeedCardColorSampler {
     }
 
     /**
-     * The background of a card is drawn by the item itself, or by a view inside it which covers the card.
-     * The other backgrounds, such as the metadata of the card, are drawn over the tint and keep their colors.
+     * The stock app tints the surface of the card below the thumbnail, which is as wide as the item.
+     * The backgrounds inside the metadata, such as the chips and the buttons, are narrower, and the bar
+     * of the progress of the video is thinner.
+     *
+     * @param bounds The bounds of the drawable relative to the item, or null if it's not in the item.
+     * @return Why the drawable is not a surface of the card, or null if it is a surface of the card.
      */
-    private static boolean isCardSurface(View item, View drawableView, Drawable drawable) {
+    @Nullable
+    private static String getSurfaceRejection(View item, View drawableView, @Nullable Rect bounds) {
         if (drawableView == item) {
-            return true;
+            return null;
         }
 
         final int width = item.getWidth();
         final int height = item.getHeight();
         if (width <= 0 || height <= 0) {
-            return false;
+            return "the item is not laid out";
         }
+        if (bounds == null) {
+            return "the drawable is not in the item";
+        }
+        if (bounds.width() * 10 < width * 9) {
+            return "the drawable is narrower than the card";
+        }
+        if (bounds.height() * 20 < height) {
+            return "the drawable is thinner than the card, such as the bar of the progress";
+        }
+        return null;
+    }
 
-        // The background of a card can be inset by the padding of the element, such as 12 dp on the sides
-        // and 6 dp above and below.
-        Rect bounds = drawable.getBounds();
-        return bounds.width() * 10 >= width * 9 && bounds.height() * 4 >= height * 3;
+    /**
+     * @return The bounds of the drawable of the view, relative to the item, or null if the view is not
+     *         inside the item.
+     */
+    @Nullable
+    private static Rect getCardBounds(View item, View drawableView, Drawable drawable) {
+        Rect bounds = drawable.copyBounds();
+        View view = drawableView;
+        while (view != item) {
+            ViewParent parent = view.getParent();
+            if (!(parent instanceof View parentView)) {
+                return null;
+            }
+            bounds.offset(view.getLeft(), view.getTop());
+            view = parentView;
+        }
+        return bounds;
     }
 
     private static void addBackground(View item, Drawable drawable) {
@@ -677,20 +716,19 @@ final class FeedCardColorSampler {
         drawable.invalidateSelf();
     }
 
-    private static void logCardSurface(View item, View drawableView, Drawable drawable, int tint) {
-        if (logs >= MAXIMUM_LOGS || loggedCards.containsKey(item)) {
+    private static void logCardSurface(View item, View drawableView, Drawable drawable, @Nullable Rect bounds,
+                                       int tint) {
+        if (surfaceAcceptedLogs >= MAXIMUM_SURFACE_LOGS || loggedSurfaces.containsKey(item)) {
             return;
         }
-        logs++;
-        loggedCards.put(item, Boolean.TRUE);
+        surfaceAcceptedLogs++;
+        loggedSurfaces.put(item, Boolean.TRUE);
 
-        final Rect bounds = drawable.copyBounds();
         Logger.printDebug(() -> String.format(Locale.US,
-                "Card background: tint #%06X, drawable %s by %s (%dx%d), item %s (%dx%d)",
+                "Card background: tint #%06X, %s of %s %s in %dx%d",
                 tint & 0xFFFFFF, drawable.getClass().getSimpleName(),
-                drawableView == item ? "the item" : "a view inside the item",
-                bounds.width(), bounds.height(),
-                item.getClass().getSimpleName(), item.getWidth(), item.getHeight()));
+                drawableView == item ? "the item" : describeView(drawableView),
+                describeBounds(bounds), item.getWidth(), item.getHeight()));
     }
 
     private static void logTint(View item, float hue, int tint) {
@@ -741,18 +779,28 @@ final class FeedCardColorSampler {
         Logger.printDebug(() -> "Card colors: no thumbnail in " + describeChildren(item));
     }
 
-    private static void logSurfaceRejected(@Nullable View drawableView, Drawable drawable, String reason) {
+    private static void logSurfaceRejected(@Nullable View item, @Nullable View drawableView, Drawable drawable,
+                                           @Nullable Rect bounds, String reason) {
         if (surfaceLogs >= MAXIMUM_SURFACE_LOGS) {
             return;
         }
         surfaceLogs++;
 
-        Logger.printDebug(() -> {
-            Rect bounds = drawable.copyBounds();
-            return "Card colors: " + drawable.getClass().getSimpleName() + " of "
-                    + (drawableView == null ? "an unknown view" : describeView(drawableView))
-                    + " (" + bounds.width() + "x" + bounds.height() + ") is not the card surface: " + reason;
-        });
+        Logger.printDebug(() -> "Card colors: " + drawable.getClass().getSimpleName() + " of "
+                + (drawableView == null ? "an unknown view" : describeView(drawableView))
+                + " " + describeBounds(bounds)
+                + (item == null ? "" : " in " + item.getWidth() + "x" + item.getHeight())
+                + " is not the card surface: " + reason);
+    }
+
+    /**
+     * @return The bounds of a drawable relative to the item, such as "(0,567 1008,867)".
+     */
+    private static String describeBounds(@Nullable Rect bounds) {
+        if (bounds == null) {
+            return "with unknown bounds";
+        }
+        return "(" + bounds.left + "," + bounds.top + " " + bounds.right + "," + bounds.bottom + ")";
     }
 
     private static void logUnreadableDrawable(Drawable drawable, Exception ex) {

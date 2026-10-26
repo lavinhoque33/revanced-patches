@@ -230,10 +230,10 @@ public class FeedCardLayoutPatch {
      */
     static final int CARD_VERTICAL_SPACING = Dim.dp(CARD_VERTICAL_PADDING_DP);
     /**
-     * Spacing between the rows of a Shorts shelf, in addition to the spacing of the Shorts themselves,
-     * which makes the gap between the rows the same as the gap between the cards.
+     * Spacing between the rows of a Shorts shelf, in addition to the small gap of the Shorts themselves,
+     * which makes the gap between the rows the same as the gap between the cards (12 dp).
      */
-    static final int SHORTS_ROW_SPACING = Dim.dp(5);
+    static final int SHORTS_ROW_SPACING = Dim.dp(11);
     /**
      * The padding of the outline of a card is laid out from dp with rounding, and the inline player
      * can be a pixel or two larger than the thumbnail of the card.
@@ -368,7 +368,8 @@ public class FeedCardLayoutPatch {
      * such as the spacing of the feed around the shelves.
      */
     private static final ByteTrieSearch spacerTemplateSearch = new ByteTrieSearch(
-            ByteTrieSearch.convertStringsToBytes("spacer", "divider")
+            ByteTrieSearch.convertStringsToBytes("spacer", "divider", "spacing_cell", "statement_banner",
+                    "shorts_grid_shelf_footer")
     );
     /**
      * Templates of the items that are not cards, which are logged once to find the templates of the spacers.

@@ -40,10 +40,12 @@ package app.morphe.extension.youtube.patches.feed;
 import android.graphics.Rect;
 import android.support.v7.widget.RecyclerView;
 import android.view.View;
+import android.view.ViewGroup;
 
 import androidx.annotation.Nullable;
 
 import java.lang.ref.WeakReference;
+import java.lang.reflect.Field;
 import java.util.Collections;
 import java.util.Map;
 import java.util.WeakHashMap;
@@ -293,14 +295,54 @@ final class FeedCardSpacing {
             invisibleItems.put(item, position);
             if (previous == null) {
                 Logger.printDebug(() -> "Invisible item of the feed: " + position
-                        + ", the spacing of the feed is set again");
+                        + ", the spacing of the item is removed");
             }
             changed = true;
         }
         if (changed) {
-            // The spacing of the item was set before its height was known, and the list keeps the
-            // spacing that it set, so its decorations are set again.
-            list.invalidateItemDecorations();
+            // The spacing of the item was set before its height was known, and the list keeps the spacing
+            // of its items, so the spacing of the items that are not visible is removed, and the list is
+            // laid out again.
+            clearInvisibleSpacing(list);
+        }
+    }
+
+    /**
+     * Removes the spacing that the list keeps for the items that are not visible, which is kept in the
+     * layout params of the item, and lays the list out again. The spacing of an item is looked up again
+     * only when the layout params of the item are set again, which the list does not provide.
+     */
+    private static void clearInvisibleSpacing(RecyclerView list) {
+        for (int i = 0, count = list.getChildCount(); i < count; i++) {
+            View item = list.getChildAt(i);
+            if (invisibleItems.containsKey(item)) {
+                clearItemSpacing(item.getLayoutParams());
+            }
+        }
+
+        list.requestLayout();
+    }
+
+    private static void clearItemSpacing(@Nullable ViewGroup.LayoutParams params) {
+        if (params == null) {
+            return;
+        }
+        try {
+            // The spacing of the item is the only rectangle of the layout params of the app.
+            for (Class<?> type = params.getClass(); type != null; type = type.getSuperclass()) {
+                for (Field field : type.getDeclaredFields()) {
+                    if (field.getType() != Rect.class) {
+                        continue;
+                    }
+                    field.setAccessible(true);
+                    if (field.get(params) instanceof Rect insets) {
+                        insets.setEmpty();
+                    }
+                }
+            }
+        } catch (Exception ignored) {
+            // The layout params of the app are obfuscated, and the spacing of the item is set with the
+            // next layout of the item.
         }
     }
 

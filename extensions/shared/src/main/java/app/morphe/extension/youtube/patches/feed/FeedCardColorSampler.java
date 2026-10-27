@@ -106,6 +106,10 @@ final class FeedCardColorSampler {
      */
     private static final int MAXIMUM_TINT_FILTERS = 64;
     /**
+     * Number of the surfaces of a card that are kept, which is enough for the metadata of a card.
+     */
+    private static final int MAXIMUM_TINTED_SURFACES = 8;
+    /**
      * The color of the surface of the cards of YouTube that have no tint, such as the cards that the
      * app draws without a surface below the thumbnail.
      */
@@ -176,11 +180,25 @@ final class FeedCardColorSampler {
      */
     private static final Map<View, List<WeakReference<View>>> tintedImages = new WeakHashMap<>();
     /**
-     * Surfaces that the patch draws for the cards that the app draws without a surface below the
-     * thumbnail, such as the cards of the mixes, by the view of the card.
+     * Surfaces that the patch draws for the cards that the app draws without a surface of its own,
+     * such as the cards of the mixes, by the view of the card.
      */
-    private static final Map<View, ColorDrawable> cardSurfaces = new WeakHashMap<>();
+    private static final Map<View, CardSurface> cardSurfaces = new WeakHashMap<>();
     private static final Map<View, Boolean> loggedCardSurfaces = new WeakHashMap<>();
+    /**
+     * Labels of the cards that were seen, which show that a recycled view shows another card.
+     */
+    private static final Map<View, CharSequence> cardLabels = new WeakHashMap<>();
+    /**
+     * Cards that the app draws a surface of the metadata of, which is the part below the thumbnail, such
+     * as the band of the cards. The cards without one, such as the cards of the mixes, get one.
+     */
+    private static final Map<View, Boolean> appCardSurfaces = new WeakHashMap<>();
+    /**
+     * Surfaces of a card that were looked up, reused before every draw so that the walk allocates nothing.
+     */
+    private static final List<Drawable> foundBackgrounds = new ArrayList<>(4);
+    private static final List<View> foundImages = new ArrayList<>(4);
     /**
      * Classes of the drawables that could not be sampled, which are logged once.
      */
@@ -218,6 +236,9 @@ final class FeedCardColorSampler {
             // A recycled view must not keep the tint of the card it showed.
             cardTints.remove(view);
             cardThumbnails.remove(view);
+            cardBackgrounds.remove(view);
+            cardLabels.remove(view);
+            appCardSurfaces.remove(view);
             tintCardBelowThumbnail(view, null);
             removeCardSurface(view);
         }
@@ -247,45 +268,54 @@ final class FeedCardColorSampler {
      */
     @Nullable
     static Integer getCardColor(@Nullable View item, @Nullable View drawableView, Drawable drawable) {
-        if (!Settings.FEED_CARD_LAYOUT_DYNAMIC_COLORS.get()) {
+        final boolean dynamicColors = Settings.FEED_CARD_LAYOUT_DYNAMIC_COLORS.get();
+        if (item != null && drawableView != null && isCardItem(item)) {
+            final Rect bounds = getCardBounds(item, drawableView, drawable);
+            // The backgrounds of the card are set again when its tint changes, also before it has a tint,
+            // because a background looks up the color of the card only when its bounds are set. They are
+            // recorded without the tint too, because a card without a surface of the app gets one.
+            if (bounds != null && bounds.width() * 10 >= item.getWidth() * 9) {
+                addBackground(item, drawable);
+                if (!appCardSurfaces.containsKey(item) && isSurfaceBelowThumbnail(item, bounds)) {
+                    appCardSurfaces.put(item, Boolean.TRUE);
+                }
+            }
+            if (!dynamicColors) {
+                return null;
+            }
+
+            final String rejection = getSurfaceRejection(item, drawableView, bounds);
+            if (rejection != null) {
+                logSurfaceRejected(item, drawableView, drawable, bounds, rejection);
+                return null;
+            }
+
+            Integer tint = cardTints.get(item);
+            if (tint != null) {
+                // The color of the paint is not enough for the surfaces that set their color again while
+                // they are drawn, so the tint is applied as a filter too, which keeps the shape.
+                applyTintFilter(drawable, tint);
+                logCardSurface(item, drawableView, drawable, bounds, tint);
+            }
+            return tint;
+        }
+
+        if (!dynamicColors) {
             return null;
         }
         if (item == null || drawableView == null) {
-            // A background of an item that is not in the feed yet is looked up again when the item is mounted.
-            // The backgrounds of the other views, such as the shelves and the watch page, are not retried.
+            // A background of an item that is not in the feed yet is looked up again when the item is
+            // mounted. The backgrounds of the other views, such as the shelves and the watch page, are
+            // not retried.
             if (drawableView != null && !drawableView.isAttachedToWindow()) {
                 addPendingBackground(drawableView, drawable);
             }
             logSurfaceRejected(null, drawableView, drawable, null, "the drawable is not in the feed");
             return null;
         }
-        if (!isCardItem(item)) {
-            logSurfaceRejected(item, drawableView, drawable, null, "the item is not a card");
-            return null;
-        }
 
-        final Rect bounds = getCardBounds(item, drawableView, drawable);
-        // The backgrounds of the card are set again when its tint changes, also before it has a tint,
-        // because a background looks up the color of the card only when its bounds are set.
-        if (bounds != null && bounds.width() * 10 >= item.getWidth() * 9) {
-            addBackground(item, drawable);
-        }
-
-        final String rejection = getSurfaceRejection(item, drawableView, bounds);
-        if (rejection != null) {
-            logSurfaceRejected(item, drawableView, drawable, bounds, rejection);
-            return null;
-        }
-
-        Integer tint = cardTints.get(item);
-        if (tint != null) {
-            // The color of the paint is not enough for the surfaces that set their color again while they
-            // are drawn, so the tint is applied as a filter too, which keeps the shape of the surface.
-            applyTintFilter(drawable, tint);
-            logCardSurface(item, drawableView, drawable, bounds, tint);
-        }
-
-        return tint;
+        logSurfaceRejected(item, drawableView, drawable, null, "the item is not a card");
+        return null;
     }
 
     /**
@@ -294,11 +324,6 @@ final class FeedCardColorSampler {
      */
     static void updateCardTints(RecyclerView list) {
         try {
-            if (!Settings.FEED_CARD_LAYOUT_DYNAMIC_COLORS.get()) {
-                clearTints();
-                return;
-            }
-
             if (loggedLists.put(list, Boolean.TRUE) == null) {
                 Logger.printDebug(() -> "Card colors: list with " + list.getChildCount() + " items");
             }
@@ -311,6 +336,20 @@ final class FeedCardColorSampler {
                 cardTints.clear();
                 cardThumbnails.clear();
                 Logger.printDebug(() -> "Card colors: dark mode " + currentDarkMode);
+            }
+
+            final boolean dynamicColors = Settings.FEED_CARD_LAYOUT_DYNAMIC_COLORS.get();
+            if (!dynamicColors) {
+                clearTints();
+            }
+
+            // The cards that the app draws without a surface of its own get one, also without the tint.
+            for (int i = 0, count = list.getChildCount(); i < count; i++) {
+                updateCardSurface(list.getChildAt(i));
+            }
+
+            if (!dynamicColors) {
+                return;
             }
 
             final long startTime = System.nanoTime();
@@ -326,12 +365,6 @@ final class FeedCardColorSampler {
                 if (!isCardItem(item)) {
                     logNotCard(item);
                     continue;
-                }
-
-                // The cards of the mixes have no tint, because their thumbnail is a mosaic, and the app
-                // draws them without a surface below the thumbnail.
-                if (!cardTints.containsKey(item) || cardSurfaces.containsKey(item)) {
-                    updateCardSurface(item);
                 }
 
                 Thumbnail thumbnail = cardThumbnails.get(item);
@@ -391,6 +424,16 @@ final class FeedCardColorSampler {
                     logUntinted(item, drawable);
                 }
                 applyTint(item, tint);
+            }
+
+            // The views of a card are mounted again while the list scrolls, so the tint of the card is
+            // applied to the surfaces of the card again before every draw.
+            for (int i = 0, count = list.getChildCount(); i < count; i++) {
+                View item = list.getChildAt(i);
+                Integer tint = cardTints.get(item);
+                if (tint != null) {
+                    tintCardBelowThumbnail(item, tint);
+                }
             }
 
             // The colors of the backgrounds of the cards were looked up before the cards were mounted,
@@ -865,49 +908,48 @@ final class FeedCardColorSampler {
      * Tints the surfaces of the card below the thumbnail, which the app paints over the background of
      * the card in the color of the theme and hides the tint of the card with, such as the channel row.
      * The row is an ImageView whose image has the gradient of the card, and the image can be shared by
-     * the cards, so its filter is set on the view, which keeps the shape of the row.
+     * the cards, so its filter is set on the view, which keeps the shape of the row. The surfaces are
+     * looked up again before every draw, because the views of a card are mounted again while scrolling.
      */
     private static void tintCardBelowThumbnail(View item, @Nullable Integer tint) {
-        // The surfaces of a recycled view can be replaced, so the surfaces of the card are tinted again.
-        // A card without a tint keeps the colors of the app.
         List<WeakReference<Drawable>> backgrounds = tintedBackgrounds.get(item);
-        if (backgrounds != null) {
-            for (WeakReference<Drawable> reference : backgrounds) {
-                Drawable drawable = reference.get();
-                if (drawable != null) {
-                    applyTintFilter(drawable, null);
-                }
-            }
-            backgrounds.clear();
-        }
-
         List<WeakReference<View>> images = tintedImages.get(item);
-        if (images != null) {
-            for (WeakReference<View> reference : images) {
-                View image = reference.get();
-                if (image instanceof ImageView imageView) {
-                    imageView.clearColorFilter();
-                }
-            }
-            images.clear();
-        }
 
         if (tint == null) {
+            // A card without a tint keeps the colors of the app.
+            clearTintFilters(backgrounds);
+            clearImageFilters(images);
             return;
         }
 
-        final List<Drawable> foundBackgrounds = new ArrayList<>(2);
-        final List<View> foundImages = new ArrayList<>(2);
-        collectCardSurfaces(item, item, 0, getThumbnailBottom(item), foundBackgrounds, foundImages);
+        // The thumbnail is the largest image of the card, and the surfaces below it are the metadata.
+        // A card whose thumbnail is unknown keeps the surfaces that it has.
+        ImageView thumbnail = findThumbnailView(item, 0);
+        if (thumbnail == null || item.getHeight() <= 0) {
+            return;
+        }
 
+        foundBackgrounds.clear();
+        foundImages.clear();
+        collectCardSurfaces(item, item, 0, getTopInItem(thumbnail, item) + thumbnail.getHeight(),
+                foundBackgrounds, foundImages);
+
+        // The surfaces that the card no longer has keep no filter.
+        removeTintFilters(backgrounds);
+        removeImageFilters(images);
+
+        final PorterDuffColorFilter filter = getTintFilter(tint);
         if (!foundBackgrounds.isEmpty()) {
             if (backgrounds == null) {
                 backgrounds = new ArrayList<>(2);
                 tintedBackgrounds.put(item, backgrounds);
             }
-            for (Drawable drawable : foundBackgrounds) {
-                applyTintFilter(drawable, tint);
-                backgrounds.add(new WeakReference<>(drawable));
+            for (int i = 0, count = foundBackgrounds.size(); i < count; i++) {
+                Drawable drawable = foundBackgrounds.get(i);
+                if (drawable.getColorFilter() != filter) {
+                    drawable.setColorFilter(filter);
+                }
+                addTintedDrawable(backgrounds, drawable);
             }
         }
 
@@ -916,25 +958,97 @@ final class FeedCardColorSampler {
                 images = new ArrayList<>(2);
                 tintedImages.put(item, images);
             }
-            final PorterDuffColorFilter filter = getTintFilter(tint);
             for (int i = 0, count = foundImages.size(); i < count; i++) {
                 View image = foundImages.get(i);
-                if (image instanceof ImageView imageView) {
+                if (image instanceof ImageView imageView && imageView.getColorFilter() != filter) {
                     imageView.setColorFilter(filter);
                 }
-                images.add(new WeakReference<>(image));
+                addTintedView(images, image);
             }
         }
     }
 
+    private static void clearTintFilters(@Nullable List<WeakReference<Drawable>> backgrounds) {
+        if (backgrounds == null) {
+            return;
+        }
+        for (WeakReference<Drawable> reference : backgrounds) {
+            Drawable drawable = reference.get();
+            if (drawable != null) {
+                drawable.setColorFilter(null);
+            }
+        }
+        backgrounds.clear();
+    }
+
+    private static void clearImageFilters(@Nullable List<WeakReference<View>> images) {
+        if (images == null) {
+            return;
+        }
+        for (WeakReference<View> reference : images) {
+            if (reference.get() instanceof ImageView imageView) {
+                imageView.clearColorFilter();
+            }
+        }
+        images.clear();
+    }
+
     /**
-     * @return The bottom of the thumbnail of the card in the card. The thumbnail is the largest image of
-     *         the card, and the cards whose thumbnail is drawn without a view keep their lower third.
+     * Removes the filters of the surfaces that the card no longer has, such as the views that a recycled
+     * card mounted again.
      */
-    private static int getThumbnailBottom(View item) {
-        ImageView thumbnail = findThumbnailView(item, 0);
-        return thumbnail == null ? item.getHeight() * 2 / 3
-                : getTopInItem(thumbnail, item) + thumbnail.getHeight();
+    private static void removeTintFilters(@Nullable List<WeakReference<Drawable>> backgrounds) {
+        if (backgrounds == null) {
+            return;
+        }
+        for (int i = backgrounds.size() - 1; i >= 0; i--) {
+            Drawable drawable = backgrounds.get(i).get();
+            if (drawable == null || !foundBackgrounds.contains(drawable)) {
+                if (drawable != null) {
+                    drawable.setColorFilter(null);
+                }
+                backgrounds.remove(i);
+            }
+        }
+    }
+
+    private static void removeImageFilters(@Nullable List<WeakReference<View>> images) {
+        if (images == null) {
+            return;
+        }
+        for (int i = images.size() - 1; i >= 0; i--) {
+            View image = images.get(i).get();
+            if (image == null || !foundImages.contains(image)) {
+                if (image instanceof ImageView imageView) {
+                    imageView.clearColorFilter();
+                }
+                images.remove(i);
+            }
+        }
+    }
+
+    private static void addTintedDrawable(List<WeakReference<Drawable>> tinted, Drawable drawable) {
+        for (int i = 0, count = tinted.size(); i < count; i++) {
+            if (tinted.get(i).get() == drawable) {
+                return;
+            }
+        }
+        if (tinted.size() >= MAXIMUM_TINTED_SURFACES) {
+            tinted.remove(0);
+        }
+        tinted.add(new WeakReference<>(drawable));
+    }
+
+    private static void addTintedView(List<WeakReference<View>> tinted, View view) {
+        for (int i = 0, count = tinted.size(); i < count; i++) {
+            if (tinted.get(i).get() == view) {
+                return;
+            }
+        }
+        if (tinted.size() >= MAXIMUM_TINTED_SURFACES) {
+            tinted.remove(0);
+        }
+        tinted.add(new WeakReference<>(view));
     }
 
     /**
@@ -971,52 +1085,94 @@ final class FeedCardColorSampler {
 
     /**
      * Gives the card a surface of its own, because the app draws the cards of the mixes without any
-     * surface below the thumbnail, so the metadata would lie on the background of the page.
+     * surface of its own, so their metadata would lie on the background of the page.
      */
     private static void updateCardSurface(View item) {
-        if (!isCardItem(item) || item.getHeight() <= 0) {
+        if (!isCardItem(item) || item.getHeight() <= 0 || hasAppCardSurface(item)) {
             removeCardSurface(item);
             return;
         }
 
-        final List<Drawable> backgrounds = new ArrayList<>(2);
-        final List<View> images = new ArrayList<>(2);
-        collectCardSurfaces(item, item, 0, getThumbnailBottom(item), backgrounds, images);
-        if (!backgrounds.isEmpty() || !images.isEmpty()) {
-            // The app draws the surfaces of the card, which are tinted instead.
+        final CharSequence label = item.getContentDescription();
+        if (!TextUtils.equals(cardLabels.put(item, label), label)) {
+            // The view shows another card, and the surfaces of the app that were recorded are gone.
+            cardBackgrounds.remove(item);
+            appCardSurfaces.remove(item);
             removeCardSurface(item);
-            return;
-        }
-
-        final ColorDrawable current = cardSurfaces.get(item);
-        if (current == null && item.getBackground() != null) {
-            // The app draws the background of the card itself.
             return;
         }
 
         final Integer tint = cardTints.get(item);
         final int color = tint != null ? tint : (darkMode ? CARD_COLOR_DARK : CARD_COLOR_LIGHT);
-        if (current != null) {
-            if (current.getColor() != color) {
-                current.setColor(color);
+        CardSurface surface = cardSurfaces.get(item);
+        if (surface != null) {
+            if (item.getBackground() == surface.drawable) {
+                surface.setColor(color);
+                return;
             }
-            return;
+            // The view was rebound, and the background of the card was replaced.
+            cardSurfaces.remove(item);
         }
 
-        // The clip of the card rounds the background to the card, with its corners.
-        ColorDrawable surface = new ColorDrawable(color);
+        // The clip of the card rounds the surface to the card, with its corners.
+        surface = new CardSurface(color, item.getBackground());
         cardSurfaces.put(item, surface);
-        item.setBackground(surface);
-        if (loggedCardSurfaces.put(item, true) == null) {
-            Logger.printDebug(() -> "Card background: the card has no surface below the thumbnail, "
+        item.setBackground(surface.drawable);
+        if (loggedCardSurfaces.put(item, Boolean.TRUE) == null) {
+            Logger.printDebug(() -> "Card background: the card has no surface of the app, "
                     + "so the patch draws the card surface");
         }
     }
 
+    private static boolean hasAppCardSurface(View item) {
+        return Boolean.TRUE.equals(appCardSurfaces.get(item));
+    }
+
+    /**
+     * @return Whether the bounds of a drawable of the card are below its thumbnail, in the metadata,
+     *         which the app draws a surface of for the other cards.
+     */
+    private static boolean isSurfaceBelowThumbnail(View item, @Nullable Rect bounds) {
+        if (bounds == null) {
+            return false;
+        }
+        ImageView thumbnail = findThumbnailView(item, 0);
+        if (thumbnail == null) {
+            // A card whose thumbnail is not drawn by a view keeps the surface of the app.
+            return true;
+        }
+        return bounds.top >= getTopInItem(thumbnail, item) + thumbnail.getHeight();
+    }
+
     private static void removeCardSurface(View item) {
-        ColorDrawable surface = cardSurfaces.remove(item);
-        if (surface != null && item.getBackground() == surface) {
-            item.setBackground(null);
+        CardSurface surface = cardSurfaces.remove(item);
+        if (surface != null && item.getBackground() == surface.drawable) {
+            item.setBackground(surface.background);
+        }
+    }
+
+    /**
+     * The surface that the patch draws for a card that the app draws without a surface of its own, above
+     * the background of the card that the app set, if any.
+     */
+    private static final class CardSurface {
+        private final ColorDrawable fill;
+        private final Drawable background;
+        private final Drawable drawable;
+        private int color;
+
+        CardSurface(int color, @Nullable Drawable background) {
+            this.color = color;
+            this.background = background;
+            this.fill = new ColorDrawable(color);
+            this.drawable = background == null ? fill : new LayerDrawable(new Drawable[]{fill, background});
+        }
+
+        void setColor(int color) {
+            if (this.color != color) {
+                this.color = color;
+                fill.setColor(color);
+            }
         }
     }
 

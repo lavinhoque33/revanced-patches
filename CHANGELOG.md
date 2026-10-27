@@ -1,3 +1,10 @@
+## Unreleased
+
+### Bug Fixes
+
+* **YouTube - Built-in downloader:** The speed button of the offline player uses the Sharp speed icon, so it is the same size as the aspect button and the other player buttons.
+* **YouTube - Built-in downloader:** The codec, the bitrate and the format ID of the offline library cards use the normal secondary text color instead of green.
+
 ## [1.19.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.18.1...v1.19.0) (2026-10-26)
 
 ### Features

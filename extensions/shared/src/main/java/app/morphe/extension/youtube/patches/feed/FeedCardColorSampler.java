@@ -17,6 +17,7 @@ import android.graphics.PorterDuff;
 import android.graphics.PorterDuffColorFilter;
 import android.graphics.Rect;
 import android.graphics.drawable.BitmapDrawable;
+import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.DrawableWrapper;
 import android.graphics.drawable.LayerDrawable;
@@ -105,6 +106,12 @@ final class FeedCardColorSampler {
      */
     private static final int MAXIMUM_TINT_FILTERS = 64;
     /**
+     * The color of the surface of the cards of YouTube that have no tint, such as the cards that the
+     * app draws without a surface below the thumbnail.
+     */
+    private static final int CARD_COLOR_DARK = 0xFF212121;
+    private static final int CARD_COLOR_LIGHT = 0xFFFFFFFF;
+    /**
      * Number of the log lines that help diagnose the sampling. The logs are limited because they are
      * written for every card that is seen, while scrolling.
      */
@@ -169,6 +176,12 @@ final class FeedCardColorSampler {
      */
     private static final Map<View, List<WeakReference<View>>> tintedImages = new WeakHashMap<>();
     /**
+     * Surfaces that the patch draws for the cards that the app draws without a surface below the
+     * thumbnail, such as the cards of the mixes, by the view of the card.
+     */
+    private static final Map<View, ColorDrawable> cardSurfaces = new WeakHashMap<>();
+    private static final Map<View, Boolean> loggedCardSurfaces = new WeakHashMap<>();
+    /**
      * Classes of the drawables that could not be sampled, which are logged once.
      */
     private static final Set<Class<?>> loggedDrawableClasses = new HashSet<>();
@@ -206,6 +219,7 @@ final class FeedCardColorSampler {
             cardTints.remove(view);
             cardThumbnails.remove(view);
             tintCardBelowThumbnail(view, null);
+            removeCardSurface(view);
         }
     }
 
@@ -312,6 +326,12 @@ final class FeedCardColorSampler {
                 if (!isCardItem(item)) {
                     logNotCard(item);
                     continue;
+                }
+
+                // The cards of the mixes have no tint, because their thumbnail is a mosaic, and the app
+                // draws them without a surface below the thumbnail.
+                if (!cardTints.containsKey(item) || cardSurfaces.containsKey(item)) {
+                    updateCardSurface(item);
                 }
 
                 Thumbnail thumbnail = cardThumbnails.get(item);
@@ -813,6 +833,7 @@ final class FeedCardColorSampler {
 
         // The surfaces that the app paints over the background of the card, such as the channel row.
         tintCardBelowThumbnail(item, tint);
+        updateCardSurface(item);
 
         item.invalidate();
     }
@@ -877,12 +898,7 @@ final class FeedCardColorSampler {
 
         final List<Drawable> foundBackgrounds = new ArrayList<>(2);
         final List<View> foundImages = new ArrayList<>(2);
-        // The thumbnail is the largest image of the card, and the surfaces below it are the metadata.
-        // A card whose thumbnail is drawn without a view keeps the surfaces of its lower third.
-        final ImageView thumbnail = findThumbnailView(item, 0);
-        final int thumbnailBottom = thumbnail == null ? item.getHeight() * 2 / 3
-                : getTopInItem(thumbnail, item) + thumbnail.getHeight();
-        collectCardSurfaces(item, item, 0, thumbnailBottom, foundBackgrounds, foundImages);
+        collectCardSurfaces(item, item, 0, getThumbnailBottom(item), foundBackgrounds, foundImages);
 
         if (!foundBackgrounds.isEmpty()) {
             if (backgrounds == null) {
@@ -912,6 +928,16 @@ final class FeedCardColorSampler {
     }
 
     /**
+     * @return The bottom of the thumbnail of the card in the card. The thumbnail is the largest image of
+     *         the card, and the cards whose thumbnail is drawn without a view keep their lower third.
+     */
+    private static int getThumbnailBottom(View item) {
+        ImageView thumbnail = findThumbnailView(item, 0);
+        return thumbnail == null ? item.getHeight() * 2 / 3
+                : getTopInItem(thumbnail, item) + thumbnail.getHeight();
+    }
+
+    /**
      * Collects the surfaces of the card below the thumbnail that span its width: the backgrounds of its
      * views and the images of its ImageViews, such as the row of the channel.
      */
@@ -922,19 +948,16 @@ final class FeedCardColorSampler {
         final int viewTop = topInItem + view.getTop();
         final boolean spansCard = view.getWidth() * 10 >= width * 9;
 
-        if (spansCard) {
-            // The background of the card reaches below the thumbnail, where the channel row is.
+        // The surfaces of the thumbnail are above the metadata, and the images thinner than the card are
+        // the bars of the progress and the separators.
+        if (spansCard && viewTop >= thumbnailBottom && view.getHeight() * 20 >= height) {
             Drawable background = view.getBackground();
-            if (background != null && viewTop + view.getHeight() > thumbnailBottom
-                    && !backgrounds.contains(background)) {
+            if (background != null && !backgrounds.contains(background)) {
                 backgrounds.add(background);
             }
 
-            // The images above the row are the thumbnail and the icons, which keep their colors, and the
-            // images thinner than the card are the bars of the progress and the separators.
-            if (view instanceof ImageView imageView && viewTop >= thumbnailBottom
-                    && view.getHeight() * 20 >= height
-                    && imageView.getDrawable() != null && !images.contains(view)) {
+            if (view instanceof ImageView imageView && imageView.getDrawable() != null
+                    && !images.contains(view)) {
                 images.add(view);
             }
         }
@@ -943,6 +966,57 @@ final class FeedCardColorSampler {
             for (int i = 0, count = group.getChildCount(); i < count; i++) {
                 collectCardSurfaces(item, group.getChildAt(i), viewTop, thumbnailBottom, backgrounds, images);
             }
+        }
+    }
+
+    /**
+     * Gives the card a surface of its own, because the app draws the cards of the mixes without any
+     * surface below the thumbnail, so the metadata would lie on the background of the page.
+     */
+    private static void updateCardSurface(View item) {
+        if (!isCardItem(item) || item.getHeight() <= 0) {
+            removeCardSurface(item);
+            return;
+        }
+
+        final List<Drawable> backgrounds = new ArrayList<>(2);
+        final List<View> images = new ArrayList<>(2);
+        collectCardSurfaces(item, item, 0, getThumbnailBottom(item), backgrounds, images);
+        if (!backgrounds.isEmpty() || !images.isEmpty()) {
+            // The app draws the surfaces of the card, which are tinted instead.
+            removeCardSurface(item);
+            return;
+        }
+
+        final ColorDrawable current = cardSurfaces.get(item);
+        if (current == null && item.getBackground() != null) {
+            // The app draws the background of the card itself.
+            return;
+        }
+
+        final Integer tint = cardTints.get(item);
+        final int color = tint != null ? tint : (darkMode ? CARD_COLOR_DARK : CARD_COLOR_LIGHT);
+        if (current != null) {
+            if (current.getColor() != color) {
+                current.setColor(color);
+            }
+            return;
+        }
+
+        // The clip of the card rounds the background to the card, with its corners.
+        ColorDrawable surface = new ColorDrawable(color);
+        cardSurfaces.put(item, surface);
+        item.setBackground(surface);
+        if (loggedCardSurfaces.put(item, true) == null) {
+            Logger.printDebug(() -> "Card background: the card has no surface below the thumbnail, "
+                    + "so the patch draws the card surface");
+        }
+    }
+
+    private static void removeCardSurface(View item) {
+        ColorDrawable surface = cardSurfaces.remove(item);
+        if (surface != null && item.getBackground() == surface) {
+            item.setBackground(null);
         }
     }
 

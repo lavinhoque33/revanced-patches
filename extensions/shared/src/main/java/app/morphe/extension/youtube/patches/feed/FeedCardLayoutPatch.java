@@ -519,6 +519,9 @@ public class FeedCardLayoutPatch {
             (view, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) -> {
                 try {
                     updateCardOutline(view);
+                    // A recycled view that shows another card drops the tint of the card that it showed
+                    // before, before the next frame, when the label of the new card is set.
+                    FeedCardColorSampler.onCardLayoutChanged(view);
                 } catch (Exception ex) {
                     Logger.printException(() -> "onLayoutChange failure", ex);
                 }

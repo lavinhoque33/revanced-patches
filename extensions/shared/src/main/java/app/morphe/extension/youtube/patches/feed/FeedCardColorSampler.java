@@ -14,6 +14,7 @@ import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.PorterDuff;
+import android.graphics.PorterDuffColorFilter;
 import android.graphics.Rect;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
@@ -30,6 +31,7 @@ import androidx.annotation.Nullable;
 
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
@@ -99,6 +101,10 @@ final class FeedCardColorSampler {
     private static final int MAXIMUM_SAMPLE_ATTEMPTS = 5;
     private static final long SAMPLE_RETRY_INTERVAL_MILLIS = 400;
     /**
+     * Number of the filters of the tints that are kept, which is enough for the visible cards.
+     */
+    private static final int MAXIMUM_TINT_FILTERS = 64;
+    /**
      * Number of the log lines that help diagnose the sampling. The logs are limited because they are
      * written for every card that is seen, while scrolling.
      */
@@ -149,6 +155,20 @@ final class FeedCardColorSampler {
     private static final Map<View, Boolean> loggedSurfaces = new WeakHashMap<>();
     private static final Map<RecyclerView, Boolean> loggedLists = new WeakHashMap<>();
     /**
+     * Filters of the tints, which are shared by the surfaces of the cards of the same color.
+     */
+    private static final Map<Integer, PorterDuffColorFilter> tintFilters = new HashMap<>();
+    /**
+     * Backgrounds below the thumbnail of a card that the tint is applied to, by the view of the card.
+     * Their filter is removed when the card loses the tint.
+     */
+    private static final Map<View, List<WeakReference<Drawable>>> tintedBackgrounds = new WeakHashMap<>();
+    /**
+     * ImageViews below the thumbnail of a card that the tint is applied to, by the view of the card.
+     * The filter of the image is set on the view, because the drawable can be shared by the cards.
+     */
+    private static final Map<View, List<WeakReference<View>>> tintedImages = new WeakHashMap<>();
+    /**
      * Classes of the drawables that could not be sampled, which are logged once.
      */
     private static final Set<Class<?>> loggedDrawableClasses = new HashSet<>();
@@ -185,6 +205,7 @@ final class FeedCardColorSampler {
             // A recycled view must not keep the tint of the card it showed.
             cardTints.remove(view);
             cardThumbnails.remove(view);
+            tintCardBelowThumbnail(view, null);
         }
     }
 
@@ -244,6 +265,9 @@ final class FeedCardColorSampler {
 
         Integer tint = cardTints.get(item);
         if (tint != null) {
+            // The color of the paint is not enough for the surfaces that set their color again while they
+            // are drawn, so the tint is applied as a filter too, which keeps the shape of the surface.
+            applyTintFilter(drawable, tint);
             logCardSurface(item, drawableView, drawable, bounds, tint);
         }
 
@@ -723,6 +747,8 @@ final class FeedCardColorSampler {
             cardTints.remove(item);
         } else {
             if (previous != null && previous.intValue() == tint) {
+                // A recycled view mounts new surfaces of the card, which are tinted again.
+                tintCardBelowThumbnail(item, tint);
                 return;
             }
             cardTints.put(item, tint);
@@ -762,8 +788,11 @@ final class FeedCardColorSampler {
      * again to make it look up the new tint. This is the same trick that fixes the color of the chips.
      */
     private static void refreshBackground(View item) {
+        // A card without a tint keeps the color of the surfaces, and the filter of the tint is removed.
+        final Integer tint = cardTints.get(item);
         Drawable itemBackground = item.getBackground();
         if (itemBackground != null) {
+            applyTintFilter(itemBackground, tint);
             restartBackground(itemBackground);
         }
 
@@ -773,6 +802,7 @@ final class FeedCardColorSampler {
             for (WeakReference<Drawable> reference : new ArrayList<>(backgrounds)) {
                 Drawable drawable = reference.get();
                 if (drawable != null && drawable != itemBackground) {
+                    applyTintFilter(drawable, tint);
                     restartBackground(drawable);
                 }
             }
@@ -781,7 +811,150 @@ final class FeedCardColorSampler {
         // The backgrounds of the card that were looked up before the card was mounted.
         restartPendingBackgrounds(item);
 
+        // The surfaces that the app paints over the background of the card, such as the channel row.
+        tintCardBelowThumbnail(item, tint);
+
         item.invalidate();
+    }
+
+    /**
+     * Applies the tint of the card to a surface as a filter, which keeps the shape and the translucency
+     * of the surface, and overrides the color that the app sets while it draws.
+     */
+    private static void applyTintFilter(Drawable drawable, @Nullable Integer tint) {
+        drawable.setColorFilter(tint == null ? null : getTintFilter(tint));
+    }
+
+    /**
+     * @return The filter of a tint, which is shared by the surfaces of the cards of the same color.
+     */
+    private static PorterDuffColorFilter getTintFilter(int tint) {
+        PorterDuffColorFilter filter = tintFilters.get(tint);
+        if (filter == null) {
+            if (tintFilters.size() >= MAXIMUM_TINT_FILTERS) {
+                tintFilters.clear();
+            }
+            filter = new PorterDuffColorFilter(tint, PorterDuff.Mode.SRC_IN);
+            tintFilters.put(tint, filter);
+        }
+        return filter;
+    }
+
+    /**
+     * Tints the surfaces of the card below the thumbnail, which the app paints over the background of
+     * the card in the color of the theme and hides the tint of the card with, such as the channel row.
+     * The row is an ImageView whose image has the gradient of the card, and the image can be shared by
+     * the cards, so its filter is set on the view, which keeps the shape of the row.
+     */
+    private static void tintCardBelowThumbnail(View item, @Nullable Integer tint) {
+        // The surfaces of a recycled view can be replaced, so the surfaces of the card are tinted again.
+        // A card without a tint keeps the colors of the app.
+        List<WeakReference<Drawable>> backgrounds = tintedBackgrounds.get(item);
+        if (backgrounds != null) {
+            for (WeakReference<Drawable> reference : backgrounds) {
+                Drawable drawable = reference.get();
+                if (drawable != null) {
+                    applyTintFilter(drawable, null);
+                }
+            }
+            backgrounds.clear();
+        }
+
+        List<WeakReference<View>> images = tintedImages.get(item);
+        if (images != null) {
+            for (WeakReference<View> reference : images) {
+                View image = reference.get();
+                if (image instanceof ImageView imageView) {
+                    imageView.clearColorFilter();
+                }
+            }
+            images.clear();
+        }
+
+        if (tint == null) {
+            return;
+        }
+
+        final List<Drawable> foundBackgrounds = new ArrayList<>(2);
+        final List<View> foundImages = new ArrayList<>(2);
+        // The thumbnail is the largest image of the card, and the surfaces below it are the metadata.
+        // A card whose thumbnail is drawn without a view keeps the surfaces of its lower third.
+        final ImageView thumbnail = findThumbnailView(item, 0);
+        final int thumbnailBottom = thumbnail == null ? item.getHeight() * 2 / 3
+                : getTopInItem(thumbnail, item) + thumbnail.getHeight();
+        collectCardSurfaces(item, item, 0, thumbnailBottom, foundBackgrounds, foundImages);
+
+        if (!foundBackgrounds.isEmpty()) {
+            if (backgrounds == null) {
+                backgrounds = new ArrayList<>(2);
+                tintedBackgrounds.put(item, backgrounds);
+            }
+            for (Drawable drawable : foundBackgrounds) {
+                applyTintFilter(drawable, tint);
+                backgrounds.add(new WeakReference<>(drawable));
+            }
+        }
+
+        if (!foundImages.isEmpty()) {
+            if (images == null) {
+                images = new ArrayList<>(2);
+                tintedImages.put(item, images);
+            }
+            final PorterDuffColorFilter filter = getTintFilter(tint);
+            for (int i = 0, count = foundImages.size(); i < count; i++) {
+                View image = foundImages.get(i);
+                if (image instanceof ImageView imageView) {
+                    imageView.setColorFilter(filter);
+                }
+                images.add(new WeakReference<>(image));
+            }
+        }
+    }
+
+    /**
+     * Collects the surfaces of the card below the thumbnail that span its width: the backgrounds of its
+     * views and the images of its ImageViews, such as the row of the channel.
+     */
+    private static void collectCardSurfaces(View item, View view, int topInItem, int thumbnailBottom,
+                                            List<Drawable> backgrounds, List<View> images) {
+        final int width = item.getWidth();
+        final int height = item.getHeight();
+        final int viewTop = topInItem + view.getTop();
+        final boolean spansCard = view.getWidth() * 10 >= width * 9;
+
+        if (spansCard) {
+            // The background of the card reaches below the thumbnail, where the channel row is.
+            Drawable background = view.getBackground();
+            if (background != null && viewTop + view.getHeight() > thumbnailBottom
+                    && !backgrounds.contains(background)) {
+                backgrounds.add(background);
+            }
+
+            // The images above the row are the thumbnail and the icons, which keep their colors, and the
+            // images thinner than the card are the bars of the progress and the separators.
+            if (view instanceof ImageView imageView && viewTop >= thumbnailBottom
+                    && view.getHeight() * 20 >= height
+                    && imageView.getDrawable() != null && !images.contains(view)) {
+                images.add(view);
+            }
+        }
+
+        if (view instanceof ViewGroup group) {
+            for (int i = 0, count = group.getChildCount(); i < count; i++) {
+                collectCardSurfaces(item, group.getChildAt(i), viewTop, thumbnailBottom, backgrounds, images);
+            }
+        }
+    }
+
+    private static int getTopInItem(View view, View item) {
+        int top = 0;
+        View current = view;
+        while (current != null && current != item) {
+            top += current.getTop();
+            ViewParent parent = current.getParent();
+            current = parent instanceof View parentView ? parentView : null;
+        }
+        return top;
     }
 
     private static void restartBackground(Drawable drawable) {

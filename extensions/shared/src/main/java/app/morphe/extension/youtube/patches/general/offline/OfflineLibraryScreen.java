@@ -6,7 +6,7 @@
  *
  * Licensed under the GNU General Public License v3.0.
  * Written by lavinhoque33, 2026-10-10.
- * Modified by lavinhoque33, 2026-10-25.
+ * Modified by lavinhoque33, 2026-10-26.
  */
 
 package app.morphe.extension.youtube.patches.general.offline;
@@ -25,12 +25,9 @@ import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
-import android.text.SpannableStringBuilder;
-import android.text.Spanned;
 import android.text.TextUtils;
 import android.text.format.Formatter;
 import android.text.InputType;
-import android.text.style.ForegroundColorSpan;
 import android.util.LruCache;
 import android.util.TypedValue;
 import android.view.Gravity;
@@ -650,25 +647,16 @@ final class OfflineLibraryScreen implements OfflineScreens.Screen {
         }
 
         /**
-         * The meta line of the card: the quality and the size, then the technical details in the
-         * accent color. The resume position gets a line of its own.
+         * The meta line of the card: the quality and the size, then the codec and the format id.
+         * The resume position gets a line of its own.
          */
         private CharSequence describe(OfflineVideo video) {
-            StringBuilder head = new StringBuilder();
-            appendPart(head, video.audioOnly ? audioCodecName(video) : video.qualityLabel);
+            StringBuilder text = new StringBuilder();
+            appendPart(text, video.audioOnly ? audioCodecName(video) : video.qualityLabel);
             if (video.sizeBytes > 0) {
-                appendPart(head, Formatter.formatShortFileSize(activity, video.sizeBytes));
+                appendPart(text, Formatter.formatShortFileSize(activity, video.sizeBytes));
             }
-
-            SpannableStringBuilder text = new SpannableStringBuilder(head);
-            String technical = technicalDetails(video);
-            if (!technical.isEmpty()) {
-                final int start = text.length();
-                if (start > 0) text.append(" · ");
-                text.append(technical);
-                text.setSpan(new ForegroundColorSpan(technicalColor()), start, text.length(),
-                        Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-            }
+            appendPart(text, technicalDetails(video));
 
             if (video.lastPositionMs > 0 && video.lengthMs > 0) {
                 if (text.length() > 0) text.append('\n');
@@ -709,11 +697,6 @@ final class OfflineLibraryScreen implements OfflineScreens.Screen {
             if (part.isEmpty()) return;
             if (text.length() > 0) text.append(" · ");
             text.append(part);
-        }
-
-        /** Readable on both the dark and the light settings theme. */
-        private int technicalColor() {
-            return BaseThemeUtils.isDarkModeEnabled() ? 0xFF81C784 : 0xFF2E7D32;
         }
 
         private void loadThumbnail(OfflineVideo video) {

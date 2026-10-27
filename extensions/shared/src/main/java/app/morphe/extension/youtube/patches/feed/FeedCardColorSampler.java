@@ -195,6 +195,10 @@ final class FeedCardColorSampler {
      */
     private static final Map<View, CharSequence> cardLabels = new WeakHashMap<>();
     /**
+     * State of the surfaces of the cards that was logged, whose changes are logged.
+     */
+    private static final Map<View, String> tintStates = new WeakHashMap<>();
+    /**
      * Cards that the app draws a surface of the metadata of, which is the part below the thumbnail, such
      * as the band of the cards. The cards without one, such as the cards of the mixes, get one.
      */
@@ -244,6 +248,7 @@ final class FeedCardColorSampler {
             cardBackgrounds.remove(view);
             cardLabels.remove(view);
             appCardSurfaces.remove(view);
+            tintStates.remove(view);
             tintCardBelowThumbnail(view, null);
             removeCardSurface(view);
         }
@@ -437,6 +442,7 @@ final class FeedCardColorSampler {
                 View item = list.getChildAt(i);
                 Integer tint = cardTints.get(item);
                 if (tint != null) {
+                    applyCardBackgroundsTint(item, tint);
                     tintCardBelowThumbnail(item, tint);
                 }
             }
@@ -459,7 +465,8 @@ final class FeedCardColorSampler {
     }
 
     /**
-     * The stock app tints the surface of the card below the thumbnail, which is as wide as the item.
+     * The stock app tints the surface of the card below the thumbnail, which is as wide as the card, also
+     * when the title of the card is long and the surface is inset by the padding of the metadata.
      * The backgrounds inside the metadata, such as the chips and the buttons, are narrower, and the bar
      * of the progress of the video is thinner.
      *
@@ -480,7 +487,8 @@ final class FeedCardColorSampler {
         if (bounds == null) {
             return "the drawable is not in the item";
         }
-        if (bounds.width() * 10 < width * 9) {
+        // A surface of the card is as wide as the card, or the card without the padding of the metadata.
+        if (bounds.width() * 20 < width * 17) {
             return "the drawable is narrower than the card";
         }
         if (bounds.height() * 20 < height) {
@@ -910,6 +918,25 @@ final class FeedCardColorSampler {
     }
 
     /**
+     * Applies the tint to the surfaces of the card that the app resolved, again before every draw, because
+     * the views of a card are mounted again while the list scrolls.
+     */
+    private static void applyCardBackgroundsTint(View item, int tint) {
+        List<WeakReference<Drawable>> backgrounds = cardBackgrounds.get(item);
+        if (backgrounds == null) {
+            return;
+        }
+
+        final PorterDuffColorFilter filter = getTintFilter(tint);
+        for (int i = 0, count = backgrounds.size(); i < count; i++) {
+            Drawable drawable = backgrounds.get(i).get();
+            if (drawable != null && drawable.getColorFilter() != filter) {
+                drawable.setColorFilter(filter);
+            }
+        }
+    }
+
+    /**
      * Tints the surfaces of the card below the thumbnail, which the app paints over the background of
      * the card in the color of the theme and hides the tint of the card with, such as the channel row.
      * The row is an ImageView whose image has the gradient of the card, and the image can be shared by
@@ -966,6 +993,13 @@ final class FeedCardColorSampler {
                 }
                 addTintedView(images, image);
             }
+        }
+
+        // The log tells the state of the surfaces of the card, once per state of a card.
+        final String state = (foundImages.isEmpty() ? "no row" : "row tinted")
+                + ", backgrounds " + foundBackgrounds.size();
+        if (!state.equals(tintStates.put(item, state))) {
+            Logger.printDebug(() -> "Card tint: " + state);
         }
     }
 
@@ -1061,7 +1095,8 @@ final class FeedCardColorSampler {
         final int width = item.getWidth();
         final int height = item.getHeight();
         final int viewTop = topInItem + view.getTop();
-        final boolean spansCard = view.getWidth() * 10 >= width * 9;
+        // A surface of the card is as wide as the card, or the card without the padding of the metadata.
+        final boolean spansCard = view.getWidth() * 20 >= width * 17;
 
         // The surfaces of the thumbnail are above the metadata, and the images thinner than the card are
         // the bars of the progress and the separators.
@@ -1140,13 +1175,21 @@ final class FeedCardColorSampler {
 
     /**
      * @return The bottom of the thumbnail of the card in the card, which is the largest image of the card.
-     *         The cards whose thumbnail is drawn without a view, such as the cards that play the video in
-     *         the item, keep the lower third of the card for the metadata.
+     *         The images of the metadata are in the lower part of the card, so an image that is not in the
+     *         upper part is not the thumbnail, such as the row of the channel of a card with a long title.
+     *         The cards whose thumbnail is drawn without a view keep the lower third for the metadata.
      */
     private static int getThumbnailBottom(View item) {
+        final int height = item.getHeight();
         ImageView thumbnail = findThumbnailView(item, 0);
-        return thumbnail == null ? item.getHeight() * 2 / 3
-                : getTopInItem(thumbnail, item) + thumbnail.getHeight();
+        if (thumbnail != null) {
+            final int top = getTopInItem(thumbnail, item);
+            // The thumbnail starts above the metadata, which is the lower part of the card.
+            if (top * 4 <= height) {
+                return top + thumbnail.getHeight();
+            }
+        }
+        return height * 2 / 3;
     }
 
     private static void removeCardSurface(View item) {

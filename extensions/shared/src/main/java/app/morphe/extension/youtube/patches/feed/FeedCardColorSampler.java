@@ -13,11 +13,14 @@ package app.morphe.extension.youtube.patches.feed;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.ColorFilter;
+import android.graphics.Paint;
+import android.graphics.PixelFormat;
 import android.graphics.PorterDuff;
 import android.graphics.PorterDuffColorFilter;
 import android.graphics.Rect;
+import android.graphics.RectF;
 import android.graphics.drawable.BitmapDrawable;
-import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.DrawableWrapper;
 import android.graphics.drawable.LayerDrawable;
@@ -28,6 +31,7 @@ import android.view.ViewGroup;
 import android.view.ViewParent;
 import android.widget.ImageView;
 
+import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import java.lang.ref.WeakReference;
@@ -41,6 +45,7 @@ import java.util.Set;
 import java.util.WeakHashMap;
 
 import app.morphe.extension.shared.utils.BaseThemeUtils;
+import app.morphe.extension.shared.ui.Dim;
 import app.morphe.extension.shared.utils.Logger;
 import app.morphe.extension.youtube.settings.Settings;
 
@@ -232,7 +237,7 @@ final class FeedCardColorSampler {
     static void setCardItem(View view, boolean card) {
         cardItems.put(view, card);
 
-        if (!card) {
+        if (!card && !FeedCardLayoutPatch.isCardLabel(view.getContentDescription())) {
             // A recycled view must not keep the tint of the card it showed.
             cardTints.remove(view);
             cardThumbnails.remove(view);
@@ -248,14 +253,14 @@ final class FeedCardColorSampler {
      * @return Whether the item of the list is a card of the feed with a thumbnail.
      */
     static boolean isCardItem(View item) {
-        Boolean card = cardItems.get(item);
-        if (card != null) {
-            return card;
+        // The cards converted by the patch have the label of the cards, also when the element of the item
+        // is not a video, such as when the video plays in the card.
+        if (FeedCardLayoutPatch.isCardLabel(item.getContentDescription())) {
+            return true;
         }
 
-        // The cards converted by the patch have the label of the cards, if the list doesn't look up
-        // the spacing of its items.
-        return FeedCardLayoutPatch.isCardLabel(item.getContentDescription());
+        Boolean card = cardItems.get(item);
+        return card != null && card;
     }
 
     /**
@@ -922,17 +927,13 @@ final class FeedCardColorSampler {
             return;
         }
 
-        // The thumbnail is the largest image of the card, and the surfaces below it are the metadata.
-        // A card whose thumbnail is unknown keeps the surfaces that it has.
-        ImageView thumbnail = findThumbnailView(item, 0);
-        if (thumbnail == null || item.getHeight() <= 0) {
+        if (item.getHeight() <= 0) {
             return;
         }
 
         foundBackgrounds.clear();
         foundImages.clear();
-        collectCardSurfaces(item, item, 0, getTopInItem(thumbnail, item) + thumbnail.getHeight(),
-                foundBackgrounds, foundImages);
+        collectCardSurfaces(item, item, 0, getThumbnailBottom(item), foundBackgrounds, foundImages);
 
         // The surfaces that the card no longer has keep no filter.
         removeTintFilters(backgrounds);
@@ -1115,6 +1116,7 @@ final class FeedCardColorSampler {
         }
 
         // The clip of the card rounds the surface to the card, with its corners.
+        FeedCardLayoutPatch.setCardClip(item);
         surface = new CardSurface(color, item.getBackground());
         cardSurfaces.put(item, surface);
         item.setBackground(surface.drawable);
@@ -1133,15 +1135,18 @@ final class FeedCardColorSampler {
      *         which the app draws a surface of for the other cards.
      */
     private static boolean isSurfaceBelowThumbnail(View item, @Nullable Rect bounds) {
-        if (bounds == null) {
-            return false;
-        }
+        return bounds != null && bounds.top >= getThumbnailBottom(item);
+    }
+
+    /**
+     * @return The bottom of the thumbnail of the card in the card, which is the largest image of the card.
+     *         The cards whose thumbnail is drawn without a view, such as the cards that play the video in
+     *         the item, keep the lower third of the card for the metadata.
+     */
+    private static int getThumbnailBottom(View item) {
         ImageView thumbnail = findThumbnailView(item, 0);
-        if (thumbnail == null) {
-            // A card whose thumbnail is not drawn by a view keeps the surface of the app.
-            return true;
-        }
-        return bounds.top >= getTopInItem(thumbnail, item) + thumbnail.getHeight();
+        return thumbnail == null ? item.getHeight() * 2 / 3
+                : getTopInItem(thumbnail, item) + thumbnail.getHeight();
     }
 
     private static void removeCardSurface(View item) {
@@ -1152,11 +1157,59 @@ final class FeedCardColorSampler {
     }
 
     /**
+     * The fill of the surface of a card: a rounded rectangle in the color of the card, inset like the
+     * outline of the card, which keeps the corners of the card, also where the view does not clip it.
+     */
+    private static final class CardFillDrawable extends Drawable {
+        private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final RectF rect = new RectF();
+        private final float radius = FeedCardLayoutPatch.CARD_CORNER_RADIUS;
+        private final int horizontalPadding = Dim.dp(FeedCardLayoutPatch.CARD_HORIZONTAL_PADDING_DP);
+        private final int verticalPadding = Dim.dp(FeedCardLayoutPatch.CARD_VERTICAL_PADDING_DP);
+        private int color;
+
+        CardFillDrawable(int color) {
+            setColor(color);
+        }
+
+        void setColor(int color) {
+            if (this.color != color) {
+                this.color = color;
+                paint.setColor(color);
+                invalidateSelf();
+            }
+        }
+
+        @Override
+        public void draw(@NonNull Canvas canvas) {
+            Rect bounds = getBounds();
+            rect.set(bounds.left + horizontalPadding, bounds.top + verticalPadding,
+                    bounds.right - horizontalPadding, bounds.bottom - verticalPadding);
+            canvas.drawRoundRect(rect, radius, radius, paint);
+        }
+
+        @Override
+        public void setAlpha(int alpha) {
+            paint.setAlpha(alpha);
+        }
+
+        @Override
+        public void setColorFilter(@Nullable ColorFilter colorFilter) {
+            paint.setColorFilter(colorFilter);
+        }
+
+        @Override
+        public int getOpacity() {
+            return PixelFormat.TRANSLUCENT;
+        }
+    }
+
+    /**
      * The surface that the patch draws for a card that the app draws without a surface of its own, above
      * the background of the card that the app set, if any.
      */
     private static final class CardSurface {
-        private final ColorDrawable fill;
+        private final CardFillDrawable fill;
         private final Drawable background;
         private final Drawable drawable;
         private int color;
@@ -1164,7 +1217,7 @@ final class FeedCardColorSampler {
         CardSurface(int color, @Nullable Drawable background) {
             this.color = color;
             this.background = background;
-            this.fill = new ColorDrawable(color);
+            this.fill = new CardFillDrawable(color);
             this.drawable = background == null ? fill : new LayerDrawable(new Drawable[]{fill, background});
         }
 

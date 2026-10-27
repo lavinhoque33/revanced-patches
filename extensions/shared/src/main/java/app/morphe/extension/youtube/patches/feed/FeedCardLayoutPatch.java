@@ -222,13 +222,13 @@ public class FeedCardLayoutPatch {
      */
     private static final int CARD_CORNER_RADIUS_DP = Math.max(0, Math.min(28,
             Settings.FEED_CARD_LAYOUT_CORNER_RADIUS.get()));
-    private static final int CARD_CORNER_RADIUS = Dim.dp(CARD_CORNER_RADIUS_DP);
+    static final int CARD_CORNER_RADIUS = Dim.dp(CARD_CORNER_RADIUS_DP);
     /**
      * Padding of the cards, in dp, which is the spacing between the cards in every list.
      * The spacing that the lists add between the cards is removed.
      */
-    private static final int CARD_HORIZONTAL_PADDING_DP = 12;
-    private static final int CARD_VERTICAL_PADDING_DP = 6;
+    static final int CARD_HORIZONTAL_PADDING_DP = 12;
+    static final int CARD_VERTICAL_PADDING_DP = 6;
     /**
      * Spacing that every feed item adds above and below itself, which the list adds to the items
      * that are not converted cards, to keep the gaps between the cards uniform.
@@ -1608,6 +1608,17 @@ public class FeedCardLayoutPatch {
      */
     static boolean isChipBar(View item) {
         return hasNestedList(item, 0) && !isShelfHeader(item);
+    }
+
+    /**
+     * Sets the outline of the card of the view again, which is the clip of the card that rounds the
+     * surfaces of the card to its corners.
+     */
+    static void setCardClip(View view) {
+        CardOutlineProvider outline = getCardOutline(view.getContentDescription());
+        if (outline != null) {
+            setCardOutline(view, outline);
+        }
     }
 
     private static void setCardOutline(View view, @Nullable CardOutlineProvider outline) {

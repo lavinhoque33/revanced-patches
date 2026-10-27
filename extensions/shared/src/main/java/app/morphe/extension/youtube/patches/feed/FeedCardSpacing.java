@@ -292,13 +292,15 @@ final class FeedCardSpacing {
             }
             invisibleItems.put(item, position);
             if (previous == null) {
-                Logger.printDebug(() -> "Invisible item of the feed: " + position);
+                Logger.printDebug(() -> "Invisible item of the feed: " + position
+                        + ", the spacing of the feed is set again");
             }
             changed = true;
         }
         if (changed) {
-            // The spacing of the item was set before its height was known.
-            list.requestLayout();
+            // The spacing of the item was set before its height was known, and the list keeps the
+            // spacing that it set, so its decorations are set again.
+            list.invalidateItemDecorations();
         }
     }
 

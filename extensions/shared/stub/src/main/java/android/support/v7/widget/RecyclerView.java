@@ -25,4 +25,10 @@ public class RecyclerView extends ViewGroup {
     public static int patch_getChildAdapterPosition(RecyclerView parent, View child) {
         return -1;
     }
+
+    /**
+     * "CompileOnly" method of the class, which is called to set the spacing of the items again.
+     */
+    public void invalidateItemDecorations() {
+    }
 }

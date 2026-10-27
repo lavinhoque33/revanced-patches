@@ -1,3 +1,11 @@
+## Unreleased
+
+### Bug Fixes
+
+* **YouTube - Feed card layout:** The `Dynamic card colors` tint now covers the whole card below the thumbnail, channel row included, instead of leaving a plain gray block under the title.
+* **YouTube - Feed card layout:** Mixes are cards now, with the card background, the rounded corners and the same 12 dp gaps as the other cards, instead of blending into the page with a longer gap below.
+* **YouTube - Feed card layout:** Hidden items, such as brand video ads and the placeholders of a loading feed, no longer add a gap of their own.
+
 ## [1.19.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.18.1...v1.19.0) (2026-10-26)
 
 ### Features

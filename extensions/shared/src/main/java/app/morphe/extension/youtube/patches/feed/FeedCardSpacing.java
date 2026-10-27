@@ -87,9 +87,10 @@ final class FeedCardSpacing {
     private static WeakReference<View> offsetsItemView = new WeakReference<>(null);
     /**
      * Items of the feed that are laid out without a height, which are the spacers of the list. They are not
-     * visible, so the spacing of the neighbours is the whole gap.
+     * visible, so the spacing of the neighbours is the whole gap. The position of the item is kept, to
+     * tell a recycled view from the same invisible item, whose mark is kept while it is laid out again.
      */
-    private static final Map<View, Boolean> invisibleItems = Collections.synchronizedMap(new WeakHashMap<>());
+    private static final Map<View, Integer> invisibleItems = Collections.synchronizedMap(new WeakHashMap<>());
     /**
      * Number of items above an item that are looked through for the item that is not a spacer.
      */
@@ -123,14 +124,19 @@ final class FeedCardSpacing {
 
     /**
      * Saves the item whose spacing the list is about to set, which is passed to {@link #setItemOffsets()}.
-     * The view of the item is recycled for another item, so its kind is cleared.
+     * The view of the item is recycled for another item, so its kind is cleared, but the mark of an invisible
+     * item is kept while the view shows the same item, which is laid out again with the mark.
      */
     static void setItemOffsetsInfo(Rect outRect, View item) {
         offsetsRect = outRect;
         offsetsItemView = new WeakReference<>(item);
         // The view is reused for another item, and the layout of the previous item does not apply.
         itemTypes.remove(item);
-        invisibleItems.remove(item);
+
+        Integer invisiblePosition = invisibleItems.get(item);
+        if (invisiblePosition != null && invisiblePosition != getAdapterPosition(item)) {
+            invisibleItems.remove(item);
+        }
     }
 
     /**
@@ -258,28 +264,51 @@ final class FeedCardSpacing {
 
     /**
      * Updates the items that are not visible, which the list lays out with no height. The spacing of an item
-     * is set before the item is laid out, so the list is laid out again when an item is found.
+     * is set before the item is laid out, so the list is laid out again when an item is found, and when a
+     * marked item gets a height and the spacing of the item applies again.
      */
     static void updateInvisibleItems(RecyclerView list) {
         if (!FeedCardLayoutPatch.isCardLayoutEnabled() || list.getId() != FeedCardLayoutPatch.getFeedId()) {
             return;
         }
 
-        boolean found = false;
+        boolean changed = false;
         for (int i = 0, count = list.getChildCount(); i < count; i++) {
             View item = list.getChildAt(i);
-            if (item.getHeight() == 0 && item.getWidth() > 0
-                    && invisibleItems.put(item, Boolean.TRUE) == null) {
-                found = true;
+            final boolean invisible = item.getHeight() == 0 && item.getWidth() > 0;
+            Integer previous = invisibleItems.get(item);
+            if (!invisible) {
+                // The view shows an item that is laid out now, and the spacing of the item applies.
+                if (previous != null) {
+                    invisibleItems.remove(item);
+                    changed = true;
+                }
+                continue;
+            }
 
-                final int position = RecyclerView.patch_getChildAdapterPosition(list, item);
+            final int position = RecyclerView.patch_getChildAdapterPosition(list, item);
+            if (previous != null && previous == position) {
+                continue;
+            }
+            invisibleItems.put(item, position);
+            if (previous == null) {
                 Logger.printDebug(() -> "Invisible item of the feed: " + position);
             }
+            changed = true;
         }
-        if (found) {
+        if (changed) {
             // The spacing of the item was set before its height was known.
             list.requestLayout();
         }
+    }
+
+    /**
+     * @return The position of the view in the list, or -1 if the view is not in a list.
+     */
+    private static int getAdapterPosition(View item) {
+        return item.getParent() instanceof RecyclerView list
+                ? RecyclerView.patch_getChildAdapterPosition(list, item)
+                : -1;
     }
 
     /**

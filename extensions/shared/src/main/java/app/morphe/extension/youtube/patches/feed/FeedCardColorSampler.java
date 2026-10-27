@@ -131,6 +131,12 @@ final class FeedCardColorSampler {
      */
     private static final Map<View, List<WeakReference<Drawable>>> cardBackgrounds = new WeakHashMap<>();
     /**
+     * Backgrounds whose color was looked up before their item of the feed was mounted, by the view of the
+     * background. A background looks up its color only when its bounds are set, so the bounds are set again
+     * when the item is in the feed, and the background applies the tint of the card like the other surfaces.
+     */
+    private static final Map<View, List<WeakReference<Drawable>>> pendingBackgrounds = new WeakHashMap<>();
+    /**
      * Hue of the thumbnail of a bitmap drawable. NaN if the thumbnail has no color to tint the card with.
      * The drawables are compared by identity: Glide reuses the drawable of a cached image, but the bitmap
      * inside it can be reused for other images after the drawable is discarded.
@@ -210,6 +216,11 @@ final class FeedCardColorSampler {
             return null;
         }
         if (item == null || drawableView == null) {
+            // A background of an item that is not in the feed yet is looked up again when the item is mounted.
+            // The backgrounds of the other views, such as the shelves and the watch page, are not retried.
+            if (drawableView != null && !drawableView.isAttachedToWindow()) {
+                addPendingBackground(drawableView, drawable);
+            }
             logSurfaceRejected(null, drawableView, drawable, null, "the drawable is not in the feed");
             return null;
         }
@@ -338,6 +349,17 @@ final class FeedCardColorSampler {
                 applyTint(item, tint);
             }
 
+            // The colors of the backgrounds of the cards were looked up before the cards were mounted,
+            // and the tint of the cards did not change since then.
+            if (!pendingBackgrounds.isEmpty()) {
+                for (int i = 0, count = list.getChildCount(); i < count; i++) {
+                    View item = list.getChildAt(i);
+                    if (cardTints.containsKey(item)) {
+                        restartPendingBackgrounds(item);
+                    }
+                }
+            }
+
             logSlowUpdate(startTime, samples);
         } catch (Exception ex) {
             Logger.printException(() -> "updateCardTints failure", ex);
@@ -412,6 +434,61 @@ final class FeedCardColorSampler {
             backgrounds.remove(0);
         }
         backgrounds.add(new WeakReference<>(drawable));
+    }
+
+    private static void addPendingBackground(View view, Drawable drawable) {
+        List<WeakReference<Drawable>> backgrounds = pendingBackgrounds.get(view);
+        if (backgrounds == null) {
+            backgrounds = new ArrayList<>(2);
+            pendingBackgrounds.put(view, backgrounds);
+        }
+
+        for (int i = 0, count = backgrounds.size(); i < count; i++) {
+            if (backgrounds.get(i).get() == drawable) {
+                return;
+            }
+        }
+
+        if (backgrounds.size() >= 4) {
+            backgrounds.remove(0);
+        }
+        backgrounds.add(new WeakReference<>(drawable));
+    }
+
+    /**
+     * Sets the bounds of the backgrounds that were looked up before the item was mounted, which looks up
+     * their color again, now that they are in the feed and the card of the item has a tint.
+     */
+    private static void restartPendingBackgrounds(View item) {
+        if (pendingBackgrounds.isEmpty()) {
+            return;
+        }
+
+        for (Map.Entry<View, List<WeakReference<Drawable>>> entry
+                : new ArrayList<>(pendingBackgrounds.entrySet())) {
+            View view = entry.getKey();
+            if (!isInside(view, item)) {
+                continue;
+            }
+            pendingBackgrounds.remove(view);
+            for (WeakReference<Drawable> reference : entry.getValue()) {
+                Drawable drawable = reference.get();
+                if (drawable != null) {
+                    restartBackground(drawable);
+                }
+            }
+        }
+    }
+
+    private static boolean isInside(View view, View item) {
+        while (view != null) {
+            if (view == item) {
+                return true;
+            }
+            ViewParent parent = view.getParent();
+            view = parent instanceof View parentView ? parentView : null;
+        }
+        return false;
     }
 
     /**
@@ -700,6 +777,9 @@ final class FeedCardColorSampler {
                 }
             }
         }
+
+        // The backgrounds of the card that were looked up before the card was mounted.
+        restartPendingBackgrounds(item);
 
         item.invalidate();
     }

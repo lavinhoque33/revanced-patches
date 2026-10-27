@@ -5,7 +5,7 @@
  * https://github.com/MorpheApp/morphe-patches/pull/3801
  *
  * See the included NOTICE file for GPLv3 Section 7 terms that apply to this code.
- * Modified by lavinhoque33, 2026-10-24
+ * Modified by lavinhoque33, 2026-10-26
  */
 
 package app.morphe.extension.youtube.patches.feed;
@@ -71,6 +71,7 @@ import app.morphe.extension.youtube.innertube.FeedCardLayoutOuterClass.AvatarVie
 import app.morphe.extension.youtube.innertube.FeedCardLayoutOuterClass.AvatarViewModelHolder;
 import app.morphe.extension.youtube.innertube.FeedCardLayoutOuterClass.ButtonViewModel;
 import app.morphe.extension.youtube.innertube.FeedCardLayoutOuterClass.ButtonViewModelHolder;
+import app.morphe.extension.youtube.innertube.FeedCardLayoutOuterClass.CardLayoutExperiments;
 import app.morphe.extension.youtube.innertube.FeedCardLayoutOuterClass.CapabilitiesSubscriptionConfig;
 import app.morphe.extension.youtube.innertube.FeedCardLayoutOuterClass.ChannelAvatar;
 import app.morphe.extension.youtube.innertube.FeedCardLayoutOuterClass.ClientResource;
@@ -191,6 +192,10 @@ public class FeedCardLayoutPatch {
      * Browse id of the playlist pages, followed by the playlist id.
      */
     private static final String PLAYLIST_BROWSE_ID_PREFIX = "VL";
+    /**
+     * Prefix of the playlist ids that YouTube generates for the Mixes of the videos, such as 'RD...'.
+     */
+    private static final String MIX_PLAYLIST_PREFIX = "RD";
 
     /**
      * Templates of the feed videos, with the field of their model and the known fields of the model
@@ -239,6 +244,10 @@ public class FeedCardLayoutPatch {
      */
     static final int SHELF_FOOTER_HEIGHT = Dim.dp(23);
     private static final String SHORTS_SHELF_FOOTER_TEMPLATE = "shorts_grid_shelf_footer";
+    /**
+     * Template of the brand videos that the ads filter hides, which are then an empty item of the list.
+     */
+    private static final String BRAND_VIDEO_TEMPLATE = "brand_video_singleton";
     /**
      * The padding of the outline of a card is laid out from dp with rounding, and the inline player
      * can be a pixel or two larger than the thumbnail of the card.
@@ -711,6 +720,8 @@ public class FeedCardLayoutPatch {
                         }
 
                         // Playlists open their page, and show the number of videos instead of the duration.
+                        // The Mixes, which YouTube generates for the radio of a video, show the number of
+                        // their videos only in some places, and are found by their id.
                         InnertubeCommandHolder onTap = InnertubeCommandHolder.parseFrom(data.getOnTap());
                         final boolean isPlaylist = onTap.getInnertubeCommand().hasBrowseEndpoint();
                         String contentId;
@@ -719,7 +730,7 @@ public class FeedCardLayoutPatch {
                         if (isPlaylist) {
                             String browseId = onTap.getInnertubeCommand().getBrowseEndpoint().getBrowseId();
                             if (!browseId.startsWith(PLAYLIST_BROWSE_ID_PREFIX)
-                                    || thumbnail.getVideoCountText().isEmpty()) {
+                                    || (thumbnail.getVideoCountText().isEmpty() && !isMixPlaylist(browseId))) {
                                 break toCard;
                             }
                             contentId = browseId.substring(PLAYLIST_BROWSE_ID_PREFIX.length());
@@ -1455,14 +1466,16 @@ public class FeedCardLayoutPatch {
             if (spacerTemplateSearch.matches(bytes)) {
                 return FeedCardSpacing.ITEM_SPACER;
             }
-            if (bytes.length < 2000 && Element.parseFrom(bytes).getType().getComponentType()
-                    .getTemplateConfig().getUriTemplateConfig().getUri()
-                    .contains(SHORTS_SHELF_FOOTER_TEMPLATE)) {
-                return FeedCardSpacing.ITEM_SHELF_FOOTER;
-            }
 
             final String template = Element.parseFrom(bytes).getType().getComponentType()
                     .getTemplateConfig().getUriTemplateConfig().getUri();
+            if (Settings.HIDE_GENERAL_ADS.get() && template.contains(BRAND_VIDEO_TEMPLATE)) {
+                // The ads filter hides the brand videos, and the list keeps the spacing of the hidden item.
+                return FeedCardSpacing.ITEM_SPACER;
+            }
+            if (bytes.length < 2000 && template.contains(SHORTS_SHELF_FOOTER_TEMPLATE)) {
+                return FeedCardSpacing.ITEM_SHELF_FOOTER;
+            }
             if (otherTemplates.add(template)) {
                 Logger.printDebug(() -> "Item without a card template: " + template
                         + ", " + bytes.length + " bytes");
@@ -1509,6 +1522,16 @@ public class FeedCardLayoutPatch {
      */
     static boolean isCardLayoutEnabled() {
         return CARD_LAYOUT;
+    }
+
+    /**
+     * @return Whether the browse id is the page of a Mix, such as 'VLRD...'. The Mixes are playlists
+     *         that YouTube generates for the radio of a video, and they have no count of videos in
+     *         the places where the classic layout shows them without the avatar.
+     */
+    private static boolean isMixPlaylist(String browseId) {
+        final int idStart = PLAYLIST_BROWSE_ID_PREFIX.length();
+        return browseId.length() > idStart && browseId.startsWith(MIX_PLAYLIST_PREFIX, idStart);
     }
 
     /**
@@ -2563,13 +2586,17 @@ public class FeedCardLayoutPatch {
         return builder.build();
     }
 
-    private static ElementContext setCardExperiments(ElementContext context, boolean enabled) {
+    private static ElementContext setCardExperiments(ElementContext context, boolean card) {
         ElementsExperiments experiments = context.getElementsExperiments();
         return context.toBuilder()
                 .setElementsExperiments(experiments.toBuilder()
                         .setCardLayoutExperiments(experiments.getCardLayoutExperiments().toBuilder()
-                                .setEnableColorSampledBackground(enabled)
-                                .setEnableMetadataBackground(enabled)))
+                                .setEnableColorSampledBackground(card)
+                                // The metadata background is an opaque surface below the title, which keeps the
+                                // color of the theme, so it hides the sampled color below the title and the card
+                                // looks half tinted and half plain gray. Without it the whole card below the
+                                // thumbnail has the sampled color.
+                                .setEnableMetadataBackground(false)))
                 .build();
     }
 
@@ -2577,7 +2604,8 @@ public class FeedCardLayoutPatch {
      * The cards that YouTube sends keep their layout, but the server can send the colors sampled from
      * their thumbnails, which are shown by the experiment of the background of the cards.
      *
-     * @return The element with the experiment enabled, or the same bytes if the element is not a card.
+     * @return The element with the sampled background enabled and the metadata background disabled,
+     *         or the same bytes if the element is not a card or already has them.
      */
     private static byte[] enableColorSampledBackground(byte[] bytes) {
         if (!Settings.FEED_CARD_LAYOUT_DYNAMIC_COLORS.get() || !CARD.search.matches(bytes)) {
@@ -2595,8 +2623,8 @@ public class FeedCardLayoutPatch {
 
             LockupModel card = model.getLockupModel();
             ElementContext context = card.getContext();
-            if (context.getElementsExperiments().getCardLayoutExperiments()
-                    .getEnableColorSampledBackground()) {
+            CardLayoutExperiments experiments = context.getElementsExperiments().getCardLayoutExperiments();
+            if (experiments.getEnableColorSampledBackground() && !experiments.getEnableMetadataBackground()) {
                 return bytes;
             }
 
@@ -2604,7 +2632,7 @@ public class FeedCardLayoutPatch {
             return element.toBuilder()
                     .setType(element.getType().toBuilder().setComponentType(componentType.toBuilder()
                             .setModel(ElementModel.newBuilder().setLockupModel(card.toBuilder()
-                                    .setContext(setColorSampledBackground(context, true))))))
+                                    .setContext(setColorSampledBackground(context))))))
                     .build()
                     .toByteArray();
         } catch (Exception ex) {
@@ -2614,15 +2642,17 @@ public class FeedCardLayoutPatch {
     }
 
     /**
-     * Enables only the background sampled from the thumbnail, which every supported app version reads.
-     * The background of the metadata of newer app versions needs data that the server does not send.
+     * Enables the background sampled from the thumbnail, which every supported app version reads, and
+     * disables the metadata background, which is an opaque surface that hides the sampled color below
+     * the title.
      */
-    private static ElementContext setColorSampledBackground(ElementContext context, boolean enabled) {
+    private static ElementContext setColorSampledBackground(ElementContext context) {
         ElementsExperiments experiments = context.getElementsExperiments();
         return context.toBuilder()
                 .setElementsExperiments(experiments.toBuilder()
                         .setCardLayoutExperiments(experiments.getCardLayoutExperiments().toBuilder()
-                                .setEnableColorSampledBackground(enabled)))
+                                .setEnableColorSampledBackground(true)
+                                .setEnableMetadataBackground(false)))
                 .build();
     }
 

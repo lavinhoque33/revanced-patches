@@ -773,7 +773,10 @@ final class FeedCardColorSampler {
                                             List<Drawable> backgrounds, List<View> images) {
         final int width = item.getWidth();
         final int height = item.getHeight();
-        final int viewTop = topInItem + view.getTop();
+
+        // Compare surfaces and the thumbnail in item coordinates, never in the scrolling list's coordinates.
+        final int viewTop = view == item ? 0 : topInItem + view.getTop();
+
         // A surface of the card is as wide as the card, or the card without the padding of the metadata.
         final boolean spansCard = view.getWidth() * 20 >= width * 17;
 

@@ -417,6 +417,81 @@ fun ResourcePatchContext.makeBold(drawable: String) {
 const val DEFAULT_PREFERENCE_ICON_SIZE_DP = 48
 const val STOCK_PREFERENCE_ICON_SIZE_DP = 24
 
+private const val STOCK_PREFERENCE_LAYOUT = "res/layout/revanced_preference_stock_icon.xml"
+
+/**
+ * RVX uses framework preferences, whose material icon frame reserves 60 dp even for a 24 dp icon.
+ * Copy the app's material row without changing its AndroidX layouts or the other icon styles.
+ */
+fun ResourcePatchContext.installStockPreferenceIconLayout(
+    paddingStartDp: Int,
+    titleInsetDp: Int,
+) {
+    val rowPath = "res/layout/preference_material.xml"
+    val framePath = "res/layout/image_frame.xml"
+    if (!get(rowPath).exists() || !get(framePath).exists()) {
+        printWarn("Stock icon spacing: material preference layout not found; keeping the current spacing.")
+        return
+    }
+
+    document(rowPath).use { row ->
+        val include = row.getElementsByTagName("include").asSequence()
+            .filterIsInstance<Element>()
+            .firstOrNull { it.getAttribute("layout") == "@layout/image_frame" }
+        if (include == null) {
+            printWarn("Stock icon spacing: material icon frame not found; keeping the current spacing.")
+            return
+        }
+
+        document(framePath).use { frameDocument ->
+            val image = frameDocument.getElementsByTagName("androidx.preference.internal.PreferenceImageView")
+                .item(0) as? Element
+            if (image == null) {
+                printWarn("Stock icon spacing: preference image not found; keeping the current spacing.")
+                return
+            }
+
+            get(rowPath).copyTo(get(STOCK_PREFERENCE_LAYOUT), overwrite = true)
+        }
+    }
+
+    document(STOCK_PREFERENCE_LAYOUT).use { row ->
+        val root = row.documentElement
+        root.setAttribute("android:paddingLeft", "${paddingStartDp}dp")
+        root.setAttribute("android:paddingStart", "${paddingStartDp}dp")
+        root.setAttribute("android:minHeight", "54dp")
+
+        val include = row.getElementsByTagName("include").item(0)
+        document(framePath).use { frameDocument ->
+            val frame = row.importNode(frameDocument.documentElement, true) as Element
+            frame.setAttribute("android:id", "@android:id/icon_frame")
+            frame.setAttribute("android:layout_width", "${titleInsetDp - paddingStartDp}dp")
+            frame.setAttribute("android:minWidth", "${titleInsetDp - paddingStartDp}dp")
+            frame.setAttribute("android:paddingRight", "0dp")
+            frame.setAttribute("android:paddingEnd", "0dp")
+
+            val oldImage = frame.getElementsByTagName("androidx.preference.internal.PreferenceImageView").item(0)
+            val image = row.createElement("ImageView")
+            image.setAttribute("android:id", "@android:id/icon")
+            image.setAttribute("android:layout_width", "${STOCK_PREFERENCE_ICON_SIZE_DP}dp")
+            image.setAttribute("android:layout_height", "${STOCK_PREFERENCE_ICON_SIZE_DP}dp")
+            frame.replaceChild(image, oldImage)
+            include.parentNode.replaceChild(frame, include)
+        }
+    }
+}
+
+/** Apply only to icon-bearing RVX rows; preserve categories and purpose-built preference layouts. */
+fun ResourcePatchContext.setStockPreferenceIconLayout(preference: Element) {
+    if (!get(STOCK_PREFERENCE_LAYOUT).exists() ||
+        preference.tagName.endsWith("PreferenceCategory") ||
+        !preference.hasAttribute("android:icon") ||
+        preference.hasAttribute("android:layout")
+    ) return
+
+    preference.setAttribute("android:layout", "@layout/revanced_preference_stock_icon")
+}
+
 /** Uses a stock-sized box without the legacy template's glyph shrink or Music's left nudge. */
 fun ResourcePatchContext.setStockPreferenceIconGeometry(drawable: String) {
     if (!get(drawable).exists()) return

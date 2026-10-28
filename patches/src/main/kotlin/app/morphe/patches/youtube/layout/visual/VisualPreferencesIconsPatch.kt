@@ -8,7 +8,7 @@
  * - anddea (https://github.com/anddea)
  *
  * Licensed under the GNU General Public License v3.0.
- * Modified by lavinhoque33, 2026-10-27
+ * Modified by lavinhoque33, 2026-10-28
  *
  * ------------------------------------------------------------------------
  * GPLv3 Section 7 – Additional Terms & Attribution Requirements
@@ -171,6 +171,10 @@ val visualPreferencesIconsPatch = resourcePatch(
         }
         installYouTubeRvxSettingsIconLayout(iconSizeDp)
 
+        if (useStockIconSize) {
+            installStockPreferenceIconLayout(paddingStartDp = 18, titleInsetDp = 60)
+        }
+
         // Fixed-weight letter icons and the colored logo retain their authored strokes.
         arrayOf("revanced_settings_key_icon", "revanced_settings_cairo_key_icon").forEach { iconName ->
             val drawable = "res/drawable/$iconName.xml"
@@ -251,6 +255,10 @@ val visualPreferencesIconsPatch = resourcePatch(
                             } else {
                                 node.setAttribute("android:icon", "@drawable/$iconName")
                             }
+                        }
+
+                        if (xmlFile == "res/xml/revanced_prefs.xml") {
+                            setStockPreferenceIconLayout(node)
                         }
                     }
                 }

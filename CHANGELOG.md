@@ -1,3 +1,9 @@
+## Unreleased
+
+### Bug Fixes
+
+* **YouTube and YouTube Music - Visual preferences icons:** `Bold (stock size)` rows use the stock spacing in RVX settings and sub-settings. `Regular` and `Bold` keep their current spacing.
+
 ## [1.21.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.20.0...v1.21.0) (2026-10-28)
 
 ### Features

@@ -8,7 +8,7 @@
  * - anddea (https://github.com/anddea)
  *
  * Licensed under the GNU General Public License v3.0.
- * Modified by lavinhoque33, 2026-10-27
+ * Modified by lavinhoque33, 2026-10-28
  *
  * ------------------------------------------------------------------------
  * GPLv3 Section 7 – Additional Terms & Attribution Requirements
@@ -170,7 +170,10 @@ val visualPreferencesIconsPatch = resourcePatch(
         if (useBoldIcons && selectedIconType !in FIXED_WEIGHT_RVX_ICONS) {
             makeBold(settingsIconDrawable)
         }
-        if (useStockIconSize) setStockPreferenceIconGeometry(settingsIconDrawable)
+        if (useStockIconSize) {
+            setStockPreferenceIconGeometry(settingsIconDrawable)
+            installStockPreferenceIconLayout(paddingStartDp = 24, titleInsetDp = 80)
+        }
 
         installDynamicRvxSettingsIcon("revanced_settings_icon")
 
@@ -202,6 +205,15 @@ internal fun ResourcePatchContext.applyVisualPreferenceIcons() {
                         node.setAttribute("android:icon", "@drawable/$it")
                     }
                 }
+
+            var parent = node.parentNode
+            while (parent is Element) {
+                if (parent.getAttribute("android:key") == "revanced_settings") {
+                    setStockPreferenceIconLayout(node)
+                    break
+                }
+                parent = parent.parentNode
+            }
         }
     }
 

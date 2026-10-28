@@ -137,7 +137,6 @@ public class FlyoutPatch {
         VideoUtils.launchExternalDownloader(videoId);
     }
 
-
     /**
      * Scans the raw command protobuf for an 11-byte YouTube video ID field.
      */
@@ -223,14 +222,12 @@ public class FlyoutPatch {
             }
             Utils.verifyOnMainThread();
 
-            // modified by lavinhoque33, 2026-10-16: Downloads navigation is rewritten to native local browsing before flyout dispatch.
-
             if (ActionBarPatch.inAppDownloadButtonOnClick(map)) {
                 cachedFlyoutVideoId = "";
                 return true;
             }
 
-            // modified by lavinhoque33, 2026-10-14: the flyout Download row was only intercepted when
+            // the flyout Download row was only intercepted when
             // the separate external downloader flyout setting (off by default) was on, so with in-app
             // downloads on, the row fell through to Music's own Premium-only download and did nothing.
             if (!Settings.IN_APP_DOWNLOADS.get() && !Settings.EXTERNAL_DOWNLOADER_FLYOUT_MENU.get()) {

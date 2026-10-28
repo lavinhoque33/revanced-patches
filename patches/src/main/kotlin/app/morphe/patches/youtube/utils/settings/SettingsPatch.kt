@@ -9,7 +9,7 @@
  * - inotia00 (https://github.com/inotia00)
  * - KobeW50 (https://github.com/KobeW50)
  *
- * Modified by lavinhoque33 (2026-10-04): experimental YouTube 21.39 support
+ * experimental YouTube 21.39 support
  * (inlined Cairo fragment flag).
  *
  * Licensed under the GNU General Public License v3.0.
@@ -313,7 +313,7 @@ private val settingsBytecodePatch = bytecodePatch(
                 null,
                 MutableMethodImplementation(3),
             ).toMutable().apply {
-                // modified by lavinhoque33, 2026-10-10: Pass the activity, so offline screens can handle back presses.
+                // Pass the activity, so offline screens can handle back presses.
                 addInstructions(
                     """
                         invoke-static { p0 }, $EXTENSION_CLASS_DESCRIPTOR->handleBackPress(Landroid/app/Activity;)Z
@@ -622,6 +622,8 @@ val settingsPatch = resourcePatch(
     }
 
     finalize {
+        ResourceUtils.writeUnsupportedSettings()
+
         /**
          * change RVX settings menu name
          * since it must be invoked after the Translations patch, it must be the last in the order.

@@ -50,6 +50,7 @@ import app.morphe.extension.shared.utils.Utils;
 import app.morphe.extension.youtube.patches.AddToQueuePatch;
 import app.morphe.extension.youtube.patches.LocalQueuePatch;
 import app.morphe.extension.youtube.patches.SaveToWatchLaterPatch;
+import app.morphe.extension.youtube.patches.FeedVideoActionsPatch;
 import app.morphe.extension.youtube.patches.PictureinPictureButtonPatch;
 import app.morphe.extension.youtube.videoplayer.PictureinPictureButton;
 import app.morphe.extension.youtube.patches.VideoDelayPatch;
@@ -166,6 +167,7 @@ public final class FlyoutUtils {
             if (dialog == null) {
                 return;
             }
+            FeedVideoActionsPatch.onBottomSheetFlyout(dialog);
             flyoutDialog = dialog;
             runFlyoutPanelVisibilityHandler(dialog);
 
@@ -227,6 +229,7 @@ public final class FlyoutUtils {
             if (popupWindow == null) {
                 return;
             }
+            FeedVideoActionsPatch.onPopupWindowFlyout(popupWindow);
             flyoutPopupWindow = popupWindow;
             runFlyoutPanelVisibilityHandler(popupWindow);
 
@@ -383,6 +386,7 @@ public final class FlyoutUtils {
 
             copyListItemTypeface(itemList);
             AddToQueuePatch.onListBound(itemList);
+            FeedVideoActionsPatch.onFlyoutListBound(itemList);
         } catch (Exception ex) {
             Logger.printException(() -> "onFlyoutListBound failure", ex);
         }

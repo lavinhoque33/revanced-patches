@@ -7,7 +7,7 @@ package app.morphe.patches.shared.misc.request
 import app.morphe.patcher.patch.bytecodePatch
 import app.morphe.patches.shared.extension.Constants.EXTENSION_PATH
 
-// modified by lavinhoque33, 2026-10-16: playlist downloads and Android Auto share one capture of the app's own auth headers.
+// Captures the app's own auth headers for requests made from the extension, e.g. fetching a whole playlist.
 internal val authHeadersPatch = bytecodePatch {
     dependsOn(buildRequestPatch)
     execute {

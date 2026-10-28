@@ -23,7 +23,7 @@ import app.morphe.extension.music.patches.misc.requests.MusicBrowseRequest;
 import app.morphe.extension.shared.utils.Logger;
 import app.morphe.extension.shared.utils.Utils;
 
-// modified by lavinhoque33, 2026-10-16: download the complete playlist, then publish a native offline queue in its original order.
+// download the complete playlist, then publish a native offline queue in its original order.
 public final class PlaylistDownloads {
     private static final Set<String> active = ConcurrentHashMap.newKeySet();
 
@@ -62,7 +62,7 @@ public final class PlaylistDownloads {
                 if (tracks.isEmpty()) throw new IOException("Playlist contains no downloadable tracks");
                 List<Long> mediaIds = new ArrayList<>(tracks.size());
                 for (int index = 0; index < tracks.size(); index++) {
-                    // modified by lavinhoque33, 2026-10-17: already-saved tracks finish in milliseconds; unpaced
+                    // already-saved tracks finish in milliseconds; unpaced
                     // updates exceed Android's per-app rate limit, which then drops the final notification.
                     if (LocalDownloadManager.canPostProgress()) {
                         LocalDownloadManager.showDownloadNotification("playlist:" + playlistId, title,
@@ -86,7 +86,7 @@ public final class PlaylistDownloads {
                 Utils.showToastLong(str("morphe_music_playlist_download_failed"));
             } finally {
                 active.remove(playlistId);
-                // modified by lavinhoque33, 2026-10-17: tracks now in a playlist leave "Not in a playlist";
+                // tracks now in a playlist leave "Not in a playlist";
                 // songs kept from a failed download join it.
                 NativePlaylistStore.refreshUnsortedLater();
             }
@@ -140,7 +140,7 @@ public final class PlaylistDownloads {
                 String id = itemData == null ? "" : itemData.optString("videoId");
                 if (id.isEmpty()) {
                     JSONObject endpoint = row.optJSONObject("navigationEndpoint");
-                    // modified by lavinhoque33, 2026-10-16: an owned playlist lists an "Add a song" search row, not a track.
+                    // an owned playlist lists an "Add a song" search row, not a track.
                     if (itemData == null && endpoint != null && endpoint.has("searchEndpoint")) return;
                     JSONObject watch = endpoint == null ? null : endpoint.optJSONObject("watchEndpoint");
                     if (watch != null) id = watch.optString("videoId");

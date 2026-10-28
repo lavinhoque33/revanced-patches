@@ -20,6 +20,7 @@ import app.morphe.patches.music.flyoutmenu.components.flyoutMenuComponentsPatch
 import app.morphe.patches.music.utils.compatibility.Constants.COMPATIBILITY_YOUTUBE_MUSIC
 import app.morphe.patches.music.utils.extension.sharedExtensionPatch
 import app.morphe.patches.music.utils.patch.PatchList.DOWNLOADS
+import app.morphe.patches.music.utils.playservice.is_7_25_or_greater
 import app.morphe.patches.music.utils.settings.CategoryType
 import app.morphe.patches.music.utils.settings.ResourceUtils.addPreferenceCategory
 import app.morphe.patches.music.utils.settings.ResourceUtils.updatePatchStatus
@@ -30,6 +31,7 @@ import app.morphe.patches.shared.misc.fix.proto.parseByteArrayMethodRef
 import app.morphe.patches.shared.misc.media.MediaSessionSetMetadataFingerprint
 import app.morphe.patches.shared.misc.media.hookMediaSessionArgument
 import app.morphe.patches.shared.misc.request.authHeadersPatch
+import app.morphe.util.Utils.printWarn
 import app.morphe.util.getReference
 import com.android.tools.smali.dexlib2.AccessFlags
 import com.android.tools.smali.dexlib2.builder.MutableMethodImplementation
@@ -48,9 +50,9 @@ import com.android.tools.smali.dexlib2.immutable.ImmutableMethodParameter
 private const val DOWNLOADS_PATH = "Lapp/morphe/extension/music/patches/downloads"
 private const val EXTENSION_CLASS = "$DOWNLOADS_PATH/LocalDownloadManager;"
 private const val NATIVE_DOWNLOADS = "$DOWNLOADS_PATH/NativeDownloads;"
-private const val NATIVE_COMMAND = "$DOWNLOADS_PATH/NativeDownloads\$Command;"
+private const val NATIVE_COMMAND = $$"$$DOWNLOADS_PATH/NativeDownloads$Command;"
 private const val PLAYLIST_STORE = "$DOWNLOADS_PATH/NativePlaylistStore;"
-private const val PLAYLIST_DATABASE = "$DOWNLOADS_PATH/NativePlaylistStore\$Database;"
+private const val PLAYLIST_DATABASE = $$"$$DOWNLOADS_PATH/NativePlaylistStore$Database;"
 private const val FUTURE = "Ljava/util/concurrent/Future;"
 private const val NATIVE_FUTURE = "Lcom/google/common/util/concurrent/ListenableFuture;"
 private const val REGISTRY = "Lcom/google/protobuf/ExtensionRegistryLite;"
@@ -92,17 +94,33 @@ private fun List<Instruction>.hasZeroDiscriminator(callIndex: Int): Boolean {
 }
 
 @Suppress("unused")
-val downloadsPatch = bytecodePatch(DOWNLOADS.title, DOWNLOADS.summary) {
-    dependsOn(downloadsResourcePatch, sharedExtensionPatch, settingsPatch, actionBarComponentsPatch,
-        flyoutMenuComponentsPatch, fixProtoLibraryPatch, authHeadersPatch)
+val downloadsPatch = bytecodePatch(
+    DOWNLOADS.title,
+    DOWNLOADS.summary
+) {
+    dependsOn(
+        actionBarComponentsPatch,
+        authHeadersPatch,
+        downloadsResourcePatch,
+        fixProtoLibraryPatch,
+        flyoutMenuComponentsPatch,
+        settingsPatch,
+        sharedExtensionPatch,
+    )
+
     compatibleWith(COMPATIBILITY_YOUTUBE_MUSIC)
 
     execute {
+        if (!is_7_25_or_greater) {
+            printWarn("\"${DOWNLOADS.title}\" is not supported in this version. Use YouTube Music v7.25 or later.")
+            return@execute
+        }
+
         MediaSessionSetMetadataFingerprint.hookMediaSessionArgument(
             "$EXTENSION_CLASS->onSetMetadata(Landroid/media/MediaMetadata;)V"
         )
 
-        // modified by lavinhoque33, 2026-10-16: reparse with the generated registry so browse endpoint extensions survive.
+        // reparse with the generated registry so browse endpoint extensions survive.
         val resolver = nativeDownloadsCommandResolverFingerprint.method
         val command = mutableClassDefBy(resolver.parameters[1].type)
         command.interfaces.add(NATIVE_COMMAND)
@@ -111,6 +129,7 @@ val downloadsPatch = bytecodePatch(DOWNLOADS.title, DOWNLOADS.summary) {
         val parser = mutableClassDefBy(parserOwner).methods.single {
             it.name == "parseFrom" && it.parameterTypes == listOf(parserOwner, "[B", REGISTRY)
         }
+
         command.addDownloadsBridge("rvxWithBytes", listOf("[B"), "Ljava/lang/Object;", 4, """
             sget-object v0, $defaultCommand
             invoke-static {}, $REGISTRY->getGeneratedRegistry()$REGISTRY
@@ -119,10 +138,11 @@ val downloadsPatch = bytecodePatch(DOWNLOADS.title, DOWNLOADS.summary) {
             move-result-object v0
             return-object v0
         """)
-        // modified by lavinhoque33, 2026-10-16: hook the dispatcher that calls tryResolve, before it picks a resolver.
+
+        // hook the dispatcher that calls tryResolve, before it picks a resolver.
         // Signed-in resolvers are bound to the command they were selected for, so rewriting inside tryResolve is too late.
         // The context map is passed because signed-in header Download buttons carry the playlist only in its endpoint tag.
-        fun List<out CharSequence>.names() = map { it.toString() }
+        fun List<CharSequence>.names() = map { it.toString() }
         val resolverParameters = resolver.parameterTypes.names()
         val dispatcher = nativeDownloadsCommandResolverFingerprint.classDef.methods.single { method ->
             method.returnType == "V" && method.parameterTypes.names() == listOf(command.type, "Ljava/util/Map;") &&
@@ -133,6 +153,7 @@ val downloadsPatch = bytecodePatch(DOWNLOADS.title, DOWNLOADS.summary) {
                     } == true
                 } == true
         }
+
         dispatcher.addInstructionsWithLabels(0, """
             invoke-static/range {p1 .. p2}, $NATIVE_DOWNLOADS->rewriteCommand(Ljava/lang/Object;Ljava/util/Map;)Ljava/lang/Object;
             move-result-object v0
@@ -198,7 +219,7 @@ val downloadsPatch = bytecodePatch(DOWNLOADS.title, DOWNLOADS.summary) {
             move-result-object v0
             return-object v0
         """)
-        // modified by lavinhoque33, 2026-10-16: Music allows one open helper per database.
+        // Music allows one open helper per database.
         // Reuse the app's own repository instance; constructing another one is rejected.
         val ctorInstructions = constructor.implementation!!.instructions.toList()
         val returnIndex = ctorInstructions.indexOfLast { it.opcode == Opcode.RETURN_VOID }

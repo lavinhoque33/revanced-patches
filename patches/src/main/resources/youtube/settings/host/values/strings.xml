@@ -142,6 +142,10 @@ To fix this, turn on \'Spoof video streams\' and change the \'Default client\' t
     <string name="morphe_feed_card_layout_title">Feed card layout</string>
     <string name="morphe_feed_view_count_summary">The view count of feed videos is shown at the bottom left of their thumbnails instead of below the title. Some videos, such as in shelves, may not show a view count</string>
     <string name="morphe_feed_view_count_title">Show view count on thumbnails</string>
+    <string name="morphe_feed_long_press_menu_summary">Tapping and holding anywhere on a feed video opens its menu</string>
+    <string name="morphe_feed_long_press_menu_title">Tap and hold to open video menu</string>
+    <string name="morphe_feed_watch_later_button_summary">A Watch later button is shown on the thumbnails of feed videos. Tapping and holding it opens Save to playlist</string>
+    <string name="morphe_feed_watch_later_button_title">Show Watch later button on thumbnails</string>
     <string name="morphe_force_animations_entry_always_off">Always off</string>
     <string name="morphe_force_animations_entry_always_on">Always on</string>
     <string name="morphe_force_animations_entry_default">Default</string>
@@ -3259,7 +3263,7 @@ Authorization is required to request translation with live voices for videos tha
     <string name="revanced_webview_toast_empty">%s is empty</string>
     <string name="revanced_webview_toast_no_network">Please check your network connection</string>
     <string name="revanced_webview_toast_unavailable">WebView is not available</string>
-    <string name="revanced_webview_visitor_data">Visitor Data</string>
+    <string name="revanced_webview_visitor_data" translatable="false">Visitor Data</string>
     <string name="revanced_whitelist_add_failed">Failed to add channel \'%1$s\' to the %2$s whitelist</string>
     <string name="revanced_whitelist_added">Channel \'%1$s\' was added to the %2$s whitelist</string>
     <string name="revanced_whitelist_empty">There are no whitelisted channels</string>

@@ -26,7 +26,7 @@ import app.morphe.extension.music.settings.Settings;
 import app.morphe.extension.shared.utils.Logger;
 import app.morphe.extension.shared.utils.Utils;
 
-// modified by lavinhoque33, 2026-10-16: let native browse resolution and local-file playback own the Library Downloads flow.
+// let native browse resolution and local-file playback own the Library Downloads flow.
 @SuppressWarnings("unused")
 public final class NativeDownloads {
     public interface Command extends ProtocolBufferFieldInterface {
@@ -71,7 +71,7 @@ public final class NativeDownloads {
     public static Object rewriteCommand(Object original, java.util.Map<?, ?> context) {
         if (!Settings.IN_APP_DOWNLOADS.get() || !(original instanceof Command command)) return original;
         try {
-            // modified by lavinhoque33, 2026-10-16: signed-in non-Premium accounts receive an upsell batch without a playlist id.
+            // signed-in non-Premium accounts receive an upsell batch without a playlist id.
             String headerPlaylist = playlistFromHeaderUpsell(command.toByteArray(), context);
             if (headerPlaylist != null) {
                 PlaylistDownloads.enqueue(headerPlaylist);
@@ -118,7 +118,9 @@ public final class NativeDownloads {
 
     private static final int COMMAND_EXECUTOR = 204158123;
     private static final int UPSELL_COMMAND = 443434441;
+    // Download-state entity types in the header button's key: playlists use 24, albums use 17 (id is the OLAK audio playlist id).
     private static final int PLAYLIST_DOWNLOAD_ENTITY = 24;
+    private static final int ALBUM_DOWNLOAD_ENTITY = 17;
     private static final String ENDPOINT_TAG = "com.google.android.libraries.youtube.innertube.endpoint.tag";
 
     /**
@@ -179,7 +181,8 @@ public final class NativeDownloads {
             String text = new String(value, StandardCharsets.US_ASCII);
             if (!text.matches("[A-Za-z0-9_%=+/-]{8,}")) return null;
             byte[] key = Base64.decode(Uri.decode(text), Base64.URL_SAFE);
-            if (fieldNumber(key, 4) != PLAYLIST_DOWNLOAD_ENTITY) return null;
+            int entityType = fieldNumber(key, 4);
+            if (entityType != PLAYLIST_DOWNLOAD_ENTITY && entityType != ALBUM_DOWNLOAD_ENTITY) return null;
             byte[] id = fieldBytes(key, 2);
             return id == null ? null : new String(id, StandardCharsets.UTF_8);
         } catch (IllegalArgumentException | IOException ex) {
@@ -226,7 +229,7 @@ public final class NativeDownloads {
         while (!input.isAtEnd()) {
             int start = input.getTotalBytesRead();
             int tag = input.readTag();
-            // modified by lavinhoque33, 2026-10-16: signed-in Account -> Downloads carries browseId in field 2.
+            // signed-in Account -> Downloads carries browseId in field 2.
             int field = WireFormat.getTagFieldNumber(tag);
             if ((field == 1 || field == 2) && WireFormat.getTagWireType(tag) == WireFormat.WIRETYPE_LENGTH_DELIMITED) {
                 String original = new String(input.readByteArray(), StandardCharsets.UTF_8);

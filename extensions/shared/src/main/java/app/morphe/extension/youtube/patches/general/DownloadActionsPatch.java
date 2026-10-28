@@ -81,6 +81,7 @@ import app.morphe.extension.youtube.patches.AddToQueuePatch;
 import app.morphe.extension.youtube.patches.utils.FlyoutUtils;
 import app.morphe.extension.youtube.patches.utils.PlaylistPatch;
 import app.morphe.extension.youtube.settings.Settings;
+import app.morphe.extension.youtube.patches.FeedVideoActionsPatch;
 
 @SuppressWarnings("unused")
 public final class DownloadActionsPatch {
@@ -117,6 +118,7 @@ public final class DownloadActionsPatch {
         return isMyTabHistoryFlyout;
     }
 
+    /** Native flyout entry names and indices, used to invoke the selected feed action. */
     public static List<Pair<String, Integer>> getVisibleFlyoutButtons() {
         return visibleFlyoutButtons;
     }
@@ -128,7 +130,6 @@ public final class DownloadActionsPatch {
     public static void resetCurrentButtonIndex() {
         currentFlyoutButtonIndex = 0;
     }
-
     private static final boolean OVERRIDE_PLAY_NEXT_IN_QUEUE =
             Settings.OVERRIDE_PLAY_NEXT_IN_QUEUE.get();
 
@@ -221,6 +222,7 @@ public final class DownloadActionsPatch {
                 (View) map.get("com.google.android.libraries.youtube.rendering.elements.sender_view")
         );
         extractFlyoutVideoId(map.get("com.google.android.libraries.youtube.innertube.endpoint.tag"));
+        FeedVideoActionsPatch.onFlyoutSender(senderViewRef.get());
     }
 
     /**
@@ -516,7 +518,7 @@ public final class DownloadActionsPatch {
     public static boolean inAppVideoDownloadButtonOnClick(@Nullable Map<Object, Object> map, Object offlineVideoEndpointOuterClass,
                                                           @Nullable String videoId) {
         try {
-            // modified by lavinhoque33, 2026-10-10: the built-in downloader replaces the native
+            // the built-in downloader replaces the native
             // (Premium) downloader on its own, without the external-downloader override.
             if ((OVERRIDE_VIDEO_DOWNLOAD_BUTTON || Settings.IN_APP_DOWNLOADER.get())
                     && StringUtils.isNotEmpty(videoId)) {

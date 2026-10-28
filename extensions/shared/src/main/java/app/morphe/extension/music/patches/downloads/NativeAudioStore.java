@@ -34,10 +34,10 @@ import java.util.concurrent.TimeUnit;
 import app.morphe.extension.shared.utils.Logger;
 import app.morphe.extension.shared.utils.Utils;
 
-// modified by lavinhoque33, 2026-10-16: native Music playback needs real MediaStore audio ids, not app-private file paths.
+// native Music playback needs real MediaStore audio ids, not app-private file paths.
 final class NativeAudioStore {
     record Destination(@Nullable Uri uri, @Nullable File file, String mimeType) {
-        // modified by lavinhoque33, 2026-10-16: scoped-storage writes must use the
+        // scoped-storage writes must use the
         // provider's descriptors; pending raw paths and /proc aliases are not writable.
         private ParcelFileDescriptor openDescriptor() throws IOException {
             if (uri == null) return ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_WRITE);
@@ -90,7 +90,7 @@ final class NativeAudioStore {
      * Media ids of the tracks this patch downloaded that still exist, newest first.
      * Other audio on the device (e.g. files in Download/) is never included.
      */
-    // modified by lavinhoque33, 2026-10-17: source for the "Not in a playlist" native playlist.
+    // source for the "Not in a playlist" native playlist.
     static List<Long> downloadedNewestFirst() {
         StringBuilder selection = new StringBuilder();
         for (Object value : preferences().getAll().values()) {
@@ -135,7 +135,7 @@ final class NativeAudioStore {
 
     static Destination create(String videoId, String mimeType, String title, String artist) throws IOException {
         Context context = Utils.getContext();
-        // modified by lavinhoque33, 2026-10-16: Android extracts no Matroska tags, so Opus arrives
+        // Android extracts no Matroska tags, so Opus arrives
         // as Ogg Opus and AAC as MP4, the two forms whose tags the media scanner reads.
         boolean mp4 = AudioTagger.isMp4(mimeType);
         mimeType = mp4 ? "audio/mp4" : "audio/ogg";
@@ -186,7 +186,7 @@ final class NativeAudioStore {
         if (!scanned.await(30, TimeUnit.SECONDS) || result[0] == null) {
             throw new IOException("Music could not index the downloaded audio");
         }
-        // modified by lavinhoque33, 2026-10-16: MediaStore owns extracted tags and
+        // MediaStore owns extracted tags and
         // rejects post-publication TITLE/ARTIST/DURATION writes. Use readable filenames
         // and validate its actual audio metadata instead of pretending those writes worked.
         String volume = Build.VERSION.SDK_INT >= 29 ? MediaStore.getVolumeName(result[0]) : "external";

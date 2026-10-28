@@ -56,6 +56,7 @@ val autoCaptionsPatch = bytecodePatch(
     compatibleWith(COMPATIBILITY_YOUTUBE)
 
     dependsOn(
+        translatedCaptionPensPatch,
         baseAutoCaptionsPatch,
         autoTranslateCaptionsPatch,
         settingsPatch,
@@ -78,7 +79,6 @@ val autoCaptionsPatch = bytecodePatch(
                 )
             }
 
-            // modified by lavinhoque33, 2026-10-04
             // 21.39 inlines the flag getter into its callers, so the dedicated getter method
             // no longer exists. Fall back to overriding every inlined flag read.
             val flagGetter = runCatching { NoVolumeCaptionsFeatureFlagFingerprint.match() }.getOrNull()

@@ -24,7 +24,7 @@ import java.util.Map;
 import app.morphe.extension.shared.innertube.utils.AuthUtils;
 import app.morphe.extension.shared.requests.Requester;
 
-// modified by lavinhoque33, 2026-10-16: share the app-authenticated browse transport with playlist downloads,
+// share the app-authenticated browse transport with playlist downloads,
 // and the same transport for "next", whose lock-screen metadata names each downloaded track.
 public final class MusicBrowseRequest {
     private MusicBrowseRequest() {}

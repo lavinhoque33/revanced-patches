@@ -24,7 +24,7 @@ import app.morphe.extension.music.settings.Settings;
 import app.morphe.extension.shared.utils.Logger;
 import app.morphe.extension.shared.utils.Utils;
 
-// modified by lavinhoque33, 2026-10-16: use Music's own asynchronous playlist transactions, not a second player/database.
+// use Music's own asynchronous playlist transactions, not a second player/database.
 @SuppressWarnings("unused")
 public final class NativePlaylistStore {
     /** Implemented by Music's stock sideloaded-playlist repository at patch time. */
@@ -36,7 +36,7 @@ public final class NativePlaylistStore {
 
     private static volatile Database database;
 
-    // modified by lavinhoque33, 2026-10-17: downloads that belong to no native playlist are kept in one derived playlist.
+    // downloads that belong to no native playlist are kept in one derived playlist.
     private static final String PREFERENCES = "rvx_native_playlists";
     private static final String UNSORTED = "rvx:not_in_playlist";
     private static final String DATABASE_NAME = "music_sideloaded_playlist_database";

@@ -21,7 +21,7 @@ import app.morphe.extension.shared.innertube.PlayerResponseOuterClass.VideoDetai
 import app.morphe.extension.shared.utils.Logger;
 import app.morphe.extension.shared.utils.Utils;
 
-// modified by lavinhoque33, 2026-10-16: tags for a download come from Music's own lock-screen
+// tags for a download come from Music's own lock-screen
 // metadata (title, artists, album, square cover), the same data its player shows for the track.
 final class TrackMetadata {
     private static final int MAX_ARTWORK_BYTES = 1024 * 1024;

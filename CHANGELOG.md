@@ -1,3 +1,15 @@
+## Unreleased
+
+### Features
+
+Merged anddea/revanced-patches `dev` (4.4.0-dev.3). The fork's built-in downloader, offline library and YouTube Music downloads keep their current behaviour; anddea's copies of them (#1883, #1884) were made from an older state of this fork.
+
+* **YouTube:** New `Feed video actions` patch: a Watch later button on the thumbnails of feed videos, and tapping and holding anywhere on a feed video opens its menu. It reuses the fork's feed card tracking of `Feed view count`.
+* **YouTube - SponsorBlock:** Segments are skipped in Shorts too.
+* **YouTube Music - Downloads:** The Download button of an album downloads the album, like a playlist.
+* **YouTube:** Changes from anddea: `Ambient mode control` can force Ambient mode on; the video quality chosen in the quality menu is kept while a SABR stream plays; translucent navigation bar fixes (the Shorts player with `Hide Shorts navigation bar`, the keyboard, and a crash on Android 12 and 13 while the player is dragged to the miniplayer); the saved value of a setting that has no option in the patched app (version-gated, or its patch excluded) is reset to its default; `Miniplayer` type `Phone` is renamed `Minimal` (saved values are migrated); Voice-over translation updates for the Edge TTS voices.
+* **YouTube Music - Lyrics:** anddea's rework: more romanized scripts (Cyrillic, Greek, Armenian, Georgian, Cantonese and others) and a setting to clear the lyrics cache.
+
 ## [1.20.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.19.1...v1.20.0) (2026-10-28)
 
 ### Features
@@ -362,6 +374,21 @@ First release of the lavinhoque33 fork, based on anddea 4.3.1-dev.1 (published a
 
 * **YouTube:** Support YouTube 21.39.525 ([d95145b](https://github.com/lavinhoque33/revanced-patches/commit/d95145b))
 * **YouTube Music:** Support YouTube Music 9.40.51 ([0bdbd84](https://github.com/lavinhoque33/revanced-patches/commit/0bdbd84))
+
+# [4.4.0-dev.3](https://github.com/anddea/revanced-patches/compare/v4.4.0-dev.2...v4.4.0-dev.3) (2026-10-22)
+
+
+### Bug Fixes
+
+* **YouTube - Copy text:** Failed on older versions ([237b02e](https://github.com/anddea/revanced-patches/commit/237b02e94d2e8c1e80e79b81d3f4a04c951f1ad9))
+
+
+### Features
+
+* **YouTube - SponsorBlock:** Add support for Shorts ([fcd5a77](https://github.com/anddea/revanced-patches/commit/fcd5a775d65b287ddae4a63468ca6af2f6f309fa))
+* **YouTube Music - Downloads:** Download songs and playlists to Music's own device files library ([#1884](https://github.com/anddea/revanced-patches/issues/1884)) ([9b4d973](https://github.com/anddea/revanced-patches/commit/9b4d973eb5cd6dab2050c4461b47c686b6acd16a))
+* **YouTube:** Add `Feed video actions` patch ([aa0cb82](https://github.com/anddea/revanced-patches/commit/aa0cb8222a68d20a09181345f0dc838f1926e8bb))
+* **YouTube:** Add built-in video downloader ([#1883](https://github.com/anddea/revanced-patches/issues/1883)) ([15305a3](https://github.com/anddea/revanced-patches/commit/15305a359d711e4fc661c846bf44508f77397832))
 
 # [4.4.0-dev.2](https://github.com/anddea/revanced-patches/compare/v4.4.0-dev.1...v4.4.0-dev.2) (2026-10-16)
 

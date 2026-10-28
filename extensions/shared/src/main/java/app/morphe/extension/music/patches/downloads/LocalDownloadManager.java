@@ -63,7 +63,7 @@ public final class LocalDownloadManager {
      * Short files are still split into this many equal ranges.
      */
     private static final int SEGMENT_COUNT = 4;
-    // modified by lavinhoque33, 2026-10-14: googlevideo throttles any single range response
+    // googlevideo throttles any single range response
     // above ~10 MiB (16 MiB ranges ran at ~3 MB/s), so ranges are bounded and handed out from a queue.
     private static final long MAX_RANGE_SIZE = 8L * 1024 * 1024;
     private static final int MAX_CONNECTIONS = 6;
@@ -84,7 +84,7 @@ public final class LocalDownloadManager {
 
     private static final Pattern VIDEO_ID = Pattern.compile("[A-Za-z0-9_-]{1,20}");
 
-    // modified by lavinhoque33, 2026-10-16: song and playlist requests share one result for each active media download.
+    // song and playlist requests share one result for each active media download.
     private static final ConcurrentHashMap<String, FutureTask<Uri>> ACTIVE_DOWNLOADS = new ConcurrentHashMap<>();
 
     private static volatile String currentTitle;
@@ -120,7 +120,7 @@ public final class LocalDownloadManager {
                 Utils.showToastShort(str("morphe_music_downloads_started"));
                 download(videoId);
                 Utils.showToastShort(str("morphe_music_downloads_complete"));
-                NativePlaylistStore.refreshUnsortedLater(); // modified by lavinhoque33, 2026-10-17: list the new single.
+                NativePlaylistStore.refreshUnsortedLater(); // list the new single.
             } catch (Exception ex) {
                 Logger.printException(() -> "Local audio download failed: " + videoId, ex);
                 Utils.showToastShort(str("morphe_music_downloads_failed"));
@@ -150,7 +150,7 @@ public final class LocalDownloadManager {
         }
     }
 
-    // modified by lavinhoque33, 2026-10-16: the stream is downloaded to a private temporary file and
+    // the stream is downloaded to a private temporary file and
     // published with embedded tags, since Music's device-files library reads metadata only from the file.
     private static Uri downloadBlocking(String videoId, String title, String artist) throws Exception {
         NativeAudioStore.Destination destination = null;
@@ -259,7 +259,7 @@ public final class LocalDownloadManager {
     }
 
     /** @return Whether a progress update may be posted without the system dropping it. */
-    static boolean canPostProgress() { // modified by lavinhoque33, 2026-10-17: shared with playlist progress.
+    static boolean canPostProgress() { // shared with playlist progress.
         long now = System.currentTimeMillis();
         long previous = lastNotificationTime.get();
         return now - previous >= NOTIFICATION_INTERVAL_MILLISECONDS
@@ -312,7 +312,7 @@ public final class LocalDownloadManager {
         }
     }
 
-    // modified by lavinhoque33, 2026-10-14: bounded ranges are handed out from a shared queue to a
+    // bounded ranges are handed out from a shared queue to a
     // capped worker pool; the first failure stops every connection immediately.
     private static void downloadInParallel(String videoId, String title, String url,
                                            NativeAudioStore.Destination temporary, long totalLength) throws Exception {
@@ -399,7 +399,7 @@ public final class LocalDownloadManager {
         }
 
         Void work() throws Exception {
-            // modified by lavinhoque33, 2026-10-16: each worker owns a seekable provider
+            // each worker owns a seekable provider
             // descriptor; writes retain the existing reusable byte buffer without an extra copy.
             try (FileOutputStream output = destination.openOutput()) {
                 FileChannel channel = output.getChannel();
@@ -471,7 +471,7 @@ public final class LocalDownloadManager {
             }
         }
 
-        // modified by lavinhoque33, 2026-10-14: Android returns small socket reads, so fill the
+        // Android returns small socket reads, so fill the
         // buffer before each file write instead of writing every few KiB.
         private int readBuffer(InputStream input, byte[] buffer, int length) throws IOException {
             int filled = 0;

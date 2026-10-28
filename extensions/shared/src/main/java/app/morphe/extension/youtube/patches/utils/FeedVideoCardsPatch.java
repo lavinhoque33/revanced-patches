@@ -38,6 +38,7 @@ import app.morphe.extension.youtube.patches.feed.FeedEngagementCountsPatch;
 import app.morphe.extension.youtube.patches.feed.FeedViewCountPatch;
 import app.morphe.extension.youtube.shared.PlayerType;
 import app.morphe.extension.youtube.shared.VideoInformation;
+import app.morphe.extension.youtube.settings.Settings;
 import kotlin.Unit;
 
 /**
@@ -56,7 +57,9 @@ import kotlin.Unit;
 @SuppressWarnings("unused")
 public final class FeedVideoCardsPatch {
 
-    private static final boolean ENABLED = FeedViewCountPatch.ENABLED || FeedEngagementCountsPatch.ENABLED;
+    // The Watch later button of Feed video actions is hidden on cards whose video plays in the feed.
+    private static final boolean ENABLED = FeedViewCountPatch.ENABLED || FeedEngagementCountsPatch.ENABLED
+            || Settings.FEED_WATCH_LATER_BUTTON.get();
 
     /**
      * A card must be as wide as a card of a grid of up to three columns, such as the feed in landscape.

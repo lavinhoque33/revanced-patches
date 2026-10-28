@@ -193,7 +193,7 @@ public class ActivityHook {
 
         @Override
         protected void onPostToolbarSetup(Activity activity, Toolbar toolbar, PreferenceFragment fragment) {
-            // modified by lavinhoque33, 2026-10-16: native Library owns downloaded music; this activity hosts settings only.
+            // native Library owns downloaded music; this activity hosts settings only.
             if (fragment instanceof YouTubeMusicPreferenceFragment preferenceFragment) {
                 searchViewController = YouTubeMusicSearchViewController.addSearchViewComponents(
                         activity, toolbar, preferenceFragment);

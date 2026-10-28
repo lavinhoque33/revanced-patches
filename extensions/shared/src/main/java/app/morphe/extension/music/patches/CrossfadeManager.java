@@ -1,9 +1,11 @@
 /*
  * Copyright 2026 Morphe.
- * https://github.com/MorpheApp/morphe-patches
+ * https://github.com/MorpheApp/morphe-patches/pull/1065
+ * https://github.com/MorpheApp/morphe-patches/pull/3635
  *
- * See the included NOTICE file for GPLv3 §7(b) and §7(c) terms that apply to this code.
+ * See the included NOTICE file for GPLv3 Section 7 terms that apply to this code.
  */
+
 package app.morphe.extension.music.patches;
 
 import static app.morphe.extension.shared.utils.StringRef.str;
@@ -1309,10 +1311,7 @@ public class CrossfadeManager {
     }
 
     // --- REPEAT_SINGLE crossfade-onto-self state ---
-    /**
-     * Live repeat-single state, tracked via the MediaSession loop adapter hook. The loop enum
-     * (LOOP_OFF, LOOP_ALL, LOOP_ONE, LOOP_DISABLED) is matched by constant name.
-     */
+    /** Live repeat-single state, tracked via the MediaSession loop adapter hook. */
     private static volatile boolean repeatSingleActive = false;
     /**
      * Most recent loadVideo descriptor (aues) — the current track's load intent.
@@ -1327,17 +1326,15 @@ public class CrossfadeManager {
      */
     public static void onLoopStateChanged(Object loopState) {
         try {
-            // modified by lavinhoque33, 2026-10-21: on 9.40+ this callback also receives playback and
-            // shuffle events (Morphe #3916). Update the cached repeat state only for loop states, matched by name.
+            // On 9.40+, this callback handles multiple event types. Update the cached
+            // repeat state only for recognized loop states, identified by enum name.
             if (!(loopState instanceof Enum<?> state)) return;
 
             final boolean single;
             switch (state.name()) {
                 case "LOOP_ONE" -> single = true;
                 case "LOOP_OFF", "LOOP_ALL", "LOOP_DISABLED" -> single = false;
-                default -> {
-                    return;
-                }
+                default -> { return; }
             }
             if (single != repeatSingleActive) {
                 repeatSingleActive = single;

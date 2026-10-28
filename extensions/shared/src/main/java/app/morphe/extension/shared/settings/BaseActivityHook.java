@@ -61,7 +61,7 @@ public abstract class BaseActivityHook extends Activity {
 
             // Sanity check.
             String dataString = activity.getIntent().getDataString();
-            // modified by lavinhoque33, 2026-10-16: Music Downloads no longer creates a settings-activity overlay.
+            // Music Downloads no longer creates a settings-activity overlay.
             if (!REVANCED_SETTINGS_INTENT.equals(dataString)) {
                 Logger.printException(() -> "Unknown intent: " + dataString);
                 return;

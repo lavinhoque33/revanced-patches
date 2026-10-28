@@ -181,7 +181,6 @@ val layoutComponentsPatch = bytecodePatch(
 
         // region patch for hide history button
 
-        // modified by lavinhoque33, 2026-10-04
         // 9.40: offline-tab menu has a different shape (history setVisible is the 3rd call), use fallback fingerprint
         val offlineTabMatch = runCatching { HistoryMenuItemOfflineTabFingerprint.match() }.getOrNull()
         val offlineTabFingerprint = if (offlineTabMatch != null) {
@@ -305,7 +304,6 @@ val layoutComponentsPatch = bytecodePatch(
             )
         }
 
-        // modified by lavinhoque33, 2026-10-04
         // 9.40: synthetic bind method has different access flags, fall back to the 9.40 fingerprint
         val tasteBuilderSyntheticMatch = runCatching {
             tasteBuilderSyntheticFingerprint.matchOrNull(tasteBuilderConstructorFingerprint)

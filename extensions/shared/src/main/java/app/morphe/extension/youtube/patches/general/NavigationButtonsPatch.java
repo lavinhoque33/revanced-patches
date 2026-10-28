@@ -24,6 +24,10 @@ import android.os.Build;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewStub;
+import android.view.WindowInsets;
+import androidx.annotation.ChecksSdkIntAtLeast;
+import app.morphe.extension.shared.ui.Dim;
+import app.morphe.extension.shared.utils.ResourceType;
 import android.widget.ImageView;
 import android.widget.TextView;
 
@@ -90,6 +94,23 @@ public final class NavigationButtonsPatch {
 
     private static final boolean HIDE_NAVIGATION_BAR
             = Settings.HIDE_NAVIGATION_BAR.get();
+
+    private static final boolean HIDE_SHORTS_NAVIGATION_BAR = Settings.HIDE_SHORTS_NAVIGATION_BAR.get();
+
+    /**
+     * The view the Shorts player is in, inside the layout of the Shorts player fragment.
+     */
+    private static final int shortsPlayerContainerId = HIDE_SHORTS_NAVIGATION_BAR
+            ? ResourceUtils.getIdentifier(ResourceType.ID, "fragment_container_view")
+            : 0;
+
+    /**
+     * If the room below the Shorts player is set by {@link #setShortsPlayerBottomInset(View)}.
+     * The system navigation buttons are read from the window insets, available from Android 11.
+     */
+    @ChecksSdkIntAtLeast(api = Build.VERSION_CODES.R)
+    private static final boolean SETS_SHORTS_PLAYER_BOTTOM_ROOM = HIDE_SHORTS_NAVIGATION_BAR
+            && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R;
 
     private static final boolean DISABLE_AUTO_HIDE_NAVIGATION_BAR
             = Settings.DISABLE_AUTO_HIDE_NAVIGATION_BAR.get();
@@ -165,6 +186,69 @@ public final class NavigationButtonsPatch {
      */
     public static boolean enableNarrowNavigationButton(boolean original) {
         return ENABLE_NARROW_NAVIGATION_BUTTONS || original;
+    }
+
+    /**
+     * Injection point.
+     * <p>
+     * With the translucent navigation bar turned on, the window is drawn behind the system
+     * navigation buttons, the navigation bar makes room for them, and the pages end above
+     * the navigation bar. With the navigation bar hidden in the Shorts player, nothing makes that
+     * room, so the Shorts player is drawn behind the system navigation buttons
+     * (https://github.com/MorpheApp/morphe-patches/issues/3908). The Shorts player then makes
+     * the room itself.
+     * <p>
+     * The room the Shorts player reserves for the navigation bar depends on how it's opened,
+     * so with the navigation bar hidden that room is left out ({@link #getShortsPlayerBottomRoom(int)}),
+     * and the Shorts player always ends a slight room above the system navigation buttons,
+     * or the seekbar thumb at the bottom of the Shorts player overlaps them.
+     *
+     * @param shortsFragmentLayout The layout of the Shorts player fragment.
+     */
+    public static void setShortsPlayerBottomInset(View shortsFragmentLayout) {
+        if (!SETS_SHORTS_PLAYER_BOTTOM_ROOM) {
+            return;
+        }
+
+        try {
+            shortsFragmentLayout.addOnLayoutChangeListener((view, left, top, right, bottom,
+                                                            oldLeft, oldTop, oldRight, oldBottom) -> {
+                try {
+                    WindowInsets insets = view.getRootWindowInsets();
+                    View shortsPlayerContainer = view.findViewById(shortsPlayerContainerId);
+                    if (insets == null || shortsPlayerContainer == null) return;
+
+                    // The window can already end above the system navigation buttons, such as
+                    // without the translucent navigation bar, so only the room still missing
+                    // is added. The padding added here is left out, or the room would be counted twice.
+                    final int navigationButtonsHeight = insets.getInsets(WindowInsets.Type.navigationBars()).bottom;
+                    int[] location = new int[2];
+                    shortsPlayerContainer.getLocationInWindow(location);
+                    final int roomBelow = view.getRootView().getHeight()
+                            - (location[1] + shortsPlayerContainer.getHeight())
+                            - view.getPaddingBottom();
+                    final int padding = Math.max(0, navigationButtonsHeight + Dim.dp12 - roomBelow);
+
+                    if (view.getPaddingBottom() != padding) {
+                        view.post(() -> view.setPadding(view.getPaddingLeft(), view.getPaddingTop(),
+                                view.getPaddingRight(), padding));
+                    }
+                } catch (Exception ex) {
+                    Logger.printException(() -> "setShortsPlayerBottomInset layout failure", ex);
+                }
+            });
+        } catch (Exception ex) {
+            Logger.printException(() -> "setShortsPlayerBottomInset failure", ex);
+        }
+    }
+
+    /**
+     * Injection point.
+     *
+     * @param original The room the Shorts player reserves below itself for the navigation bar.
+     */
+    public static int getShortsPlayerBottomRoom(int original) {
+        return SETS_SHORTS_PLAYER_BOTTOM_ROOM ? 0 : original;
     }
 
     /**
@@ -743,7 +827,7 @@ public final class NavigationButtonsPatch {
         return null;
     }
 
-    // modified by lavinhoque33, 2026-10-10: Downloads button of the offline library in the You tab.
+    // Downloads button of the offline library in the You tab.
     private static final boolean SHOW_TOOLBAR_DOWNLOADS_BUTTON =
             Settings.IN_APP_DOWNLOADER.get() && Settings.SHOW_OFFLINE_LIBRARY_BUTTON.get();
 

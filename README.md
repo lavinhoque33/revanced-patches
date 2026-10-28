@@ -15,7 +15,7 @@
 | 💊 Patch | 📜 Description | 🏹 Target Version |
 |:--------:|:--------------:|:-----------------:|
 | `Add to queue` | Overrides the feed flyout 'Play next in queue' with the RVX video queue. | 21.39.525 ~ 20.05.46 |
-| `Ambient mode control` | Adds options to disable Ambient mode and to bypass Ambient mode restrictions. | 21.39.525 ~ 20.05.46 |
+| `Ambient mode control` | Forces Ambient mode on and adds options to bypass power saving restrictions for Ambient mode and disable it entirely or in fullscreen. | 21.39.525 ~ 20.05.46 |
 | `App refresh rate` | Adds an option to change the app refresh rate. | 21.39.525 ~ 20.05.46 |
 | `Bypass URL redirects` | Adds an option to bypass URL redirects and open the original URL directly. | 21.39.525 ~ 20.05.46 |
 | `Bypass image region restrictions` | Adds an option to use a different host for static images, so that images blocked in some countries can be received. | 21.39.525 ~ 20.05.46 |
@@ -46,6 +46,7 @@
 | `Enable gradient loading screen` | Adds an option to enable the gradient loading screen. | 21.39.525 ~ 20.05.46 |
 | `Feed card layout` | Adds an option to show or hide the card layout of feed videos, which YouTube sends as an A/B test. | 21.39.525 ~ 20.05.46 |
 | `Feed view count` | Adds an option to show the view count at the bottom left of the thumbnails of feed videos. | 21.39.525 ~ 20.05.46 |
+| `Feed video actions` | Adds a Watch later button to video thumbnails in feeds, and opens the video menu by tapping and holding anywhere on a video. | 21.39.525 ~ 20.05.46 |
 | `Force animations` | Adds an option to always turn on or off the app animations that YouTube can turn off, such as the player transitions. | 21.39.525 ~ 20.05.46 |
 | `Force original audio` | Adds an option to disable audio tracks from being automatically enabled. | 21.39.525 ~ 20.05.46 |
 | `Force system font` | Adds an option to show the app with the device system font instead of YouTube Sans. | 21.39.525 ~ 20.05.46 |

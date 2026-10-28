@@ -1176,6 +1176,8 @@ private val rvxPreferenceKey = mapOf(
         "-175.54 -481.7 L 480 90.77 l 90.62 90.61 H 389.38 Z M 480 869.23 l -90.62 -90.61 h 181.24 L 480 " +
         "869.23 Z",
     "morphe_music_lyrics_about" to "morphe_music_lyrics_hide_info",
+    // Clear lyrics cache: the trash icon of Delete playlist.
+    "morphe_music_lyrics_clear_cache" to "revanced_hide_flyout_menu_delete_playlist",
     // Material Symbols: format_color_fill.
     "revanced_enable_custom_navigation_bar_color" to 
         "m 267.31 96.85 21.46 -23 327.69 326.91 q 19.46 20.24 19.46 46.94 0 26.71 -19.15 45.61 L 465.69 " +

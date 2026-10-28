@@ -91,11 +91,14 @@ internal fun BytecodePatchContext.hookDislikePill() {
                 0,
                 """
                     invoke-static {p0, p1, p2}, $YOGA_NATIVE->jni_YGNodeStyleSetWidthJNI(JF)V
+                    invoke-static {}, $PILL_CLASS->isEnabled()Z
+                    move-result v0
+                    if-eqz v0, :done
                     invoke-static {p2}, $PILL_CLASS->getMargin(F)F
                     move-result v0
-                    if-lez v0, :done
-                    invoke-static {}, $PILL_CLASS->getMarginEdge()I
+                    invoke-static {v0}, $PILL_CLASS->getMarginEdge(F)I
                     move-result v1
+                    if-ltz v1, :done
                     invoke-static {p0, p1, v1, v0}, $YOGA_NATIVE->jni_YGNodeStyleSetMarginJNI(JIF)V
                     :done
                     return-void

@@ -117,8 +117,9 @@ public final class DislikePill {
         return COUNT_MARGIN + (float) Math.ceil(countPaint.measureText(text));
     }
 
-    public static int getMarginEdge() {
-        return Utils.isRightToLeftLocale() ? 0 : 2;
+    /** Returns a native Yoga edge, or -1 when no margin should be applied. Keep float comparisons in Java. */
+    public static int getMarginEdge(float margin) {
+        return margin > 0 ? (Utils.isRightToLeftLocale() ? 0 : 2) : -1;
     }
 
     /** Called before Litho mounts its content; wait until the host has its final bounds. */

@@ -1,4 +1,4 @@
-## Unreleased
+## [1.21.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.20.0...v1.21.0) (2026-10-28)
 
 ### Features
 
@@ -11,10 +11,6 @@ Merged anddea/revanced-patches `dev` (4.4.0-dev.3). The fork's built-in download
 * **YouTube Music - Downloads:** The Download button of an album downloads the album, like a playlist.
 * **YouTube:** Changes from anddea: `Ambient mode control` can force Ambient mode on; the video quality chosen in the quality menu is kept while a SABR stream plays; translucent navigation bar fixes (the Shorts player with `Hide Shorts navigation bar`, the keyboard, and a crash on Android 12 and 13 while the player is dragged to the miniplayer); the saved value of a setting that has no option in the patched app (version-gated, or its patch excluded) is reset to its default; `Miniplayer` type `Phone` is renamed `Minimal` (saved values are migrated); Voice-over translation updates for the Edge TTS voices.
 * **YouTube Music - Lyrics:** anddea's rework: more romanized scripts (Cyrillic, Greek, Armenian, Georgian, Cantonese and others) and a setting to clear the lyrics cache.
-
-### Bug Fixes
-
-* **YouTube - Return YouTube Dislike:** Fixed a startup crash caused by an invalid float branch in the new pill layout hook, including when the setting was off.
 
 ## [1.20.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.19.1...v1.20.0) (2026-10-28)
 

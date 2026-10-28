@@ -2548,6 +2548,9 @@ Click to see how to issue an API key"</string>
     <string name="revanced_ryd_compact_layout_summary_off">Like button styled for best appearance</string>
     <string name="revanced_ryd_compact_layout_summary_on">Like button styled for minimum width</string>
     <string name="revanced_ryd_compact_layout_title">Compact Like button</string>
+    <string name="revanced_ryd_morphe_dislike_pill_title">Morphe-style dislike pill</string>
+    <string name="revanced_ryd_morphe_dislike_pill_summary_on">Dislike count is shown beside the dislike icon, with a single divider</string>
+    <string name="revanced_ryd_morphe_dislike_pill_summary_off">Dislike count is shown beside the like count, with a dot separator</string>
     <string name="revanced_ryd_dislike_percentage_summary_off">Dislikes are shown as a number</string>
     <string name="revanced_ryd_dislike_percentage_summary_on">Dislikes are shown as a percentage</string>
     <string name="revanced_ryd_dislike_percentage_title">Dislikes as percentage</string>

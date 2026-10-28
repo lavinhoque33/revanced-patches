@@ -267,6 +267,7 @@ val returnYouTubeDislikePatch = bytecodePatch(
 
         hookTextComponent(EXTENSION_RYD_CLASS_DESCRIPTOR)
         hookElementList("$EXTENSION_RYD_CLASS_DESCRIPTOR->onLazilyConvertedElementLoaded")
+        hookDislikePill()
 
         // region Inject newVideoLoaded event handler to update dislikes when a new video is loaded
         hookVideoId("$EXTENSION_RYD_CLASS_DESCRIPTOR->newVideoLoaded(Ljava/lang/String;)V")

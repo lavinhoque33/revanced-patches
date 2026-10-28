@@ -216,6 +216,11 @@ public class ReturnYouTubeDislike {
     @GuardedBy("this")
     private SpannableString replacementLikeDislikeSpan;
 
+    @GuardedBy("this")
+    private String dislikePillText = "";
+    @GuardedBy("this")
+    private int dislikePillColor;
+
     /**
      * Color of the left and middle separator, based on the color of the right separator.
      * It's unknown where YT gets the color from, and the values here are approximated by hand.
@@ -246,7 +251,7 @@ public class ReturnYouTubeDislike {
      * @param isSegmentedButton If UI is using the segmented single UI component for both like and dislike.
      */
     @NonNull
-    private static SpannableString createDislikeSpan(@NonNull Spanned oldSpannable,
+    private SpannableString createDislikeSpan(@NonNull Spanned oldSpannable,
                                                      boolean isSegmentedButton,
                                                      boolean isRollingNumber,
                                                      @NonNull RYDVoteData voteData,
@@ -282,8 +287,22 @@ public class ReturnYouTubeDislike {
             } else {
                 // Change the "Likes" string to show that likes and dislikes are hidden.
                 String hiddenMessageString = str("revanced_ryd_video_likes_hidden_by_video_owner");
+                if (DislikePill.isEnabled()) {
+                    dislikePillText = "";
+                    dislikePillColor = 0;
+                    DislikePill.update(voteData.videoId, "", 0);
+                }
                 return newSpanUsingStylingOfAnotherSpan(oldSpannable, hiddenMessageString);
             }
+        }
+
+        if (DislikePill.isEnabled()) {
+            ForegroundColorSpan[] colors = oldSpannable.getSpans(0, oldSpannable.length(), ForegroundColorSpan.class);
+            dislikePillText = formatDislikes(voteData);
+            dislikePillColor = colors.length == 0 ? 0 : colors[0].getForegroundColor();
+            DislikePill.update(videoId, dislikePillText, dislikePillColor);
+
+            return newSpanUsingStylingOfAnotherSpan(oldSpannable, oldLikes);
         }
 
         SpannableStringBuilder builder = new SpannableStringBuilder();
@@ -404,10 +423,13 @@ public class ReturnYouTubeDislike {
     }
 
     private static SpannableString newSpannableWithDislikes(@NonNull Spanned sourceStyling, @NonNull RYDVoteData voteData) {
-        return newSpanUsingStylingOfAnotherSpan(sourceStyling,
-                Settings.RYD_DISLIKE_PERCENTAGE.get()
-                        ? formatDislikePercentage(voteData.getDislikePercentage())
-                        : formatDislikeCount(voteData.getDislikeCount()));
+        return newSpanUsingStylingOfAnotherSpan(sourceStyling, formatDislikes(voteData));
+    }
+
+    private static String formatDislikes(@NonNull RYDVoteData voteData) {
+        return Settings.RYD_DISLIKE_PERCENTAGE.get()
+                ? formatDislikePercentage(voteData.getDislikePercentage())
+                : formatDislikeCount(voteData.getDislikeCount());
     }
 
     /**
@@ -758,6 +780,9 @@ public class ReturnYouTubeDislike {
                 if (originalDislikeSpan != null && replacementLikeDislikeSpan != null
                         && spansHaveEqualTextAndColor(original, originalDislikeSpan)) {
                     Logger.printDebug(() -> "Replacing span with previously created dislike span of data: " + videoId);
+                    if (isSegmentedButton && DislikePill.isEnabled()) {
+                        DislikePill.update(videoId, dislikePillText, dislikePillColor);
+                    }
                     return replacementLikeDislikeSpan;
                 }
 

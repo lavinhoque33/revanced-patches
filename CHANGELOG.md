@@ -2,6 +2,8 @@
 
 ### Features
 
+* **YouTube - Return YouTube Dislike:** Added `Morphe-style dislike pill`. It puts the dislike count beside the dislike icon, with one divider and no dot. Off by default, so the current wide pill stays unchanged.
+
 Merged anddea/revanced-patches `dev` (4.4.0-dev.3). The fork's built-in downloader, offline library and YouTube Music downloads keep their current behaviour; anddea's copies of them (#1883, #1884) were made from an older state of this fork.
 
 * **YouTube:** New `Feed video actions` patch: a Watch later button on the thumbnails of feed videos, and tapping and holding anywhere on a feed video opens its menu. It reuses the fork's feed card tracking of `Feed view count`.

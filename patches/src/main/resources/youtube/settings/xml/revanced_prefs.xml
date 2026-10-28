@@ -1222,6 +1222,12 @@
         <SwitchPreference android:title="@string/morphe_ryd_feed_like_count_title" android:key="morphe_ryd_feed_like_count" android:dependency="ryd_enabled" />
         <SwitchPreference android:title="@string/morphe_ryd_feed_like_ratio_title" android:key="morphe_ryd_feed_like_ratio" android:dependency="ryd_enabled" />
         <SwitchPreference android:title="@string/revanced_ryd_compact_layout_title" android:key="ryd_compact_layout" android:summaryOn="@string/revanced_ryd_compact_layout_summary_on" android:summaryOff="@string/revanced_ryd_compact_layout_summary_off" />
+        <SwitchPreference
+            android:title="@string/revanced_ryd_morphe_dislike_pill_title"
+            android:key="ryd_morphe_dislike_pill"
+            android:dependency="ryd_enabled"
+            android:summaryOn="@string/revanced_ryd_morphe_dislike_pill_summary_on"
+            android:summaryOff="@string/revanced_ryd_morphe_dislike_pill_summary_off" />
         <SwitchPreference android:title="@string/revanced_ryd_estimated_like_title" android:key="ryd_estimated_like" android:summaryOn="@string/revanced_ryd_estimated_like_summary_on" android:summaryOff="@string/revanced_ryd_estimated_like_summary_off" />
         <SwitchPreference android:title="@string/revanced_sb_toast_on_connection_error" android:key="ryd_toast_on_connection_error" android:summaryOn="@string/revanced_ryd_toast_on_connection_error_summary_on" android:summaryOff="@string/revanced_ryd_toast_on_connection_error_summary_off" />
         <PreferenceCategory android:title="@string/revanced_ryd_about" android:layout="@layout/revanced_settings_preferences_category"/>

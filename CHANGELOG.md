@@ -3,6 +3,7 @@
 ### Features
 
 * **YouTube - Visual preferences icons:** Settings that had no icon or a blank icon now have one, in both Regular and Bold.
+* **YouTube Music - Visual preferences icons:** Added icons to all RVX sub-settings, including Lyrics, Scrobbling, Crossfade, SponsorBlock and the proxy settings.
 
 ## [1.19.1](https://github.com/lavinhoque33/revanced-patches/compare/v1.19.0...v1.19.1) (2026-10-27)
 

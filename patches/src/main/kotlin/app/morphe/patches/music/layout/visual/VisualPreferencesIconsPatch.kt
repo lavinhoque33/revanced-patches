@@ -8,6 +8,7 @@
  * - anddea (https://github.com/anddea)
  *
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-10-27
  *
  * ------------------------------------------------------------------------
  * GPLv3 Section 7 – Additional Terms & Attribution Requirements
@@ -56,9 +57,9 @@ import org.w3c.dom.Element
 private const val DEFAULT_ICON = "extension"
 private const val EMPTY_ICON = "empty_icon"
 
-// modified by lavinhoque33, 2026-10-21: bold icon style, requested in lavinhoque33/revanced-patches#13.
 private const val REGULAR_ICON_STYLE = "regular"
 private const val BOLD_ICON_STYLE = "bold"
+private const val BOLD_STOCK_ICON_STYLE = "bold_stock"
 
 /** RVX settings menu icons that cannot be thickened with an outline. */
 private val FIXED_WEIGHT_RVX_ICONS = setOf("rvx_letters_bold", "revanced_colored")
@@ -103,16 +104,16 @@ val visualPreferencesIconsPatch = resourcePatch(
         required = true
     )
 
-    // modified by lavinhoque33, 2026-10-21: bold icon style, requested in lavinhoque33/revanced-patches#13.
     val iconStyleOption = stringOption(
         key = "iconStyle",
         default = REGULAR_ICON_STYLE,
         values = mapOf(
             "Regular" to REGULAR_ICON_STYLE,
             "Bold" to BOLD_ICON_STYLE,
+            "Bold (stock size)" to BOLD_STOCK_ICON_STYLE,
         ),
         title = "Icon style",
-        description = "The line weight of the settings menu icons.",
+        description = "The line weight and size of the settings menu icons.",
         required = true,
     )
 
@@ -122,6 +123,8 @@ val visualPreferencesIconsPatch = resourcePatch(
             .underBarOrThrow()
         val iconStyle = iconStyleOption
             .lowerCaseOrThrow()
+        val useBoldIcons = iconStyle == BOLD_ICON_STYLE || iconStyle == BOLD_STOCK_ICON_STYLE
+        val useStockIconSize = iconStyle == BOLD_STOCK_ICON_STYLE
 
         if (applyToAll == true) {
             preferenceKey.putAll(rvxPreferenceKey)
@@ -131,11 +134,10 @@ val visualPreferencesIconsPatch = resourcePatch(
 
         copyResourcesWithRename("music/visual/icons", preferenceKey)
 
-        // modified by lavinhoque33, 2026-10-21: bold icon style, requested in lavinhoque33/revanced-patches#13.
-        if (iconStyle == BOLD_ICON_STYLE) {
-            preferenceKey.filterValues { !preferenceKey.containsKey(it) }.keys.forEach { title ->
-                makeBold("res/drawable/${title}_icon.xml")
-            }
+        preferenceKey.filterValues { it !in preferenceKey }.keys.forEach { title ->
+            val drawable = "res/drawable/${title}_icon.xml"
+            if (useBoldIcons) makeBold(drawable)
+            if (useStockIconSize) setStockPreferenceIconGeometry(drawable)
         }
 
         arrayOf(
@@ -171,11 +173,12 @@ val visualPreferencesIconsPatch = resourcePatch(
             copyResources(fallbackIconPath, resourceGroup)
         }
 
-        // modified by lavinhoque33, 2026-10-21: the RVX entry follows the bold style too (lavinhoque33/revanced-patches#13).
-        // The letter icons are drawn with a fixed weight and the colored ReVanced logo has no outline to thicken.
-        if (iconStyle == BOLD_ICON_STYLE && selectedIconType !in FIXED_WEIGHT_RVX_ICONS) {
-            makeBold("res/drawable/revanced_settings_icon.xml")
+        // Fixed-weight letter icons and the colored logo retain their authored strokes.
+        val settingsIconDrawable = "res/drawable/revanced_settings_icon.xml"
+        if (useBoldIcons && selectedIconType !in FIXED_WEIGHT_RVX_ICONS) {
+            makeBold(settingsIconDrawable)
         }
+        if (useStockIconSize) setStockPreferenceIconGeometry(settingsIconDrawable)
 
         installDynamicRvxSettingsIcon("revanced_settings_icon")
 
@@ -222,6 +225,8 @@ val visualPreferencesIconsPatch = resourcePatch(
                     }
             }
         }
+
+        warnMissingPreferenceIcons(SETTINGS_HEADER_PATH)
 
         // endregion
     }

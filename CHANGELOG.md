@@ -1,3 +1,10 @@
+## Unreleased
+
+### Features
+
+* **YouTube - Visual preferences icons:** Added `Bold (stock size)`, with bold icons in a 24 dp box. The patch warns about preferences without an icon.
+* **YouTube Music - Visual preferences icons:** Added `Bold (stock size)`, with bold icons in a 24 dp box. The patch warns about preferences without an icon.
+
 ## [1.19.1](https://github.com/lavinhoque33/revanced-patches/compare/v1.19.0...v1.19.1) (2026-10-27)
 
 ### Bug Fixes

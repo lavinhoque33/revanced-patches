@@ -1,3 +1,9 @@
+## Unreleased
+
+### Features
+
+* **YouTube - Return YouTube Dislike:** Added `Morphe-style dislike pill`. It puts the dislike count beside the dislike icon, with one divider and no dot. Off by default, so the current wide pill stays unchanged.
+
 ## [1.20.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.19.1...v1.20.0) (2026-10-28)
 
 ### Features

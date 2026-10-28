@@ -9,6 +9,7 @@
  * - inotia00 (https://github.com/inotia00)
  *
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-10-28
  *
  * ------------------------------------------------------------------------
  * GPLv3 Section 7 – Additional Terms & Attribution Requirements
@@ -76,6 +77,7 @@ import app.morphe.extension.shared.utils.ResourceUtils;
 import app.morphe.extension.shared.utils.Utils;
 import app.morphe.extension.youtube.patches.components.ActionButtonsFilter;
 import app.morphe.extension.youtube.patches.components.ActionButtonsFilter.ActionButton;
+import app.morphe.extension.youtube.returnyoutubedislike.DislikePill;
 import app.morphe.extension.youtube.returnyoutubedislike.ReturnYouTubeDislike;
 import app.morphe.extension.youtube.settings.Settings;
 import app.morphe.extension.youtube.shared.PlayerType;
@@ -164,6 +166,7 @@ public class ReturnYouTubeDislikePatch {
 
     private static void clearData() {
         currentVideoData = null;
+        DislikePill.setVideoId("");
         regularActionButtonCountVideoId = null;
         regularLikeActionButtonCountText = null;
         regularDislikeActionButtonCountText = null;
@@ -1517,6 +1520,7 @@ public class ReturnYouTubeDislikePatch {
                 // cached labels from the previous video remain visible while the new RYD request
                 // is pending, and a late callback can race with the new video.
                 currentVideoData = null;
+                DislikePill.setVideoId("");
                 regularActionButtonCountVideoId = null;
                 regularLikeActionButtonCountText = null;
                 regularDislikeActionButtonCountText = null;
@@ -1566,6 +1570,7 @@ public class ReturnYouTubeDislikePatch {
             // regular video, create the fetch here so the action-button counts still appear.
             regularActionButtonCountSearchExhausted = false;
             currentVideoData = ReturnYouTubeDislike.getFetchForVideoId(videoId);
+            DislikePill.setVideoId(videoId);
 
             if (canShowRegularActionButtonCountOverlays()) {
                 // The action bar can still contain the previous video's accessibility text here.

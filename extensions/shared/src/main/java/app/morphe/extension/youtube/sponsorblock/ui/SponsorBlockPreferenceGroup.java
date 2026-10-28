@@ -142,15 +142,17 @@ public class SponsorBlockPreferenceGroup extends PreferenceGroup {
             return;
         }
 
-        setPreferenceIcons(this);
+        // Only Bold (stock size) installs this row; other styles retain their framework layout.
+        int stockIconLayout = ResourceUtils.getLayoutIdentifier("revanced_preference_stock_icon");
+        setPreferenceIcons(this, stockIconLayout);
     }
 
-    private void setPreferenceIcons(PreferenceGroup group) {
+    private void setPreferenceIcons(PreferenceGroup group, int stockIconLayout) {
         for (int i = 0, count = group.getPreferenceCount(); i < count; i++) {
             Preference preference = group.getPreference(i);
 
             if (preference instanceof PreferenceGroup childGroup) {
-                setPreferenceIcons(childGroup);
+                setPreferenceIcons(childGroup, stockIconLayout);
                 continue;
             }
 
@@ -160,6 +162,10 @@ public class SponsorBlockPreferenceGroup extends PreferenceGroup {
             }
             if (icon != 0) {
                 preference.setIcon(icon);
+
+                if (stockIconLayout != 0) {
+                    preference.setLayoutResource(stockIconLayout);
+                }
             }
         }
     }

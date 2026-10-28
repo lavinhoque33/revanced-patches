@@ -8,7 +8,7 @@
  * - anddea (https://github.com/anddea)
  *
  * Licensed under the GNU General Public License v3.0.
- * Modified by lavinhoque33, 2026-10-25
+ * Modified by lavinhoque33, 2026-10-27
  *
  * ------------------------------------------------------------------------
  * GPLv3 Section 7 – Additional Terms & Attribution Requirements
@@ -55,9 +55,7 @@ import app.morphe.util.Utils.trimIndentMultiline
 import org.w3c.dom.Element
 
 private const val DEFAULT_ICON = "extension"
-private const val EMPTY_ICON = "empty_icon"
 
-// modified by lavinhoque33, 2026-10-15: bold icon style, requested in lavinhoque33/revanced-patches#4.
 private const val REGULAR_ICON_STYLE = "regular"
 private const val BOLD_ICON_STYLE = "bold"
 
@@ -104,7 +102,6 @@ val visualPreferencesIconsPatch = resourcePatch(
         required = true
     )
 
-    // modified by lavinhoque33, 2026-10-15: bold icon style, requested in lavinhoque33/revanced-patches#4.
     val iconStyleOption = stringOption(
         key = "iconStyle",
         default = REGULAR_ICON_STYLE,
@@ -132,20 +129,10 @@ val visualPreferencesIconsPatch = resourcePatch(
 
         copyResourcesWithRename("youtube/visual/icons", preferenceKey)
 
-        // modified by lavinhoque33, 2026-10-15: bold icon style, requested in lavinhoque33/revanced-patches#4.
         if (iconStyle == BOLD_ICON_STYLE) {
             preferenceKey.filterValues { !preferenceKey.containsKey(it) }.keys.forEach { title ->
                 makeBold("res/drawable/${title}_icon.xml")
             }
-        }
-
-        arrayOf(
-            ResourceGroup(
-                "drawable-xxhdpi",
-                "$EMPTY_ICON.png"
-            ),
-        ).forEach { resourceGroup ->
-            copyResources("youtube/visual/icons", resourceGroup)
         }
 
         // endregion
@@ -174,9 +161,7 @@ val visualPreferencesIconsPatch = resourcePatch(
 
         installYouTubeRvxSettingsIconLayout()
 
-        // modified by lavinhoque33, 2026-10-20: the RVX entry in the YouTube settings follows the bold style
-        // too (lavinhoque33/revanced-patches#8). The letter icons are drawn with a fixed weight and the
-        // colored ReVanced logo has no outline to thicken.
+        // Fixed-weight letter icons and the colored ReVanced logo do not need an outline.
         if (iconStyle == BOLD_ICON_STYLE && selectedIconType !in FIXED_WEIGHT_RVX_ICONS) {
             makeBold("res/drawable/revanced_settings_key_icon.xml")
             makeBold("res/drawable/revanced_settings_cairo_key_icon.xml")
@@ -204,17 +189,9 @@ val visualPreferencesIconsPatch = resourcePatch(
             val isCairoSettingsFragment = xmlFile == "res/xml/settings_fragment_cairo.xml"
 
             document(xmlFile).use { document ->
-                val enabledPreferenceKeys = mutableSetOf<String>()
-                document.doRecursively { node ->
-                    if (node is Element) {
-                        node.getAttributeNode("android:key")?.textContent
-                            ?.removePrefix("@string/")
-                            ?.let(enabledPreferenceKeys::add)
-                    }
-                }
-
                 document.doRecursively loop@{ node ->
                     if (node !is Element) return@loop
+                    if (node.tagName.endsWith("PreferenceCategory")) return@loop
                     val key = node.getAttributeNode("android:key")
                         ?.textContent
                         ?.removePrefix("@string/")
@@ -228,40 +205,22 @@ val visualPreferencesIconsPatch = resourcePatch(
                         } else {
                             when (title) {
                                 in preferenceKey.keys -> {
-                                    var iconKey = title
-                                    val visitedKeys = mutableSetOf<String>()
-                                    var useEmptyIcon = false
+                                    val iconKey = preferenceKey[title]
+                                        ?.takeIf { it in preferenceKey }
+                                        ?: title
 
-                                    // Resolve aliases without drawables through their preference mappings.
-                                    // An enabled intermediate preference already displays the shared icon.
-                                    while (visitedKeys.add(iconKey)) {
-                                        val nextKey = preferenceKey[iconKey] ?: break
-                                        if (nextKey !in preferenceKey) break
-                                        iconKey = nextKey
-                                        if (get("res/drawable/${iconKey}_icon.xml").exists()) break
-                                        if (iconKey in enabledPreferenceKeys) {
-                                            useEmptyIcon = true
-                                            break
-                                        }
-                                    }
-
-                                    check(useEmptyIcon || get("res/drawable/${iconKey}_icon.xml").exists()) {
+                                    check(get("res/drawable/${iconKey}_icon.xml").exists()) {
                                         "Missing icon or cyclic preference mapping for $title"
                                     }
 
-                                    if (useEmptyIcon) EMPTY_ICON else "${iconKey}_icon"
+                                    "${iconKey}_icon"
                                 }
 
                                 // Add custom RVX settings menu icon
                                 in intentKey -> intentIcon[title]
-                                in emptyTitles -> EMPTY_ICON
                                 else -> null
                             }
                         }
-
-                        if (drawableName == EMPTY_ICON &&
-                            applyToAll == false
-                        ) return@loop
 
                         drawableName?.let {
                             val iconName = if (isCairoSettingsMenu) {
@@ -354,7 +313,7 @@ private val rvxPreferenceKey = mapOf(
     "morphe_expand_livestream_dvr_duration" to "M 306.46 809.23 L 653.54 809.23 L 653.54 686.08 Q 653.54 613.31 603.15 561.88 Q 552.77 510.46 480 510.46 Q 407.23 510.46 356.85 561.88 Q 306.46 613.31 306.46 686.08 L 306.46 809.23 Z M 200 840 L 200 809.23 L 275.69 809.23 L 275.69 686.08 Q 275.69 606.62 326.46 547.46 Q 377.23 488.31 455.54 480 Q 377.23 470.69 326.46 411.15 Q 275.69 351.62 275.69 273.69 L 275.69 150.77 L 200 150.77 L 200 120 L 760 120 L 760 150.77 L 684.31 150.77 L 684.31 273.69 Q 684.31 351.62 633.54 411.15 Q 582.77 470.69 504.46 480 Q 582.77 488.31 633.54 547.46 Q 684.31 606.62 684.31 686.08 L 684.31 809.23 L 760 809.23 L 760 840 L 200 840 Z",
     "morphe_external_downloader_quick_menu" to "M 480 626.23 L 341.62 487.85 L 363.85 466.38 L 464.62 566.38 L 464.62 200 L 495.38 200 L 495.38 566.38 L 596.15 466.38 L 618.38 487.85 L 480 626.23 Z M 255.38 760 Q 232.33 760 216.16 743.84 Q 200 727.67 200 704.62 L 200 597 L 230.77 597 L 230.77 704.62 Q 230.77 713.85 238.46 721.54 Q 246.15 729.23 255.38 729.23 L 704.62 729.23 Q 713.85 729.23 721.54 721.54 Q 729.23 713.85 729.23 704.62 L 729.23 597 L 760 597 L 760 704.62 Q 760 727.67 743.84 743.84 Q 727.67 760 704.62 760 L 255.38 760 Z",
     "morphe_feed_card_layout" to "revanced_preference_screen_feed",
-    "morphe_feed_view_count" to "revanced_alt_thumbnail_home",
+    "morphe_feed_view_count" to "revanced_hide_navigation_home_button",
     "morphe_force_animations" to "M 418.08 609.23 L 602.69 479.77 L 418.08 350.77 L 418.08 609.23 Z M 480 840 Q 405.46 840 339.77 811.96 Q 274.08 783.92 225.46 735.31 Q 176.85 686.69 148.42 621.38 Q 120 556.08 120 481.54 Q 120 445.41 126.46 411.44 Q 132.92 377.46 145.31 344.85 L 168.77 368.31 Q 160 395.54 155.38 423.39 Q 150.77 451.24 150.77 480 Q 150.77 617.87 246.43 713.55 T 479.93 809.23 Q 617.76 809.23 713.5 713.57 Q 809.23 617.91 809.23 480.07 Q 809.23 342.24 713.43 246.5 Q 617.62 150.77 479.58 150.77 Q 451.77 150.77 424.02 155.15 Q 396.27 159.53 369.85 168.77 L 345.38 145.08 Q 376.46 134.15 408.42 127.08 Q 440.38 120 473.69 120 Q 548.98 120 615.43 148.04 T 731.96 225.08 Q 782.05 274.08 811.02 339.77 Q 840 405.46 840 480 Q 840 554.54 811.58 620.23 Q 783.15 685.92 734.54 734.54 Q 685.92 783.15 620.23 811.58 Q 554.54 840 480 840 Z M 233.61 263.31 Q 221.23 263.31 212.12 254.03 Q 203 244.75 203 232.38 Q 203 220 212.28 210.88 Q 221.56 201.77 233.93 201.77 Q 246.31 201.77 255.42 211.05 Q 264.54 220.33 264.54 232.7 Q 264.54 245.08 255.26 254.19 Q 245.98 263.31 233.61 263.31 Z M 480 480 Z",
     "morphe_force_original_audio" to "revanced_hide_player_flyout_menu_audio_track",
     "morphe_fullscreen_large_seekbar" to "M 479.23 800 L 347.69 668.46 L 368.92 647.23 L 463.85 740.38 L 463.85 218.85 L 369.69 312.77 L 348.46 291.54 L 480 160 L 611.54 291.54 L 589.31 313.77 L 494.62 219.62 L 494.62 740.38 L 589.54 647.23 L 610.77 668.46 L 479.23 800 Z",
@@ -458,7 +417,7 @@ private val rvxPreferenceKey = mapOf(
     "revanced_alt_thumbnail_search" to "revanced_hide_shorts_shelf_search",
     "revanced_alt_thumbnail_subscriptions" to "revanced_hide_navigation_subscriptions_button",
     "revanced_append_time_stamp_information" to "M 440.11 800 Q 373.46 800 315.21 774.62 T 213.88 706.2 Q 170.8 663.16 145.4 604.95 Q 120 546.75 120 480.11 Q 120 413.46 145.39 355.21 T 213.95 253.88 Q 257.12 210.8 315.73 185.4 Q 374.33 160 440.23 160 Q 463.92 160 486.58 163.23 Q 509.23 166.46 532.62 172.92 L 532.62 206.15 Q 510.46 198.46 487.31 194.62 Q 464.15 190.77 440.23 190.77 Q 320.62 190.77 235.69 275.58 Q 150.77 360.38 150.77 480 Q 150.77 599.62 235.58 684.42 Q 320.38 769.23 440 769.23 Q 559.62 769.23 644.42 684.42 Q 729.23 599.62 729.23 479.87 Q 729.23 467.31 728.12 452.35 Q 727 437.38 723 421.77 L 754 421.77 Q 756.23 434.15 758.12 450.12 Q 760 466.08 760 480 Q 760 546.67 734.62 604.89 T 666.2 706.17 Q 623.16 749.22 564.95 774.61 Q 506.75 800 440.11 800 Z M 567.54 633.92 L 421.69 488.08 L 421.69 280 L 452.46 280 L 452.46 474.85 L 589.54 611.92 L 567.54 633.92 Z M 726.31 351 L 726.31 229.08 L 603.38 229.08 L 603.38 198.31 L 726.31 198.31 L 726.31 75.38 L 757.08 75.38 L 757.08 198.31 L 880 198.31 L 880 229.08 L 757.08 229.08 L 757.08 351 L 726.31 351 Z",
-    "revanced_auto_captions_style" to "morphe_preferred_caption_language",
+    "revanced_auto_captions_style" to "captions_key",
     "revanced_back_button_always_exits_feed" to "revanced_hide_search_bar_back_button",
     "revanced_bypass_ambient_mode_restrictions" to "M 255.38 362.92 L 604.62 362.92 L 604.62 275.38 Q 604.62 223.46 568.32 187.12 Q 532.02 150.77 480.16 150.77 Q 428.31 150.77 391.85 187.12 Q 355.38 223.46 355.38 275.38 L 324.62 275.38 Q 324.62 210.23 369.89 165.11 Q 415.16 120 480.16 120 Q 545.15 120 590.27 165.23 Q 635.38 210.45 635.38 275.38 L 635.38 362.92 L 704.62 362.92 Q 727.06 362.92 743.53 379.1 Q 760 395.27 760 418.31 L 760 784.62 Q 760 807.06 743.53 823.53 Q 727.06 840 704.62 840 L 255.38 840 Q 232.94 840 216.47 823.53 Q 200 807.06 200 784.62 L 200 418.31 Q 200 395.27 216.47 379.1 Q 232.94 362.92 255.38 362.92 Z M 255.38 809.23 L 704.62 809.23 Q 715.38 809.23 722.31 802.31 Q 729.23 795.38 729.23 784.62 L 729.23 418.31 Q 729.23 407.54 722.31 400.62 Q 715.38 393.69 704.62 393.69 L 255.38 393.69 Q 244.62 393.69 237.69 400.62 Q 230.77 407.54 230.77 418.31 L 230.77 784.62 Q 230.77 795.38 237.69 802.31 Q 244.62 809.23 255.38 809.23 Z M 480.17 660 Q 504.31 660 521.42 642.97 Q 538.54 625.94 538.54 601.92 Q 538.54 578.85 521.26 560.88 Q 503.97 542.92 479.83 542.92 T 438.58 560.88 Q 421.46 578.85 421.46 602.42 Q 421.46 626 438.74 643 Q 456.03 660 480.17 660 Z M 230.77 809.23 L 230.77 393.69 L 230.77 809.23 Z",
     "revanced_bypass_image_region_restrictions" to "M 480.13 840 Q 405.46 840 339.72 811.66 Q 273.99 783.32 225.36 734.74 Q 176.73 686.16 148.37 620.48 Q 120 554.81 120 480.13 Q 120 405.46 148.34 339.72 Q 176.68 273.99 225.26 225.36 Q 273.84 176.73 339.52 148.37 Q 405.19 120 479.87 120 Q 554.54 120 620.28 148.34 Q 686.01 176.68 734.64 225.26 Q 783.27 273.84 811.63 339.52 Q 840 405.19 840 479.87 Q 840 554.54 811.66 620.28 Q 783.32 686.01 734.74 734.64 Q 686.16 783.27 620.48 811.63 Q 554.81 840 480.13 840 Z M 438.54 807.46 L 438.54 727.77 Q 404.17 727.77 380.63 703.31 Q 357.08 678.85 357.08 644.62 L 357.08 602.92 L 159 404.85 Q 155.54 423.31 153.15 442.1 Q 150.77 460.88 150.77 480.17 Q 150.77 605.38 232.58 698.92 Q 314.38 792.46 438.54 807.46 Z M 723.31 702.54 Q 743.77 680.08 759.88 653.99 Q 776 627.9 787.25 599.38 T 803.86 540.89 Q 809.23 510.93 809.23 480 Q 809.23 378.04 753.54 293.75 T 603.15 171.77 L 603.15 190.81 Q 603.15 224.77 579.61 249.23 Q 556.06 273.69 521.69 273.69 L 438.54 273.69 L 438.54 356.85 Q 438.54 374.17 426.19 385.39 Q 413.85 396.62 397.12 396.62 L 315.38 396.62 L 315.38 480 L 563.38 480 Q 580.71 480 591.93 492.23 Q 603.15 504.46 603.15 521.46 L 603.15 644.62 L 644.29 644.62 Q 672.08 644.62 693.75 660.76 Q 715.43 676.91 723.31 702.54 Z",
@@ -486,7 +445,7 @@ private val rvxPreferenceKey = mapOf(
     "revanced_default_video_quality_wifi_shorts" to "M 642.621 596.04 L 642.621 728.26 L 760.5 662.15 L 642.621 596.04 Z M 572.533 715.58 L 572.534 715.58 L 572.533 715.58 L 572.539 715.58 L 572.533 715.58 C 553.559 728.82 540.297 745.58 532.95 767.9 C 526.054 791.13 528.496 814.67 540.087 834.53 C 552.357 853.98 572.018 867.142 595.787 871.706 C 619.523 875.544 644.124 870.688 666.181 857.62 L 814.731 767.45 C 836.5 753.92 852.153 734.47 859.683 711.59 C 866.578 688.36 864.102 664.86 852.558 644.99 C 840.758 626.35 824.545 615.06 804.078 609.46 L 804.073 609.46 L 804.078 609.46 C 823.057 596.22 836.347 579.46 843.669 557.11 C 850.606 533.88 848.08 510.39 836.537 490.52 C 824.241 471.12 804.601 457.9 780.826 453.33 C 757.092 449.49 732.489 454.34 710.431 467.41 L 561.882 557.58 C 540.114 571.12 524.458 590.57 516.93 613.44 C 510.035 636.67 512.51 660.17 524.054 680.04 C 535.854 698.68 552.068 709.98 572.533 715.58 Z M 603.558 689.55 C 602.755 689.47 593.669 688.74 586.633 687.48 C 569.674 684.86 558.684 677.43 550.775 663.63 C 542.151 650.25 540.959 637.17 546.46 620.94 C 551.375 604.34 561.036 592.55 577.305 582.98 L 725.864 492.8 C 741.853 482.79 756.997 479.8 773.986 483.1 C 790.922 485.68 801.479 493.05 809.719 506.78 C 818.102 520.43 819.636 533.45 814.132 549.62 C 809.226 566.21 799.099 578.29 782.866 587.86 L 760.626 602.07 L 760.645 602.01 L 753.019 613.08 L 752.304 617.4 L 752.227 618.57 L 752.246 618.69 L 752.635 621.03 C 752.88 622.48 753.282 623.98 753.736 625.13 L 753.736 625.29 L 753.905 625.54 L 754.075 625.8 C 757.129 630.4 764.765 634.73 771.749 635.57 C 774.104 635.67 781.991 636.11 789.981 637.55 C 806.947 640.17 817.929 647.6 825.837 661.4 C 834.462 674.78 835.653 687.86 830.152 704.09 C 825.236 720.68 815.577 732.48 799.308 742.05 L 650.747 832.23 C 634.76 842.25 619.62 845.24 602.631 841.94 C 585.66 839.33 574.705 831.9 566.796 818.1 C 558.17 804.72 556.979 791.63 562.481 775.42 C 567.378 758.83 577.715 746.62 593.937 737.03 C 595.318 736.06 611.397 724.78 613.452 723.39 C 618.489 719.79 623.722 712.82 624.918 707.02 L 624.954 706.84 L 624.966 704.75 L 624.942 704.65 L 624.923 704.55 C 624.621 703.16 623.989 701.56 623.158 700.03 L 617.808 693.72 L 612.186 691.36 C 609.648 690.58 606.649 689.93 603.558 689.55 Z M 96.497 685.79 L 96.497 655.02 L 354.969 655.02 L 354.969 685.79 L 96.497 685.79 Z M 268.882 523.64 L 268.882 442.4 L 96.497 442.4 L 96.497 411.64 L 268.882 411.64 L 268.882 329.94 L 299.651 329.94 L 299.651 523.64 L 268.882 523.64 Z M 410.42 442.4 L 410.42 411.64 L 534.634 411.64 L 534.634 442.4 L 410.42 442.4 Z M 573.343 279.71 L 573.343 87.02 L 604.112 87.02 L 604.112 168.25 L 776.497 168.25 L 776.497 199.02 L 604.112 199.02 L 604.112 279.71 L 573.343 279.71 Z M 96.497 199.02 L 96.497 168.25 L 462.574 168.25 L 462.574 199.02 L 96.497 199.02 Z",
     "revanced_disable_ambient_mode" to "M 840.15 868.23 L 97.08 125.92 L 120.08 103.69 L 862.38 846 L 840.15 868.23 Z M 401.23 860 Q 392.23 860 386.23 854.12 Q 380.23 848.23 380.23 839.38 Q 380.23 830.54 386.23 824.65 Q 392.23 818.77 401.23 818.77 Q 409.46 818.77 415.46 824.65 Q 421.46 830.54 421.46 839.38 Q 421.46 848.23 415.46 854.12 Q 409.46 860 401.23 860 Z M 561.69 860 Q 553.46 860 547.46 854.12 Q 541.46 848.23 541.46 839.38 Q 541.46 830.54 547.46 824.65 Q 553.46 818.77 561.69 818.77 Q 570.69 818.77 576.69 824.65 Q 582.69 830.54 582.69 839.38 Q 582.69 848.23 576.69 854.12 Q 570.69 860 561.69 860 Z M 240.11 752.62 Q 226.29 752.62 216.84 743.27 Q 207.38 733.92 207.38 720.11 Q 207.38 706.29 216.73 696.84 Q 226.08 687.38 239.89 687.38 Q 253.71 687.38 263.16 696.73 Q 272.62 706.08 272.62 719.89 Q 272.62 733.71 263.27 743.16 Q 253.92 752.62 240.11 752.62 Z M 401.03 752.62 Q 387.08 752.62 377.46 743.27 Q 367.85 733.92 367.85 720.11 Q 367.85 706.29 377.41 696.84 Q 386.98 687.38 401.13 687.38 Q 414.94 687.38 424.39 696.73 Q 433.85 706.08 433.85 719.89 Q 433.85 733.71 424.41 743.16 Q 414.97 752.62 401.03 752.62 Z M 558.87 752.62 Q 545.06 752.62 535.61 743.27 Q 526.15 733.92 526.15 720.11 Q 526.15 706.29 535.59 696.84 Q 545.03 687.38 558.97 687.38 Q 572.92 687.38 582.54 696.73 Q 592.15 706.08 592.15 719.89 Q 592.15 733.71 582.59 743.16 Q 573.02 752.62 558.87 752.62 Z M 401.23 604.31 Q 381.68 604.31 368.68 591.32 Q 355.69 578.32 355.69 559.15 T 368.68 526.99 Q 381.68 514 400.85 514 T 433.01 527.09 Q 446 540.19 446 558.77 Q 446 578.32 432.91 591.32 Q 419.81 604.31 401.23 604.31 Z M 240.11 592.15 Q 226.29 592.15 216.84 582.59 Q 207.38 573.02 207.38 558.87 Q 207.38 545.06 216.73 535.61 Q 226.08 526.15 239.89 526.15 Q 253.71 526.15 263.16 535.59 Q 272.62 545.03 272.62 558.97 Q 272.62 572.92 263.27 582.54 Q 253.92 592.15 240.11 592.15 Z M 721.54 592.15 L 686.62 557.23 Q 687.38 544.31 696.89 535.23 T 719.92 526.15 Q 733.82 526.15 743.22 535.55 T 752.62 558.85 Q 752.62 572.37 743.92 581.88 Q 735.23 591.38 721.54 592.15 Z M 120.23 579.77 Q 112 579.77 106 573.88 Q 100 568 100 559.15 Q 100 550.31 106 544.42 Q 112 538.54 120.23 538.54 Q 129.23 538.54 135.23 544.42 Q 141.23 550.31 141.23 559.15 Q 141.23 568 135.23 573.88 Q 129.23 579.77 120.23 579.77 Z M 839.77 579.77 Q 830.77 579.77 824.77 573.88 Q 818.77 568 818.77 559.15 Q 818.77 550.31 824.77 544.42 Q 830.77 538.54 839.77 538.54 Q 848 538.54 854 544.42 Q 860 550.31 860 559.15 Q 860 568 854 573.88 Q 848 579.77 839.77 579.77 Z M 573.92 443.77 L 516.23 386.08 Q 520.69 372.82 532.77 364.25 Q 544.85 355.69 559.15 355.69 Q 578.32 355.69 591.32 368.68 Q 604.31 381.68 604.31 400.85 Q 604.31 415.15 595.96 427.23 Q 587.62 439.31 573.92 443.77 Z M 240.11 433.85 Q 226.29 433.85 216.84 424.41 Q 207.38 414.97 207.38 401.03 Q 207.38 387.08 216.73 377.46 Q 226.08 367.85 239.89 367.85 Q 253.71 367.85 263.16 377.41 Q 272.62 386.98 272.62 401.13 Q 272.62 414.94 263.27 424.39 Q 253.92 433.85 240.11 433.85 Z M 720.11 433.85 Q 706.29 433.85 696.84 424.41 Q 687.38 414.97 687.38 401.03 Q 687.38 387.08 696.73 377.46 Q 706.08 367.85 719.89 367.85 Q 733.71 367.85 743.16 377.41 Q 752.62 386.98 752.62 401.13 Q 752.62 414.94 743.27 424.39 Q 733.92 433.85 720.11 433.85 Z M 120.23 421.46 Q 112 421.46 106 415.58 Q 100 409.69 100 400.85 Q 100 392 106 386.12 Q 112 380.23 120.23 380.23 Q 129.23 380.23 135.23 386.12 Q 141.23 392 141.23 400.85 Q 141.23 409.69 135.23 415.58 Q 129.23 421.46 120.23 421.46 Z M 839.77 421.46 Q 830.77 421.46 824.77 415.58 Q 818.77 409.69 818.77 400.85 Q 818.77 392 824.77 386.12 Q 830.77 380.23 839.77 380.23 Q 848 380.23 854 386.12 Q 860 392 860 400.85 Q 860 409.69 854 415.58 Q 848 421.46 839.77 421.46 Z M 558.87 272.62 Q 545.06 272.62 535.61 263.27 Q 526.15 253.92 526.15 240.11 Q 526.15 226.29 535.59 216.84 Q 545.03 207.38 558.97 207.38 Q 572.92 207.38 582.54 216.73 Q 592.15 226.08 592.15 239.89 Q 592.15 253.71 582.59 263.16 Q 573.02 272.62 558.87 272.62 Z M 402.77 273.38 L 367.85 238.46 Q 368.62 224.77 378.06 216.08 Q 387.5 207.38 401.67 207.38 Q 414.94 207.38 424.39 216.78 Q 433.85 226.18 433.85 240.08 T 424.77 263.3 Q 415.69 272.62 402.77 273.38 Z M 720.11 272.62 Q 706.29 272.62 696.84 263.27 Q 687.38 253.92 687.38 240.11 Q 687.38 226.29 696.73 216.84 Q 706.08 207.38 719.89 207.38 Q 733.71 207.38 743.16 216.73 Q 752.62 226.08 752.62 239.89 Q 752.62 253.71 743.27 263.16 Q 733.92 272.62 720.11 272.62 Z M 401.23 141.23 Q 392.23 141.23 386.23 135.35 Q 380.23 129.46 380.23 120.62 Q 380.23 111.77 386.23 105.88 Q 392.23 100 401.23 100 Q 409.46 100 415.46 105.88 Q 421.46 111.77 421.46 120.62 Q 421.46 129.46 415.46 135.35 Q 409.46 141.23 401.23 141.23 Z M 558.77 141.23 Q 550.54 141.23 544.54 135.35 Q 538.54 129.46 538.54 120.62 Q 538.54 111.77 544.54 105.88 Q 550.54 100 558.77 100 Q 567.77 100 573.77 105.88 Q 579.77 111.77 579.77 120.62 Q 579.77 129.46 573.77 135.35 Q 567.77 141.23 558.77 141.23 Z",
     "revanced_disable_ambient_mode_in_fullscreen" to "M 480 846.15 Q 452.15 846.15 431.96 827.77 Q 411.77 809.38 407.46 781.31 L 552.54 781.31 Q 548.23 809.38 528.04 827.77 Q 507.85 846.15 480 846.15 Z M 480 143 Q 428.15 143 383.23 164.54 Q 338.31 186.08 307.38 221.15 L 286.15 199.15 Q 325.62 158.08 373.96 135.15 Q 422.31 112.23 480 112.23 Q 587.38 112.23 663.69 188.54 T 740 372.23 Q 740 432.69 716.27 480.31 Q 692.54 527.92 651.54 565.85 L 629.31 543.62 Q 662.54 515.77 685.88 471.5 Q 709.23 427.23 709.23 372.23 Q 709.23 277.08 642.19 210.04 Q 575.15 143 480 143 Z M 809.15 823.31 L 786.92 845.54 L 530.46 589.08 L 339.15 589.08 Q 283.46 549.46 251.73 495.19 Q 220 440.92 220 372.23 Q 220 350.46 223.77 327.77 T 233.31 291.92 L 107 166.38 L 129.23 144.15 L 809.15 823.31 Z M 349.62 558.31 L 499.92 558.31 L 258.15 315.77 Q 254.62 326.38 252.69 342.23 Q 250.77 358.08 250.77 372.23 Q 250.77 427.69 276.23 476.27 Q 301.69 524.85 349.62 558.31 Z M 371.69 429.31 Z M 464.92 379.46 Z M 619.69 669.31 L 619.69 700.08 L 338.77 700.08 L 338.77 669.31 L 619.69 669.31 Z",
-    "revanced_disable_auto_captions" to "morphe_preferred_caption_language",
+    "revanced_disable_auto_captions" to "captions_key",
     "revanced_disable_auto_player_popup_panels" to "M 258.31 662.92 L 701.69 662.92 L 701.69 589.46 L 258.31 589.46 L 258.31 662.92 Z M 175.38 760 Q 152.33 760 136.16 743.84 Q 120 727.67 120 704.62 L 120 255.38 Q 120 232.33 136.16 216.16 Q 152.33 200 175.38 200 L 784.62 200 Q 807.67 200 823.84 216.16 Q 840 232.33 840 255.38 L 840 704.62 Q 840 727.67 823.84 743.84 Q 807.67 760 784.62 760 L 175.38 760 Z M 175.38 729.23 L 784.62 729.23 Q 793.85 729.23 801.54 721.54 Q 809.23 713.85 809.23 704.62 L 809.23 255.38 Q 809.23 246.15 801.54 238.46 Q 793.85 230.77 784.62 230.77 L 175.38 230.77 Q 166.15 230.77 158.46 238.46 Q 150.77 246.15 150.77 255.38 L 150.77 704.62 Q 150.77 713.85 158.46 721.54 Q 166.15 729.23 175.38 729.23 Z M 150.77 729.23 L 150.77 230.77 L 150.77 729.23 Z",
     "revanced_disable_auto_switch_mix_playlists" to "M 576.77 760 L 576.77 729.23 L 708.31 729.23 L 545.85 567 L 567.08 544.77 L 729.23 706.46 L 729.23 579.31 L 760 579.31 L 760 760 L 576.77 760 Z M 222 760 L 200 737.77 L 707.23 230.77 L 576.77 230.77 L 576.77 200 L 760 200 L 760 380.69 L 729.23 380.69 L 729.23 253 L 222 760 Z M 388.08 409.31 L 200 221.46 L 221.46 200 L 410.31 387.85 L 388.08 409.31 Z",
     "revanced_disable_chapter_skip_double_tap" to "M 660 664.62 L 660 295.38 L 690.77 295.38 L 690.77 664.62 L 660 664.62 Z M 269.23 664.62 L 269.23 295.38 L 539.85 480 L 269.23 664.62 Z M 300 480 Z M 300 605.77 L 486.38 480 L 300 353.46 L 300 605.77 Z",
@@ -540,7 +499,6 @@ private val rvxPreferenceKey = mapOf(
     "revanced_fix_hype_button_icon" to "M 721.15 822 L 451.62 552 Q 427.85 562.31 403.67 568.85 Q 379.5 575.38 352.13 575.38 Q 261.91 575.38 198.76 512.21 Q 135.62 449.03 135.62 358.77 Q 135.62 335.46 140.55 312.94 Q 145.49 290.42 155.08 269.69 L 296.23 408.54 L 405.15 302.54 L 265.38 161.23 Q 286.04 151.54 307.78 145.77 Q 329.53 140 352.46 140 Q 443.94 140 507.97 203.79 Q 572 267.58 572 358.7 Q 572 387.38 565.85 411.54 Q 559.69 435.69 548.62 457.92 L 818.38 727.46 Q 826.31 735.61 826.31 748.3 Q 826.31 761 818.56 768.75 L 760.68 823.71 Q 753.23 831.46 741.15 830.69 Q 729.08 829.92 721.15 822 Z M 742.23 800.38 L 794.54 748.08 L 510 463.54 Q 525.23 441 533.23 413.65 Q 541.23 386.31 541.23 358.77 Q 541.23 279.15 476.5 217.92 Q 411.77 156.69 316.92 171.08 L 429.69 284.31 Q 437.92 292.47 437.42 303.85 Q 436.92 315.23 428.69 323.46 L 315.69 433.08 Q 307.26 441.08 296.01 441.08 Q 284.77 441.08 276.77 433.08 L 166.46 323 Q 154.85 429.23 216.84 486.92 Q 278.83 544.62 352.46 544.62 Q 378.74 544.62 406.1 537 T 456 513.38 L 742.23 800.38 Z M 473.69 476.77 Z",
     "revanced_fix_swipe_tap_and_hold_speed" to "M 721.15 822 L 451.62 552 Q 427.85 562.31 403.67 568.85 Q 379.5 575.38 352.13 575.38 Q 261.91 575.38 198.76 512.21 Q 135.62 449.03 135.62 358.77 Q 135.62 335.46 140.55 312.94 Q 145.49 290.42 155.08 269.69 L 296.23 408.54 L 405.15 302.54 L 265.38 161.23 Q 286.04 151.54 307.78 145.77 Q 329.53 140 352.46 140 Q 443.94 140 507.97 203.79 Q 572 267.58 572 358.7 Q 572 387.38 565.85 411.54 Q 559.69 435.69 548.62 457.92 L 818.38 727.46 Q 826.31 735.61 826.31 748.3 Q 826.31 761 818.56 768.75 L 760.68 823.71 Q 753.23 831.46 741.15 830.69 Q 729.08 829.92 721.15 822 Z M 742.23 800.38 L 794.54 748.08 L 510 463.54 Q 525.23 441 533.23 413.65 Q 541.23 386.31 541.23 358.77 Q 541.23 279.15 476.5 217.92 Q 411.77 156.69 316.92 171.08 L 429.69 284.31 Q 437.92 292.47 437.42 303.85 Q 436.92 315.23 428.69 323.46 L 315.69 433.08 Q 307.26 441.08 296.01 441.08 Q 284.77 441.08 276.77 433.08 L 166.46 323 Q 154.85 429.23 216.84 486.92 Q 278.83 544.62 352.46 544.62 Q 378.74 544.62 406.1 537 T 456 513.38 L 742.23 800.38 Z M 473.69 476.77 Z",
     "revanced_fix_transcript" to "M 215.38 760 Q 192.33 760 176.16 743.84 Q 160 727.67 160 704.62 L 160 255.38 Q 160 232.33 176.16 216.16 Q 192.33 200 215.38 200 L 744.62 200 Q 767.67 200 783.84 216.16 Q 800 232.33 800 255.38 L 800 704.62 Q 800 727.67 783.84 743.84 Q 767.67 760 744.62 760 L 215.38 760 Z M 215.38 729.23 L 744.62 729.23 Q 753.85 729.23 761.54 721.54 Q 769.23 713.85 769.23 704.62 L 769.23 255.38 Q 769.23 246.15 761.54 238.46 Q 753.85 230.77 744.62 230.77 L 215.38 230.77 Q 206.15 230.77 198.46 238.46 Q 190.77 246.15 190.77 255.38 L 190.77 704.62 Q 190.77 713.85 198.46 721.54 Q 206.15 729.23 215.38 729.23 Z M 306.15 587.46 L 405.85 587.46 Q 421.65 587.46 432.98 576.13 Q 444.31 564.81 444.31 549 L 444.31 532.38 L 413.54 532.38 L 413.54 544.38 Q 413.54 549 409.69 552.85 Q 405.85 556.69 401.23 556.69 L 310.77 556.69 Q 306.15 556.69 302.31 552.85 Q 298.46 549 298.46 544.38 L 298.46 415.62 Q 298.46 411 302.31 407.15 Q 306.15 403.31 310.77 403.31 L 401.23 403.31 Q 405.85 403.31 409.69 407.15 Q 413.54 411 413.54 415.62 L 413.54 429.15 L 444.31 429.15 L 444.31 411 Q 444.31 395.19 432.98 383.87 Q 421.65 372.54 405.85 372.54 L 306.15 372.54 Q 290.35 372.54 279.02 383.87 Q 267.69 395.19 267.69 411 L 267.69 549 Q 267.69 564.81 279.02 576.13 Q 290.35 587.46 306.15 587.46 Z M 555.15 587.46 L 654.08 587.46 Q 669.92 587.46 681.23 575.76 Q 692.54 564.06 692.54 549 L 692.54 532.38 L 661.77 532.38 L 661.77 544.38 Q 661.77 549 657.92 552.85 Q 654.08 556.69 649.46 556.69 L 559.77 556.69 Q 555.15 556.69 551.31 552.85 Q 547.46 549 547.46 544.38 L 547.46 415.62 Q 547.46 411 551.31 407.15 Q 555.15 403.31 559.77 403.31 L 649.46 403.31 Q 654.08 403.31 657.92 407.15 Q 661.77 411 661.77 415.62 L 661.77 429.15 L 692.54 429.15 L 692.54 411 Q 692.54 395.94 681.23 384.24 Q 669.92 372.54 654.08 372.54 L 555.15 372.54 Q 539.31 372.54 528 384.24 Q 516.69 395.94 516.69 411 L 516.69 549 Q 516.69 564.06 528 575.76 Q 539.31 587.46 555.15 587.46 Z M 190.77 729.23 L 190.77 230.77 L 190.77 729.23 Z",
-    // modified by lavinhoque33, 2026-10-15: icon for the ported Force system font setting.
     "revanced_force_system_font" to "morphe_custom_branding_name",
     "revanced_gemini_highlight_words" to "M 256.54 317.31 L 183.08 244.08 L 205.31 222.62 L 278.54 296.08 L 256.54 317.31 Z M 464.62 235.38 L 464.62 130.77 L 495.38 130.77 L 495.38 235.38 L 464.62 235.38 Z M 703.46 318.54 L 681.23 296.31 L 754.92 223.08 L 776.92 245.08 L 703.46 318.54 Z M 400 840 L 400 663.08 L 280 543.08 L 280 400 L 680 400 L 680 543.08 L 560 663.08 L 560 840 L 400 840 Z M 430.77 809.23 L 529.23 809.23 L 529.23 649.62 L 649.23 529.62 L 649.23 430.77 L 310.77 430.77 L 310.77 529.62 L 430.77 649.62 L 430.77 809.23 Z M 480 620 Z",
     "revanced_gemini_transcribe_subtitles_font_size" to "M 597.69 760 L 597.69 240.77 L 396.15 240.77 L 396.15 200 L 840 200 L 840 240.77 L 638.46 240.77 L 638.46 760 L 597.69 760 Z M 243.08 760 L 243.08 436.92 L 120 436.92 L 120 396.15 L 406.15 396.15 L 406.15 436.92 L 283.08 436.92 L 283.08 760 L 243.08 760 Z",
@@ -970,6 +928,220 @@ private val rvxPreferenceKey = mapOf(
     "vot_target_language" to "M 480.23 818.46 L 446.15 716.97 L 209.23 716.97 Q 180.08 716.97 160.81 697.71 Q 141.54 678.45 141.54 649.31 L 141.54 209.52 Q 141.54 180.38 160.81 160.96 T 209.23 141.54 L 412.31 141.54 L 441.92 243.2 L 750.77 243.2 Q 780.38 243.2 799.42 262.11 Q 818.46 281.03 818.46 310.46 L 818.46 750.48 Q 818.46 779.62 799.48 799.04 T 750.97 818.46 L 480.23 818.46 Z M 316.27 567.85 Q 375.23 567.85 412.31 529.91 Q 449.38 491.98 449.38 432.23 L 449.38 417.5 Q 449.38 412.54 447.67 409.08 L 313 409.08 L 313 460.85 L 389.15 460.85 Q 382.69 485.18 363.65 498.51 Q 344.62 511.85 317.46 511.85 Q 284.37 511.85 260.61 487.79 Q 236.85 463.73 236.85 429.23 T 260.46 370.67 Q 284.08 346.62 316.71 346.62 Q 332.55 346.62 345.75 351.96 Q 358.95 357.31 370.32 368.77 L 411.31 329.69 Q 394.38 311.54 368.95 301.08 T 315.86 290.62 Q 259 290.62 218.81 331.31 T 178.62 429.23 Q 178.62 486.46 219.2 527.15 Q 259.79 567.85 316.27 567.85 Z M 542.87 584.54 L 561.62 566.62 Q 550.69 551.92 539.85 538.73 Q 529 525.54 520.31 510.62 L 542.87 584.54 Z M 584.96 541.23 Q 608.4 512.65 621.32 487.36 Q 634.24 462.08 637.77 448.15 L 503.38 448.15 L 513.15 484.15 L 546.49 484.15 Q 553.15 496.62 562.55 510.98 Q 571.95 525.34 584.96 541.23 Z M 514.08 784.62 L 750.77 784.62 Q 765.77 784.62 775.19 774.87 Q 784.62 765.13 784.62 750.72 L 784.62 310.84 Q 784.62 295.85 775.2 286.27 Q 765.79 276.69 750.8 276.69 L 452.62 276.69 L 492.02 414.31 L 558.65 414.31 L 558.65 378.46 L 593.23 378.46 L 593.23 414.31 L 717.15 414.31 L 717.15 448.15 L 673.64 448.15 Q 666.15 480 649.23 510.77 Q 632.31 541.53 609.15 568.05 L 701.23 658.57 L 676.85 683.08 L 584.77 592 L 554.15 622.62 L 581.77 716.92 L 514.08 784.62 Z",
     "vot_translation_volume" to "M 563.08 779.77 L 563.08 747 Q 650.08 716.69 703.5 643.35 Q 756.92 570 756.92 479 T 703.62 314.15 Q 650.31 240.31 563.08 211 L 563.08 178.23 Q 662.46 210.08 725.08 292.58 Q 787.69 375.08 787.69 479 Q 787.69 582.92 725.08 665.42 Q 662.46 747.92 563.08 779.77 Z M 172.31 560 L 172.31 400 L 309.23 400 L 452.31 256.92 L 452.31 703.08 L 309.23 560 L 172.31 560 Z M 553.85 615.69 L 553.85 342.54 Q 591.92 361.85 612.12 399.23 Q 632.31 436.62 632.31 480 Q 632.31 523.15 611.62 559.77 Q 590.92 596.38 553.85 615.69 Z M 421.54 334.31 L 323.15 430.77 L 203.08 430.77 L 203.08 529.23 L 323.15 529.23 L 421.54 625.92 L 421.54 334.31 Z M 324.46 480 Z",
     "vot_use_live_voices" to "M 312.69 684.62 L 312.69 275.38 L 343.46 275.38 L 343.46 684.62 L 312.69 684.62 Z M 464.62 840 L 464.62 120 L 495.38 120 L 495.38 840 L 464.62 840 Z M 160 532.31 L 160 427.69 L 190.77 427.69 L 190.77 532.31 L 160 532.31 Z M 617.31 684.62 L 617.31 275.38 L 648.08 275.38 L 648.08 684.62 L 617.31 684.62 Z M 769.23 532.31 L 769.23 427.69 L 800 427.69 L 800 532.31 L 769.23 532.31 Z",
+
+    // Sub-settings share a related leaf drawable, never another alias.
+    "morphe_aislist_submit_username" to "account_switcher_key",
+    "morphe_app_refresh_rate_type" to "morphe_app_refresh_rate",
+    "morphe_auto_translate_additional_languages" to "vot_source_language",
+    "morphe_custom_branding_apply_to_rvx_settings" to "morphe_custom_branding_icon",
+    "morphe_custom_branding_splash_animation_size" to "morphe_custom_dpi",
+    "morphe_custom_branding_use_as_system_splash" to "morphe_custom_branding_icon",
+    "morphe_dark_theme_custom_color" to "morphe_dark_theme",
+    "morphe_dearrow_casual_mode" to "morphe_restore_original_titles",
+    "morphe_dearrow_casual_mode_min_votes" to "sb_voting_button",
+    "morphe_dearrow_titles_icon" to "morphe_restore_original_titles",
+    "morphe_disable_icon_only_navigation_buttons" to "revanced_hide_navigation_label",
+    "morphe_disable_system_splash" to "morphe_custom_branding_icon",
+    "morphe_disable_toolbar_navigation_tabs" to "revanced_preference_screen_toolbar",
+    "morphe_fullscreen_video_scale" to "revanced_preference_screen_fullscreen",
+    "morphe_fullscreen_video_scale_button_fullscreen_only" to "revanced_preference_screen_fullscreen",
+    "morphe_hide_aislist_about" to "about_key",
+    "morphe_hide_aislist_attribution" to "about_key",
+    "morphe_light_theme_custom_color" to "morphe_light_theme",
+    "morphe_music_package_name" to "revanced_hide_player_youtube_music_button",
+    "morphe_notification_dot_color" to "revanced_enable_custom_seekbar_color",
+    "morphe_player_control_buttons_background_opacity" to "revanced_swipe_overlay_background_opacity",
+    "morphe_proxy_auth_username" to "account_switcher_key",
+    "morphe_proxy_host" to "sb_api_url",
+    "morphe_replace_links_with_shortener" to "revanced_bypass_url_redirects",
+    "morphe_save_to_watch_later_shorts_flyout_button" to "morphe_save_to_watch_later_button",
+    "morphe_settings_name" to "morphe_custom_branding_name",
+    "morphe_skip_silence_minimum_pause" to "morphe_skip_silence",
+    "morphe_spoof_video_streams_client_type" to "morphe_spoof_video_streams",
+    "morphe_spoof_video_streams_player_js_variant" to "revanced_debug",
+    "morphe_swap_save_and_queue_actions" to "revanced_override_play_next_in_queue",
+    "morphe_theme_color_change_foreground" to "revanced_enable_custom_seekbar_color",
+    "morphe_video_quality_prioritize" to "video_quality_settings_key",
+    "morphe_volume_boost" to "vot_translation_volume",
+    "morphe_vot_mymemory_info" to "about_key",
+    "morphe_vot_openrouter_api_key" to "morphe_proxy_auth_password",
+    "morphe_vot_openrouter_info" to "about_key",
+    "morphe_vot_openrouter_model" to "revanced_preference_screen_vot_google",
+    "revanced_advanced_video_quality_menu" to "video_quality_settings_key",
+    "revanced_advanced_video_quality_menu_type" to "video_quality_settings_key",
+    "revanced_alt_thumbnail_dearrow_api_url" to "sb_api_url",
+    "revanced_alt_thumbnail_stills_time" to "revanced_append_time_stamp_information",
+    "revanced_app_name" to "morphe_custom_branding_name",
+    "revanced_append_time_stamp_information_playback_speed_menu_type" to "revanced_overlay_button_speed_dialog",
+    "revanced_append_time_stamp_information_type" to "revanced_append_time_stamp_information",
+    "revanced_append_time_stamp_information_video_quality_menu_type" to "video_quality_settings_key",
+    "revanced_change_start_page_type" to "revanced_change_start_page",
+    "revanced_custom_playback_audio_pitches" to "revanced_default_playback_audio_pitch",
+    "revanced_custom_playback_speed_menu_type" to "revanced_overlay_button_speed_dialog",
+    "revanced_custom_playback_speeds" to "revanced_overlay_button_speed_dialog",
+    "revanced_custom_seekbar_color_accent" to "revanced_enable_custom_seekbar_color",
+    "revanced_custom_seekbar_color_primary" to "revanced_enable_custom_seekbar_color",
+    "revanced_debug_protobuffer" to "revanced_debug",
+    "revanced_debug_spannable" to "revanced_debug",
+    "revanced_debug_toast_on_error" to "revanced_debug",
+    "revanced_default_video_quality_mobile" to "revanced_default_video_quality_wifi",
+    "revanced_default_video_quality_mobile_shorts" to "revanced_default_video_quality_wifi_shorts",
+    "revanced_disable_default_playback_speed_music_type" to "revanced_disable_default_playback_speed_music",
+    "revanced_disable_like_dislike_glow" to "revanced_disable_rolling_number_animations",
+    "revanced_enable_custom_playback_speed" to "revanced_overlay_button_speed_dialog",
+    "revanced_enable_playback_audio_pitch_controls" to "revanced_default_playback_audio_pitch",
+    "revanced_enable_wide_search_bar_in_you_tab" to "revanced_enable_wide_search_bar",
+    "revanced_enable_wide_search_bar_with_header" to "revanced_enable_wide_search_bar",
+    "revanced_external_downloader_package_name_playlist" to "revanced_overlay_button_external_downloader",
+    "revanced_external_downloader_package_name_video" to "revanced_overlay_button_external_downloader",
+    "revanced_external_downloader_package_name_video_long_press" to "revanced_overlay_button_external_downloader",
+    "revanced_feed_card_layout_dynamic_colors" to "revanced_enable_gradient_loading_screen",
+    "revanced_force_hdr_video" to "video_quality_settings_key",
+    "revanced_gms_show_dialog" to "gms_core_settings",
+    "revanced_hide_account_menu_filter_strings" to "revanced_custom_filter_strings",
+    "revanced_hide_account_menu_filter_type" to "revanced_hide_account_menu",
+    "revanced_hide_carousel_shelf_about" to "about_key",
+    "revanced_hide_channel_tab_filter_strings" to "revanced_custom_filter_strings",
+    "revanced_hide_comments_carousel_filter_strings" to "revanced_custom_filter_strings",
+    "revanced_hide_feed_flyout_menu_filter_strings" to "revanced_custom_filter_strings",
+    "revanced_hide_feed_flyout_menu_filter_type" to "revanced_hide_feed_flyout_menu",
+    "revanced_hide_keyword_content_phrases" to "revanced_custom_filter_strings",
+    "revanced_hide_live_chat_replay_button" to "revanced_hide_live_chat_messages",
+    "revanced_hide_player_flyout_menu_captions_footer" to "captions_key",
+    "revanced_hide_player_flyout_menu_quality_footer" to "video_quality_settings_key",
+    "revanced_hide_player_flyout_menu_quality_header" to "video_quality_settings_key",
+    "revanced_hide_preview_comment_type" to "revanced_hide_preview_comment",
+    "revanced_hide_shorts_paused_overlay_buttons" to "revanced_disable_resuming_miniplayer",
+    "revanced_hide_shorts_preview_comment" to "revanced_hide_preview_comment",
+    "revanced_hide_subscribed_channels_bar_names" to "revanced_hide_subscribed_channels_bar",
+    "revanced_keep_landscape_mode_timeout" to "revanced_keep_landscape_mode",
+    "revanced_miniplayer_disable_horizontal_drag_playback" to "revanced_swipe_horizontal_zone",
+    "revanced_miniplayer_disable_horizontal_reposition" to "revanced_swipe_horizontal_zone",
+    "revanced_miniplayer_double_tap_action" to "revanced_enable_seekbar_tapping",
+    "revanced_miniplayer_drag_and_drop" to "revanced_swipe_press_to_engage",
+    "revanced_miniplayer_hide_overlay_buttons" to "revanced_preference_screen_player_buttons",
+    "revanced_miniplayer_hide_rewind_forward" to "morphe_seek_notification_media_prev_next",
+    "revanced_miniplayer_hide_subtext" to "revanced_hide_shorts_video_title",
+    "revanced_miniplayer_hide_title" to "morphe_custom_branding_name",
+    "revanced_miniplayer_horizontal_drag" to "revanced_swipe_horizontal_zone",
+    "revanced_miniplayer_opacity" to "revanced_swipe_overlay_background_opacity",
+    "revanced_miniplayer_rounded_corners" to "morphe_feed_card_layout_corner_radius",
+    "revanced_miniplayer_width_dip" to "morphe_custom_dpi",
+    "revanced_overlay_button_external_downloader_queue_manager" to "morphe_local_queue",
+    "revanced_overlay_button_gemini_about" to "about_key",
+    "revanced_overlay_button_gemini_summarize_api_key" to "morphe_proxy_auth_password",
+    "revanced_overlay_button_loop_segment_marker_size" to "revanced_overlay_button_loop_segment",
+    "revanced_overlay_button_loop_segment_seekbar" to "revanced_preference_screen_seekbar",
+    "revanced_overlay_button_play_all_type" to "revanced_overlay_button_play_all",
+    "revanced_overlay_button_speed_dialog_type" to "revanced_overlay_button_speed_dialog",
+    "revanced_override_video_download_button_queue_manager" to "morphe_local_queue",
+    "revanced_patches_version" to "revanced_app_version",
+    "revanced_playback_audio_time_stretching" to "revanced_default_playback_audio_pitch",
+    "revanced_remember_playback_speed_last_selected" to "revanced_overlay_button_speed_dialog",
+    "revanced_remember_playback_speed_last_selected_toast" to "revanced_hide_server_side_snack_bar",
+    "revanced_remember_playback_speed_shorts_last_selected" to "revanced_default_playback_speed_shorts",
+    "revanced_remember_playback_speed_shorts_last_selected_toast" to "revanced_hide_server_side_snack_bar",
+    "revanced_remember_video_quality_last_selected" to "revanced_default_video_quality_wifi",
+    "revanced_remember_video_quality_last_selected_toast" to "revanced_hide_server_side_snack_bar",
+    "revanced_remember_video_quality_shorts_last_selected" to "revanced_default_video_quality_wifi_shorts",
+    "revanced_remember_video_quality_shorts_last_selected_toast" to "revanced_hide_server_side_snack_bar",
+    "revanced_remix_button_index" to "revanced_hide_shorts_remix_button",
+    "revanced_return_youtube_username_display_format" to "morphe_custom_branding_name",
+    "revanced_return_youtube_username_youtube_data_api_v3_developer_key" to "morphe_proxy_auth_password",
+    "revanced_ryd_attribution" to "about_key",
+    "revanced_sb_about_api" to "about_key",
+    "revanced_search_in_channel_use_webview" to "revanced_set_transcript_cookies",
+    "revanced_set_transcript_cookies_all" to "revanced_set_transcript_cookies",
+    "revanced_shorts_autoplay_background" to "revanced_shorts_autoplay",
+    "revanced_shorts_custom_actions_speed_dialog_type" to "revanced_overlay_button_speed_dialog",
+    "revanced_shorts_double_tap_to_like_animation" to "revanced_hide_quick_actions_like_button",
+    "revanced_shorts_navigation_bar_height_percentage" to "revanced_preference_screen_navigation_bar",
+    "revanced_show_settings_button_type" to "revanced_preference_screen_settings_menu",
+    "revanced_show_toolbar_settings_button_index" to "revanced_preference_screen_settings_menu",
+    "revanced_show_toolbar_settings_button_type" to "revanced_preference_screen_settings_menu",
+    "revanced_show_toolbar_settings_button_type_in_you_tab" to "revanced_preference_screen_settings_menu",
+    "revanced_speed_overlay_value" to "revanced_overlay_button_speed_dialog",
+    "revanced_spoof_app_version_target" to "revanced_spoof_app_version",
+    "revanced_spoof_device_dimensions" to "revanced_change_form_factor",
+    "revanced_swipe_brightness_distance" to "revanced_swipe_threshold",
+    "revanced_swipe_delay" to "revanced_swipe_overlay_timeout",
+    "revanced_swipe_horizontal_zone_preview" to "revanced_swipe_horizontal_zone",
+    "revanced_swipe_seek_distance" to "revanced_swipe_threshold",
+    "revanced_swipe_speed_distance" to "revanced_swipe_threshold",
+    "revanced_swipe_vertical_zone_preview" to "revanced_swipe_horizontal_zone",
+    "revanced_swipe_volume_distance" to "revanced_swipe_threshold",
+    "revanced_swipe_volumes_sensitivity" to "revanced_swipe_threshold",
+    "revanced_transcript_cookies" to "revanced_set_transcript_cookies",
+    "revanced_transcript_cookies_about" to "about_key",
+    "revanced_watch_next_processing_delay" to "revanced_enable_watch_next_processing_delay",
+    "revanced_whitelist_settings" to "revanced_overlay_button_whitelist",
+    "revanced_yandex_transcribe_subtitles_language" to "vot_source_language",
+    "vot_oauth_token" to "morphe_proxy_auth_password",
+    "vot_proxy_url" to "sb_api_url",
+    "vot_proxy_url_fetch" to "morphe_reload_video",
+
+    // Original 960-unit glyphs with the same thin, filled outlines as the Regular icons.
+    "morphe_feed_card_layout_corner_radius" to
+        "M 200 760 L 200 200 L 560 200 Q 760 200 760 400 L 760 760 Z " +
+        "M 231 729 L 729 729 L 729 400 Q 729 231 560 231 L 231 231 Z " +
+        "M 480 320 L 560 320 Q 640 320 640 400 L 640 480 L 609 480 L 609 400 " +
+        "Q 609 351 560 351 L 480 351 Z",
+    "morphe_proxy_auth_password" to
+        "M 300 300 A 180 180 0 1 0 470 540 L 600 540 L 600 660 L 631 660 " +
+        "L 631 540 L 729 540 L 729 620 L 760 620 L 760 509 L 451 509 " +
+        "A 149 149 0 1 1 451 451 L 840 451 L 840 420 L 470 420 " +
+        "A 180 180 0 0 0 300 300 Z M 240 451 L 301 451 L 301 482 L 240 482 Z",
+    "morphe_proxy_port" to
+        "M 350 180 L 381 180 L 341 360 L 581 360 L 621 180 L 652 180 L 612 360 " +
+        "L 780 360 L 780 391 L 605 391 L 565 571 L 740 571 L 740 602 L 558 602 " +
+        "L 518 782 L 487 782 L 527 602 L 287 602 L 247 782 L 216 782 L 256 602 " +
+        "L 100 602 L 100 571 L 263 571 L 303 391 L 140 391 L 140 360 L 310 360 Z " +
+        "M 334 391 L 294 571 L 534 571 L 574 391 Z",
+    "morphe_seek_notification_media_fast_forward_length" to
+        "M 220 220 L 650 460 L 220 700 Z M 251 273 L 251 647 L 587 460 Z " +
+        "M 709 220 L 740 220 L 740 700 L 709 700 Z " +
+        "M 180 780 L 780 780 L 780 811 L 180 811 Z M 449 720 L 480 720 L 480 840 L 449 840 Z",
+    "morphe_seek_notification_media_rewind_length" to
+        "M 740 220 L 310 460 L 740 700 Z M 709 273 L 709 647 L 373 460 Z " +
+        "M 220 220 L 251 220 L 251 700 L 220 700 Z " +
+        "M 180 780 L 780 780 L 780 811 L 180 811 Z M 449 720 L 480 720 L 480 840 L 449 840 Z",
+    "morphe_vot_mymemory_email" to
+        "M 160 240 L 800 240 L 800 720 L 160 720 Z " +
+        "M 191 289 L 191 689 L 769 689 L 769 289 L 480 500 Z " +
+        "M 219 271 L 480 462 L 741 271 Z",
+    "revanced_app_version" to
+        "M 200 240 L 760 240 L 760 720 L 200 720 Z M 231 271 L 231 689 L 729 689 L 729 271 Z " +
+        "M 320 360 L 353 360 L 480 595 L 607 360 L 640 360 L 496 630 L 464 630 Z",
+    "revanced_custom_filter_strings" to
+        "M 160 220 L 800 220 L 800 251 L 160 251 Z M 160 360 L 560 360 L 560 391 L 160 391 Z " +
+        "M 160 500 L 480 500 L 480 531 L 160 531 Z M 160 640 L 400 640 L 400 671 L 160 671 Z " +
+        "M 550 480 L 850 480 L 731 620 L 731 760 L 669 800 L 669 620 Z " +
+        "M 617 511 L 700 609 L 700 743 L 700 609 L 783 511 Z",
+    "revanced_gradient_seekbar_positions" to
+        "M 120 465 L 280 465 L 280 300 L 311 300 L 311 660 L 280 660 L 280 496 L 120 496 Z " +
+        "M 311 465 L 649 465 L 649 496 L 311 496 Z M 649 300 L 680 300 L 680 465 " +
+        "L 840 465 L 840 496 L 680 496 L 680 660 L 649 660 Z",
+    "revanced_hide_keyword_content_use_and_operator" to
+        "M 380 240 A 240 240 0 1 0 380 720 A 240 240 0 1 0 380 240 Z " +
+        "M 380 271 A 209 209 0 1 1 380 689 A 209 209 0 1 1 380 271 Z " +
+        "M 580 240 A 240 240 0 1 0 580 720 A 240 240 0 1 0 580 240 Z " +
+        "M 580 271 A 209 209 0 1 1 580 689 A 209 209 0 1 1 580 271 Z",
+    "revanced_hide_video_view_counts_greater_than" to
+        "M 280 220 L 720 460 L 280 700 L 265 673 L 655 460 L 265 247 Z",
+    "revanced_hide_video_view_counts_less_than" to
+        "M 680 220 L 240 460 L 680 700 L 695 673 L 305 460 L 695 247 Z",
+    "revanced_hide_video_view_counts_multiplier" to
+        "M 260 240 L 480 460 L 700 240 L 722 262 L 502 482 L 722 702 L 700 724 " +
+        "L 480 504 L 260 724 L 238 702 L 458 482 L 238 262 Z",
+    "revanced_patched_date" to
+        "M 200 220 L 320 220 L 320 140 L 351 140 L 351 220 L 609 220 L 609 140 " +
+        "L 640 140 L 640 220 L 760 220 L 760 800 L 200 800 Z M 231 251 L 231 340 " +
+        "L 729 340 L 729 251 Z M 231 371 L 231 769 L 729 769 L 729 371 Z " +
+        "M 320 460 L 420 460 L 420 560 L 320 560 Z M 540 620 L 640 620 L 640 720 L 540 720 Z",
+    "revanced_quick_actions_top_margin" to
+        "M 160 180 L 800 180 L 800 211 L 160 211 Z M 465 550 L 465 310 L 362 413 " +
+        "L 340 391 L 480 251 L 620 391 L 598 413 L 496 310 L 496 550 Z " +
+        "M 160 620 L 800 620 L 800 800 L 160 800 Z M 191 651 L 191 769 L 769 769 L 769 651 Z",
 )
 
 private val intentKey = setOf(
@@ -978,173 +1150,3 @@ private val intentKey = setOf(
 
 val intentIcon = intentKey.associateWith { "${it}_icon" }
 
-private val emptyTitles = setOf(
-    "morphe_aislist_submit_username",
-    "morphe_app_refresh_rate_type",
-    "morphe_auto_translate_additional_languages",
-    "morphe_custom_branding_apply_to_rvx_settings",
-    "morphe_custom_branding_splash_animation_size",
-    "morphe_custom_branding_use_as_system_splash",
-    "morphe_dark_theme_custom_color",
-    "morphe_dearrow_casual_mode",
-    "morphe_dearrow_casual_mode_min_votes",
-    "morphe_dearrow_titles_icon",
-    "morphe_disable_icon_only_navigation_buttons",
-    "morphe_disable_system_splash",
-    "morphe_disable_toolbar_navigation_tabs",
-    "morphe_fullscreen_video_scale",
-    "morphe_fullscreen_video_scale_button_fullscreen_only",
-    "morphe_hide_aislist_about",
-    "morphe_hide_aislist_attribution",
-    "morphe_hide_aislist_stats_category",
-    "morphe_light_theme_custom_color",
-    "morphe_music_package_name",
-    "morphe_notification_dot_color",
-    "morphe_player_control_buttons_background_opacity",
-    "morphe_proxy_auth_password",
-    "morphe_proxy_auth_username",
-    "morphe_proxy_host",
-    "morphe_proxy_port",
-    "morphe_replace_links_with_shortener",
-    "morphe_save_to_watch_later_shorts_flyout_button",
-    "morphe_seek_notification_media_fast_forward_length",
-    "morphe_seek_notification_media_rewind_length",
-    "morphe_settings_name",
-    "morphe_skip_silence_minimum_pause",
-    "morphe_spoof_video_streams_client_type",
-    "morphe_spoof_video_streams_player_js_variant",
-    "morphe_swap_save_and_queue_actions",
-    "morphe_theme_color_change_foreground",
-    "morphe_video_quality_prioritize",
-    "morphe_volume_boost",
-    "morphe_vot_mymemory_email",
-    "morphe_vot_mymemory_info",
-    "morphe_vot_openrouter_api_key",
-    "morphe_vot_openrouter_info",
-    "morphe_vot_openrouter_model",
-    "revanced_advanced_video_quality_menu",
-    "revanced_advanced_video_quality_menu_type",
-    "revanced_alt_thumbnail_dearrow_api_url",
-    "revanced_alt_thumbnail_stills_time",
-    "revanced_app_name",
-    "revanced_app_version",
-    "revanced_append_time_stamp_information_playback_speed_menu_type",
-    "revanced_append_time_stamp_information_type",
-    "revanced_append_time_stamp_information_video_quality_menu_type",
-    "revanced_change_start_page_type",
-    "revanced_custom_filter_strings",
-    "revanced_custom_playback_audio_pitches",
-    "revanced_custom_playback_speed_menu_type",
-    "revanced_custom_playback_speeds",
-    "revanced_custom_seekbar_color_accent",
-    "revanced_custom_seekbar_color_primary",
-    "revanced_debug_protobuffer",
-    "revanced_debug_spannable",
-    "revanced_debug_toast_on_error",
-    "revanced_default_video_quality_mobile",
-    "revanced_default_video_quality_mobile_shorts",
-    "revanced_disable_default_playback_speed_music_type",
-    "revanced_disable_like_dislike_glow",
-    "revanced_enable_custom_playback_speed",
-    "revanced_enable_playback_audio_pitch_controls",
-    "revanced_enable_wide_search_bar_in_you_tab",
-    "revanced_enable_wide_search_bar_with_header",
-    "revanced_external_downloader_package_name_playlist",
-    "revanced_external_downloader_package_name_video",
-    "revanced_external_downloader_package_name_video_long_press",
-    "revanced_force_hdr_video",
-    "revanced_gms_show_dialog",
-    "revanced_gradient_seekbar_positions",
-    "revanced_hide_account_menu_filter_strings",
-    "revanced_hide_account_menu_filter_type",
-    "revanced_hide_carousel_shelf_about",
-    "revanced_hide_channel_tab_filter_strings",
-    "revanced_hide_comments_carousel_filter_strings",
-    "revanced_hide_feed_flyout_menu_filter_strings",
-    "revanced_hide_feed_flyout_menu_filter_type",
-    "revanced_hide_keyword_content_phrases",
-    "revanced_hide_keyword_content_use_and_operator",
-    "revanced_hide_live_chat_replay_button",
-    "revanced_hide_player_flyout_menu_captions_footer",
-    "revanced_hide_player_flyout_menu_quality_footer",
-    "revanced_hide_player_flyout_menu_quality_header",
-    "revanced_hide_preview_comment_type",
-    "revanced_hide_shorts_paused_overlay_buttons",
-    "revanced_hide_shorts_preview_comment",
-    "revanced_hide_subscribed_channels_bar_names",
-    "revanced_hide_video_view_counts_greater_than",
-    "revanced_hide_video_view_counts_less_than",
-    "revanced_hide_video_view_counts_multiplier",
-    "revanced_keep_landscape_mode_timeout",
-    "revanced_miniplayer_disable_horizontal_drag_playback",
-    "revanced_miniplayer_disable_horizontal_reposition",
-    "revanced_miniplayer_double_tap_action",
-    "revanced_miniplayer_drag_and_drop",
-    "revanced_miniplayer_hide_overlay_buttons",
-    "revanced_miniplayer_hide_rewind_forward",
-    "revanced_miniplayer_hide_subtext",
-    "revanced_miniplayer_hide_title",
-    "revanced_miniplayer_horizontal_drag",
-    "revanced_miniplayer_opacity",
-    "revanced_miniplayer_rounded_corners",
-    "revanced_miniplayer_width_dip",
-    "revanced_overlay_button_external_downloader_queue_manager",
-    "revanced_overlay_button_gemini_about",
-    "revanced_overlay_button_gemini_summarize_api_key",
-    "revanced_overlay_button_loop_segment_marker_size",
-    "revanced_overlay_button_loop_segment_seekbar",
-    "revanced_overlay_button_play_all_type",
-    "revanced_overlay_button_speed_dialog_type",
-    "revanced_override_video_download_button_queue_manager",
-    "revanced_patched_date",
-    "revanced_patches_version",
-    "revanced_playback_audio_time_stretching",
-    "revanced_quick_actions_top_margin",
-    "revanced_remember_playback_speed_last_selected",
-    "revanced_remember_playback_speed_last_selected_toast",
-    "revanced_remember_playback_speed_shorts_last_selected",
-    "revanced_remember_playback_speed_shorts_last_selected_toast",
-    "revanced_remember_video_quality_last_selected",
-    "revanced_remember_video_quality_last_selected_toast",
-    "revanced_remember_video_quality_shorts_last_selected",
-    "revanced_remember_video_quality_shorts_last_selected_toast",
-    "revanced_remix_button_index",
-    "revanced_return_youtube_username_display_format",
-    "revanced_return_youtube_username_youtube_data_api_v3_developer_key",
-    "revanced_ryd_attribution",
-    "revanced_sb_about_api",
-    "revanced_search_in_channel_use_webview",
-    "revanced_set_transcript_cookies_all",
-    "revanced_shorts_autoplay_background",
-    "revanced_shorts_custom_actions_speed_dialog_type",
-    "revanced_shorts_double_tap_to_like_animation",
-    "revanced_shorts_navigation_bar_height_percentage",
-    "revanced_show_settings_button_type",
-    "revanced_show_toolbar_settings_button_index",
-    "revanced_show_toolbar_settings_button_type",
-    "revanced_show_toolbar_settings_button_type_in_you_tab",
-    "revanced_show_toolbar_settings_button_type_in_you_tab",
-    "revanced_speed_overlay_value",
-    "revanced_spoof_app_version_target",
-    "revanced_spoof_device_dimensions",
-    "revanced_swipe_brightness_distance",
-    "revanced_swipe_delay",
-    "revanced_swipe_horizontal_zone_preview",
-    "revanced_swipe_overlay_progress_brightness_color",
-    "revanced_swipe_overlay_progress_seek_color",
-    "revanced_swipe_overlay_progress_speed_color",
-    "revanced_swipe_overlay_progress_volume_color",
-    "revanced_swipe_seek_distance",
-    "revanced_swipe_speed_distance",
-    "revanced_swipe_vertical_zone_preview",
-    "revanced_swipe_volume_distance",
-    "revanced_swipe_volumes_sensitivity",
-    "revanced_transcript_cookies",
-    "revanced_transcript_cookies_about",
-    "revanced_watch_next_processing_delay",
-    "revanced_whitelist_settings",
-    "revanced_yandex_transcribe_subtitles_language",
-    "vot_oauth_token",
-    "vot_proxy_url",
-    "vot_proxy_url_fetch",
-)

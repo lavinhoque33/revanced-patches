@@ -9,6 +9,7 @@
  * - inotia00 (https://github.com/inotia00)
  *
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-10-27
  *
  * ------------------------------------------------------------------------
  * GPLv3 Section 7 – Additional Terms & Attribution Requirements
@@ -51,6 +52,7 @@ import app.morphe.patcher.patch.stringOption
 import app.morphe.patcher.util.proxy.mutableTypes.MutableMethod.Companion.toMutable
 import app.morphe.patcher.util.smali.ExternalLabel
 import app.morphe.patches.music.layout.hide.settingsmenu.SettingsHeadersOnCreatePreferencesFingerprint
+import app.morphe.patches.music.layout.visual.applyVisualPreferenceIcons
 import app.morphe.patches.music.utils.compatibility.Constants.COMPATIBILITY_YOUTUBE_MUSIC
 import app.morphe.patches.music.utils.extension.Constants.EXTENSION_PATH
 import app.morphe.patches.music.utils.extension.Constants.UTILS_PATH
@@ -58,6 +60,7 @@ import app.morphe.patches.music.utils.extension.sharedExtensionPatch
 import app.morphe.patches.music.utils.mainactivity.mainActivityResolvePatch
 import app.morphe.patches.music.utils.patch.PatchList.GMSCORE_SUPPORT
 import app.morphe.patches.music.utils.patch.PatchList.SETTINGS_FOR_YOUTUBE_MUSIC
+import app.morphe.patches.music.utils.patch.PatchList.VISUAL_PREFERENCES_ICONS_FOR_YOUTUBE_MUSIC
 import app.morphe.patches.music.utils.playservice.is_6_39_or_greater
 import app.morphe.patches.music.utils.playservice.is_8_40_or_greater
 import app.morphe.patches.music.utils.playservice.versionCheckPatch
@@ -512,6 +515,10 @@ val settingsPatch = resourcePatch(
          */
         CategoryType.entries.sorted().forEach {
             ResourceUtils.sortPreferenceCategory(it.value)
+        }
+
+        if (VISUAL_PREFERENCES_ICONS_FOR_YOUTUBE_MUSIC.included == true) {
+            applyVisualPreferenceIcons()
         }
 
         ResourceUtils.writeSearchPreferenceFile()

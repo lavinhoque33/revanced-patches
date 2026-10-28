@@ -2,8 +2,7 @@
 
 ### Bug Fixes
 
-* **YouTube - Feed card layout:** `Dynamic card colors` now cover the channel row even when a card is clipped
-  at the top after scrolling. The tint stays below the thumbnail instead of moving with the card's screen position.
+* **YouTube - Feed card layout:** The `Dynamic card colors` tint now covers the whole card below the thumbnail, the channel row included, instead of only the title area. It also stays on the channel row when a card is scrolled under the top bar.
 * **YouTube - Feed card layout:** Mixes are cards now, with the card background, the rounded corners and the same 12 dp gaps as the other cards, instead of blending into the page with a longer gap below.
 * **YouTube - Feed card layout:** Hidden items, such as brand video ads and the placeholders of a loading feed, no longer add a gap of their own.
 * **YouTube - Built-in downloader:** The speed button of the offline player uses the Sharp speed icon, so it is the same size as the aspect button and the other player buttons.

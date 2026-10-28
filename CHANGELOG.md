@@ -1,6 +1,10 @@
 ## Unreleased
 
 ### Features
+* **YouTube - Visual preferences icons:** Every RVX setting has an icon now. The settings that had none or a blank space, such as `Card corner radius` and `Dynamic card colors`, show a matching icon in `Regular` and `Bold`.
+* **YouTube Music - Visual preferences icons:** The RVX sub-settings (Lyrics, Scrobbling, Player, SponsorBlock, Ads, Return YouTube Dislike, Account, Crossfade and the others) have icons now.
+* **YouTube and YouTube Music - Visual preferences icons:** Added the icon style `Bold (stock size)`. It draws the bold icons at the size of YouTube's own settings icons (24 dp) instead of 48 dp.
+* **YouTube and YouTube Music - Visual preferences icons:** The patch prints a warning when an RVX setting has no icon, so a new setting is not forgotten.
 
 * **YouTube - Visual preferences icons:** Replaced missing and blank icons with meaningful icons in all styles.
 * **YouTube Music - Visual preferences icons:** Added icons to all RVX sub-settings.

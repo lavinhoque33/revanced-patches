@@ -122,6 +122,7 @@ val visualPreferencesIconsPatch = resourcePatch(
             .underBarOrThrow()
         val iconStyle = iconStyleOption
             .lowerCaseOrThrow()
+            .let { style -> if (style.startsWith("bold (stock")) BOLD_STOCK_ICON_STYLE else style }
         val useBoldIcons = iconStyle == BOLD_ICON_STYLE || iconStyle == BOLD_STOCK_ICON_STYLE
         val useStockIconSize = iconStyle == BOLD_STOCK_ICON_STYLE
 

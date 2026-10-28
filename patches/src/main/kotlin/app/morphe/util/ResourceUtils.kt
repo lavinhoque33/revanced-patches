@@ -394,7 +394,6 @@ fun updatePathData(document: org.w3c.dom.Document, pathData: String) {
  */
 private const val BOLD_ICON_STROKE_WIDTH = "28"
 
-// modified by lavinhoque33, 2026-10-21: shared by the YouTube and YouTube Music visual preferences icons patches.
 /**
  * Thickens a vector drawable by stroking every path with its own fill color.
  * Does nothing if the drawable does not exist.
@@ -413,6 +412,74 @@ fun ResourcePatchContext.makeBold(drawable: String) {
             }
         }
     }
+}
+
+const val DEFAULT_PREFERENCE_ICON_SIZE_DP = 48
+const val STOCK_PREFERENCE_ICON_SIZE_DP = 24
+
+/** Uses a stock-sized box without the legacy template's glyph shrink or Music's left nudge. */
+fun ResourcePatchContext.setStockPreferenceIconGeometry(drawable: String) {
+    if (!get(drawable).exists()) return
+
+    document(drawable).use { document ->
+        val vector = document.documentElement
+        vector.setAttribute("android:width", "${STOCK_PREFERENCE_ICON_SIZE_DP}dp")
+        vector.setAttribute("android:height", "${STOCK_PREFERENCE_ICON_SIZE_DP}dp")
+
+        val pivotX = vector.getAttribute("android:viewportWidth").toFloat() / 2
+        val pivotY = vector.getAttribute("android:viewportHeight").toFloat() / 2
+
+        document.doRecursively { node ->
+            if (node is Element && node.tagName == "group") {
+                node.setAttribute("android:scaleX", "1.0")
+                node.setAttribute("android:scaleY", "1.0")
+                node.setAttribute("android:pivotX", pivotX.toString())
+                node.setAttribute("android:pivotY", pivotY.toString())
+            }
+        }
+    }
+}
+
+/** Reports missing preference icons without turning coverage gaps into patch failures. */
+fun ResourcePatchContext.warnMissingPreferenceIcons(vararg xmlFiles: String) {
+    val missingKeys = linkedSetOf<String>()
+    val ownedKeyPrefixes = arrayOf("revanced_", "morphe_", "sb_", "ryd_", "vot_", "gms_core_")
+
+    xmlFiles.forEach { xmlFile ->
+        if (!get(xmlFile).exists()) return@forEach
+
+        document(xmlFile).use { document ->
+            document.doRecursively loop@{ node ->
+                if (node !is Element) return@loop
+
+                if (node.tagName.endsWith("PreferenceCategory") ||
+                    node.tagName.endsWith("PreferenceCategoryCompat")
+                ) return@loop
+
+                val key = node.getAttribute("android:key").removePrefix("@string/")
+                if (key.isEmpty() || node.getAttribute("android:icon").isNotEmpty()) return@loop
+
+                // Stock settings rows, including Music's developer headers, keep their existing behavior.
+                if (ownedKeyPrefixes.none { key.startsWith(it) }) return@loop
+
+                // Cairo binds its RVX entry icon through this layout instead of android:icon.
+                if (key == "revanced_settings_key" &&
+                    node.getAttribute("android:layout") == "@layout/revanced_preference_with_icon"
+                ) return@loop
+
+                missingKeys.add(key)
+            }
+        }
+    }
+
+    if (missingKeys.isEmpty()) return
+
+    val maximumReportedKeys = 10
+    val reportedKeys = missingKeys.take(maximumReportedKeys).joinToString(", ")
+    val remainingCount = missingKeys.size - maximumReportedKeys
+    val suffix = if (remainingCount > 0) ", ... and $remainingCount more" else ""
+
+    printWarn("Visual preferences icons: ${missingKeys.size} preferences without an icon: $reportedKeys$suffix")
 }
 
 /**

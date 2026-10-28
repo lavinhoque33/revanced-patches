@@ -58,6 +58,7 @@ private const val DEFAULT_ICON = "extension"
 
 private const val REGULAR_ICON_STYLE = "regular"
 private const val BOLD_ICON_STYLE = "bold"
+private const val BOLD_STOCK_ICON_STYLE = "bold_stock"
 
 /** RVX settings menu icons that cannot be thickened with an outline. */
 private val FIXED_WEIGHT_RVX_ICONS = setOf("rvx_letters_bold", "revanced_colored")
@@ -108,9 +109,10 @@ val visualPreferencesIconsPatch = resourcePatch(
         values = mapOf(
             "Regular" to REGULAR_ICON_STYLE,
             "Bold" to BOLD_ICON_STYLE,
+            "Bold (stock size)" to BOLD_STOCK_ICON_STYLE,
         ),
         title = "Icon style",
-        description = "The line weight of the settings menu icons.",
+        description = "The line weight and size of the settings menu icons.",
         required = true,
     )
 
@@ -120,6 +122,8 @@ val visualPreferencesIconsPatch = resourcePatch(
             .underBarOrThrow()
         val iconStyle = iconStyleOption
             .lowerCaseOrThrow()
+        val useBoldIcons = iconStyle == BOLD_ICON_STYLE || iconStyle == BOLD_STOCK_ICON_STYLE
+        val useStockIconSize = iconStyle == BOLD_STOCK_ICON_STYLE
 
         if (applyToAll == true) {
             preferenceKey.putAll(rvxPreferenceKey)
@@ -129,10 +133,10 @@ val visualPreferencesIconsPatch = resourcePatch(
 
         copyResourcesWithRename("youtube/visual/icons", preferenceKey)
 
-        if (iconStyle == BOLD_ICON_STYLE) {
-            preferenceKey.filterValues { !preferenceKey.containsKey(it) }.keys.forEach { title ->
-                makeBold("res/drawable/${title}_icon.xml")
-            }
+        preferenceKey.filterValues { it !in preferenceKey }.keys.forEach { title ->
+            val drawable = "res/drawable/${title}_icon.xml"
+            if (useBoldIcons) makeBold(drawable)
+            if (useStockIconSize) setStockPreferenceIconGeometry(drawable)
         }
 
         // endregion
@@ -159,12 +163,18 @@ val visualPreferencesIconsPatch = resourcePatch(
             copyResources(fallbackIconPath, resourceGroup)
         }
 
-        installYouTubeRvxSettingsIconLayout()
+        val iconSizeDp = if (useStockIconSize) {
+            STOCK_PREFERENCE_ICON_SIZE_DP
+        } else {
+            DEFAULT_PREFERENCE_ICON_SIZE_DP
+        }
+        installYouTubeRvxSettingsIconLayout(iconSizeDp)
 
-        // Fixed-weight letter icons and the colored ReVanced logo do not need an outline.
-        if (iconStyle == BOLD_ICON_STYLE && selectedIconType !in FIXED_WEIGHT_RVX_ICONS) {
-            makeBold("res/drawable/revanced_settings_key_icon.xml")
-            makeBold("res/drawable/revanced_settings_cairo_key_icon.xml")
+        // Fixed-weight letter icons and the colored logo retain their authored strokes.
+        arrayOf("revanced_settings_key_icon", "revanced_settings_cairo_key_icon").forEach { iconName ->
+            val drawable = "res/drawable/$iconName.xml"
+            if (useBoldIcons && selectedIconType !in FIXED_WEIGHT_RVX_ICONS) makeBold(drawable)
+            if (useStockIconSize) setStockPreferenceIconGeometry(drawable)
         }
 
         // endregion
@@ -176,12 +186,13 @@ val visualPreferencesIconsPatch = resourcePatch(
     finalize {
         // region set visual preferences icon
 
-        arrayOf(
+        val preferenceXmlFiles = arrayOf(
             "res/xml/revanced_prefs.xml",
             "res/xml/settings_fragment.xml",
             "res/xml/settings_fragment_cairo.xml",
             "res/xml/settings_fragment_legacy.xml"
-        ).forEach { xmlFile ->
+        )
+        preferenceXmlFiles.forEach { xmlFile ->
             if (!get(xmlFile).exists()) {
                 return@forEach
             }
@@ -244,6 +255,8 @@ val visualPreferencesIconsPatch = resourcePatch(
                 }
             }
         }
+
+        warnMissingPreferenceIcons(*preferenceXmlFiles)
 
         // endregion
     }

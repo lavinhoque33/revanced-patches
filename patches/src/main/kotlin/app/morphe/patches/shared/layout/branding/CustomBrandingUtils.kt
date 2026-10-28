@@ -9,6 +9,7 @@
  * - COOLak (https://github.com/COOLak)
  *
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-10-27
  *
  * ------------------------------------------------------------------------
  * GPLv3 Section 7 – Additional Terms & Attribution Requirements
@@ -54,6 +55,7 @@ package app.morphe.patches.shared.layout.branding
 
 import app.morphe.patcher.patch.PatchException
 import app.morphe.patcher.patch.ResourcePatchContext
+import app.morphe.util.DEFAULT_PREFERENCE_ICON_SIZE_DP
 import app.morphe.util.FilesCompat
 import app.morphe.util.ResourceGroup
 import app.morphe.util.copyResources
@@ -1361,7 +1363,9 @@ internal fun ResourcePatchContext.installDynamicRvxSettingsIcon(settingsIconFile
 }
 
 /** Installs the Cairo RVX row used by both dynamic branding and static visual-icon fallbacks. */
-internal fun ResourcePatchContext.installYouTubeRvxSettingsIconLayout() {
+internal fun ResourcePatchContext.installYouTubeRvxSettingsIconLayout(
+    iconSizeDp: Int = DEFAULT_PREFERENCE_ICON_SIZE_DP,
+) {
     val source = get("res/drawable/revanced_settings_key_icon.xml")
     if (!source.exists()) return
 
@@ -1395,8 +1399,8 @@ internal fun ResourcePatchContext.installYouTubeRvxSettingsIconLayout() {
                 <view
                     class="app.morphe.extension.youtube.patches.general.FixPreferenceIconPatch$RvxSettingsIconView"
                     android:id="@+id/revanced_custom_icon"
-                    android:layout_width="48dp"
-                    android:layout_height="48dp"
+                    android:layout_width="$${iconSizeDp}dp"
+                    android:layout_height="$${iconSizeDp}dp"
                     android:layout_gravity="center|end"
                     android:layout_marginHorizontal="6.0dp"
                     android:contentDescription="@null"

@@ -1,10 +1,8 @@
-## Unreleased
+## [1.21.1](https://github.com/lavinhoque33/revanced-patches/compare/v1.21.0...v1.21.1) (2026-10-28)
 
 ### Bug Fixes
 
-* **YouTube and YouTube Music - Visual preferences icons:** `Bold (stock size)` rows use the stock spacing in RVX settings and sub-settings. `Regular` and `Bold` keep their current spacing.
-* **YouTube - Visual preferences icons:** `Bold (stock size)` also uses stock spacing for SponsorBlock's
-  dynamically created settings, including segment colors, skip options and import/export.
+* **YouTube and YouTube Music - Visual preferences icons:** `Bold (stock size)` rows use the spacing of the app's own settings: the icon and the text sit where they do in the stock Settings screen, including the SponsorBlock settings. `Regular` and `Bold` keep their current spacing.
 
 ## [1.21.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.20.0...v1.21.0) (2026-10-28)
 

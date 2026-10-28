@@ -1,5 +1,5 @@
 {
-  "version": "v1.19.1",
+  "version": "v1.20.0",
   "patches": [
     {
       "name": "Add to queue",
@@ -3774,13 +3774,14 @@
         {
           "key": "iconStyle",
           "title": "Icon style",
-          "description": "The line weight of the settings menu icons.",
+          "description": "The line weight and size of the settings menu icons.",
           "required": true,
           "type": "kotlin.String",
           "default": "regular",
           "values": {
             "Regular": "regular",
-            "Bold": "bold"
+            "Bold": "bold",
+            "Bold (stock size)": "bold_stock"
           }
         }
       ]
@@ -3831,13 +3832,14 @@
         {
           "key": "iconStyle",
           "title": "Icon style",
-          "description": "The line weight of the settings menu icons.",
+          "description": "The line weight and size of the settings menu icons.",
           "required": true,
           "type": "kotlin.String",
           "default": "regular",
           "values": {
             "Regular": "regular",
-            "Bold": "bold"
+            "Bold": "bold",
+            "Bold (stock size)": "bold_stock"
           }
         }
       ]

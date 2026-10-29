@@ -5,8 +5,8 @@
  * https://github.com/anddea/revanced-patches
  *
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-10-29
  * Written by lavinhoque33, 2026-10-26.
- * Modified by lavinhoque33, 2026-10-27
  */
 
 package app.morphe.extension.youtube.patches.feed;
@@ -325,7 +325,7 @@ final class FeedCardColorSampler {
 
     /**
      * Samples the thumbnails of the cards in the list and updates their tint, before the list is drawn.
-     * Called for the list of the feed only, so the items of the shelves are never sampled.
+     * Called for the feed and watch lists only; nested shelves and non-video rows are never sampled.
      */
     static void updateCardTints(RecyclerView list) {
         try {
@@ -630,7 +630,7 @@ final class FeedCardColorSampler {
 
     private static void applyCardBackgroundColour(Drawable drawable, boolean dynamicColors) {
         final View host = getDrawableView(drawable);
-        final View item = host == null ? null : findFeedItem(host);
+        final View item = host == null ? null : FeedCardLayoutPatch.findCardListItem(host);
         final CardState state = item == null ? null : cardStates.get(item);
         final int color = dynamicColors && state != null ? state.sampledColour : NO_TINT;
 
@@ -735,23 +735,6 @@ final class FeedCardColorSampler {
             callback = parent.getCallback();
         }
         return callback instanceof View view ? view : null;
-    }
-
-    /**
-     * @return The item of the feed that contains the view, or null if the view is not in the feed.
-     *         The feed list is inside the list of the main app, so the ancestors of the list are not checked.
-     */
-    @Nullable
-    private static View findFeedItem(@Nullable View view) {
-        while (view != null) {
-            ViewParent parent = view.getParent();
-            if (parent instanceof RecyclerView list) {
-                // The items of a shelf are the items of a list inside the list of the feed, not cards.
-                return list.getId() == FeedCardLayoutPatch.getFeedId() ? view : null;
-            }
-            view = parent instanceof View parentView ? parentView : null;
-        }
-        return null;
     }
 
     private static boolean isInside(View view, View item) {

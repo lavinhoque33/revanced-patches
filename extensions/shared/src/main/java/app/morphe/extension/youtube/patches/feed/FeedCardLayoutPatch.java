@@ -5,7 +5,7 @@
  * https://github.com/MorpheApp/morphe-patches/pull/3801
  *
  * See the included NOTICE file for GPLv3 Section 7 terms that apply to this code.
- * Modified by lavinhoque33, 2026-10-26
+ * Modified by lavinhoque33, 2026-10-29
  */
 
 package app.morphe.extension.youtube.patches.feed;
@@ -527,6 +527,7 @@ public class FeedCardLayoutPatch {
                 }
             };
     private static int feedId;
+    private static int watchListId;
     @Nullable
     private static volatile String commentsVideoId;
     private static volatile long commentsRequestTime;
@@ -1290,6 +1291,10 @@ public class FeedCardLayoutPatch {
                                 unmountedItemBackgrounds.put(drawable, Boolean.TRUE);
                             }
                             inCard = !isChipBar(view);
+                        } else if (isCardList(recyclerView) && FeedCardColorSampler.isCardItem(view)) {
+                            // The watch list also contains metadata and comments. Only its video cards
+                            // keep their card background; the other rows keep the app's theme.
+                            inCard = true;
                         }
                         break;
                     }
@@ -1300,7 +1305,7 @@ public class FeedCardLayoutPatch {
                     // The background of a card is tinted with the color sampled from its thumbnail.
                     // The tint is not one of the colors of the theme, so the theme patch keeps it.
                     Integer tint = FeedCardColorSampler.getCardColor(
-                            findFeedItem(drawableView), drawableView, drawable);
+                            findCardListItem(drawableView), drawableView, drawable);
                     if (tint != null) {
                         return tint;
                     }
@@ -1578,16 +1583,15 @@ public class FeedCardLayoutPatch {
     }
 
     /**
-     * @return The item of the feed that contains the view, or null if the view is not in the feed.
-     *         The feed list is inside the list of the main app, so the ancestors of the list are not checked.
+     * @return The item of the feed or watch list that contains the view, or null for any other list.
+     *         Stop at the first list so nested shelves and engagement panels cannot inherit a card tint.
      */
     @Nullable
-    private static View findFeedItem(@Nullable View view) {
+    static View findCardListItem(@Nullable View view) {
         while (view != null) {
             ViewParent parent = view.getParent();
             if (parent instanceof RecyclerView list) {
-                // The items of a shelf are the items of a list inside the list of the feed, not cards.
-                return list.getId() == getFeedId() ? view : null;
+                return isCardList(list) ? view : null;
             }
             view = parent instanceof View parentView ? parentView : null;
         }
@@ -1808,11 +1812,13 @@ public class FeedCardLayoutPatch {
 
                             final boolean feed = current.getId() == getFeedId();
 
-                            if (feed) {
-                                // The cards are tinted with the colors sampled from their thumbnails. The feed list
-                                // is one of the lists of the main app, and its items are the cards.
+                            // The watch page already uses the same converted cards and outlines. Its list
+                            // also contains non-video rows, which the sampler rejects by element or label.
+                            if (isCardList(current)) {
                                 FeedCardColorSampler.updateCardTints(current);
+                            }
 
+                            if (feed) {
                                 // The autoplay of a Short shows the player in a container above the Short, outside
                                 // the list, which clips the player with its own rounded background. It has the clip
                                 // of the Short below it.
@@ -2519,6 +2525,16 @@ public class FeedCardLayoutPatch {
             outline.setRoundRect(horizontalPadding, verticalPadding, view.getWidth() - horizontalPadding,
                     view.getHeight() - verticalPadding, CARD_CORNER_RADIUS);
         }
+    }
+
+    private static boolean isCardList(RecyclerView list) {
+        if (list.getId() == getFeedId()) {
+            return true;
+        }
+        if (watchListId == 0) {
+            watchListId = ResourceUtils.getIdentifier(ResourceType.ID, "watch_list");
+        }
+        return watchListId != 0 && list.getId() == watchListId;
     }
 
     static int getFeedId() {

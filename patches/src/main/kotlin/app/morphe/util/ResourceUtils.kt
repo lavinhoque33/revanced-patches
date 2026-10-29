@@ -417,8 +417,8 @@ fun ResourcePatchContext.makeBold(drawable: String) {
 
 const val DEFAULT_PREFERENCE_ICON_SIZE_DP = 48
 const val STOCK_PREFERENCE_ICON_SIZE_DP = 24
-private const val STOCK_PREFERENCE_ICON_STROKE_WIDTH = "44"
-private const val STOCK_PREFERENCE_ICON_SCALE = "1.08"
+private const val STOCK_PREFERENCE_ICON_STROKE_WIDTH = "36"
+private const val STOCK_PREFERENCE_ICON_SCALE = "1.04"
 
 private const val STOCK_PREFERENCE_LAYOUT = "res/layout/revanced_preference_stock_icon.xml"
 
@@ -518,7 +518,8 @@ fun ResourcePatchContext.setStockPreferenceIconGeometry(drawable: String) {
         paths.filter { it.getAttribute("android:strokeWidth") == BOLD_ICON_STROKE_WIDTH }.forEach {
             it.setAttribute("android:strokeWidth", STOCK_PREFERENCE_ICON_STROKE_WIDTH)
         }
-        val scale = stockPreferenceIconScale(paths, pivotX, pivotY)
+        val fittedScale = stockPreferenceIconScale(paths, pivotX, pivotY)
+        val scale = fittedScale.coerceIn(1.0, STOCK_PREFERENCE_ICON_SCALE.toDouble())
 
         document.doRecursively { node ->
             if (node is Element && node.tagName == "group") {
@@ -528,14 +529,26 @@ fun ResourcePatchContext.setStockPreferenceIconGeometry(drawable: String) {
                 node.setAttribute("android:pivotY", pivotY.toString())
             }
         }
+
+        if (fittedScale < 1.0) {
+            val artwork = vector.getElementsByTagName("group").item(0) as? Element ?: vector
+            val fit = document.createElement("group").apply {
+                setAttribute("android:scaleX", fittedScale.toString())
+                setAttribute("android:scaleY", fittedScale.toString())
+                setAttribute("android:pivotX", pivotX.toString())
+                setAttribute("android:pivotY", pivotY.toString())
+            }
+            while (artwork.hasChildNodes()) fit.appendChild(artwork.firstChild)
+            artwork.appendChild(fit)
+        }
     }
 }
 
-/** Most glyphs enlarge by the calibrated scale; unusually wide/tall artwork keeps a safe inset. */
+/** Reserves one raster pixel at 400 dpi, including the painted stroke, around the fitted artwork. */
 private fun stockPreferenceIconScale(paths: List<Element>, pivotX: Float, pivotY: Float): Double {
     var scale = STOCK_PREFERENCE_ICON_SCALE.toDouble()
-    val insetX = pivotX / 60.0
-    val insetY = pivotY / 60.0
+    val insetX = pivotX / 30.0
+    val insetY = pivotY / 30.0
 
     paths.forEach { path ->
         val fill = path.getAttribute("android:fillColor")

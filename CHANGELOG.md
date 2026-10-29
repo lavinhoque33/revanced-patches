@@ -2,7 +2,7 @@
 
 ### Bug Fixes
 
-* **YouTube and YouTube Music - Visual preferences icons:** `Bold (stock size)` has heavier, larger glyphs in the native 24 dp slot. The RVX entry in YouTube Settings now lines up with the stock rows, including the icon and label; Music branding icons keep the native slot instead of shifting left. `Regular` and `Bold` are unchanged.
+* **YouTube and YouTube Music - Visual preferences icons:** `Bold (stock size)` uses the weight calibrated against native Settings on the Moto. Wide and tall artwork has a safe inset inside its 24 dp slot instead of touching the edges. The RVX entry in YouTube Settings lines up with the stock rows, including the icon and label; Music branding icons keep the native slot instead of shifting left. The `Regular` and larger `Bold` preference glyphs keep their existing weight and geometry.
 * **YouTube and YouTube Music - Visual preferences icons:** The patch options now explain that icons inside RVX sub-settings require `Apply to all settings menu` to be true, even when a bold style is selected. A patch manager can remember a previous false value.
 
 ### Features

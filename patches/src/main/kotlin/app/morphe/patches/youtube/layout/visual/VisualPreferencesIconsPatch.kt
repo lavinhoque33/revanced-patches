@@ -128,6 +128,10 @@ val visualPreferencesIconsPatch = resourcePatch(
         val useBoldIcons = iconStyle == BOLD_ICON_STYLE || iconStyle == BOLD_STOCK_ICON_STYLE
         val useStockIconSize = iconStyle == BOLD_STOCK_ICON_STYLE
 
+        if (useBoldIcons) {
+            makeSettingsToolbarIconsBold()
+        }
+
         if (applyToAll == true) {
             preferenceKey.putAll(rvxPreferenceKey)
         }

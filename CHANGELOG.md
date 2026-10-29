@@ -1,3 +1,10 @@
+## Unreleased
+
+### Bug Fixes
+
+* **YouTube - Feed video actions:** The Watch later button returns when scrolling back up the feed,
+  including cards whose thumbnail or menu mounts after their layout.
+
 ## [1.22.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.21.1...v1.22.0) (2026-10-29)
 
 ### Bug Fixes

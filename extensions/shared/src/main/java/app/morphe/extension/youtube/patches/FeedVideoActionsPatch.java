@@ -3,7 +3,7 @@
  * https://github.com/MorpheApp/morphe-patches/pull/3758
  *
  * See the included NOTICE file for GPLv3 Section 7 terms that apply to this code.
- * Modified by lavinhoque33, 2026-10-28
+ * Modified by lavinhoque33, 2026-10-29
  */
 
 package app.morphe.extension.youtube.patches;
@@ -554,6 +554,24 @@ public final class FeedVideoActionsPatch {
             }
         } catch (Exception ex) {
             Logger.printException(() -> "updateRoots failure", ex);
+        }
+    }
+
+    /**
+     * Rechecks actions after the shared tracker checks a card, including while the feed scrolls.
+     * Litho mounts only the visible part of a card. Its menu or duration may be missing at layout
+     * and mount later without another layout, so a known video without actions needs a scroll check.
+     */
+    public static void onCardLaidOut(ComponentHost host, @Nullable String videoId) {
+        if (!ENABLED) {
+            return;
+        }
+        try {
+            if (updateCard(host) == null && videoId != null) {
+                FeedVideoCardsPatch.scheduleScrollCheck(host);
+            }
+        } catch (Exception ex) {
+            Logger.printException(() -> "onCardLaidOut failure", ex);
         }
     }
 

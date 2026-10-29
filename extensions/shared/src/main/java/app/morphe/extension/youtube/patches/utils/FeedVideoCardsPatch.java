@@ -3,7 +3,7 @@
  * https://github.com/MorpheApp/morphe-patches/pull/3758
  *
  * See the included NOTICE file for GPLv3 Section 7 terms that apply to this code.
- * Modified by lavinhoque33, 2026-10-24
+ * Modified by lavinhoque33, 2026-10-29
  */
 
 package app.morphe.extension.youtube.patches.utils;
@@ -11,9 +11,11 @@ package app.morphe.extension.youtube.patches.utils;
 import android.app.Activity;
 import android.content.Context;
 import android.content.ContextWrapper;
+import android.graphics.Rect;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewParent;
+import android.view.ViewTreeObserver;
 
 import androidx.annotation.GuardedBy;
 import androidx.annotation.Nullable;
@@ -28,12 +30,14 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.WeakHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import app.morphe.extension.shared.utils.Logger;
 import app.morphe.extension.shared.utils.Utils;
+import app.morphe.extension.youtube.patches.FeedVideoActionsPatch;
 import app.morphe.extension.youtube.patches.feed.FeedEngagementCountsPatch;
 import app.morphe.extension.youtube.patches.feed.FeedViewCountPatch;
 import app.morphe.extension.youtube.shared.PlayerType;
@@ -87,6 +91,8 @@ public final class FeedVideoCardsPatch {
      */
     private static final int MAX_RETRIES = 3;
     private static final long RETRY_DELAY_MS = 500;
+    /** Minimum time between scroll checks of partly visible cards. */
+    private static final long SCROLL_CHECK_DELAY_MS = 50;
 
     /**
      * Result of {@link #findVideoId(ComponentHost)} for a video card whose texts are not drawn yet,
@@ -560,6 +566,31 @@ public final class FeedVideoCardsPatch {
     /** Root host -> number of checks since its last layout. Used only on the main thread. */
     private static final Map<ComponentHost, Integer> retries = new WeakHashMap<>();
 
+    /**
+     * Partly visible roots whose content may mount without another layout.
+     * All scroll state is used only on the main thread, and does not keep views or windows alive.
+     */
+    private static final Set<ComponentHost> scrollChecks = Collections.newSetFromMap(new WeakHashMap<>());
+    private static final Map<ViewTreeObserver, Boolean> scrollObservers = new WeakHashMap<>();
+    private static final Rect visibleRect = new Rect();
+    private static boolean scrollCheckScheduled;
+
+    private static final Runnable scrollCheckRunnable = () -> {
+        scrollCheckScheduled = false;
+        for (ComponentHost root : scrollChecks.toArray(new ComponentHost[0])) {
+            if (root != null) {
+                scheduleUpdate(root);
+            }
+        }
+    };
+
+    private static final ViewTreeObserver.OnScrollChangedListener scrollListener = () -> {
+        if (!scrollCheckScheduled && !scrollChecks.isEmpty()) {
+            scrollCheckScheduled = true;
+            Utils.runOnMainThreadDelayed(scrollCheckRunnable, SCROLL_CHECK_DELAY_MS);
+        }
+    };
+
     private static void scheduleUpdate(ComponentHost root) {
         rootsToUpdate.put(root, Boolean.TRUE);
         if (!rootsUpdateScheduled) {
@@ -569,9 +600,28 @@ public final class FeedVideoCardsPatch {
     }
 
     /**
-     * Checks the card again a little later, such as when what is drawn on it was not found yet.
+     * Checks a partly visible card again when the feed scrolls and Litho mounts more of its content.
+     * Must be called on the main thread.
+     */
+    public static void scheduleScrollCheck(ComponentHost root) {
+        if (!root.isAttachedToWindow()
+                || (root.getLocalVisibleRect(visibleRect) && visibleRect.height() >= root.getHeight())) {
+            return;
+        }
+
+        scrollChecks.add(root);
+        ViewTreeObserver observer = root.getViewTreeObserver();
+        if (observer.isAlive() && scrollObservers.put(observer, Boolean.TRUE) == null) {
+            observer.addOnScrollChangedListener(scrollListener);
+        }
+    }
+
+    /**
+     * Checks a card again after a delay, and on scroll while only part of it is mounted.
      */
     public static void scheduleRetry(ComponentHost root) {
+        scheduleScrollCheck(root);
+
         Integer count = retries.get(root);
         final int attempt = count == null ? 0 : count;
         if (attempt >= MAX_RETRIES) {
@@ -591,13 +641,21 @@ public final class FeedVideoCardsPatch {
             ComponentHost[] roots = rootsToUpdate.keySet().toArray(new ComponentHost[0]);
             rootsToUpdate.clear();
             for (ComponentHost root : roots) {
-                if (root == null || !root.isAttachedToWindow()
-                        || root.getParent() instanceof ComponentHost) {
+                if (root == null) {
+                    continue;
+                }
+                // Re-added below only while mounted content still needs another check.
+                scrollChecks.remove(root);
+                if (!root.isAttachedToWindow() || root.getParent() instanceof ComponentHost) {
                     continue;
                 }
                 String videoId = findVideoId(root);
                 if (NOT_READY.equals(videoId)
-                        || (videoId == null && isVideoShaped(root) && !hasHorizontalList(root))) {
+                        || (videoId == null && isVideoShaped(root) && !hasHorizontalList(root))
+                        // When a card enters from above, its texts can mount before its duration.
+                        // Do not leave it classified as a playlist once the thumbnail becomes visible.
+                        || (PLAYLIST.equals(videoId)
+                        && (!root.getLocalVisibleRect(visibleRect) || visibleRect.top > 0))) {
                     scheduleRetry(root);
                 } else {
                     retries.remove(root);
@@ -613,6 +671,7 @@ public final class FeedVideoCardsPatch {
                 final String cardVideoId = PLAYLIST.equals(videoId) ? null : videoId;
                 FeedViewCountPatch.onCardLaidOut(root, cardVideoId);
                 FeedEngagementCountsPatch.onCardLaidOut(root, cardVideoId);
+                FeedVideoActionsPatch.onCardLaidOut(root, cardVideoId);
             }
         } catch (Exception ex) {
             Logger.printException(() -> "updateRoots failure", ex);

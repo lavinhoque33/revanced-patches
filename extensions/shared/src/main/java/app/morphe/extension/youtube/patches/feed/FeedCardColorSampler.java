@@ -224,6 +224,86 @@ final class FeedCardColorSampler {
     private static int sharedImageLogs;
     private static long slowUpdateLogTime;
 
+    @Nullable
+    private static Class<?> cardBackgroundClass;
+
+    static void setCardBackgroundClass(Class<?> backgroundClass) {
+        cardBackgroundClass = backgroundClass;
+    }
+
+    /**
+     * The background's bounds can be set before it has a callback or belongs to a card. At draw time
+     * its host and card are known, so mounted metadata backgrounds use the same state as View surfaces.
+     */
+    static void onCardDrawableDraw(Drawable drawable) {
+        try {
+            Drawable background = getCardBackground(drawable);
+            if (background == null) {
+                return;
+            }
+
+            View host = getDrawableView(drawable);
+            View item = host == null ? null : FeedCardLayoutPatch.findCardListItem(host);
+            if (item == null || !isCardItem(item)) {
+                return;
+            }
+
+            // The host can draw before this list has run its first pre-draw sampling pass.
+            CardState state = getCardState(item);
+
+            Rect bounds = drawable.getBounds();
+            if (bounds.width() * 20 < getCardContentWidth(item) * 17
+                    || bounds.height() * 20 < item.getHeight()) {
+                return;
+            }
+
+            int top = bounds.top;
+            View current = host;
+            while (current != item) {
+                top += current.getTop();
+                ViewParent parent = current.getParent();
+                if (!(parent instanceof View parentView)) {
+                    return;
+                }
+                current = parentView;
+            }
+            if (top < getThumbnailBottom(item, state)) {
+                return;
+            }
+
+            // The first draw can precede the thumbnail. Remember the surface now so pre-draw can
+            // tint and invalidate its cached Litho host as soon as the thumbnail's color is ready.
+            addCardBackground(background);
+
+            final boolean dynamicColors = Settings.FEED_CARD_LAYOUT_DYNAMIC_COLORS.get();
+            final int color = dynamicColors ? state.sampledColour : NO_TINT;
+            if (color != NO_TINT && background.getColorFilter() == getTintFilter(color)) {
+                return;
+            }
+
+            applyCardBackgroundColour(background, state, dynamicColors);
+            state.bandColour = color;
+        } catch (Exception ex) {
+            Logger.printException(() -> "onCardDrawableDraw failure", ex);
+        }
+    }
+
+    /**
+     * Litho wraps mounted backgrounds in a drawable that translates the canvas to the mounted bounds.
+     * The standard getCurrent() API exposes its content without referring to the obfuscated wrapper.
+     */
+    @Nullable
+    private static Drawable getCardBackground(Drawable drawable) {
+        Drawable current = drawable.getCurrent();
+        while (current != null && current != drawable) {
+            drawable = current;
+            current = drawable.getCurrent();
+        }
+
+        return drawable instanceof ColorDrawable || drawable instanceof GradientDrawable
+                || drawable.getClass() == cardBackgroundClass ? drawable : null;
+    }
+
     private FeedCardColorSampler() {
     }
 
@@ -300,7 +380,7 @@ final class FeedCardColorSampler {
             }
             // The band of the metadata is as wide as the card, or as wide as the card without the padding of
             // the metadata, and the chips and the buttons are much narrower.
-            if (bounds.width() * 20 < item.getWidth() * 17) {
+            if (bounds.width() * 20 < getCardContentWidth(item) * 17) {
                 logRejectedSurface(drawableView, drawable, "the drawable is narrower than the card");
                 return null;
             }
@@ -632,6 +712,10 @@ final class FeedCardColorSampler {
         final View host = getDrawableView(drawable);
         final View item = host == null ? null : FeedCardLayoutPatch.findCardListItem(host);
         final CardState state = item == null ? null : cardStates.get(item);
+        applyCardBackgroundColour(drawable, state, dynamicColors);
+    }
+
+    private static void applyCardBackgroundColour(Drawable drawable, @Nullable CardState state, boolean dynamicColors) {
         final int color = dynamicColors && state != null ? state.sampledColour : NO_TINT;
 
         if (color == NO_TINT) {
@@ -712,6 +796,12 @@ final class FeedCardColorSampler {
      */
     @Nullable
     private static Rect getCardBounds(View item, View drawableView, Drawable drawable) {
+        // Mounted wrappers translate their content from local bounds into the host's coordinates.
+        Drawable.Callback callback = drawable.getCallback();
+        while (callback instanceof Drawable parent) {
+            drawable = parent;
+            callback = drawable.getCallback();
+        }
         Rect bounds = drawable.copyBounds();
         View view = drawableView;
         while (view != item) {
@@ -737,6 +827,21 @@ final class FeedCardColorSampler {
         return callback instanceof View view ? view : null;
     }
 
+    /**
+     * The watch list's item includes margins around its card host. Compare metadata with that content,
+     * not the full-width adapter item, so the card's own horizontal inset is not counted twice.
+     */
+    private static int getCardContentWidth(View item) {
+        final int itemWidth = item.getWidth();
+        int contentWidth = 0;
+        if (item instanceof ViewGroup group) {
+            for (int i = 0, count = group.getChildCount(); i < count; i++) {
+                contentWidth = Math.max(contentWidth, group.getChildAt(i).getWidth());
+            }
+        }
+        return contentWidth * 2 >= itemWidth && contentWidth <= itemWidth ? contentWidth : itemWidth;
+    }
+
     private static boolean isInside(View view, View item) {
         while (view != null) {
             if (view == item) {
@@ -751,10 +856,11 @@ final class FeedCardColorSampler {
     /**
      * Collects the surfaces of the card below the thumbnail that span its width: the backgrounds of its
      * views and the images of its ImageViews, such as the row of the channel.
+     * Mounted Litho backgrounds are tracked separately by {@link #onCardDrawableDraw(Drawable)}.
      */
     private static void collectCardSurfaces(View item, View view, int topInItem, int thumbnailBottom,
                                             List<Drawable> backgrounds, List<View> images) {
-        final int width = item.getWidth();
+        final int width = getCardContentWidth(item);
         final int height = item.getHeight();
 
         // Compare surfaces and the thumbnail in item coordinates, never in the scrolling list's coordinates.

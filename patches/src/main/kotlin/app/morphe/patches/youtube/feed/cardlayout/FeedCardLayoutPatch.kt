@@ -4,20 +4,23 @@
  * https://github.com/MorpheApp/morphe-patches/pull/3769
  *
  * See the included NOTICE file for GPLv3 Section 7 terms that apply to this code.
- * Modified by lavinhoque33, 2026-10-24
+ * Modified by lavinhoque33, 2026-10-29
  */
 
 package app.morphe.patches.youtube.feed.cardlayout
 
+import app.morphe.patcher.Fingerprint
 import app.morphe.patcher.extensions.InstructionExtensions.addInstruction
 import app.morphe.patcher.extensions.InstructionExtensions.addInstructions
 import app.morphe.patcher.extensions.InstructionExtensions.addInstructionsWithLabels
 import app.morphe.patcher.extensions.InstructionExtensions.getInstruction
+import app.morphe.patcher.patch.BytecodePatchContext
 import app.morphe.patcher.patch.bytecodePatch
 import app.morphe.patcher.util.proxy.mutableTypes.MutableClass
 import app.morphe.patcher.util.proxy.mutableTypes.MutableMethod.Companion.toMutable
 import app.morphe.patches.shared.drawable.addDrawableColorHook
 import app.morphe.patches.shared.drawable.drawableColorHookPatch
+import app.morphe.patches.shared.litho.relayout.COMPONENT_HOST_CLASS
 import app.morphe.patches.shared.misc.fix.proto.fixProtoLibraryPatch
 import app.morphe.patches.shared.misc.fix.proto.parseByteArrayWithRegistryMethodRef
 import app.morphe.patches.youtube.utils.compatibility.Constants.COMPATIBILITY_YOUTUBE
@@ -28,6 +31,7 @@ import app.morphe.patches.youtube.utils.proto.elementProtoParserHookPatch
 import app.morphe.patches.youtube.utils.proto.hookElement
 import app.morphe.patches.youtube.utils.settings.ResourceUtils.addPreference
 import app.morphe.patches.youtube.utils.settings.settingsPatch
+import app.morphe.util.Utils.printWarn
 import app.morphe.util.getReference
 import app.morphe.util.indexOfFirstInstruction
 import app.morphe.util.indexOfFirstInstructionReversedOrThrow
@@ -45,6 +49,59 @@ private const val EXTENSION_CLASS = "$FEED_PATH/FeedCardLayoutPatch;"
 private const val EXTENSION_ELEMENT_ITEM_INTERFACE = $$"$$FEED_PATH/FeedCardLayoutPatch$ElementItemInterface;"
 
 private const val RECYCLER_VIEW_CLASS = "Landroid/support/v7/widget/RecyclerView;"
+
+private object CardHostDrawFingerprint : Fingerprint(
+    definingClass = COMPONENT_HOST_CLASS,
+    name = "dispatchDraw",
+    returnType = "V",
+    parameters = listOf("Landroid/graphics/Canvas;"),
+)
+
+/**
+ * Litho mounts backgrounds as drawables, not View backgrounds. Follow the drawing helper referenced
+ * by ComponentHost rather than its obfuscated name, and tint each background just before it is drawn.
+ */
+private fun BytecodePatchContext.hookMountedCardBackgrounds() {
+    val hostDraw = CardHostDrawFingerprint.methodOrNull
+    val helperClass = hostDraw?.implementation?.instructions?.firstNotNullOfOrNull { instruction ->
+        val field = instruction.getReference<FieldReference>() ?: return@firstNotNullOfOrNull null
+        if (field.definingClass != COMPONENT_HOST_CLASS) return@firstNotNullOfOrNull null
+
+        classDefByOrNull(field.type)?.takeIf { candidate ->
+            candidate.fields.any { it.type == "Landroid/graphics/Canvas;" } &&
+                    candidate.fields.any { it.type == COMPONENT_HOST_CLASS }
+        }
+    }
+    val drawableDraw = "Landroid/graphics/drawable/Drawable;->draw(Landroid/graphics/Canvas;)V"
+    val helperDrawsBackgrounds = helperClass?.methods?.any { method ->
+        method.implementation?.instructions?.any {
+            it.getReference<MethodReference>()?.toString() == drawableDraw
+        } == true
+    } == true
+
+    if (hostDraw == null || helperClass == null || !helperDrawsBackgrounds) {
+        printWarn("Feed card layout: mounted card backgrounds not found; keeping their original colors.")
+        return
+    }
+
+    for (type in listOf(COMPONENT_HOST_CLASS, helperClass.type)) {
+        mutableClassDefBy(type).methods.forEach { method ->
+            val drawIndices = method.implementation?.instructions?.withIndex()?.filter {
+                it.value.opcode == Opcode.INVOKE_VIRTUAL &&
+                        it.value.getReference<MethodReference>()?.toString() == drawableDraw
+            }?.map { it.index }.orEmpty()
+
+            drawIndices.asReversed().forEach { index ->
+                val drawableRegister = method.getInstruction<FiveRegisterInstruction>(index).registerC
+                method.addInstruction(
+                    index,
+                    "invoke-static/range { v$drawableRegister .. v$drawableRegister }, " +
+                            "$EXTENSION_CLASS->onCardDrawableDraw(Landroid/graphics/drawable/Drawable;)V"
+                )
+            }
+        }
+    }
+}
 
 /**
  * Calls the extension method with the list and the parameter at the start of a method of the list,
@@ -244,6 +301,8 @@ val feedCardLayoutPatch = bytecodePatch(
             // below its items, because the views of the elements reset their own background.
             hookViewGroupMethod("onDraw", "Landroid/graphics/Canvas;", "onListDraw")
         }
+
+        hookMountedCardBackgrounds()
 
         // The comment button opens the video, and the comments are opened when the watch page is ready.
         VideoPlaybackIntentFingerprint.method.addInstruction(

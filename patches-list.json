@@ -1,5 +1,5 @@
 {
-  "version": "v1.21.1",
+  "version": "v1.22.0",
   "patches": [
     {
       "name": "Add to queue",
@@ -3789,7 +3789,7 @@
         {
           "key": "applyToAll",
           "title": "Apply to all settings menu",
-          "description": "Whether to apply Visual preferences icons to all settings menus.\n\nIf true: icons are applied to the parent PreferenceScreen of YouTube settings, the parent PreferenceScreen of RVX settings and the RVX sub-settings (if supported).\n\nIf false: icons are applied only to the parent PreferenceScreen of YouTube settings and RVX settings.",
+          "description": "Add icons to the native settings entry and the RVX settings screens.\n\nTrue (default): also add icons to individual settings inside RVX sub-screens.\n\nFalse: icons only on parent screens. No sub-setting icons, regardless of Icon style.\n\nManagers can remember false. Set this option to true to include sub-setting icons.",
           "required": true,
           "type": "kotlin.Boolean",
           "default": true,
@@ -3798,7 +3798,7 @@
         {
           "key": "iconStyle",
           "title": "Icon style",
-          "description": "The line weight and size of the settings menu icons.",
+          "description": "The icon weight and size. Sub-setting icons require Apply to all settings menu = true.",
           "required": true,
           "type": "kotlin.String",
           "default": "regular",
@@ -3847,7 +3847,7 @@
         {
           "key": "applyToAll",
           "title": "Apply to all settings menu",
-          "description": "Whether to apply Visual preferences icons to all settings menus.\n\nIf true: icons are applied to the parent PreferenceScreen of YouTube settings, the parent PreferenceScreen of RVX settings and the RVX sub-settings (if supported).\n\nIf false: icons are applied only to the parent PreferenceScreen of YouTube settings and RVX settings.",
+          "description": "Add icons to the native settings entry and the RVX settings screens.\n\nTrue (default): also add icons to individual settings inside RVX sub-screens.\n\nFalse: icons only on parent screens. No sub-setting icons, regardless of Icon style.\n\nManagers can remember false. Set this option to true to include sub-setting icons.",
           "required": true,
           "type": "kotlin.Boolean",
           "default": true,
@@ -3856,7 +3856,7 @@
         {
           "key": "iconStyle",
           "title": "Icon style",
-          "description": "The line weight and size of the settings menu icons.",
+          "description": "The icon weight and size. Sub-setting icons require Apply to all settings menu = true.",
           "required": true,
           "type": "kotlin.String",
           "default": "regular",

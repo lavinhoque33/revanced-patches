@@ -45,7 +45,7 @@ internal fun normalizeNotificationIcon(document: Document): Boolean {
             colors += path to role
         }
         if (!visible) continue
-        val pathBounds = pathBounds(path.getAttribute("android:pathData")) ?: return false
+        val pathBounds = vectorPathBounds(path.getAttribute("android:pathData")) ?: return false
         // A miter join can extend beyond half the stroke width.
         val join = path.getAttribute("android:strokeLineJoin")
         val miter = if (join.isEmpty() || join == "miter") {
@@ -89,7 +89,7 @@ private fun colorAlpha(color: String): Int? {
     }
 }
 
-private class IconBounds {
+internal class IconBounds {
     var left = Double.POSITIVE_INFINITY
     var top = Double.POSITIVE_INFINITY
     var right = Double.NEGATIVE_INFINITY
@@ -111,7 +111,7 @@ private class IconBounds {
 private val pathToken = Regex("[MmLlHhVvCcSsQqTtAaZz]|[-+]?(?:[0-9]*\\.[0-9]+|[0-9]+\\.?[0-9]*)(?:[eE][-+]?[0-9]+)?")
 
 /** Conservative SVG path bounds, including relative commands, curve controls and arc ellipses. */
-private fun pathBounds(data: String): IconBounds? = runCatching {
+internal fun vectorPathBounds(data: String): IconBounds? = runCatching {
     require(data.replace(pathToken, "").all { it.isWhitespace() || it == ',' })
     val tokens = pathToken.findAll(data).map { it.value }.toList()
     val bounds = IconBounds()

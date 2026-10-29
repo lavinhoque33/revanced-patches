@@ -9,7 +9,7 @@
  * - COOLak (https://github.com/COOLak)
  *
  * Licensed under the GNU General Public License v3.0.
- * Modified by lavinhoque33, 2026-10-27
+ * Modified by lavinhoque33, 2026-10-29
  *
  * ------------------------------------------------------------------------
  * GPLv3 Section 7 – Additional Terms & Attribution Requirements
@@ -56,6 +56,7 @@ package app.morphe.patches.shared.layout.branding
 import app.morphe.patcher.patch.PatchException
 import app.morphe.patcher.patch.ResourcePatchContext
 import app.morphe.util.DEFAULT_PREFERENCE_ICON_SIZE_DP
+import app.morphe.util.STOCK_PREFERENCE_ICON_SIZE_DP
 import app.morphe.util.FilesCompat
 import app.morphe.util.ResourceGroup
 import app.morphe.util.copyResources
@@ -1420,6 +1421,20 @@ internal fun ResourcePatchContext.installYouTubeRvxSettingsIconLayout(
             </LinearLayout>
         """.trimIndent(),
     )
+
+    if (iconSizeDp == STOCK_PREFERENCE_ICON_SIZE_DP) {
+        document("res/layout/revanced_preference_with_icon.xml").use { document ->
+            val row = document.documentElement
+            row.setAttribute("android:paddingStart", "18dp")
+            row.setAttribute("android:paddingLeft", "18dp")
+
+            val icon = document.getElementsByTagName("view").item(0) as Element
+            icon.removeAttribute("android:layout_marginHorizontal")
+            icon.setAttribute("android:layout_marginEnd", "18dp")
+            icon.setAttribute("android:layout_marginRight", "18dp")
+            icon.setAttribute("android:clipToOutline", "false")
+        }
+    }
 
     val cairoSettings = get("res/xml/settings_fragment_cairo.xml")
     if (!cairoSettings.exists()) return

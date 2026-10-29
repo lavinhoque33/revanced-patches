@@ -1,3 +1,10 @@
+## Unreleased
+
+### Bug Fixes
+
+* **YouTube and YouTube Music - Visual preferences icons:** `Bold (stock size)` has heavier, larger glyphs in the native 24 dp slot. The RVX entry in YouTube Settings now lines up with the stock rows, including the icon and label; Music branding icons keep the native slot instead of shifting left. `Regular` and `Bold` are unchanged.
+* **YouTube and YouTube Music - Visual preferences icons:** The patch options now explain that icons inside RVX sub-settings require `Apply to all settings menu` to be true, even when a bold style is selected. A patch manager can remember a previous false value.
+
 ## [1.21.1](https://github.com/lavinhoque33/revanced-patches/compare/v1.21.0...v1.21.1) (2026-10-28)
 
 ### Bug Fixes

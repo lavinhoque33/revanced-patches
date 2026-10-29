@@ -8,6 +8,7 @@
  * - anddea (https://github.com/anddea)
  *
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-10-29
  *
  * ------------------------------------------------------------------------
  * GPLv3 Section 7 – Additional Terms & Attribution Requirements
@@ -555,12 +556,18 @@ public final class CustomBrandingPatch {
         return identifier;
     }
 
+    private static int getStockSettingsIconSize() {
+        int identifier = ResourceUtils.getDimenIdentifier("revanced_stock_preference_icon_size");
+        return identifier == 0 ? 0 : ResourceUtils.getResources().getDimensionPixelSize(identifier);
+    }
+
     /**
      * Drawable inflated by the Music settings XML so its ordinary Preference can select an icon
      * without calling version-specific AndroidX Preference methods.
      */
     public static final class RvxSettingsIconDrawable extends Drawable {
         private Drawable delegate;
+        private final int stockIconSize = getStockSettingsIconSize();
 
         /**
          * Keeps launcher fallbacks aligned with Music's legacy preference icon slot. Dedicated
@@ -569,7 +576,7 @@ public final class CustomBrandingPatch {
         private void updateDelegateBounds(@NonNull android.graphics.Rect bounds) {
             if (delegate == null) return;
 
-            if (delegate instanceof RvxSettingsIconFallbackDrawable) {
+            if (delegate instanceof RvxSettingsIconFallbackDrawable && stockIconSize == 0) {
                 Context context = Utils.getContext();
                 if (context == null) {
                     delegate.setBounds(bounds);
@@ -640,12 +647,16 @@ public final class CustomBrandingPatch {
 
         @Override
         public int getIntrinsicWidth() {
+            if (stockIconSize != 0) return stockIconSize;
+
             Drawable drawable = getDelegate();
             return drawable == null ? -1 : drawable.getIntrinsicWidth();
         }
 
         @Override
         public int getIntrinsicHeight() {
+            if (stockIconSize != 0) return stockIconSize;
+
             Drawable drawable = getDelegate();
             return drawable == null ? -1 : drawable.getIntrinsicHeight();
         }
@@ -703,8 +714,11 @@ public final class CustomBrandingPatch {
      */
     public static final class RvxSettingsIconFallbackDrawable extends Drawable {
         private Drawable delegate;
+        private final int stockIconSize = getStockSettingsIconSize();
 
         private int getSettingsIconSize() {
+            if (stockIconSize != 0) return stockIconSize;
+
             Context context = Utils.getContext();
             if (context == null) return -1;
 
@@ -739,8 +753,9 @@ public final class CustomBrandingPatch {
             android.graphics.Rect bounds = getBounds();
             if (bounds.isEmpty()) return;
 
-            int scaledWidth = Math.round(bounds.width() * RVX_SETTINGS_ICON_SCALE);
-            int scaledHeight = Math.round(bounds.height() * RVX_SETTINGS_ICON_SCALE);
+            float scale = stockIconSize == 0 ? RVX_SETTINGS_ICON_SCALE : 20.0f / 24.0f;
+            int scaledWidth = Math.round(bounds.width() * scale);
+            int scaledHeight = Math.round(bounds.height() * scale);
             int left = bounds.left + (bounds.width() - scaledWidth) / 2;
             int top = bounds.top + (bounds.height() - scaledHeight) / 2;
 

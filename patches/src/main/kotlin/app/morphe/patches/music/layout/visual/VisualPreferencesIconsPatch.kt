@@ -8,7 +8,7 @@
  * - anddea (https://github.com/anddea)
  *
  * Licensed under the GNU General Public License v3.0.
- * Modified by lavinhoque33, 2026-10-28
+ * Modified by lavinhoque33, 2026-10-29
  *
  * ------------------------------------------------------------------------
  * GPLv3 Section 7 – Additional Terms & Attribution Requirements
@@ -95,11 +95,13 @@ val visualPreferencesIconsPatch = resourcePatch(
         default = true,
         title = "Apply to all settings menu",
         description = """
-            Whether to apply Visual preferences icons to all settings menus.
+            Add icons to the native settings entry and the RVX settings screens.
 
-            If true: icons are applied to the parent PreferenceScreen of YouTube settings, the parent PreferenceScreen of RVX settings and the RVX sub-settings (if supported).
+            True (default): also add icons to individual settings inside RVX sub-screens.
 
-            If false: icons are applied only to the parent PreferenceScreen of YouTube settings and RVX settings.
+            False: icons only on parent screens. No sub-setting icons, regardless of Icon style.
+
+            Managers can remember false. Set this option to true to include sub-setting icons.
             """.trimIndentMultiline(),
         required = true
     )
@@ -113,7 +115,7 @@ val visualPreferencesIconsPatch = resourcePatch(
             "Bold (stock size)" to BOLD_STOCK_ICON_STYLE,
         ),
         title = "Icon style",
-        description = "The line weight and size of the settings menu icons.",
+        description = "The icon weight and size. Sub-setting icons require Apply to all settings menu = true.",
         required = true,
     )
 

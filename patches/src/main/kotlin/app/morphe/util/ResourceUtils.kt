@@ -6,6 +6,7 @@ import app.morphe.patcher.patch.PatchException
 import app.morphe.patcher.patch.ResourcePatchContext
 import app.morphe.patcher.util.Document
 import app.morphe.util.Utils.printWarn
+import app.morphe.patches.shared.layout.branding.vectorPathBounds
 import org.w3c.dom.Element
 import org.w3c.dom.Node
 import org.w3c.dom.NodeList
@@ -416,6 +417,8 @@ fun ResourcePatchContext.makeBold(drawable: String) {
 
 const val DEFAULT_PREFERENCE_ICON_SIZE_DP = 48
 const val STOCK_PREFERENCE_ICON_SIZE_DP = 24
+private const val STOCK_PREFERENCE_ICON_STROKE_WIDTH = "44"
+private const val STOCK_PREFERENCE_ICON_SCALE = "1.08"
 
 private const val STOCK_PREFERENCE_LAYOUT = "res/layout/revanced_preference_stock_icon.xml"
 
@@ -479,6 +482,13 @@ fun ResourcePatchContext.installStockPreferenceIconLayout(
             include.parentNode.replaceChild(frame, include)
         }
     }
+
+    document("res/values/dimens.xml").use { document ->
+        document.documentElement.appendChild(document.createElement("dimen").apply {
+            setAttribute("name", "revanced_stock_preference_icon_size")
+            textContent = "${STOCK_PREFERENCE_ICON_SIZE_DP}dp"
+        })
+    }
 }
 
 /** Apply only to icon-bearing RVX rows; preserve categories and purpose-built preference layouts. */
@@ -492,7 +502,7 @@ fun ResourcePatchContext.setStockPreferenceIconLayout(preference: Element) {
     preference.setAttribute("android:layout", "@layout/revanced_preference_stock_icon")
 }
 
-/** Uses a stock-sized box without the legacy template's glyph shrink or Music's left nudge. */
+/** Centers a larger, heavier glyph inside the native 24 dp slot, without Music's legacy left nudge. */
 fun ResourcePatchContext.setStockPreferenceIconGeometry(drawable: String) {
     if (!get(drawable).exists()) return
 
@@ -504,15 +514,48 @@ fun ResourcePatchContext.setStockPreferenceIconGeometry(drawable: String) {
         val pivotX = vector.getAttribute("android:viewportWidth").toFloat() / 2
         val pivotY = vector.getAttribute("android:viewportHeight").toFloat() / 2
 
+        val paths = document.getElementsByTagName("path").asSequence().filterIsInstance<Element>().toList()
+        paths.filter { it.getAttribute("android:strokeWidth") == BOLD_ICON_STROKE_WIDTH }.forEach {
+            it.setAttribute("android:strokeWidth", STOCK_PREFERENCE_ICON_STROKE_WIDTH)
+        }
+        val scale = stockPreferenceIconScale(paths, pivotX, pivotY)
+
         document.doRecursively { node ->
             if (node is Element && node.tagName == "group") {
-                node.setAttribute("android:scaleX", "1.0")
-                node.setAttribute("android:scaleY", "1.0")
+                node.setAttribute("android:scaleX", scale.toString())
+                node.setAttribute("android:scaleY", scale.toString())
                 node.setAttribute("android:pivotX", pivotX.toString())
                 node.setAttribute("android:pivotY", pivotY.toString())
             }
         }
     }
+}
+
+/** Most glyphs enlarge by the calibrated scale; unusually wide/tall artwork keeps a safe inset. */
+private fun stockPreferenceIconScale(paths: List<Element>, pivotX: Float, pivotY: Float): Double {
+    var scale = STOCK_PREFERENCE_ICON_SCALE.toDouble()
+    val insetX = pivotX / 60.0
+    val insetY = pivotY / 60.0
+
+    paths.forEach { path ->
+        val fill = path.getAttribute("android:fillColor")
+        val stroke = path.getAttribute("android:strokeColor")
+        if ((fill.isEmpty() || fill == "#00000000") && (stroke.isEmpty() || stroke == "#00000000")) {
+            return@forEach
+        }
+
+        val bounds = vectorPathBounds(path.getAttribute("android:pathData")) ?: return 1.0
+        val padding = if (stroke.isEmpty() || stroke == "#00000000") {
+            0.0
+        } else {
+            (path.getAttribute("android:strokeWidth").toDoubleOrNull() ?: 0.0) / 2
+        }
+        val extentX = maxOf(pivotX - bounds.left, bounds.right - pivotX) + padding
+        val extentY = maxOf(pivotY - bounds.top, bounds.bottom - pivotY) + padding
+        scale = minOf(scale, (pivotX - insetX) / extentX, (pivotY - insetY) / extentY)
+    }
+
+    return scale
 }
 
 /** Reports missing preference icons without turning coverage gaps into patch failures. */

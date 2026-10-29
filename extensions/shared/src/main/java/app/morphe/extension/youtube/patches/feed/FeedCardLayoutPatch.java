@@ -1265,11 +1265,24 @@ public class FeedCardLayoutPatch {
     }
 
     /**
+     * Injection point. Litho backgrounds are mounted drawables, not necessarily View backgrounds.
+     */
+    public static void onCardDrawableDraw(Drawable drawable) {
+        if (CARD_LAYOUT) {
+            FeedCardColorSampler.onCardDrawableDraw(drawable);
+        }
+    }
+
+    /**
      * Injection point.
      * Called with the original color of a Litho background drawable, before the theme changes it.
      */
     public static int getCardColor(Drawable drawable, int color) {
         try {
+            if (CARD_LAYOUT) {
+                FeedCardColorSampler.setCardBackgroundClass(drawable.getClass());
+            }
+
             if (CARD_LAYOUT && Color.alpha(color) == 255) {
                 boolean inCard = false;
                 final View drawableView = getDrawableView(drawable);

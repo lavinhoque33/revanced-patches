@@ -224,6 +224,66 @@ final class FeedCardColorSampler {
     private static int sharedImageLogs;
     private static long slowUpdateLogTime;
 
+    @Nullable
+    private static Class<?> cardBackgroundClass;
+
+    static void setCardBackgroundClass(Class<?> backgroundClass) {
+        cardBackgroundClass = backgroundClass;
+    }
+
+    /**
+     * The background's bounds can be set before it has a callback or belongs to a card. At draw time
+     * its host and card are known, so mounted metadata backgrounds use the same state as View surfaces.
+     */
+    static void onCardDrawableDraw(Drawable drawable) {
+        try {
+            if (cardStates.isEmpty() || (!(drawable instanceof ColorDrawable)
+                    && !(drawable instanceof GradientDrawable) && drawable.getClass() != cardBackgroundClass)) {
+                return;
+            }
+
+            View host = getDrawableView(drawable);
+            View item = host == null ? null : FeedCardLayoutPatch.findCardListItem(host);
+            CardState state = item == null ? null : cardStates.get(item);
+            if (state == null || !isCardItem(item)) {
+                return;
+            }
+
+            Rect bounds = drawable.getBounds();
+            if (bounds.width() * 20 < item.getWidth() * 17 || bounds.height() * 20 < item.getHeight()) {
+                return;
+            }
+
+            int bottom = bounds.bottom;
+            View current = host;
+            while (current != item) {
+                bottom += current.getTop();
+                ViewParent parent = current.getParent();
+                if (!(parent instanceof View parentView)) {
+                    return;
+                }
+                current = parentView;
+            }
+            if (bottom <= getThumbnailBottom(item, state)) {
+                return;
+            }
+
+            final boolean dynamicColors = Settings.FEED_CARD_LAYOUT_DYNAMIC_COLORS.get();
+            final int color = dynamicColors ? state.sampledColour : NO_TINT;
+            if (color != NO_TINT) {
+                if (drawable.getColorFilter() == getTintFilter(color)) {
+                    return;
+                }
+                addCardBackground(drawable);
+            }
+
+            applyCardBackgroundColour(drawable, state, dynamicColors);
+            state.bandColour = color;
+        } catch (Exception ex) {
+            Logger.printException(() -> "onCardDrawableDraw failure", ex);
+        }
+    }
+
     private FeedCardColorSampler() {
     }
 
@@ -632,6 +692,10 @@ final class FeedCardColorSampler {
         final View host = getDrawableView(drawable);
         final View item = host == null ? null : FeedCardLayoutPatch.findCardListItem(host);
         final CardState state = item == null ? null : cardStates.get(item);
+        applyCardBackgroundColour(drawable, state, dynamicColors);
+    }
+
+    private static void applyCardBackgroundColour(Drawable drawable, @Nullable CardState state, boolean dynamicColors) {
         final int color = dynamicColors && state != null ? state.sampledColour : NO_TINT;
 
         if (color == NO_TINT) {
@@ -751,6 +815,7 @@ final class FeedCardColorSampler {
     /**
      * Collects the surfaces of the card below the thumbnail that span its width: the backgrounds of its
      * views and the images of its ImageViews, such as the row of the channel.
+     * Mounted Litho backgrounds are tracked separately by {@link #onCardDrawableDraw(Drawable)}.
      */
     private static void collectCardSurfaces(View item, View view, int topInItem, int thumbnailBottom,
                                             List<Drawable> backgrounds, List<View> images) {

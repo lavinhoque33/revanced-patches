@@ -2,7 +2,7 @@
 
 ### Bug Fixes
 
-* **YouTube - Feed card layout:** `Dynamic card colors` also tints the recommendation cards under the player, including the title and channel row. They keep the same card corners and spacing; the player, comments and engagement panels are unchanged.
+* **YouTube - Feed card layout:** `Dynamic card colors` also tints the recommendation cards under the player, including the title backgrounds drawn inside Litho and the channel row. They keep the same card corners and spacing; the player, comments and engagement panels are unchanged.
 
 ## [1.21.1](https://github.com/lavinhoque33/revanced-patches/compare/v1.21.0...v1.21.1) (2026-10-28)
 

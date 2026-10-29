@@ -2805,6 +2805,9 @@ This may not work if:
 • Cookies have expired
 • Invalid Cookies are being used
 • YouTube Transcript API no longer validates Cookies"</string>
+    <string name="revanced_settings_color_history">Recent colors</string>
+    <string name="revanced_settings_color_history_clear">Clear history</string>
+    <string name="revanced_settings_color_history_select">Select recent color %s</string>
     <string name="revanced_settings_color_invalid">Invalid color</string>
     <string name="revanced_settings_color_picker">Color picker</string>
     <string name="revanced_settings_disable_bold_icons_summary_off">Icons are bold</string>

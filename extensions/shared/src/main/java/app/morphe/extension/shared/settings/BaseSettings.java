@@ -51,6 +51,11 @@ public class BaseSettings {
     public static final BooleanSetting SETTINGS_SEARCH_HISTORY = new BooleanSetting("revanced_settings_search_history", TRUE, true);
     public static final BooleanSetting SHOW_SLIDER_SUMMARIES = new BooleanSetting("revanced_settings_show_slider_summaries", TRUE);
     public static final StringSetting SETTINGS_SEARCH_ENTRIES = new StringSetting("revanced_settings_search_entries", "", true);
+
+    // Shared by all color preferences, without a preference row or import/export entry.
+    public static final StringSetting SETTINGS_COLOR_HISTORY =
+            new StringSetting("revanced_settings_color_history", "", false, false);
+
     public static final BooleanSetting SETTINGS_DISABLE_BOLD_ICONS = new BooleanSetting("revanced_settings_disable_bold_icons", FALSE, true);
 
     // The official ReVanced does not offer this, so it has been removed from the settings only. Users can still access settings through import / export settings.

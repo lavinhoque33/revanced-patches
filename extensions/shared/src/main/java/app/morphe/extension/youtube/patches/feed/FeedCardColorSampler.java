@@ -273,13 +273,14 @@ final class FeedCardColorSampler {
                 return;
             }
 
+            // The first draw can precede the thumbnail. Remember the surface now so pre-draw can
+            // tint and invalidate its cached Litho host as soon as the thumbnail's color is ready.
+            addCardBackground(background);
+
             final boolean dynamicColors = Settings.FEED_CARD_LAYOUT_DYNAMIC_COLORS.get();
             final int color = dynamicColors ? state.sampledColour : NO_TINT;
-            if (color != NO_TINT) {
-                if (background.getColorFilter() == getTintFilter(color)) {
-                    return;
-                }
-                addCardBackground(background);
+            if (color != NO_TINT && background.getColorFilter() == getTintFilter(color)) {
+                return;
             }
 
             applyCardBackgroundColour(background, state, dynamicColors);

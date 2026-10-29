@@ -237,8 +237,12 @@ final class FeedCardColorSampler {
      */
     static void onCardDrawableDraw(Drawable drawable) {
         try {
-            if (cardStates.isEmpty() || (!(drawable instanceof ColorDrawable)
-                    && !(drawable instanceof GradientDrawable) && drawable.getClass() != cardBackgroundClass)) {
+            if (cardStates.isEmpty()) {
+                return;
+            }
+
+            Drawable background = getCardBackground(drawable);
+            if (background == null) {
                 return;
             }
 
@@ -250,38 +254,55 @@ final class FeedCardColorSampler {
             }
 
             Rect bounds = drawable.getBounds();
-            if (bounds.width() * 20 < item.getWidth() * 17 || bounds.height() * 20 < item.getHeight()) {
+            if (bounds.width() * 20 < getCardContentWidth(item) * 17
+                    || bounds.height() * 20 < item.getHeight()) {
                 return;
             }
 
-            int bottom = bounds.bottom;
+            int top = bounds.top;
             View current = host;
             while (current != item) {
-                bottom += current.getTop();
+                top += current.getTop();
                 ViewParent parent = current.getParent();
                 if (!(parent instanceof View parentView)) {
                     return;
                 }
                 current = parentView;
             }
-            if (bottom <= getThumbnailBottom(item, state)) {
+            if (top < getThumbnailBottom(item, state)) {
                 return;
             }
 
             final boolean dynamicColors = Settings.FEED_CARD_LAYOUT_DYNAMIC_COLORS.get();
             final int color = dynamicColors ? state.sampledColour : NO_TINT;
             if (color != NO_TINT) {
-                if (drawable.getColorFilter() == getTintFilter(color)) {
+                if (background.getColorFilter() == getTintFilter(color)) {
                     return;
                 }
-                addCardBackground(drawable);
+                addCardBackground(background);
             }
 
-            applyCardBackgroundColour(drawable, state, dynamicColors);
+            applyCardBackgroundColour(background, state, dynamicColors);
             state.bandColour = color;
         } catch (Exception ex) {
             Logger.printException(() -> "onCardDrawableDraw failure", ex);
         }
+    }
+
+    /**
+     * Litho wraps mounted backgrounds in a drawable that translates the canvas to the mounted bounds.
+     * The standard getCurrent() API exposes its content without referring to the obfuscated wrapper.
+     */
+    @Nullable
+    private static Drawable getCardBackground(Drawable drawable) {
+        Drawable current = drawable.getCurrent();
+        while (current != null && current != drawable) {
+            drawable = current;
+            current = drawable.getCurrent();
+        }
+
+        return drawable instanceof ColorDrawable || drawable instanceof GradientDrawable
+                || drawable.getClass() == cardBackgroundClass ? drawable : null;
     }
 
     private FeedCardColorSampler() {
@@ -360,7 +381,7 @@ final class FeedCardColorSampler {
             }
             // The band of the metadata is as wide as the card, or as wide as the card without the padding of
             // the metadata, and the chips and the buttons are much narrower.
-            if (bounds.width() * 20 < item.getWidth() * 17) {
+            if (bounds.width() * 20 < getCardContentWidth(item) * 17) {
                 logRejectedSurface(drawableView, drawable, "the drawable is narrower than the card");
                 return null;
             }
@@ -776,6 +797,12 @@ final class FeedCardColorSampler {
      */
     @Nullable
     private static Rect getCardBounds(View item, View drawableView, Drawable drawable) {
+        // Mounted wrappers translate their content from local bounds into the host's coordinates.
+        Drawable.Callback callback = drawable.getCallback();
+        while (callback instanceof Drawable parent) {
+            drawable = parent;
+            callback = drawable.getCallback();
+        }
         Rect bounds = drawable.copyBounds();
         View view = drawableView;
         while (view != item) {
@@ -801,6 +828,21 @@ final class FeedCardColorSampler {
         return callback instanceof View view ? view : null;
     }
 
+    /**
+     * The watch list's item includes margins around its card host. Compare metadata with that content,
+     * not the full-width adapter item, so the card's own horizontal inset is not counted twice.
+     */
+    private static int getCardContentWidth(View item) {
+        final int itemWidth = item.getWidth();
+        int contentWidth = 0;
+        if (item instanceof ViewGroup group) {
+            for (int i = 0, count = group.getChildCount(); i < count; i++) {
+                contentWidth = Math.max(contentWidth, group.getChildAt(i).getWidth());
+            }
+        }
+        return contentWidth * 2 >= itemWidth && contentWidth <= itemWidth ? contentWidth : itemWidth;
+    }
+
     private static boolean isInside(View view, View item) {
         while (view != null) {
             if (view == item) {
@@ -819,7 +861,7 @@ final class FeedCardColorSampler {
      */
     private static void collectCardSurfaces(View item, View view, int topInItem, int thumbnailBottom,
                                             List<Drawable> backgrounds, List<View> images) {
-        final int width = item.getWidth();
+        final int width = getCardContentWidth(item);
         final int height = item.getHeight();
 
         // Compare surfaces and the thumbnail in item coordinates, never in the scrolling list's coordinates.

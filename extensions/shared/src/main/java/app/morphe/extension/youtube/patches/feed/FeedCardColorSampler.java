@@ -237,10 +237,6 @@ final class FeedCardColorSampler {
      */
     static void onCardDrawableDraw(Drawable drawable) {
         try {
-            if (cardStates.isEmpty()) {
-                return;
-            }
-
             Drawable background = getCardBackground(drawable);
             if (background == null) {
                 return;
@@ -248,10 +244,12 @@ final class FeedCardColorSampler {
 
             View host = getDrawableView(drawable);
             View item = host == null ? null : FeedCardLayoutPatch.findCardListItem(host);
-            CardState state = item == null ? null : cardStates.get(item);
-            if (state == null || !isCardItem(item)) {
+            if (item == null || !isCardItem(item)) {
                 return;
             }
+
+            // The host can draw before this list has run its first pre-draw sampling pass.
+            CardState state = getCardState(item);
 
             Rect bounds = drawable.getBounds();
             if (bounds.width() * 20 < getCardContentWidth(item) * 17

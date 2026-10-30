@@ -384,6 +384,7 @@ fun ResourcePatchContext.copyPreferenceIconsWithStockGlyphs(
     sourceResourceDirectory: String,
     resourceMap: Map<String, String>,
     stockIcons: Map<String, String>,
+    resolveStockIconName: (String) -> String,
 ) {
     var mappedCount = 0
     val stockFamilyAvailable = get("res/drawable").listFiles()?.any {
@@ -395,18 +396,19 @@ fun ResourcePatchContext.copyPreferenceIconsWithStockGlyphs(
     }
 
     resourceMap.forEach { (key, value) ->
-        var glyphKey = key
         var pathData = value
         val visited = mutableSetOf(key)
 
         while (pathData in resourceMap) {
             check(visited.add(pathData)) { "Cyclic preference icon mapping for $key" }
-            glyphKey = pathData
-            pathData = resourceMap.getValue(glyphKey)
+            pathData = resourceMap.getValue(pathData)
         }
 
-        val stockName = stockIcons[key] ?: stockIcons[glyphKey]
-        val stockDrawable = stockName?.let { "res/drawable/yt_outline_experimental_${it}_vd_theme_24.xml" }
+        val stockName = stockIcons[key]
+        val stockDrawable = stockName?.let {
+            val drawableName = resolveStockIconName("yt_outline_experimental_${it}_vd_theme_24")
+            "res/drawable/$drawableName.xml"
+        }
         val targetDrawable = "res/drawable/${key}_icon.xml"
 
         if (stockFamilyAvailable && stockDrawable != null && get(stockDrawable).exists()) {

@@ -5,7 +5,7 @@
  *
  * See the included NOTICE file for GPLv3 Section 7 terms that apply to this code.
  *
- * Modified by lavinhoque33, 2026-10-25
+ * Modified by lavinhoque33, 2026-10-29
  */
 
 package app.morphe.patches.youtube.player.icons
@@ -325,6 +325,13 @@ private val appPlayerIcons = listOf(
         "FullscreenExitAlt"
     ),
 )
+
+/** Other resource consumers need the original vector, not the runtime player-style wrapper. */
+internal fun ResourcePatchContext.originalAppPlayerIconName(appName: String): String {
+    val icon = appPlayerIcons.firstOrNull { it.appName == appName } ?: return appName
+
+    return icon.originalName.takeIf { get("res/drawable/$it.xml").exists() } ?: appName
+}
 
 // Bitmap versions of the same icons, the bold player shows these. The wrapper falls back to the vector above.
 private val appPlayerBitmapIcons = listOf(

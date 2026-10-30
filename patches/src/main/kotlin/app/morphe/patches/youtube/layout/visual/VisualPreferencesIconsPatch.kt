@@ -46,6 +46,7 @@ import app.morphe.patcher.patch.booleanOption
 import app.morphe.patcher.patch.resourcePatch
 import app.morphe.patcher.patch.stringOption
 import app.morphe.patches.shared.layout.branding.installYouTubeRvxSettingsIconLayout
+import app.morphe.patches.youtube.player.icons.originalAppPlayerIconName
 import app.morphe.patches.youtube.utils.compatibility.Constants.COMPATIBILITY_YOUTUBE
 import app.morphe.patches.youtube.utils.patch.PatchList.VISUAL_PREFERENCES_ICONS_FOR_YOUTUBE
 import app.morphe.patches.youtube.utils.settings.ResourceUtils.addPreference
@@ -147,7 +148,9 @@ val visualPreferencesIconsPatch = resourcePatch(
         // region copy shared resources
 
         if (useYouTubeIcons) {
-            copyPreferenceIconsWithStockGlyphs("youtube/visual/icons", preferenceKey, youtubeStockIcons)
+            copyPreferenceIconsWithStockGlyphs("youtube/visual/icons", preferenceKey, youtubeStockIcons) { name ->
+                originalAppPlayerIconName(name)
+            }
         } else {
             copyResourcesWithRename("youtube/visual/icons", preferenceKey)
 

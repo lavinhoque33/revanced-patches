@@ -1,4 +1,4 @@
-## Unreleased
+## [1.23.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.22.1...v1.23.0) (2026-10-29)
 
 ### Features
 

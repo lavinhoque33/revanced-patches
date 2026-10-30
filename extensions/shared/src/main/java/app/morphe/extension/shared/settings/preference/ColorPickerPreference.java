@@ -583,17 +583,19 @@ public class ColorPickerPreference extends EditTextPreference {
 
         // Configure and show the dialog.
         Dialog dialog = dialogPair.first;
+        dialog.setOnDismissListener(dialogInterface -> clearDialogViews());
         dialog.setCanceledOnTouchOutside(false);
         dialog.show();
     }
 
-    @Override
-    protected void onDialogClosed(boolean positiveResult) {
-        super.onDialogClosed(positiveResult);
-
+    private void clearDialogViews() {
         if (colorTextWatcher != null) {
             getEditText().removeTextChangedListener(colorTextWatcher);
             colorTextWatcher = null;
+        }
+
+        if (dialogColorPickerView != null) {
+            dialogColorPickerView.setOnColorChangedListener(null);
         }
 
         dialogColorDot = null;

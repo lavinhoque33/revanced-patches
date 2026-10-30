@@ -5,6 +5,7 @@
 * **YouTube and YouTube Music - Settings:** The color picker keeps the eight most recent applied colors,
   including the color being replaced, shared across color preferences within each app. Tap a swatch to
   select it before pressing OK, scroll the swatches to see more, or use `Clear history` to remove them.
+  Reopening the picker also keeps its hue and saturation/value controls in sync with swatch and hex input.
 
 ## [1.22.1](https://github.com/lavinhoque33/revanced-patches/compare/v1.22.0...v1.22.1) (2026-10-29)
 

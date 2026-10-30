@@ -1,5 +1,5 @@
 {
-  "version": "v1.23.0",
+  "version": "v1.24.0",
   "patches": [
     {
       "name": "Add to queue",
@@ -3798,14 +3798,15 @@
         {
           "key": "iconStyle",
           "title": "Icon style",
-          "description": "The icon weight and size. Sub-setting icons require Apply to all settings menu = true.",
+          "description": "The icon design, weight and size. YouTube uses the app's rounded settings icons at stock size,\nwith matching rounded RVX icons where a stock counterpart is unavailable.\n\nSub-setting icons require Apply to all settings menu = true.",
           "required": true,
           "type": "kotlin.String",
           "default": "regular",
           "values": {
             "Regular": "regular",
             "Bold": "bold",
-            "Bold (stock size)": "bold_stock"
+            "Bold (stock size)": "bold_stock",
+            "YouTube": "youtube"
           }
         }
       ]

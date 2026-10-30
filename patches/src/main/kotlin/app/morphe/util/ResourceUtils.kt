@@ -5,6 +5,7 @@ import app.morphe.patcher.patch.Patch
 import app.morphe.patcher.patch.PatchException
 import app.morphe.patcher.patch.ResourcePatchContext
 import app.morphe.patcher.util.Document
+import app.morphe.util.Utils.printInfo
 import app.morphe.util.Utils.printWarn
 import app.morphe.patches.shared.layout.branding.vectorPathBounds
 import org.w3c.dom.Element
@@ -370,6 +371,80 @@ fun ResourcePatchContext.copyResourcesWithRename(
         // Update the XML with the new path data
         document(targetFile.toString()).use { document ->
             updatePathData(document, pathData)
+        }
+    }
+}
+
+/**
+ * Generates each preference's own drawable so a mapped alias can override its shared RVX glyph.
+ * Stock vectors are copied, not referenced: their theme tint must match the RVX template without
+ * changing the original drawable used by native settings. Their viewport, paths and size stay intact.
+ */
+fun ResourcePatchContext.copyPreferenceIconsWithStockGlyphs(
+    sourceResourceDirectory: String,
+    resourceMap: Map<String, String>,
+    stockIcons: Map<String, String>,
+) {
+    var mappedCount = 0
+    val stockFamilyAvailable = get("res/drawable").listFiles()?.any {
+        it.name.startsWith("yt_outline_experimental_") && it.name.endsWith("_vd_theme_24.xml")
+    } == true
+
+    if (!stockFamilyAvailable) {
+        printWarn("YouTube icon style: this app has no experimental settings icons; using rounded RVX icons.")
+    }
+
+    resourceMap.forEach { (key, value) ->
+        var glyphKey = key
+        var pathData = value
+        val visited = mutableSetOf(key)
+
+        while (pathData in resourceMap) {
+            check(visited.add(pathData)) { "Cyclic preference icon mapping for $key" }
+            glyphKey = pathData
+            pathData = resourceMap.getValue(glyphKey)
+        }
+
+        val stockName = stockIcons[key] ?: stockIcons[glyphKey]
+        val stockDrawable = stockName?.let { "res/drawable/yt_outline_experimental_${it}_vd_theme_24.xml" }
+        val targetDrawable = "res/drawable/${key}_icon.xml"
+
+        if (stockFamilyAvailable && stockDrawable != null && get(stockDrawable).exists()) {
+            get(stockDrawable).copyTo(get(targetDrawable), overwrite = true)
+            setPreferenceIconColor(targetDrawable)
+            mappedCount++
+        } else {
+            inputStreamFromBundledResource(sourceResourceDirectory, "drawable/icon.xml")!!.use { input ->
+                Files.copy(input, get(targetDrawable).toPath(), StandardCopyOption.REPLACE_EXISTING)
+            }
+
+            document(targetDrawable).use { updatePathData(it, pathData) }
+            makeBold(targetDrawable)
+            setStockPreferenceIconGeometry(targetDrawable)
+            roundPreferenceIconStroke(targetDrawable)
+        }
+    }
+
+    printInfo("YouTube icon style: $mappedCount mapped icons, ${resourceMap.size - mappedCount} rounded RVX fallbacks.")
+}
+
+/** Use the same theme attribute as RVX icons, rather than stock colorControlNormal's secondary tint. */
+private fun ResourcePatchContext.setPreferenceIconColor(drawable: String) {
+    document(drawable).use { document ->
+        document.documentElement.removeAttribute("android:tint")
+
+        document.getElementsByTagName("path").asSequence().filterIsInstance<Element>().forEach { path ->
+            path.setAttribute("android:fillColor", "?attr/ytTextPrimary")
+        }
+    }
+}
+
+/** Only the YouTube style rounds the added stroke's caps; existing bold styles stay unchanged. */
+private fun ResourcePatchContext.roundPreferenceIconStroke(drawable: String) {
+    document(drawable).use { document ->
+        document.getElementsByTagName("path").asSequence().filterIsInstance<Element>().forEach { path ->
+            path.setAttribute("android:strokeLineCap", "round")
+            path.setAttribute("android:strokeLineJoin", "round")
         }
     }
 }

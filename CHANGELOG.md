@@ -1,3 +1,12 @@
+## Unreleased
+
+### Features
+
+* **YouTube - Visual preferences icons:** The new `YouTube` icon style uses the app's own rounded
+  settings icons where a counterpart exists. Other rows keep rounded RVX icons with stock-sized
+  geometry and spacing. Apps without the rounded YouTube family use rounded RVX icons throughout.
+  The existing icon styles and YouTube Music are unchanged.
+
 ## [1.23.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.22.1...v1.23.0) (2026-10-29)
 
 ### Features

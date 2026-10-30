@@ -59,6 +59,7 @@ private const val DEFAULT_ICON = "extension"
 private const val REGULAR_ICON_STYLE = "regular"
 private const val BOLD_ICON_STYLE = "bold"
 private const val BOLD_STOCK_ICON_STYLE = "bold_stock"
+private const val YOUTUBE_ICON_STYLE = "youtube"
 
 /** RVX settings menu icons that cannot be thickened with an outline. */
 private val FIXED_WEIGHT_RVX_ICONS = setOf("rvx_letters_bold", "revanced_colored")
@@ -112,9 +113,15 @@ val visualPreferencesIconsPatch = resourcePatch(
             "Regular" to REGULAR_ICON_STYLE,
             "Bold" to BOLD_ICON_STYLE,
             "Bold (stock size)" to BOLD_STOCK_ICON_STYLE,
+            "YouTube" to YOUTUBE_ICON_STYLE,
         ),
         title = "Icon style",
-        description = "The icon weight and size. Sub-setting icons require Apply to all settings menu = true.",
+        description = """
+            The icon design, weight and size. YouTube uses the app's rounded settings icons at stock size,
+            with matching rounded RVX icons where a stock counterpart is unavailable.
+
+            Sub-setting icons require Apply to all settings menu = true.
+            """.trimIndentMultiline(),
         required = true,
     )
 
@@ -125,8 +132,9 @@ val visualPreferencesIconsPatch = resourcePatch(
         val iconStyle = iconStyleOption
             .lowerCaseOrThrow()
             .let { style -> if (style.startsWith("bold (stock")) BOLD_STOCK_ICON_STYLE else style }
-        val useBoldIcons = iconStyle == BOLD_ICON_STYLE || iconStyle == BOLD_STOCK_ICON_STYLE
-        val useStockIconSize = iconStyle == BOLD_STOCK_ICON_STYLE
+        val useYouTubeIcons = iconStyle == YOUTUBE_ICON_STYLE
+        val useStockIconSize = iconStyle == BOLD_STOCK_ICON_STYLE || useYouTubeIcons
+        val useBoldIcons = iconStyle == BOLD_ICON_STYLE || useStockIconSize
 
         if (useBoldIcons) {
             makeSettingsToolbarIconsBold()
@@ -138,12 +146,16 @@ val visualPreferencesIconsPatch = resourcePatch(
 
         // region copy shared resources
 
-        copyResourcesWithRename("youtube/visual/icons", preferenceKey)
+        if (useYouTubeIcons) {
+            copyPreferenceIconsWithStockGlyphs("youtube/visual/icons", preferenceKey, youtubeStockIcons)
+        } else {
+            copyResourcesWithRename("youtube/visual/icons", preferenceKey)
 
-        preferenceKey.filterValues { it !in preferenceKey }.keys.forEach { title ->
-            val drawable = "res/drawable/${title}_icon.xml"
-            if (useBoldIcons) makeBold(drawable)
-            if (useStockIconSize) setStockPreferenceIconGeometry(drawable)
+            preferenceKey.filterValues { it !in preferenceKey }.keys.forEach { title ->
+                val drawable = "res/drawable/${title}_icon.xml"
+                if (useBoldIcons) makeBold(drawable)
+                if (useStockIconSize) setStockPreferenceIconGeometry(drawable)
+            }
         }
 
         // endregion
@@ -227,9 +239,11 @@ val visualPreferencesIconsPatch = resourcePatch(
                         } else {
                             when (title) {
                                 in preferenceKey.keys -> {
-                                    val iconKey = preferenceKey[title]
-                                        ?.takeIf { it in preferenceKey }
-                                        ?: title
+                                    val iconKey = if (iconStyleOption.lowerCaseOrThrow() == YOUTUBE_ICON_STYLE) {
+                                        title
+                                    } else {
+                                        preferenceKey[title]?.takeIf { it in preferenceKey } ?: title
+                                    }
 
                                     check(get("res/drawable/${iconKey}_icon.xml").exists()) {
                                         "Missing icon or cyclic preference mapping for $title"

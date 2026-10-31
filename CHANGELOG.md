@@ -5,6 +5,9 @@
 * **YouTube - Visual preferences icons:** The `YouTube` style shows icons only on rows that open a
   settings screen. Leaf settings align with screen-entry rows when present; screens without icons
   use the stock no-icon spacing. The RVX entry uses YouTube's magic wand where available.
+* **YouTube - Built-in downloader:** The Downloads search field is a rounded, filled pill without an inner
+  magnifier, and the toolbar search icon matches the bold settings glyph. The item menu, sort, playlist
+  input and confirmation dialogs follow the app's background and text colors, including custom themes.
 
 ## [1.24.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.23.0...v1.24.0) (2026-10-30)
 

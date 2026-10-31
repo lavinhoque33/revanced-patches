@@ -1100,8 +1100,11 @@ public class GeneralPatch {
 
     private static void openSearchInChannel(View view) {
         String channelId = RootView.getBrowseId();
+
         // The channel search button presses the search button to open the search box.
-        if (!isChannelBrowseId(channelId) || ChannelSearchPatch.isChannelSearchPending()) {
+        if (!Settings.SEARCH_IN_CHANNEL_DIALOG.get()
+                || !isChannelBrowseId(channelId)
+                || ChannelSearchPatch.isChannelSearchPending()) {
             openSearchBar(view);
             return;
         }

@@ -1099,6 +1099,7 @@ private val rvxPreferenceKey = mapOf(
     "revanced_return_youtube_username_youtube_data_api_v3_developer_key" to "morphe_proxy_auth_password",
     "revanced_ryd_attribution" to "about_key",
     "revanced_sb_about_api" to "about_key",
+    "revanced_search_in_channel_dialog" to "revanced_set_transcript_cookies",
     "revanced_search_in_channel_use_webview" to "revanced_set_transcript_cookies",
     "revanced_set_transcript_cookies_all" to "revanced_set_transcript_cookies",
     "revanced_shorts_autoplay_background" to "revanced_shorts_autoplay",

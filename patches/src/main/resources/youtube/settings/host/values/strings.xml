@@ -2778,6 +2778,9 @@ If you\'re not submitting a highlight, tap Cancel and mark the second location"<
     <string name="revanced_search_in_channel_query_hint">Search this channel</string>
     <string name="revanced_search_in_channel_scroll_tip">Scroll down to load more videos before creating a queue</string>
     <string name="revanced_search_in_channel_search_youtube">Search YouTube</string>
+    <string name="revanced_search_in_channel_dialog_title">Show channel search dialog</string>
+    <string name="revanced_search_in_channel_dialog_summary_on">Tapping search on a channel page asks whether to search the channel or YouTube</string>
+    <string name="revanced_search_in_channel_dialog_summary_off">Tapping search on a channel page opens the normal YouTube search</string>
     <string name="revanced_search_in_channel_title">Search channel</string>
     <string name="revanced_search_in_channel_use_webview_summary_off">Channel search uses native YouTube search. This will show some irrelevant results</string>
     <string name="revanced_search_in_channel_use_webview_summary_on">Channel search opens the mobile web channel search page</string>

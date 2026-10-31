@@ -517,7 +517,11 @@ public class Settings extends SharedYouTubeSettings {
     public static final BooleanSetting HIDE_TOOLBAR_NOTIFICATION_BUTTON = new BooleanSetting("revanced_hide_toolbar_notification_button", FALSE, true);
     public static final BooleanSetting HIDE_TOOLBAR_SEARCH_BUTTON = new BooleanSetting("revanced_hide_toolbar_search_button", FALSE, true);
     public static final BooleanSetting HIDE_SEARCH_TERM_THUMBNAIL = new BooleanSetting("revanced_hide_search_term_thumbnail", FALSE);
-    public static final BooleanSetting SEARCH_IN_CHANNEL_USE_WEBVIEW = new BooleanSetting("revanced_search_in_channel_use_webview", TRUE, parentInverted(HIDE_TOOLBAR_SEARCH_BUTTON));
+    public static final BooleanSetting SEARCH_IN_CHANNEL_DIALOG = new BooleanSetting(
+            "revanced_search_in_channel_dialog", TRUE, parentInverted(HIDE_TOOLBAR_SEARCH_BUTTON));
+    public static final BooleanSetting SEARCH_IN_CHANNEL_USE_WEBVIEW = new BooleanSetting(
+            "revanced_search_in_channel_use_webview", TRUE,
+            parentsAll(parentInverted(HIDE_TOOLBAR_SEARCH_BUTTON), parent(SEARCH_IN_CHANNEL_DIALOG)));
     public static final BooleanSetting CHANNEL_SEARCH = new BooleanSetting("morphe_channel_search", FALSE);
     public static final BooleanSetting HIDE_IMAGE_SEARCH_BUTTON = new BooleanSetting("revanced_hide_image_search_button", FALSE, true);
     public static final BooleanSetting HIDE_SEARCH_BAR_BACK_BUTTON = new BooleanSetting("revanced_hide_search_bar_back_button", FALSE, true);

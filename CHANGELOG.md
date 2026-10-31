@@ -1,3 +1,11 @@
+## Unreleased
+
+### Features
+
+* **YouTube - Toolbar components:** Add `Show channel search dialog` to choose whether the toolbar
+  search button asks to search the channel or opens normal YouTube search. The separate `Search channel`
+  button is unchanged. WebView channel search is available only while the dialog is enabled.
+
 ## [1.24.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.23.0...v1.24.0) (2026-10-30)
 
 ### Features

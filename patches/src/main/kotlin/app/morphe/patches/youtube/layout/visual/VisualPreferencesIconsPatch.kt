@@ -46,7 +46,6 @@ import app.morphe.patcher.patch.booleanOption
 import app.morphe.patcher.patch.resourcePatch
 import app.morphe.patcher.patch.stringOption
 import app.morphe.patches.shared.layout.branding.installYouTubeRvxSettingsIconLayout
-import app.morphe.patches.youtube.player.icons.originalAppPlayerIconName
 import app.morphe.patches.youtube.utils.compatibility.Constants.COMPATIBILITY_YOUTUBE
 import app.morphe.patches.youtube.utils.patch.PatchList.VISUAL_PREFERENCES_ICONS_FOR_YOUTUBE
 import app.morphe.patches.youtube.utils.settings.ResourceUtils.addPreference
@@ -72,7 +71,7 @@ val visualPreferencesIconsPatch = resourcePatch(
 ) {
     compatibleWith(COMPATIBILITY_YOUTUBE)
 
-    dependsOn(settingsPatch)
+    dependsOn(settingsPatch, youtubeScreenIconsBytecodePatch)
 
     val settingsMenuIconOption = stringOption(
         key = "settingsMenuIcon",
@@ -100,9 +99,9 @@ val visualPreferencesIconsPatch = resourcePatch(
 
             True (default): also add icons to individual settings inside RVX sub-screens.
 
-            False: icons only on parent screens. No sub-setting icons, regardless of Icon style.
+            False: icons only on parent screens for Regular and Bold styles.
 
-            Managers can remember false. Set this option to true to include sub-setting icons.
+            YouTube style always shows icons only on rows that open a settings screen.
             """.trimIndentMultiline(),
         required = true
     )
@@ -118,10 +117,11 @@ val visualPreferencesIconsPatch = resourcePatch(
         ),
         title = "Icon style",
         description = """
-            The icon design, weight and size. YouTube uses the app's rounded settings icons at stock size,
-            with matching rounded RVX icons where a stock counterpart is unavailable.
+            The icon design, weight and size. YouTube uses the app's rounded settings icons at stock size
+            only on rows that open a settings screen, with rounded RVX fallbacks where unavailable.
+            Its RVX entry uses YouTube's magic wand when available.
 
-            Sub-setting icons require Apply to all settings menu = true.
+            Individual setting icons in Regular and Bold styles require Apply to all settings menu = true.
             """.trimIndentMultiline(),
         required = true,
     )
@@ -137,6 +137,10 @@ val visualPreferencesIconsPatch = resourcePatch(
         val useStockIconSize = iconStyle == BOLD_STOCK_ICON_STYLE || useYouTubeIcons
         val useBoldIcons = iconStyle == BOLD_ICON_STYLE || useStockIconSize
 
+        if (useYouTubeIcons) {
+            applyYouTubeRuntimeIconPolicy()
+        }
+
         if (useBoldIcons) {
             makeSettingsToolbarIconsBold()
         }
@@ -147,11 +151,7 @@ val visualPreferencesIconsPatch = resourcePatch(
 
         // region copy shared resources
 
-        if (useYouTubeIcons) {
-            copyPreferenceIconsWithStockGlyphs("youtube/visual/icons", preferenceKey, youtubeStockIcons) { name ->
-                originalAppPlayerIconName(name)
-            }
-        } else {
+        if (!useYouTubeIcons) {
             copyResourcesWithRename("youtube/visual/icons", preferenceKey)
 
             preferenceKey.filterValues { it !in preferenceKey }.keys.forEach { title ->
@@ -210,6 +210,11 @@ val visualPreferencesIconsPatch = resourcePatch(
     }
 
     finalize {
+        if (iconStyleOption.lowerCaseOrThrow() == YOUTUBE_ICON_STYLE) {
+            applyYouTubeScreenIcons(preferenceKey + rvxPreferenceKey)
+            return@finalize
+        }
+
         // region set visual preferences icon
 
         val preferenceXmlFiles = arrayOf(
@@ -242,11 +247,7 @@ val visualPreferencesIconsPatch = resourcePatch(
                         } else {
                             when (title) {
                                 in preferenceKey.keys -> {
-                                    val iconKey = if (iconStyleOption.lowerCaseOrThrow() == YOUTUBE_ICON_STYLE) {
-                                        title
-                                    } else {
-                                        preferenceKey[title]?.takeIf { it in preferenceKey } ?: title
-                                    }
+                                    val iconKey = preferenceKey[title]?.takeIf { it in preferenceKey } ?: title
 
                                     check(get("res/drawable/${iconKey}_icon.xml").exists()) {
                                         "Missing icon or cyclic preference mapping for $title"

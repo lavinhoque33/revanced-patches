@@ -384,6 +384,7 @@ fun ResourcePatchContext.copyPreferenceIconsWithStockGlyphs(
     sourceResourceDirectory: String,
     resourceMap: Map<String, String>,
     stockIcons: Map<String, String>,
+    iconKeys: Set<String>,
     resolveStockIconName: (String) -> String,
 ) {
     var mappedCount = 0
@@ -395,7 +396,7 @@ fun ResourcePatchContext.copyPreferenceIconsWithStockGlyphs(
         printWarn("YouTube icon style: this app has no experimental settings icons; using rounded RVX icons.")
     }
 
-    resourceMap.forEach { (key, value) ->
+    resourceMap.filterKeys { it in iconKeys }.forEach { (key, value) ->
         var pathData = value
         val visited = mutableSetOf(key)
 
@@ -405,15 +406,11 @@ fun ResourcePatchContext.copyPreferenceIconsWithStockGlyphs(
         }
 
         val stockName = stockIcons[key]
-        val stockDrawable = stockName?.let {
-            val drawableName = resolveStockIconName("yt_outline_experimental_${it}_vd_theme_24")
-            "res/drawable/$drawableName.xml"
-        }
         val targetDrawable = "res/drawable/${key}_icon.xml"
 
-        if (stockFamilyAvailable && stockDrawable != null && get(stockDrawable).exists()) {
-            get(stockDrawable).copyTo(get(targetDrawable), overwrite = true)
-            setPreferenceIconColor(targetDrawable)
+        if (stockFamilyAvailable && stockName != null &&
+            copyStockPreferenceIcon(stockName, targetDrawable, resolveStockIconName)
+        ) {
             mappedCount++
         } else {
             inputStreamFromBundledResource(sourceResourceDirectory, "drawable/icon.xml")!!.use { input ->
@@ -427,7 +424,22 @@ fun ResourcePatchContext.copyPreferenceIconsWithStockGlyphs(
         }
     }
 
-    printInfo("YouTube icon style: $mappedCount mapped icons, ${resourceMap.size - mappedCount} rounded RVX fallbacks.")
+    printInfo("YouTube icon style: $mappedCount mapped icons, ${iconKeys.size - mappedCount} rounded RVX fallbacks.")
+}
+
+/** Copy only existing stock glyphs; older apps retain the caller's fallback. */
+fun ResourcePatchContext.copyStockPreferenceIcon(
+    stockName: String,
+    targetDrawable: String,
+    resolveStockIconName: (String) -> String,
+): Boolean {
+    val drawableName = resolveStockIconName("yt_outline_experimental_${stockName}_vd_theme_24")
+    val stockDrawable = get("res/drawable/$drawableName.xml")
+    if (!stockDrawable.exists()) return false
+
+    stockDrawable.copyTo(get(targetDrawable), overwrite = true)
+    setPreferenceIconColor(targetDrawable)
+    return true
 }
 
 /** Use the same theme attribute as RVX icons, rather than stock colorControlNormal's secondary tint. */

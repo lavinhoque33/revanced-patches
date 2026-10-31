@@ -1,3 +1,11 @@
+## Unreleased
+
+### Features
+
+* **YouTube - Visual preferences icons:** The `YouTube` style shows icons only on rows that open a
+  settings screen. Leaf settings align with screen-entry rows when present; screens without icons
+  use the stock no-icon spacing. The RVX entry uses YouTube's magic wand where available.
+
 ## [1.24.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.23.0...v1.24.0) (2026-10-30)
 
 ### Features

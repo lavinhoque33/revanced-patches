@@ -2,6 +2,7 @@ package app.morphe.extension.youtube.patches.overlaybutton
 
 import android.view.View
 import app.morphe.extension.shared.utils.Logger
+import app.morphe.extension.shared.utils.StringRef.str
 import app.morphe.extension.youtube.patches.utils.PlaylistPatch
 import app.morphe.extension.youtube.settings.Settings
 import app.morphe.extension.youtube.shared.PlayerControlButton
@@ -30,6 +31,7 @@ object ExternalDownloadButton {
                 }
             )
             instance?.setStyledIcon("morphe_player_download")
+            updateContentDescription()
         } catch (ex: Exception) {
             Logger.printException({ "initializeButton failure" }, ex)
         }
@@ -60,8 +62,21 @@ object ExternalDownloadButton {
     }
 
     private fun isButtonEnabled(): Boolean {
+        updateContentDescription()
+
         return Settings.OVERLAY_BUTTON_EXTERNAL_DOWNLOADER.get()
                 && !isAdProgressTextVisible()
+    }
+
+    private fun updateContentDescription() {
+        instance?.imageView()?.contentDescription =
+            if (Settings.OVERLAY_BUTTON_EXTERNAL_DOWNLOADER_QUEUE_MANAGER.get()) {
+                str(
+                    "revanced_overlay_button_external_downloader_queue_manager_title"
+                )
+            } else {
+                VideoUtils.getVideoDownloadLabel()
+            }
     }
 
     private fun onClick(view: View) {

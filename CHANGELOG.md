@@ -4,6 +4,9 @@
 
 * **YouTube - Built-in downloader:** The expanded Downloads search pill fills the toolbar up to the
   overflow menu, and the back arrow and overflow icon keep the same foreground color as the title.
+* **YouTube - Shorts custom actions:** Show `Download` instead of `External downloader` when the built-in
+  downloader is enabled, including the queue manager and player download button accessibility label.
+  Keep the download arrow icon and resolve the label when opening the menu.
 
 ## [1.25.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.24.0...v1.25.0) (2026-10-31)
 

@@ -124,4 +124,31 @@ public class OfflineSubtitleTest {
         assertTrue(OfflineSubtitle.select(selected, "translate:ko", true));
         assertEquals(5, selected.size());
     }
+
+    @Test
+    public void repeatedVideoDownloadsKeepTheExtensionAndUseTheFirstFreeSuffix() {
+        String name = OfflineSubtitle.fileName("Same video", "abcdefghijk", "en", "", "", "vtt");
+        Set<String> existing = new LinkedHashSet<>();
+        assertEquals("Same video [abcdefghijk].en.vtt", OfflineSubtitle.uniqueName(name, existing::contains));
+        existing.add(name);
+        String second = OfflineSubtitle.uniqueName(name, existing::contains);
+        assertEquals("Same video [abcdefghijk].en (2).vtt", second);
+        existing.add(second);
+        assertEquals("Same video [abcdefghijk].en (3).vtt", OfflineSubtitle.uniqueName(name, existing::contains));
+        existing.remove(name);
+        assertEquals(name, OfflineSubtitle.uniqueName(name, existing::contains));
+    }
+
+    @Test
+    public void rateLimitsIncludeEmpty429AndSorryHtmlAtAnyStatusButNotJsonCaptionText() {
+        assertTrue(OfflineSubtitle.isRateLimited(429, ""));
+        assertTrue(OfflineSubtitle.isRateLimited(200,
+                "  <!DOCTYPE html><HTML><HEAD><TITLE> Sorry... </TITLE></HEAD></HTML>"));
+        assertTrue(OfflineSubtitle.isRateLimited(403,
+                "<html>Our systems have detected unusual traffic from your computer network.</html>"));
+        assertFalse(OfflineSubtitle.isRateLimited(200,
+                "{\"events\":[{\"segs\":[{\"utf8\":\"Sorry, unusual traffic\"}]}]}"));
+        assertFalse(OfflineSubtitle.isRateLimited(500, "<html><title>Internal server error</title></html>"));
+        assertFalse(OfflineSubtitle.isRateLimited(200, ""));
+    }
 }

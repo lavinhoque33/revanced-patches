@@ -24,6 +24,7 @@ message Captions {
 message CaptionTrackList {
   repeated CaptionTrack captionTracks = 1;
   repeated CaptionTranslationLanguage translationLanguages = 3;
+  repeated int32 defaultTranslationSourceTrackIndices = 6;
 }
 
 message CaptionText {

@@ -147,6 +147,24 @@ final class OfflineSubtitle {
                 + "." + ("vtt".equals(format) ? "vtt" : "srt");
     }
 
+    static String uniqueName(String name, java.util.function.Predicate<String> exists) {
+        String candidate = name;
+        int dot = name.lastIndexOf('.');
+        int number = 2;
+        while (exists.test(candidate)) {
+            candidate = name.substring(0, dot) + " (" + number++ + ")" + name.substring(dot);
+        }
+        return candidate;
+    }
+
+    static boolean isRateLimited(int status, String body) {
+        if (status == 429) return true;
+        String trimmed = body.trim();
+        if (trimmed.isEmpty() || trimmed.charAt(0) != '<') return false;
+        String html = trimmed.toLowerCase(Locale.ROOT);
+        return html.contains("sorry") || html.contains("unusual traffic");
+    }
+
     private static String sanitize(String text) {
         String result = text.replaceAll("[\\p{Cntrl}\\\\/:*?\"<>|]", "_")
                 .replaceAll("[. ]+$", "").trim();

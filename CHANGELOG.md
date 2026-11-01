@@ -5,6 +5,9 @@
 * **YouTube - Built-in downloader:** Save up to five caption tracks, including available auto-translations,
   as SRT or VTT sidecars in `Movies/RVX/Subtitles`. The built-in player shows a private subtitle copy with
   a CC menu for track, size, colour, background and position. Subtitle failures do not fail the video.
+  Missing auto-translation metadata is resolved separately from native tracks; rate-limit errors name
+  the failed language and retain the video and any subtitles already saved. VTT downloads retain their
+  `text/vtt` MIME after MediaProvider's initial publication scan on supported Android versions.
 
 ## [1.25.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.24.0...v1.25.0) (2026-10-31)
 

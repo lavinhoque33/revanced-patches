@@ -22,6 +22,7 @@ import android.content.Context;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.Build;
+import android.os.Bundle;
 import android.os.Environment;
 import android.os.ParcelFileDescriptor;
 import android.provider.MediaStore;
@@ -152,6 +153,27 @@ final class OfflineMediaStore {
             case "vtt" -> "text/vtt";
             default -> "video/mp4";
         };
+    }
+
+    static void retainSubtitleMime(Context context, Uri uri, String displayName) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R || !"content".equals(uri.getScheme())
+                || !"text/vtt".equals(mimeType(displayName))) return;
+
+        // Publishing forces a scan, which can replace an unrecognised .vtt MIME with octet-stream.
+        // Android's provider permits MIME-only updates. Disable placement recomputation so this
+        // update does not add DATA and trigger a second scan. No file is moved or renamed.
+        ContentValues values = new ContentValues();
+        values.put(MediaStore.MediaColumns.MIME_TYPE, "text/vtt");
+        Bundle options = new Bundle();
+        options.putBoolean("android:query-arg-allow-movement", false);
+        try {
+            if (context.getContentResolver().update(uri, values, options) < 1) {
+                Logger.printInfo(() -> "MediaProvider did not retain the VTT MIME type");
+            }
+        } catch (RuntimeException ex) {
+            // The published sidecar remains usable even if an OEM provider declines this metadata update.
+            Logger.printInfo(() -> "MediaProvider could not retain the VTT MIME type", ex);
+        }
     }
 
     /**

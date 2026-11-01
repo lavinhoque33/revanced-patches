@@ -29,22 +29,19 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
-import app.morphe.extension.shared.innertube.PlayerResponseOuterClass.CaptionText;
 import app.morphe.extension.shared.innertube.PlayerResponseOuterClass.CaptionTrackList;
 import app.morphe.extension.shared.innertube.PlayerResponseOuterClass.PlayerResponse;
 import app.morphe.extension.shared.requests.Requester;
 import app.morphe.extension.shared.utils.Logger;
 import app.morphe.extension.shared.utils.Utils;
 import app.morphe.extension.youtube.settings.Settings;
+import app.morphe.extension.youtube.patches.general.offline.OfflineCaptionChoices.Track;
 
 /** Caption URLs are ephemeral; only downloaded cues and public file references enter the private index. */
 final class OfflineCaptions {
     private static final String PLAYER_URL = "https://youtubei.googleapis.com/youtubei/v1/player?alt=proto";
     private static final String USER_AGENT = "com.google.android.youtube/20.10.38 (Linux; U; Android 11) gzip";
     private static final String FOLDER = "RVX/Subtitles";
-
-    record Track(String key, String language, String kind, String translation, String name, String url) {
-    }
 
     record Selection(List<Track> tracks, String format) {
         static Selection none() {
@@ -65,19 +62,19 @@ final class OfflineCaptions {
             String[] remembered = Settings.OFFLINE_SUBTITLES_LANGUAGES.get().split(",");
             for (String key : remembered) {
                 for (Track track : tracks) {
-                    if (track.key.equals(key)) OfflineSubtitle.select(selected, key, true);
+                    if (track.key().equals(key)) OfflineSubtitle.select(selected, key, true);
                 }
             }
             if (selected.isEmpty() && !tracks.isEmpty()) {
                 Track preferred = tracks.get(0);
                 for (Track track : tracks) {
-                    if (track.translation.isEmpty() && (track.language.equals("en")
-                            || track.language.startsWith("en-"))) {
+                    if (track.translation().isEmpty() && (track.language().equals("en")
+                            || track.language().startsWith("en-"))) {
                         preferred = track;
                         break;
                     }
                 }
-                selected.add(preferred.key);
+                selected.add(preferred.key());
             }
         }
 
@@ -87,7 +84,7 @@ final class OfflineCaptions {
             // Selection order is retained, so the default English track is also the player's first track.
             for (String key : selected) {
                 for (Track track : tracks) {
-                    if (key.equals(track.key)) result.add(track);
+                    if (key.equals(track.key())) result.add(track);
                 }
             }
             return new Selection(List.copyOf(result), format);
@@ -101,7 +98,7 @@ final class OfflineCaptions {
 
         Track currentTrack(Track selected) {
             for (Track track : tracks) {
-                if (track.key.equals(selected.key)) return track;
+                if (track.key().equals(selected.key())) return track;
             }
             return selected;
         }
@@ -151,14 +148,23 @@ final class OfflineCaptions {
 
     static Catalog resolve(String videoId, PlayerResponse response, boolean fetchMissing) {
         CaptionTrackList list = response.getCaptions().getPlayerCaptionsTracklistRenderer();
-        if (fetchMissing && list.getCaptionTracksCount() == 0) {
+        logMetadata(videoId, "download", list);
+        if (fetchMissing && OfflineCaptionChoices.needsMetadata(list)) {
             try {
-                list = fetchPlayer(videoId).getCaptions().getPlayerCaptionsTracklistRenderer();
+                CaptionTrackList fetched = fetchPlayer(videoId).getCaptions().getPlayerCaptionsTracklistRenderer();
+                logMetadata(videoId, "ANDROID", fetched);
+                if (fetched.getCaptionTracksCount() > 0) list = fetched;
             } catch (Exception ex) {
                 Logger.printInfo(() -> "Offline captions unavailable for " + videoId, ex);
             }
         }
-        return new Catalog(tracks(list));
+        return new Catalog(OfflineCaptionChoices.from(list));
+    }
+
+    private static void logMetadata(String videoId, String source, CaptionTrackList list) {
+        Logger.printDebug(() -> "Offline captions " + videoId + " " + source
+                + ": tracks=" + list.getCaptionTracksCount()
+                + ", translation languages=" + list.getTranslationLanguagesCount());
     }
 
     private static PlayerResponse fetchPlayer(String videoId) throws IOException {
@@ -177,6 +183,7 @@ final class OfflineCaptions {
                 output.write(body.getBytes(StandardCharsets.UTF_8));
             }
             int status = connection.getResponseCode();
+            Logger.printDebug(() -> "Offline caption player " + videoId + " HTTP " + status);
             if (status != 200) throw new IOException("Caption player HTTP " + status);
             try (InputStream input = connection.getInputStream()) {
                 return PlayerResponse.parseFrom(input);
@@ -186,104 +193,66 @@ final class OfflineCaptions {
         }
     }
 
-    private static List<Track> tracks(CaptionTrackList list) {
-        List<Track> result = new ArrayList<>();
-        for (var track : list.getCaptionTracksList()) {
-            if (track.getBaseUrl().isEmpty() || track.getLanguageCode().isEmpty()) continue;
-            String key = track.getVssId().isEmpty()
-                    ? track.getLanguageCode() + ":" + track.getKind() : track.getVssId();
-            result.add(new Track(key, track.getLanguageCode(), track.getKind(), "",
-                    name(track.getName(), track.getLanguageCode()), track.getBaseUrl()));
-        }
-        if (result.isEmpty()) return result;
-        for (var language : list.getTranslationLanguagesList()) {
-            if (language.getLanguageCode().isEmpty()) continue;
-            int sourceIndex = -1;
-            if (language.getTranslationSourceTrackIndicesCount() > 0) {
-                sourceIndex = language.getTranslationSourceTrackIndices(0);
-            } else {
-                for (int index = 0; index < list.getCaptionTracksCount(); index++) {
-                    if (list.getCaptionTracks(index).getIsTranslatable()) {
-                        sourceIndex = index;
-                        break;
-                    }
-                }
-            }
-            if (sourceIndex < 0 || sourceIndex >= list.getCaptionTracksCount()) continue;
-            var source = list.getCaptionTracks(sourceIndex);
-            if (!source.getIsTranslatable() || source.getBaseUrl().isEmpty()
-                    || source.getLanguageCode().equals(language.getLanguageCode())) continue;
-            result.add(new Track("translate:" + language.getLanguageCode(), source.getLanguageCode(), "translated",
-                    language.getLanguageCode(), name(language.getLanguageName(), language.getLanguageCode()),
-                    source.getBaseUrl()));
-        }
-        return result;
-    }
-
-    private static String name(CaptionText text, String fallback) {
-        StringBuilder name = new StringBuilder();
-        for (var run : text.getRunsList()) name.append(run.getText());
-        return name.length() == 0 ? fallback : name.toString();
-    }
-
     static void download(Context context, OfflineVideo video, Selection selection, Catalog refreshed) {
-        boolean failed = false;
-        boolean limited = false;
+        String failedLanguage = null;
+        String limitedLanguage = null;
         for (Track selected : selection.tracks) {
             Track track = refreshed.currentTrack(selected);
             OfflineMediaStore.Pending pending = null;
             try {
                 String json = fetchTrack(track);
-                List<OfflineSubtitle.Cue> cues = OfflineSubtitle.parseJson3(json, "asr".equals(track.kind));
+                List<OfflineSubtitle.Cue> cues = OfflineSubtitle.parseJson3(json, "asr".equals(track.kind()));
                 if (cues.isEmpty()) throw new IOException("Empty caption track");
-                String displayName = OfflineSubtitle.fileName(video.title, video.videoId, track.language,
-                        track.kind, track.translation, selection.format);
+                String displayName = OfflineSubtitle.fileName(video.title, video.videoId, track.language(),
+                        track.kind(), track.translation(), selection.format);
                 displayName = uniqueName(context, displayName);
                 pending = OfflineMediaStore.create(context, OfflineMediaStore.Collection.SUBTITLE, FOLDER, displayName);
                 try (var output = new android.os.ParcelFileDescriptor.AutoCloseOutputStream(
                         android.os.ParcelFileDescriptor.dup(pending.fileDescriptor()))) {
                     output.write(OfflineSubtitle.write(cues, selection.format).getBytes(StandardCharsets.UTF_8));
                 }
-                String uri = pending.commit().toString();
+                Uri uri = pending.commit();
                 pending = null;
-                String language = track.translation.isEmpty() ? track.language : track.translation;
-                video.subtitles.add(new Saved(language, track.kind, selection.format, track.name, uri, cues));
+                OfflineMediaStore.retainSubtitleMime(context, uri, displayName);
+                String language = track.translation().isEmpty() ? track.language() : track.translation();
+                video.subtitles.add(new Saved(language, track.kind(), selection.format, track.name(),
+                        uri.toString(), cues));
             } catch (RateLimitException ex) {
-                limited = true;
+                limitedLanguage = track.name();
                 break;
             } catch (Exception ex) {
-                failed = true;
-                Logger.printInfo(() -> "Could not save offline subtitles: " + track.name, ex);
+                failedLanguage = track.name();
+                Logger.printInfo(() -> "Could not save offline subtitles: " + track.name(), ex);
             } finally {
                 if (pending != null) pending.abort();
             }
         }
-        if (limited || failed) {
-            Utils.showToastLong(str(limited ? "revanced_offline_subtitles_limited"
-                    : "revanced_offline_subtitles_failed"));
+        if (limitedLanguage != null) {
+            Utils.showToastShort(str("revanced_offline_subtitles_limited", limitedLanguage));
+        } else if (failedLanguage != null) {
+            Utils.showToastShort(str("revanced_offline_subtitles_failed", failedLanguage));
         }
     }
 
     private static String uniqueName(Context context, String name) {
-        String candidate = name;
-        int dot = name.lastIndexOf('.');
-        int number = 2;
-        while (OfflineMediaStore.find(context, OfflineMediaStore.Collection.SUBTITLE, FOLDER, candidate) != null) {
-            candidate = name.substring(0, dot) + " (" + number++ + ")" + name.substring(dot);
-        }
-        return candidate;
+        return OfflineSubtitle.uniqueName(name, candidate ->
+                OfflineMediaStore.find(context, OfflineMediaStore.Collection.SUBTITLE, FOLDER, candidate) != null);
     }
 
     private static String fetchTrack(Track track) throws IOException {
-        String url = track.url.replaceAll("&fmt=[^&]*", "") + "&fmt=json3";
-        if (!track.translation.isEmpty()) url += "&tlang=" + Uri.encode(track.translation);
+        String url = track.url().replaceAll("&fmt=[^&]*", "") + "&fmt=json3";
+        if (!track.translation().isEmpty()) url += "&tlang=" + Uri.encode(track.translation());
         HttpURLConnection connection = Requester.openConnection(url);
         try {
             configure(connection);
             int status = connection.getResponseCode();
-            if (status == 429) throw new RateLimitException();
+            String language = track.translation().isEmpty() ? track.language() : track.translation();
+            Logger.printDebug(() -> "Offline caption request " + language + " HTTP " + status);
+            if (OfflineSubtitle.isRateLimited(status, "")) throw new RateLimitException();
+            String body = status == 200 ? Requester.parseString(connection) : Requester.parseErrorString(connection);
+            if (OfflineSubtitle.isRateLimited(status, body)) throw new RateLimitException();
             if (status != 200) throw new IOException("Caption HTTP " + status);
-            return Requester.parseString(connection);
+            return body;
         } finally {
             connection.disconnect();
         }

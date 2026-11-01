@@ -101,7 +101,7 @@ final class OfflineSubtitlePicker {
         LinearLayout rows = new LinearLayout(activity);
         rows.setOrientation(LinearLayout.VERTICAL);
         rows.addView(label(activity, str("revanced_offline_subtitles_cap", OfflineSubtitle.MAX_TRACKS), foreground));
-        for (OfflineCaptions.Track track : catalog.tracks) {
+        for (OfflineCaptionChoices.Track track : catalog.tracks) {
             if (translated == track.translation().isEmpty()) continue;
             CheckBox box = new CheckBox(activity);
             box.setText(track.name());

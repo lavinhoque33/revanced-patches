@@ -2222,6 +2222,7 @@ Works with YTDLnis and YTindir as the video downloader</string>
     <string name="revanced_offline_subtitles_footer">Subtitles (if available) are saved to Movies/RVX/Subtitles</string>
     <string name="revanced_offline_subtitles_limited">Video saved. %s subtitles limited; remaining tracks skipped</string>
     <string name="revanced_offline_subtitles_failed">Video saved. Could not download %s subtitles</string>
+    <string name="revanced_offline_subtitles_preparing">Saving subtitles (auto-translation may take about a minute)…</string>
     <string name="revanced_offline_subtitles_delete_failed">A subtitle file could not be deleted</string>
     <string name="revanced_offline_subtitles_cc">Subtitles</string>
     <string name="revanced_offline_subtitles_off">Off</string>

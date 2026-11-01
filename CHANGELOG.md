@@ -8,6 +8,8 @@
   Missing auto-translation metadata is resolved separately from native tracks; rate-limit errors name
   the failed language and retain the video and any subtitles already saved. VTT downloads retain their
   `text/vtt` MIME after MediaProvider's initial publication scan on supported Android versions.
+  Auto-translations prepare an anonymous YouTube visitor session, show preparation status in the download
+  notification and may take about a minute before the first translated track is saved.
 
 ## [1.25.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.24.0...v1.25.0) (2026-10-31)
 

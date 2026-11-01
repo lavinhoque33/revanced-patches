@@ -28,6 +28,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.CancellationException;
 
 import app.morphe.extension.shared.innertube.PlayerResponseOuterClass.CaptionTrackList;
 import app.morphe.extension.shared.innertube.PlayerResponseOuterClass.PlayerResponse;
@@ -193,14 +194,35 @@ final class OfflineCaptions {
         }
     }
 
-    static void download(Context context, OfflineVideo video, Selection selection, Catalog refreshed) {
+    static void download(Context context, OfflineVideo video, OfflineDownloader.Task task) {
+        Selection selection = task.subtitles;
+        Catalog refreshed = task.resolved.captions();
         String failedLanguage = null;
         String limitedLanguage = null;
+        OfflineCaptionTranslationSession session = null;
         for (Track selected : selection.tracks) {
+            if (task.cancelled || Thread.currentThread().isInterrupted()) break;
             Track track = refreshed.currentTrack(selected);
             OfflineMediaStore.Pending pending = null;
             try {
-                String json = fetchTrack(track);
+                if (!track.translation().isEmpty()) {
+                    if (session == null) {
+                        task.preparingTranslatedSubtitles();
+                        CaptionTrackList list = fetchPlayer(video.videoId).getCaptions()
+                                .getPlayerCaptionsTracklistRenderer();
+                        logMetadata(video.videoId, "translation", list);
+                        session = OfflineCaptionTranslationSession.create(video.videoId,
+                                OfflineCaptionChoices.from(list));
+                    }
+                    track = session.currentTrack(selected);
+                    session.awaitReady(task);
+                }
+                String json;
+                try {
+                    json = fetchTrack(track, session);
+                } finally {
+                    if (session != null && !track.translation().isEmpty()) session.requestFinished();
+                }
                 List<OfflineSubtitle.Cue> cues = OfflineSubtitle.parseJson3(json, "asr".equals(track.kind()));
                 if (cues.isEmpty()) throw new IOException("Empty caption track");
                 String displayName = OfflineSubtitle.fileName(video.title, video.videoId, track.language(),
@@ -220,9 +242,16 @@ final class OfflineCaptions {
             } catch (RateLimitException ex) {
                 limitedLanguage = track.name();
                 break;
+            } catch (CancellationException ex) {
+                break;
+            } catch (InterruptedException ex) {
+                Thread.currentThread().interrupt();
+                break;
             } catch (Exception ex) {
                 failedLanguage = track.name();
-                Logger.printInfo(() -> "Could not save offline subtitles: " + track.name(), ex);
+                String name = track.name();
+                Logger.printInfo(() -> "Could not save offline subtitles: " + name, ex);
+                if (session == null && !selected.translation().isEmpty()) break;
             } finally {
                 if (pending != null) pending.abort();
             }
@@ -239,12 +268,16 @@ final class OfflineCaptions {
                 OfflineMediaStore.find(context, OfflineMediaStore.Collection.SUBTITLE, FOLDER, candidate) != null);
     }
 
-    private static String fetchTrack(Track track) throws IOException {
+    private static String fetchTrack(Track track, OfflineCaptionTranslationSession session) throws IOException {
         String url = track.url().replaceAll("&fmt=[^&]*", "") + "&fmt=json3";
-        if (!track.translation().isEmpty()) url += "&tlang=" + Uri.encode(track.translation());
+        if (!track.translation().isEmpty()) {
+            url += "&tlang=" + Uri.encode(track.translation())
+                    + "&c=ANDROID&cver=20.10.38&xorb=2&xobt=3&xovt=3&cplayer=UNIPLAYER";
+        }
         HttpURLConnection connection = Requester.openConnection(url);
         try {
             configure(connection);
+            if (session != null && !track.translation().isEmpty()) session.applyHeaders(connection);
             int status = connection.getResponseCode();
             String language = track.translation().isEmpty() ? track.language() : track.translation();
             Logger.printDebug(() -> "Offline caption request " + language + " HTTP " + status);

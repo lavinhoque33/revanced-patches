@@ -19,8 +19,10 @@ import org.apache.commons.lang3.StringEscapeUtils;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 
 /** Pure subtitle conversion and selection rules, shared by the downloader and built-in player. */
@@ -155,6 +157,26 @@ final class OfflineSubtitle {
             candidate = name.substring(0, dot) + " (" + number++ + ")" + name.substring(dot);
         }
         return candidate;
+    }
+
+    static String visitorCookies(Map<String, List<String>> headers) {
+        Map<String, String> cookies = new LinkedHashMap<>();
+        for (Map.Entry<String, List<String>> entry : headers.entrySet()) {
+            if (!"Set-Cookie".equalsIgnoreCase(entry.getKey())) continue;
+            for (String header : entry.getValue()) {
+                int semicolon = header.indexOf(';');
+                String pair = (semicolon < 0 ? header : header.substring(0, semicolon)).trim();
+                int equals = pair.indexOf('=');
+                if (equals < 1 || equals == pair.length() - 1) continue;
+                String name = pair.substring(0, equals);
+                // This is a fresh anonymous session; never forward authentication cookies.
+                switch (name) {
+                    case "VISITOR_INFO1_LIVE", "VISITOR_PRIVACY_METADATA", "YSC", "GPS",
+                            "__Secure-ROLLOUT_TOKEN", "__Secure-YNID" -> cookies.put(name, pair);
+                }
+            }
+        }
+        return cookies.containsKey("VISITOR_INFO1_LIVE") ? String.join("; ", cookies.values()) : "";
     }
 
     static boolean isRateLimited(int status, String body) {

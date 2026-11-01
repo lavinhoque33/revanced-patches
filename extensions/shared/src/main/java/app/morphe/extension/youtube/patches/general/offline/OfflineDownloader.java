@@ -104,6 +104,8 @@ public final class OfflineDownloader {
         volatile boolean transferStopped;
         volatile long total;
         volatile State state = State.QUEUED;
+        @Nullable
+        volatile String subtitleStatus;
         volatile boolean cancelled;
         volatile boolean timedOut;
         @Nullable
@@ -139,6 +141,11 @@ public final class OfflineDownloader {
 
         State getState() {
             return state;
+        }
+
+        void preparingTranslatedSubtitles() {
+            subtitleStatus = str("revanced_offline_subtitles_preparing");
+            notifyChanged(true);
         }
 
         /** @return 0-100 without retreating during fallback, or -1 until a size is known. */
@@ -506,7 +513,10 @@ public final class OfflineDownloader {
         }
         if (task == null) return;
         Logger.printInfo(() -> "Cancelling download " + key);
-        task.cancelled = true;
+        synchronized (task) {
+            task.cancelled = true;
+            task.notifyAll();
+        }
         // Cancellation must unblock socket reads, not wait for their timeout.
         stopTransfer(task);
         if (task.state == State.QUEUED) {
@@ -621,7 +631,7 @@ public final class OfflineDownloader {
             OfflineVideo saved = task.stream.isAudioOnly()
                     ? saveAudio(context, task, files[0])
                     : saveVideo(context, task, files[0], files[1]);
-            OfflineCaptions.download(context, saved, task.subtitles, task.resolved.captions());
+            OfflineCaptions.download(context, saved, task);
             OfflineIndex.put(saved);
             if (OfflineOptions.saveThumbnailWithDownloads()) saveThumbnailCopy(context, task);
 

@@ -19,6 +19,7 @@ import org.junit.Test;
 import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 public class OfflineSubtitleTest {
@@ -150,5 +151,26 @@ public class OfflineSubtitleTest {
                 "{\"events\":[{\"segs\":[{\"utf8\":\"Sorry, unusual traffic\"}]}]}"));
         assertFalse(OfflineSubtitle.isRateLimited(500, "<html><title>Internal server error</title></html>"));
         assertFalse(OfflineSubtitle.isRateLimited(200, ""));
+    }
+
+    @Test
+    public void anonymousSessionCopiesOnlyVisitorCookiesAndDiscardsAttributesAndAuthentication() {
+        Map<String, List<String>> headers = Map.of("Set-Cookie", List.of(
+                "VISITOR_INFO1_LIVE=visitor; Domain=.youtube.com; Secure; HttpOnly",
+                "YSC=session; Path=/; Secure; HttpOnly",
+                "SAPISID=never-forward; Secure",
+                "__Secure-ROLLOUT_TOKEN=rollout; Secure",
+                "GPS=; Max-Age=0",
+                "malformed"));
+        assertEquals("VISITOR_INFO1_LIVE=visitor; YSC=session; __Secure-ROLLOUT_TOKEN=rollout",
+                OfflineSubtitle.visitorCookies(headers));
+    }
+
+    @Test
+    public void anonymousSessionNeedsARealVisitorCookieAndAcceptsCaseInsensitiveHeaderNames() {
+        assertEquals("", OfflineSubtitle.visitorCookies(Map.of("Set-Cookie", List.of("YSC=session"))));
+        assertEquals("", OfflineSubtitle.visitorCookies(Map.of("Content-Type", List.of("text/html"))));
+        assertEquals("VISITOR_INFO1_LIVE=visitor",
+                OfflineSubtitle.visitorCookies(Map.of("set-cookie", List.of("VISITOR_INFO1_LIVE=visitor"))));
     }
 }

@@ -1,3 +1,11 @@
+## Unreleased
+
+### Bug Fixes
+
+* **YouTube - Shorts custom actions:** Show `Download` instead of `External downloader` when the built-in
+  downloader is enabled, including the queue manager and player download button accessibility label.
+  Keep the download arrow icon and resolve the label when opening the menu.
+
 ## [1.25.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.24.0...v1.25.0) (2026-10-31)
 
 ### Features

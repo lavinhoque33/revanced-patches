@@ -55,6 +55,7 @@ import static app.morphe.extension.shared.utils.StringRef.str;
 import static app.morphe.extension.shared.utils.Utils.runOnMainThreadDelayed;
 import static app.morphe.extension.youtube.shared.RootView.getContext;
 import static app.morphe.extension.youtube.settings.YouTubeActivityHook.USE_BOLD_ICONS;
+import static app.morphe.extension.youtube.utils.VideoUtils.getVideoDownloadLabel;
 import static app.morphe.extension.youtube.utils.VideoUtils.launchVideoExternalDownloader;
 import static app.morphe.extension.youtube.utils.VideoUtils.openPlaylist;
 import static app.morphe.extension.youtube.utils.VideoUtils.reloadVideo;
@@ -287,7 +288,7 @@ public class PlaylistPatch {
         Map<LinearLayout, Runnable> actionsMap = new LinkedHashMap<>(queueManagerEntries.length);
 
         for (QueueManager queueManager : queueManagerEntries) {
-            String title = queueManager.label;
+            String title = queueManager.getLabel();
             int iconId = queueManager.drawableId;
             Runnable action = queueManager.onClickAction;
             LinearLayout itemLayout = ExtendedUtils.createItemLayout(mContext, title, iconId);
@@ -671,7 +672,7 @@ public class PlaylistPatch {
         public final int drawableId;
 
         @NonNull
-        public final String label;
+        private final String label;
 
         @NonNull
         public final Runnable onClickAction;
@@ -689,6 +690,11 @@ public class PlaylistPatch {
                     USE_BOLD_ICONS ? boldIcon : icon);
             this.label = ResourceUtils.getString(label);
             this.onClickAction = onClickAction;
+        }
+
+        @NonNull
+        public String getLabel() {
+            return this == EXTERNAL_DOWNLOADER ? getVideoDownloadLabel() : label;
         }
 
         public static final QueueManager[] addToQueueEntries = {

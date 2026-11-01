@@ -11,6 +11,9 @@
 package app.morphe.patches.music.misc.androidauto
 
 import app.morphe.patcher.Fingerprint
+import app.morphe.patcher.InstructionLocation.MatchAfterImmediately
+import app.morphe.patcher.methodCall
+import app.morphe.patcher.opcode
 import app.morphe.patcher.extensions.InstructionExtensions.addInstruction
 import app.morphe.patcher.extensions.InstructionExtensions.addInstructions
 import app.morphe.patcher.extensions.InstructionExtensions.addInstructionsWithLabels
@@ -18,6 +21,7 @@ import app.morphe.patcher.extensions.InstructionExtensions.getInstruction
 import app.morphe.patcher.extensions.InstructionExtensions.instructions
 import app.morphe.patcher.patch.BytecodePatchContext
 import app.morphe.patcher.patch.PatchException
+import app.morphe.patcher.patch.booleanOption
 import app.morphe.patcher.patch.bytecodePatch
 import app.morphe.patcher.util.proxy.mutableTypes.MutableClass
 import app.morphe.patcher.util.proxy.mutableTypes.MutableMethod
@@ -33,6 +37,8 @@ import app.morphe.patches.music.utils.playservice.is_9_15_or_greater
 import app.morphe.patches.music.utils.playservice.is_9_20_or_greater
 import app.morphe.patches.music.utils.playservice.versionCheckPatch
 import app.morphe.patches.music.utils.settings.settingsPatch
+import app.morphe.patches.music.utils.settings.CategoryType
+import app.morphe.patches.music.utils.settings.addSwitchPreference
 import app.morphe.util.Utils.printWarn
 import app.morphe.util.addFreeRegisters
 import app.morphe.util.cloneMutable
@@ -97,11 +103,26 @@ val androidAutoPatch = bytecodePatch(
 
     compatibleWith(COMPATIBILITY_YOUTUBE_MUSIC)
 
+    val useStockDownloadedPlaylistBuilder by booleanOption(
+        key = "useStockDownloadedPlaylistBuilder",
+        default = false,
+        title = "Use stock downloaded-playlist command builder",
+        description = "Diagnostic alternative to the verified sideloaded command bytes. Keeps the whole ordered queue.",
+        required = true,
+    )
+
     execute {
         if (!is_9_15_or_greater) {
             printWarn(VERSION_WARNING)
             return@execute
         }
+
+        addSwitchPreference(
+            CategoryType.MISC,
+            "morphe_music_android_auto_downloaded_playlists",
+            "true",
+            "morphe_music_in_app_downloads",
+        )
 
         // region Bypass certificate checks
         CheckCertificateFingerprint.method.returnEarly(true)
@@ -123,6 +144,7 @@ val androidAutoPatch = bytecodePatch(
         patchPlaylistMediaIdBuilder(encodeCommandMediaIdMethod)
         patchCommandEncoder(encodeCommandMediaIdMethod)
         patchSearch()
+        patchDownloadedPlaylistPlayback(encodeCommandMediaIdMethod, useStockDownloadedPlaylistBuilder == true)
     }
 }
 
@@ -968,6 +990,94 @@ private fun BytecodePatchContext.patchPlaylistMediaIdBuilder(encodeCommandMediaI
 }
 
 // endregion
+
+/** Custom local IDs become stock sideloaded commands before the existing media-session decoder runs. */
+private fun BytecodePatchContext.patchDownloadedPlaylistPlayback(
+    encoder: MethodReference,
+    useStockBuilder: Boolean,
+) {
+    val callback = Fingerprint(
+        accessFlags = listOf(AccessFlags.PUBLIC, AccessFlags.FINAL),
+        returnType = "V",
+        parameters = listOf("Ljava/lang/String;", "Landroid/os/Bundle;"),
+        strings = listOf("MSC: onPlayFromMediaId(). appPkg: '%s' mediaId: '%s'"),
+    ).methodOrNull
+    if (callback == null) {
+        printWarn("Android Auto downloaded playlists: media-session callback not found. Skipping local playlists.")
+        return
+    }
+    if (!patchSignedOutDownloads()) return
+
+    callback.addInstructions(
+        0,
+        """
+            invoke-static/range { p1 .. p1 }, $EXTENSION_CLASS->onPlayFromMediaId(Ljava/lang/String;)Ljava/lang/String;
+            move-result-object p1
+        """
+    )
+    mutableClassDefBy(EXTENSION_CLASS).methods.single {
+        it.name == "downloadedPlaylistsSupported"
+    }.returnEarly(true)
+
+    if (!useStockBuilder) return
+    val commandType = encoder.parameterTypes.single().toString()
+    val builder = Fingerprint(
+        accessFlags = listOf(AccessFlags.PUBLIC, AccessFlags.STATIC),
+        returnType = commandType,
+        parameters = listOf("Ljava/lang/String;", "Ljava/lang/String;", "I", "Z"),
+    ).matchOrNull()?.originalMethod
+    if (builder == null) {
+        printWarn("Android Auto downloaded playlists: stock command builder not found. Using command bytes.")
+        return
+    }
+
+    val patchClass = mutableClassDefBy(EXTENSION_CLASS)
+    val stub = patchClass.methods.single { it.name == "createDownloadedPlaylistMediaId" }
+    stub.addFreeRegisters(4).first.addInstructions(0, """
+        const-string v0, ""
+        move-object v1, p0
+        move v2, p1
+        const/4 v3, 0x0
+        invoke-static { v0, v1, v2, v3 }, $builder
+        move-result-object v0
+        invoke-static { v0 }, $encoder
+        move-result-object v0
+        return-object v0
+    """)
+    patchClass.methods.single { it.name == "useStockDownloadedPlaylistBuilder" }.returnEarly(true)
+}
+
+/** Intercepts only the signed-out fall-through; stock account and recent-playback handling stays intact. */
+private fun BytecodePatchContext.patchSignedOutDownloads(): Boolean {
+    val requestType = SendEmptyMediaItemsFingerprint.originalMethod.parameterTypes.first().toString()
+    val match = Fingerprint(
+        returnType = "V",
+        parameters = listOf(requestType),
+        strings = listOf("MBS: onLoadChildren() called for recent playback (presumably from system.ui)"),
+        filters = listOf(
+            methodCall(opcode = Opcode.INVOKE_INTERFACE, parameters = emptyList(), returnType = "Z"),
+            opcode(Opcode.MOVE_RESULT, location = MatchAfterImmediately()),
+            opcode(Opcode.IF_NEZ, location = MatchAfterImmediately()),
+        ),
+    ).matchOrNull()
+    if (match == null) {
+        printWarn("Android Auto downloaded playlists: signed-out browse gate not found. Skipping local playlists.")
+        return false
+    }
+
+    val method = match.method
+    val index = match.instructionMatches.last().index + 1
+    val scratch = method.findFreeRegister(index)
+    method.addInstructionsWithLabels(index, """
+        invoke-static/range { p1 .. p1 }, $EXTENSION_CLASS->handleSignedOutBrowse($BROWSE_REQUEST)Z
+        move-result v$scratch
+        if-eqz v$scratch, :stock_signed_out
+        return-void
+        :stock_signed_out
+        nop
+    """)
+    return true
+}
 
 // region Methods added to YTM classes
 

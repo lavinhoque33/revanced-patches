@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-01.
  */
 package app.morphe.extension.music.patches.downloads;
 
@@ -20,6 +21,7 @@ import java.util.Set;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import app.morphe.extension.music.patches.androidauto.AndroidAutoPatch;
 import app.morphe.extension.music.settings.Settings;
 import app.morphe.extension.shared.utils.Logger;
 import app.morphe.extension.shared.utils.Utils;
@@ -81,6 +83,7 @@ public final class NativePlaylistStore {
                 Logger.printException(() -> "Could not remove the previous downloaded playlist", ex);
             }
         }
+        AndroidAutoPatch.onNativeDownloadsChanged();
     }
 
     /** Refreshes "Not in a playlist" in the background; requests made while one is queued are merged. */
@@ -90,6 +93,7 @@ public final class NativePlaylistStore {
             refreshQueued.set(false);
             try {
                 refreshUnsorted();
+                AndroidAutoPatch.onNativeDownloadsChanged();
             } catch (Exception ex) {
                 Logger.printException(() -> "Could not update the Not in a playlist playlist", ex);
             }

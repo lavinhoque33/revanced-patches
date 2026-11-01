@@ -1683,6 +1683,7 @@ private val rvxPreferenceKey = mapOf(
         "-204.38 -22 -22.24 382.61 -382.61 H 541.31 V 160 H 800 v 258.69 h -30.77 V 213 L 386.62 595.62 Z",
     "morphe_dark_theme_custom_color" to "revanced_custom_navigation_bar_color_value",
     "morphe_music_in_app_downloads" to "morphe_music_jam_download",
+    "morphe_music_android_auto_downloaded_playlists" to "morphe_music_jam_download",
     // Material Symbols: notifications.
     "morphe_notification_dot_color" to 
         "M 200 750.77 V 720 h 64.62 v -327.85 q 0 -78.48 49.11 -139.28 49.12 -60.79 126.27 -74.33 V 160 q 0 " +

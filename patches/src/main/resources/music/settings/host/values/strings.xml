@@ -60,6 +60,11 @@ Tap the continue button and allow optimization changes"</string>
     <string name="morphe_force_original_audio_summary_on">Using original audio language</string>
     <string name="morphe_force_original_audio_title">Force original audio language</string>
     <string name="morphe_music_android_auto_last_played">Last played</string>
+    <string name="morphe_music_android_auto_downloaded_playlists_title">Android Auto downloaded playlists</string>
+    <string name="morphe_music_android_auto_downloaded_playlists_summary">Show downloaded playlists in Android Auto Library, including offline. Requires Download in app</string>
+    <string name="morphe_music_android_auto_downloaded_playlists_folder">Downloaded playlists</string>
+    <string name="morphe_music_android_auto_downloaded_playlists_tracks">tracks</string>
+    <string name="morphe_music_android_auto_downloaded_playlists_library">Library</string>
     <string name="morphe_music_android_auto_other_results">Other results</string>
     <string name="morphe_music_android_auto_subscriptions">Subscriptions</string>
     <string name="morphe_music_android_auto_uploaded_albums">Uploaded albums</string>

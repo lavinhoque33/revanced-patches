@@ -1,3 +1,11 @@
+## Unreleased
+
+### Features
+
+* **YouTube Music - Android Auto:** Add a separate `Downloaded playlists` folder next to Library's Playlists.
+  Play the built-in downloader's native playlists and `Not in a playlist` without a network connection.
+  Empty playlists are hidden. The default-on Miscellaneous setting requires `Download in app`.
+
 ## [1.26.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.25.0...v1.26.0) (2026-11-01)
 
 ### Features

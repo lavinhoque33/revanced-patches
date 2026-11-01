@@ -340,6 +340,18 @@ public final class AndroidAutoPatch {
     private static FolderSubscription homeSubscription;
     @Nullable
     @GuardedBy("AndroidAutoPatch.class")
+    private static FolderSubscription downloadsSubscription;
+    @Nullable
+    @GuardedBy("AndroidAutoPatch.class")
+    private static FolderSubscription downloadsFolderSubscription;
+    @Nullable
+    @GuardedBy("AndroidAutoPatch.class")
+    private static FolderSubscription libraryRootSubscription;
+    @Nullable
+    @GuardedBy("AndroidAutoPatch.class")
+    private static FolderSubscription rootSubscription;
+    @Nullable
+    @GuardedBy("AndroidAutoPatch.class")
     private static String homeMediaId;
     @Nullable
     private static volatile String libraryMediaId;
@@ -364,6 +376,10 @@ public final class AndroidAutoPatch {
         librarySubscription = null;
         podcastsSubscription = null;
         homeSubscription = null;
+        downloadsSubscription = null;
+        downloadsFolderSubscription = null;
+        libraryRootSubscription = null;
+        rootSubscription = null;
         mainHandler.removeCallbacks(REFRESH_LIBRARY);
         Logger.printDebug(() -> "Ready to request phone Library contents: " +
                 client.getClass().getName());
@@ -385,27 +401,21 @@ public final class AndroidAutoPatch {
      */
     public static boolean handleBrowseRequest(BrowseRequest request) {
         try {
-            PhoneBrowseClient browseClient = phoneBrowseClient;
-            if (browseClient == null) return false;
             String requestedMediaId = request.patch_getRequestedMediaId();
             if (requestedMediaId == null) return false;
+            if (requestedMediaId.startsWith(AndroidAutoDownloadsData.PREFIX)
+                    || requestedMediaId.equals(libraryMediaId)) {
+                deliverLocalBrowse(request, requestedMediaId);
+                return true;
+            }
+            PhoneBrowseClient browseClient = phoneBrowseClient;
+            if (browseClient == null) return false;
             if (requestedMediaId.equals(SPEED_DIAL_MEDIA_ID)) {
                 HomeLoad.forSpeedDial(request).start();
                 return true;
             }
             if (requestedMediaId.startsWith(HOME_SHELF_PREFIX)) {
                 HomeLoad.forShelf(request, requestedMediaId).start();
-                return true;
-            }
-            if (requestedMediaId.equals(libraryMediaId)) {
-                PreparedItems folders = new PreparedItems();
-                for (LibraryFolder folder : LibraryFolder.values()) {
-                    // Native Auto places uploads inside the corresponding Albums, Songs, and Artists categories.
-                    if (folder == LibraryFolder.UPLOADED_ALBUMS || folder == LibraryFolder.UPLOADED_SONGS
-                            || folder == LibraryFolder.UPLOADED_ARTISTS) continue;
-                    folders.add(folder.mediaItem());
-                }
-                request.patch_deliverBrowseItems(folders);
                 return true;
             }
             if (requestedMediaId.startsWith(PODCAST_COLLECTION_PREFIX)
@@ -433,6 +443,67 @@ public final class AndroidAutoPatch {
             Logger.printException(() -> "Could not handle Android Auto browse request", ex);
             return false;
         }
+    }
+
+    private static void deliverLocalBrowse(BrowseRequest request, String requestedId) {
+        long loadNumber = browseLoadCounter.incrementAndGet();
+        FolderDelivery delivery = getFolderDelivery(request);
+        boolean libraryRoot = requestedId.equals(libraryMediaId);
+        BACKGROUND_EXECUTOR.execute(() -> {
+            List<MediaBrowserCompat.MediaItem> items = new ArrayList<>();
+            try {
+                if (libraryRoot) {
+                    boolean showDownloads = false;
+                    try {
+                        showDownloads = AndroidAutoDownloadsFolder.enabled()
+                                && !AndroidAutoDownloadsFolder.readPlaylists().isEmpty();
+                    } catch (RuntimeException ex) {
+                        Logger.printException(() -> "Could not read downloaded playlists for Android Auto Library", ex);
+                    }
+                    for (LibraryFolder folder : LibraryFolder.values()) {
+                        if (folder == LibraryFolder.UPLOADED_ALBUMS || folder == LibraryFolder.UPLOADED_SONGS
+                                || folder == LibraryFolder.UPLOADED_ARTISTS) continue;
+                        items.add(folder.mediaItem());
+                        if (folder == LibraryFolder.PLAYLISTS && showDownloads) {
+                            items.add(AndroidAutoDownloadsFolder.folder());
+                        }
+                    }
+                } else {
+                    items.addAll(AndroidAutoDownloadsFolder.load(requestedId));
+                }
+            } catch (RuntimeException ex) {
+                Logger.printException(() -> "Could not browse Android Auto downloads: " + requestedId, ex);
+            }
+            Logger.printDebug(() -> "AA downloads browse id=" + requestedId + " count=" + items.size()
+                    + " route=local-database");
+            mainHandler.post(() -> delivery.deliver(loadNumber,
+                    () -> request.patch_deliverBrowseItems(limitBrowseItems(items))));
+        });
+    }
+
+    /** The stock signed-out branch otherwise answers every request with an empty list. */
+    public static boolean handleSignedOutBrowse(BrowseRequest request) {
+        String mediaId = request.patch_getRequestedMediaId();
+        if (mediaId == null) return false;
+        if (mediaId.startsWith(AndroidAutoDownloadsData.PREFIX)) {
+            deliverLocalBrowse(request, mediaId);
+            return true;
+        }
+        if (!ROOT_MEDIA_ID.equals(mediaId) || !AndroidAutoDownloadsFolder.enabled()) return false;
+        BACKGROUND_EXECUTOR.execute(() -> {
+            List<MediaBrowserCompat.MediaItem> items = new ArrayList<>();
+            try {
+                if (!AndroidAutoDownloadsFolder.readPlaylists().isEmpty()) {
+                    items.add(AndroidAutoDownloadsFolder.library());
+                }
+            } catch (RuntimeException ex) {
+                Logger.printException(() -> "Could not read signed-out Android Auto downloads", ex);
+            }
+            Logger.printDebug(() -> "AA downloads browse id=" + mediaId + " count=" + items.size()
+                    + " route=signed-out-library");
+            mainHandler.post(() -> request.patch_deliverBrowseItems(items));
+        });
+        return true;
     }
 
     // Library > Playlists: native grid loading and pagination
@@ -612,6 +683,36 @@ public final class AndroidAutoPatch {
         return null;
     }
 
+    /** Injection point before stock's media-session callback decodes the requested command. No disk or network IO. */
+    public static String onPlayFromMediaId(String mediaId) {
+        if (mediaId == null || !mediaId.startsWith(AndroidAutoDownloadsData.PREFIX)) return mediaId;
+        var play = AndroidAutoDownloadsData.parsePlayId(mediaId);
+        if (play == null || !AndroidAutoDownloadsFolder.enabled()) {
+            Logger.printDebug(() -> "AA downloads play id=" + mediaId + " count=0 route=rejected");
+            return mediaId;
+        }
+        boolean stockBuilder = useStockDownloadedPlaylistBuilder();
+        Logger.printDebug(() -> "AA downloads play id=" + mediaId + " count=" + play.count()
+                + " index=" + play.index() + " route=" + (stockBuilder ? "stock-builder" : "sideloaded-watch-command"));
+        return stockBuilder
+                ? createDownloadedPlaylistMediaId(AndroidAutoDownloadsData.playlistUri(play.playlistId()), play.index())
+                : encodeCommand(AndroidAutoDownloadsData.playCommand(play));
+    }
+
+    /** Enabled only after the media-session callback fingerprint matches on this app version. */
+    static boolean downloadedPlaylistsSupported() {
+        return false;
+    }
+
+    /** Patch-time diagnostic route; no separate player or URI-only single-track queue. */
+    private static boolean useStockDownloadedPlaylistBuilder() {
+        return false;
+    }
+
+    private static String createDownloadedPlaylistMediaId(String containerUri, int index) {
+        throw new UnsupportedOperationException("Android Auto local command builder was not installed");
+    }
+
     private static final int PLAYLIST_SUPPORTED_CONFIG = 96_593_618;
     private static final int PLAYLIST_MUSIC_CONFIG = 96_593_634;
     private static final int PLAYLIST_OPTIONS = 7;
@@ -661,6 +762,16 @@ public final class AndroidAutoPatch {
     public static synchronized void rememberSubscription(FolderReload browserService,
             @Nullable String parentMediaId, Object connection) {
         if (parentMediaId == null) return;
+        if (ROOT_MEDIA_ID.equals(parentMediaId)) {
+            rootSubscription = new FolderSubscription(browserService, parentMediaId, connection);
+        }
+        if (parentMediaId.equals(libraryMediaId) || AndroidAutoDownloadsData.LIBRARY_ID.equals(parentMediaId)) {
+            libraryRootSubscription = new FolderSubscription(browserService, parentMediaId, connection);
+        } else if (AndroidAutoDownloadsData.ROOT_ID.equals(parentMediaId)) {
+            downloadsFolderSubscription = new FolderSubscription(browserService, parentMediaId, connection);
+        } else if (parentMediaId.startsWith(AndroidAutoDownloadsData.PREFIX)) {
+            downloadsSubscription = new FolderSubscription(browserService, parentMediaId, connection);
+        }
         if (parentMediaId.startsWith(LIBRARY_PREFIX)
                 || parentMediaId.startsWith(PODCAST_COLLECTION_PREFIX)
                 || parentMediaId.startsWith(HOME_SHELF_PREFIX)
@@ -672,6 +783,27 @@ public final class AndroidAutoPatch {
         } else if (parentMediaId.equals(homeMediaId)) {
             homeSubscription = new FolderSubscription(browserService, parentMediaId, connection);
         }
+    }
+
+    /** Called only after native playlist transactions have completed, including the derived singles playlist. */
+    public static void onNativeDownloadsChanged() {
+        mainHandler.post(() -> {
+            FolderSubscription downloads;
+            FolderSubscription downloadsFolder;
+            FolderSubscription libraryRoot;
+            FolderSubscription root;
+            synchronized (AndroidAutoPatch.class) {
+                downloads = downloadsSubscription;
+                downloadsFolder = downloadsFolderSubscription;
+                libraryRoot = libraryRootSubscription;
+                root = rootSubscription;
+            }
+            if (downloads != null) downloads.reload(true);
+            if (downloadsFolder != null) downloadsFolder.reload(true);
+            if (libraryRoot != null) libraryRoot.reload(true);
+            // An initially empty signed-out root has no Library or downloads subscription yet.
+            if (downloads == null && downloadsFolder == null && libraryRoot == null && root != null) root.reload(true);
+        });
     }
 
     /** Injection point. Refresh Android Auto after a successful request changes the Library. */
@@ -723,6 +855,7 @@ public final class AndroidAutoPatch {
         if (mediaId == null) return false;
         return mediaId.equals(PODCASTS_MEDIA_ID)
                 || mediaId.equals(SPEED_DIAL_MEDIA_ID)
+                || mediaId.startsWith(AndroidAutoDownloadsData.PREFIX)
                 || mediaId.startsWith(LIBRARY_PREFIX)
                 || mediaId.startsWith(HOME_SHELF_PREFIX)
                 || mediaId.startsWith(PODCAST_COLLECTION_PREFIX);
@@ -812,6 +945,9 @@ public final class AndroidAutoPatch {
         librarySubscription = null;
         podcastsSubscription = null;
         homeSubscription = null;
+        downloadsSubscription = null;
+        downloadsFolderSubscription = null;
+        libraryRootSubscription = null;
         mainHandler.removeCallbacks(REFRESH_LIBRARY);
         homeMediaId = null;
         libraryMediaId = null;

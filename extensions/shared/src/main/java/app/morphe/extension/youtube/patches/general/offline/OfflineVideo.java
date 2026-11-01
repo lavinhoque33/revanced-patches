@@ -14,6 +14,10 @@ package app.morphe.extension.youtube.patches.general.offline;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
+import java.util.ArrayList;
+import java.util.List;
+
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -48,6 +52,8 @@ public final class OfflineVideo {
     public final String thumbnailPath;
     public final boolean audioOnly;
     public volatile long lastPositionMs;
+    /** Public sidecars plus a private cue copy; public file moves do not break playback. */
+    final List<OfflineCaptions.Saved> subtitles = new ArrayList<>();
 
     public OfflineVideo(@NonNull String videoId, @NonNull String title, @NonNull String author,
                         @NonNull String channelId, long lengthMs, @NonNull String contentUri,
@@ -99,6 +105,9 @@ public final class OfflineVideo {
         json.put("thumbnailPath", thumbnailPath);
         json.put("audioOnly", audioOnly);
         json.put("lastPositionMs", lastPositionMs);
+        JSONArray tracks = new JSONArray();
+        for (OfflineCaptions.Saved subtitle : subtitles) tracks.put(subtitle.toJson());
+        json.put("subtitles", tracks);
         return json;
     }
 
@@ -107,7 +116,7 @@ public final class OfflineVideo {
         String videoId = json.optString("videoId", "");
         String contentUri = json.optString("contentUri", "");
         if (videoId.isEmpty() || contentUri.isEmpty()) return null;
-        return new OfflineVideo(
+        OfflineVideo video = new OfflineVideo(
                 videoId,
                 json.optString("title", videoId),
                 json.optString("author", ""),
@@ -125,5 +134,13 @@ public final class OfflineVideo {
                 json.optBoolean("audioOnly", false),
                 json.optLong("lastPositionMs", 0)
         );
+        JSONArray tracks = json.optJSONArray("subtitles");
+        if (tracks != null) {
+            for (int index = 0; index < tracks.length(); index++) {
+                JSONObject track = tracks.optJSONObject(index);
+                if (track != null) video.subtitles.add(OfflineCaptions.Saved.fromJson(track));
+            }
+        }
+        return video;
     }
 }

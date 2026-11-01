@@ -22,6 +22,7 @@ import android.content.Context;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.Build;
+import android.os.Bundle;
 import android.os.Environment;
 import android.os.ParcelFileDescriptor;
 import android.provider.MediaStore;
@@ -49,7 +50,8 @@ final class OfflineMediaStore {
     enum Collection {
         VIDEO(Environment.DIRECTORY_MOVIES),
         AUDIO(Environment.DIRECTORY_MUSIC),
-        IMAGE(Environment.DIRECTORY_PICTURES);
+        IMAGE(Environment.DIRECTORY_PICTURES),
+        SUBTITLE(Environment.DIRECTORY_MOVIES);
 
         final String directory;
 
@@ -63,6 +65,7 @@ final class OfflineMediaStore {
                 case VIDEO -> MediaStore.Video.Media.getContentUri(volume);
                 case AUDIO -> MediaStore.Audio.Media.getContentUri(volume);
                 case IMAGE -> MediaStore.Images.Media.getContentUri(volume);
+                case SUBTITLE -> MediaStore.Files.getContentUri(volume);
             };
         }
 
@@ -75,8 +78,6 @@ final class OfflineMediaStore {
     private OfflineMediaStore() {
     }
 
-    // modified by lavinhoque33, 2026-10-14: the merged video is written straight into the pending item,
-    // so it is not written to the cache first and copied again.
     /** A download being written to its final place. Either {@link #commit} or {@link #abort} it. */
     static final class Pending {
         private final ContentResolver resolver;
@@ -109,7 +110,6 @@ final class OfflineMediaStore {
         Uri commit() throws IOException {
             descriptor.close();
             if (uri == null) {
-                // modified by lavinhoque33, 2026-10-14: an earlier finished download is only replaced once the new one is complete.
                 if (!file.renameTo(destination)) {
                     //noinspection ResultOfMethodCallIgnored
                     file.delete();
@@ -149,8 +149,31 @@ final class OfflineMediaStore {
             case "jpg" -> "image/jpeg";
             case "webp" -> "image/webp";
             case "png" -> "image/png";
+            case "srt" -> "application/x-subrip";
+            case "vtt" -> "text/vtt";
             default -> "video/mp4";
         };
+    }
+
+    static void retainSubtitleMime(Context context, Uri uri, String displayName) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R || !"content".equals(uri.getScheme())
+                || !"text/vtt".equals(mimeType(displayName))) return;
+
+        // Publishing forces a scan, which can replace an unrecognised .vtt MIME with octet-stream.
+        // Android's provider permits MIME-only updates. Disable placement recomputation so this
+        // update does not add DATA and trigger a second scan. No file is moved or renamed.
+        ContentValues values = new ContentValues();
+        values.put(MediaStore.MediaColumns.MIME_TYPE, "text/vtt");
+        Bundle options = new Bundle();
+        options.putBoolean("android:query-arg-allow-movement", false);
+        try {
+            if (context.getContentResolver().update(uri, values, options) < 1) {
+                Logger.printInfo(() -> "MediaProvider did not retain the VTT MIME type");
+            }
+        } catch (RuntimeException ex) {
+            // The published sidecar remains usable even if an OEM provider declines this metadata update.
+            Logger.printInfo(() -> "MediaProvider could not retain the VTT MIME type", ex);
+        }
     }
 
     /**

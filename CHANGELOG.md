@@ -1,5 +1,13 @@
 ## Unreleased
 
+### Features
+
+* **YouTube - Built-in downloader:** Download up to five caption tracks with a video, including
+  auto-translated ones, as SRT or VTT files in `Movies/RVX/Subtitles`. The built-in player shows them with
+  a CC menu for track, size, color, background and position. A subtitle failure never fails the video, and
+  a rate limit from YouTube names the language that was skipped. Auto-translations prepare a visitor
+  session first and can take about a minute.
+
 ### Bug Fixes
 
 * **YouTube - Built-in downloader:** The expanded Downloads search pill fills the toolbar up to the

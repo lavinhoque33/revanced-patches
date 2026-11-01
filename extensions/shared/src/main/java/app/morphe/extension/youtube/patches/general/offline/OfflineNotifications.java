@@ -92,7 +92,7 @@ final class OfflineNotifications {
         }
 
         int percent = task.getPercent();
-        String text = switch (task.getState()) {
+        String text = task.subtitleStatus != null ? task.subtitleStatus : switch (task.getState()) {
             case MERGING -> str("revanced_offline_download_merging");
             case SAVING -> str("revanced_offline_download_saving");
             case QUEUED -> str("revanced_offline_download_queued");
@@ -101,7 +101,6 @@ final class OfflineNotifications {
                     : str("revanced_offline_download_progress", percent);
         };
         final OfflineDownloader.Batch batch = task.batch;
-        // modified by lavinhoque33, 2026-10-23: a playlist shows its place in the list and offers to cancel all of it.
         if (batch != null) text = task.index + "/" + batch.total + " · " + text;
         if (queued > 0) text = text + " · " + str("revanced_offline_download_queued_count", queued);
 

@@ -11,8 +11,43 @@ message PlayerResponse {
   optional ResponseContext responseContext = 1;
   optional PlayabilityStatus playabilityStatus = 2;
   optional StreamingData streamingData = 4;
+  optional Captions captions = 10;
   optional VideoDetails videoDetails = 11;
   optional PlayerConfig playerConfig = 15;
+}
+
+// Verified against the signed-out ANDROID 20.10.38 response on 2026-10-31.
+message Captions {
+  optional CaptionTrackList playerCaptionsTracklistRenderer = 51621377;
+}
+
+message CaptionTrackList {
+  repeated CaptionTrack captionTracks = 1;
+  repeated CaptionTranslationLanguage translationLanguages = 3;
+  repeated int32 defaultTranslationSourceTrackIndices = 6;
+}
+
+message CaptionText {
+  repeated CaptionTextRun runs = 1;
+}
+
+message CaptionTextRun {
+  optional string text = 1;
+}
+
+message CaptionTrack {
+  optional string baseUrl = 1;
+  optional CaptionText name = 2;
+  optional string vssId = 3;
+  optional string languageCode = 4;
+  optional string kind = 5;
+  optional bool isTranslatable = 7;
+}
+
+message CaptionTranslationLanguage {
+  optional string languageCode = 1;
+  optional CaptionText languageName = 2;
+  repeated int32 translationSourceTrackIndices = 3;
 }
 
 // Field numbers read off a real player response, since asking for "videoDetails"

@@ -1,3 +1,10 @@
+## Unreleased
+
+### Bug Fixes
+
+* **YouTube - Built-in downloader:** The expanded Downloads search pill fills the toolbar up to the
+  overflow menu, and the back arrow and overflow icon keep the same foreground color as the title.
+
 ## [1.25.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.24.0...v1.25.0) (2026-10-31)
 
 ### Features

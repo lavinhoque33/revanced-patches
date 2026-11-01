@@ -23,6 +23,7 @@ import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
+import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
 import android.text.Editable;
@@ -124,6 +125,8 @@ final class OfflineLibraryScreen implements OfflineScreens.Screen {
         Toolbar toolbar = new Toolbar(activity);
         toolbar.setBackgroundColor(ThemeUtils.getToolbarBackgroundColor());
         toolbar.setNavigationIcon(ThemeUtils.getBackButtonDrawable());
+        toolbar.setCollapseIcon(ThemeUtils.getBackButtonDrawable());
+        tintToolbarOverflowIcon(toolbar);
         toolbar.setNavigationContentDescription(str("revanced_settings_navigate_up"));
         toolbar.setNavigationOnClickListener(v -> activity.finish());
         // A centered TextView avoids the Toolbar theme's title margins and extra font padding.
@@ -232,6 +235,15 @@ final class OfflineLibraryScreen implements OfflineScreens.Screen {
         verifyFiles();
     }
 
+    private void tintToolbarOverflowIcon(Toolbar toolbar) {
+        Drawable overflowIcon = toolbar.getOverflowIcon();
+        if (overflowIcon != null) {
+            overflowIcon = overflowIcon.mutate();
+            overflowIcon.setTint(foreground);
+            toolbar.setOverflowIcon(overflowIcon);
+        }
+    }
+
     private void showSortDialog() {
         String[] labels = new String[SORTS.length];
         for (int i = 0; i < SORTS.length; i++) {
@@ -254,8 +266,6 @@ final class OfflineLibraryScreen implements OfflineScreens.Screen {
 
         LibrarySearchView() {
             super(activity);
-            setLayoutParams(new Toolbar.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
             setPaddingRelative(0, 0, Utils.dipToPixels(8), 0);
 
             input = new EditText(activity);
@@ -306,6 +316,13 @@ final class OfflineLibraryScreen implements OfflineScreens.Screen {
 
         @Override
         public void onActionViewExpanded() {
+            // Toolbar replaces the action view's LayoutParams with WRAP_CONTENT during expansion.
+            // Keep its expanded-view metadata, but fill the space between collapse and overflow.
+            ViewGroup.LayoutParams layoutParams = getLayoutParams();
+            layoutParams.width = ViewGroup.LayoutParams.MATCH_PARENT;
+            layoutParams.height = ViewGroup.LayoutParams.MATCH_PARENT;
+            setLayoutParams(layoutParams);
+
             input.requestFocus();
             input.post(() -> activity.getSystemService(InputMethodManager.class)
                     .showSoftInput(input, InputMethodManager.SHOW_IMPLICIT));

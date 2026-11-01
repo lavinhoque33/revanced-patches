@@ -1,15 +1,11 @@
-## Unreleased
+## [1.27.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.26.0...v1.27.0) (2026-11-01)
 
 ### Features
 
 * **YouTube Music - Android Auto:** Add a separate `Downloaded playlists` folder next to Library's Playlists.
-  Play the built-in downloader's native playlists and `Not in a playlist` without a network connection.
-  Empty playlists are hidden. The default-on Miscellaneous setting requires `Download in app`.
-
-### Bug Fixes
-
-* **YouTube Music - Android Auto:** Keep downloaded playlists reachable after a cold start without data.
-  An empty or failed stock root falls back to a local Library container; nonempty stock roots are unchanged.
+  Play the built-in downloader's native playlists and `Not in a playlist` without a network connection, also
+  after a cold start without data. Empty playlists are hidden. The default-on Miscellaneous setting requires
+  `Download in app`.
 
 ## [1.26.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.25.0...v1.26.0) (2026-11-01)
 

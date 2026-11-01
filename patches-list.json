@@ -1,5 +1,5 @@
 {
-  "version": "v1.26.0",
+  "version": "v1.27.0",
   "patches": [
     {
       "name": "Add to queue",
@@ -60,7 +60,17 @@
           "8.12.54"
         ]
       },
-      "options": []
+      "options": [
+        {
+          "key": "useStockDownloadedPlaylistBuilder",
+          "title": "Use stock downloaded-playlist command builder",
+          "description": "Diagnostic alternative to the verified sideloaded command bytes. Keeps the whole ordered queue.",
+          "required": true,
+          "type": "kotlin.Boolean",
+          "default": false,
+          "values": null
+        }
+      ]
     },
     {
       "name": "App refresh rate",

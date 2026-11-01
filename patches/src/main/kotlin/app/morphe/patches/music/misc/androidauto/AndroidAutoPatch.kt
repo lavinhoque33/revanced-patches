@@ -933,6 +933,8 @@ private fun hookBrowseResults(deliverItemsMethod: MutableMethod) {
 
     val loadHomeMethod = "$EXTENSION_CLASS->loadHome(" +
         BROWSE_REQUEST + "Ljava/util/List;)Z"
+    val loadOfflineRootMethod = "$EXTENSION_CLASS->loadOfflineRoot(" +
+        BROWSE_REQUEST + "Ljava/util/List;)Z"
     // The optional limiter still needs p1 after the Home hook returns.
     val scratch = deliverItemsMethod.findFreeRegister(0, deliverItemsMethod.p0Register + 1)
     deliverItemsMethod.addInstructionsWithLabels(
@@ -940,6 +942,11 @@ private fun hookBrowseResults(deliverItemsMethod: MutableMethod) {
         """
             invoke-static/range { p0 .. p1 }, $handleBrowseResultMethod
             move-result-object p1
+            invoke-static/range { p0 .. p1 }, $loadOfflineRootMethod
+            move-result v$scratch
+            if-eqz v$scratch, :check_home
+            return-void
+            :check_home
             invoke-static/range { p0 .. p1 }, $loadHomeMethod
             move-result v$scratch
             if-eqz v$scratch, :native_delivery

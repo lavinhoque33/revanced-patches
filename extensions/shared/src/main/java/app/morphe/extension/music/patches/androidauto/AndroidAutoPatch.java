@@ -489,19 +489,34 @@ public final class AndroidAutoPatch {
             deliverLocalBrowse(request, mediaId);
             return true;
         }
-        if (!ROOT_MEDIA_ID.equals(mediaId) || !AndroidAutoDownloadsFolder.enabled()) return false;
+        return loadOfflineRoot(request, null);
+    }
+
+    /**
+     * Injection point before YTM sends an empty or failed root result.
+     * The prepared marker prevents another fallback when an empty local snapshot is delivered.
+     */
+    public static boolean loadOfflineRoot(BrowseRequest request,
+            @Nullable List<MediaBrowserCompat.MediaItem> stockItems) {
+        String mediaId = request.patch_getRequestedMediaId();
+        if (!AndroidAutoDownloadsData.needsRootFallback(ROOT_MEDIA_ID.equals(mediaId),
+                stockItems == null ? 0 : stockItems.size(), stockItems instanceof PreparedItems)
+                || !AndroidAutoDownloadsFolder.enabled()) return false;
+
+        long loadNumber = browseLoadCounter.incrementAndGet();
+        FolderDelivery delivery = getFolderDelivery(request);
         BACKGROUND_EXECUTOR.execute(() -> {
-            List<MediaBrowserCompat.MediaItem> items = new ArrayList<>();
+            PreparedItems items = new PreparedItems();
             try {
                 if (!AndroidAutoDownloadsFolder.readPlaylists().isEmpty()) {
                     items.add(AndroidAutoDownloadsFolder.library());
                 }
             } catch (RuntimeException ex) {
-                Logger.printException(() -> "Could not read signed-out Android Auto downloads", ex);
+                Logger.printException(() -> "Could not read Android Auto offline root", ex);
             }
             Logger.printDebug(() -> "AA downloads browse id=" + mediaId + " count=" + items.size()
-                    + " route=signed-out-library");
-            mainHandler.post(() -> request.patch_deliverBrowseItems(items));
+                    + " route=offline-root");
+            mainHandler.post(() -> delivery.deliver(loadNumber, () -> request.patch_deliverBrowseItems(items)));
         });
         return true;
     }

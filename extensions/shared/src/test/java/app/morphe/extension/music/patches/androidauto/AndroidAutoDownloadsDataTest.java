@@ -10,6 +10,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertFalse;
 
 import org.junit.Test;
 
@@ -17,6 +18,15 @@ import java.util.List;
 import java.nio.charset.StandardCharsets;
 
 public class AndroidAutoDownloadsDataTest {
+    @Test
+    public void rootFallbackOnlyHandlesAnUnansweredEmptyRoot() {
+        assertTrue(needsRootFallback(true, 0, false));
+        assertFalse(needsRootFallback(true, 2, false));
+        assertFalse(needsRootFallback(false, 0, false));
+        assertFalse(needsRootFallback(true, 0, true));
+        assertFalse(needsRootFallback(true, 1, true));
+    }
+
     @Test
     public void localPlayIdsCarryTheWholeQueueAndSelectedIndex() {
         var request = new PlayRequest(12, 3, 8);

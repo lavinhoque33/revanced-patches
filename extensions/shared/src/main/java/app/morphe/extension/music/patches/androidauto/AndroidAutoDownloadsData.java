@@ -25,6 +25,10 @@ final class AndroidAutoDownloadsData {
 
     private AndroidAutoDownloadsData() {}
 
+    static boolean needsRootFallback(boolean rootRequest, int stockItemCount, boolean alreadyPrepared) {
+        return rootRequest && stockItemCount == 0 && !alreadyPrepared;
+    }
+
     static String playlistId(long id) {
         if (id < 0) throw new IllegalArgumentException("Negative playlist ID");
         return PREFIX + "playlist/" + id;

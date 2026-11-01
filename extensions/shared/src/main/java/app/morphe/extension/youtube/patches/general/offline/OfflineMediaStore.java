@@ -49,7 +49,8 @@ final class OfflineMediaStore {
     enum Collection {
         VIDEO(Environment.DIRECTORY_MOVIES),
         AUDIO(Environment.DIRECTORY_MUSIC),
-        IMAGE(Environment.DIRECTORY_PICTURES);
+        IMAGE(Environment.DIRECTORY_PICTURES),
+        SUBTITLE(Environment.DIRECTORY_MOVIES);
 
         final String directory;
 
@@ -63,6 +64,7 @@ final class OfflineMediaStore {
                 case VIDEO -> MediaStore.Video.Media.getContentUri(volume);
                 case AUDIO -> MediaStore.Audio.Media.getContentUri(volume);
                 case IMAGE -> MediaStore.Images.Media.getContentUri(volume);
+                case SUBTITLE -> MediaStore.Files.getContentUri(volume);
             };
         }
 
@@ -75,8 +77,6 @@ final class OfflineMediaStore {
     private OfflineMediaStore() {
     }
 
-    // modified by lavinhoque33, 2026-10-14: the merged video is written straight into the pending item,
-    // so it is not written to the cache first and copied again.
     /** A download being written to its final place. Either {@link #commit} or {@link #abort} it. */
     static final class Pending {
         private final ContentResolver resolver;
@@ -109,7 +109,6 @@ final class OfflineMediaStore {
         Uri commit() throws IOException {
             descriptor.close();
             if (uri == null) {
-                // modified by lavinhoque33, 2026-10-14: an earlier finished download is only replaced once the new one is complete.
                 if (!file.renameTo(destination)) {
                     //noinspection ResultOfMethodCallIgnored
                     file.delete();
@@ -149,6 +148,8 @@ final class OfflineMediaStore {
             case "jpg" -> "image/jpeg";
             case "webp" -> "image/webp";
             case "png" -> "image/png";
+            case "srt" -> "application/x-subrip";
+            case "vtt" -> "text/vtt";
             default -> "video/mp4";
         };
     }

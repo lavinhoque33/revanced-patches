@@ -236,6 +236,9 @@ public final class OfflinePlayer {
             videoHeight = height;
             notifyListeners();
         });
+        mediaPlayer.setOnSeekCompleteListener(mp -> {
+            if (mp == player) notifyListeners();
+        });
         mediaPlayer.setOnCompletionListener(mp -> {
             if (mp != player) return;
             Logger.printInfo(() -> "Completed " + video.key());

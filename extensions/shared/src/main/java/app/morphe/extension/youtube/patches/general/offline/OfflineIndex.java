@@ -133,6 +133,7 @@ public final class OfflineIndex {
             List<OfflineVideo> list = loaded();
             for (int i = 0; i < list.size(); i++) {
                 if (list.get(i).key().equals(video.key())) {
+                    OfflineCaptions.delete(Utils.getContext(), list.get(i));
                     list.remove(i);
                     break;
                 }
@@ -151,6 +152,7 @@ public final class OfflineIndex {
                 OfflineVideo video = list.get(i);
                 if (video.key().equals(key)) {
                     list.remove(i);
+                    OfflineCaptions.delete(Utils.getContext(), video);
                     removed = true;
                     if (!video.thumbnailPath.isEmpty()) {
                         //noinspection ResultOfMethodCallIgnored

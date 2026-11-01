@@ -80,6 +80,7 @@ final class OfflinePlayerScreen implements OfflineScreens.Screen, OfflinePlayer.
     private final TextView duration;
     private final TextView seekHint;
 
+    private final OfflineSubtitleOverlay subtitles;
     private boolean controlsVisible = true;
     private boolean userSeeking;
     private boolean resumed;
@@ -91,6 +92,13 @@ final class OfflinePlayerScreen implements OfflineScreens.Screen, OfflinePlayer.
         public void run() {
             updateProgress();
             if (resumed && !destroyed) handler.postDelayed(this, PROGRESS_INTERVAL_MS);
+        }
+    };
+    private final Runnable subtitleTicker = new Runnable() {
+        @Override
+        public void run() {
+            subtitles.update(OfflinePlayer.getCurrent(), OfflinePlayer.getPosition());
+            if (resumed && !destroyed && OfflinePlayer.isPlaying()) handler.postDelayed(this, 150);
         }
     };
 
@@ -131,6 +139,8 @@ final class OfflinePlayerScreen implements OfflineScreens.Screen, OfflinePlayer.
         root.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> {
             if (r - l != or - ol || b - t != ob - ot) fitVideo();
         });
+        subtitles = new OfflineSubtitleOverlay(activity, root,
+                () -> handler.removeCallbacks(hideControls), this::scheduleHide);
 
         seekHint = text(18, Color.WHITE);
         GradientDrawable hintBackground = new GradientDrawable();
@@ -161,6 +171,7 @@ final class OfflinePlayerScreen implements OfflineScreens.Screen, OfflinePlayer.
         title.setMaxLines(1);
         title.setEllipsize(android.text.TextUtils.TruncateAt.END);
         top.addView(title, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        top.addView(subtitles.control());
         speedButton = button("speed", str("revanced_offline_player_speed"));
         speedButton.setOnClickListener(this::showSpeedMenu);
         top.addView(speedButton);
@@ -488,6 +499,7 @@ final class OfflinePlayerScreen implements OfflineScreens.Screen, OfflinePlayer.
             position.setText(OfflineLibraryScreen.formatDuration(current));
             seekBar.setProgress(total > 0 ? (int) (current * 1000 / total) : 0);
         }
+        subtitles.update(OfflinePlayer.getCurrent(), current);
     }
 
     // endregion
@@ -563,6 +575,8 @@ final class OfflinePlayerScreen implements OfflineScreens.Screen, OfflinePlayer.
         }
         fitVideo();
         updateProgress();
+        handler.removeCallbacks(subtitleTicker);
+        if (resumed && playing) handler.post(subtitleTicker);
     }
 
     private void showArtwork(OfflineVideo video) {
@@ -585,6 +599,7 @@ final class OfflinePlayerScreen implements OfflineScreens.Screen, OfflinePlayer.
         resumed = true;
         handler.removeCallbacks(progressTicker);
         handler.post(progressTicker);
+        if (OfflinePlayer.isPlaying()) handler.post(subtitleTicker);
         applyFullscreen(isLandscape());
     }
 
@@ -592,6 +607,7 @@ final class OfflinePlayerScreen implements OfflineScreens.Screen, OfflinePlayer.
     public void onPause() {
         resumed = false;
         handler.removeCallbacks(progressTicker);
+        handler.removeCallbacks(subtitleTicker);
     }
 
     @Override

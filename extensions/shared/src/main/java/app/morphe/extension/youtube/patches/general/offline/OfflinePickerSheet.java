@@ -160,7 +160,6 @@ final class OfflinePickerSheet {
      * @param onPick Called with the height limit, {@link Integer#MAX_VALUE} for no limit.
      */
     void showHeightLimits(String playlistTitle, int videoCount, String firstVideoId, Consumer<Integer> onPick) {
-        // modified by lavinhoque33, 2026-10-23: a playlist is downloaded with a height limit, not a picked format.
         title.setText(playlistTitle.isEmpty() ? str("revanced_offline_batch_title") : playlistTitle);
         author.setText(str("revanced_offline_batch_count", videoCount));
         author.setVisibility(View.VISIBLE);
@@ -231,6 +230,7 @@ final class OfflinePickerSheet {
         };
         LinearLayout list = new LinearLayout(activity);
         list.setOrientation(LinearLayout.VERTICAL);
+        OfflineSubtitlePicker.add(activity, list, resolved.captions(), foreground);
         addVideoSection(list, resolved, video -> once.accept(() -> onPick.accept(video)));
         addAudioSection(list, resolved, audio -> once.accept(() -> onPick.accept(audio)));
         addThumbnailSection(list, () -> once.accept(onThumbnail));
@@ -244,7 +244,8 @@ final class OfflinePickerSheet {
 
         addFooter(root, str("revanced_offline_picker_footer",
                 OfflineMediaStore.Collection.VIDEO.relativePath(OfflineOptions.videoFolder()),
-                OfflineMediaStore.Collection.AUDIO.relativePath(OfflineOptions.audioFolder())));
+                OfflineMediaStore.Collection.AUDIO.relativePath(OfflineOptions.audioFolder()))
+                + "\n" + str("revanced_offline_subtitles_footer"));
     }
 
     private void showDetails(OfflineFormats.Resolved resolved) {
@@ -392,7 +393,7 @@ final class OfflinePickerSheet {
         };
         SpannableStringBuilder detail = new SpannableStringBuilder(withFormatId(
                 video.codec() + " · " + str(hint), video));
-        // modified by lavinhoque33, 2026-10-14: AV1 this device cannot decode is listed, with a warning note.
+        // AV1 this device cannot decode is listed, with a warning note.
         if (!video.playable()) {
             int start = detail.length();
             detail.append(" [").append(str("revanced_offline_picker_av1_unplayable")).append(']');

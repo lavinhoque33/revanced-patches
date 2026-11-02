@@ -82,17 +82,6 @@ public class AndroidAutoDownloadsArtworkDataTest {
     }
 
     @Test
-    public void bitmapAlternativeKeepsTheWholeBatchesPixelsWithinItsBudget() {
-        assertEquals(96, bitmapSide(1));
-        assertEquals(0, bitmapSide(0));
-        for (int rows : new int[]{1, 8, 10, 32, 100, 1000, 100000}) {
-            int side = bitmapSide(rows);
-            assertTrue(4L * rows * side * side <= BITMAP_BATCH_BYTES);
-            assertTrue(side <= 96);
-        }
-    }
-
-    @Test
     public void playlistAndSinglesCoversUseTheirFirstOrderedTrack() {
         var first = new Track(7, 0, "First", "", "", 1000, 100, 2000);
         var second = new Track(2, 1, "Second", "", "", 1000, 100, 2000);

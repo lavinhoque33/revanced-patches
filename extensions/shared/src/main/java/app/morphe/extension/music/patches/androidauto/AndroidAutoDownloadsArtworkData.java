@@ -16,7 +16,6 @@ final class AndroidAutoDownloadsArtworkData {
     static final long MAX_CACHE_BYTES = 8L * 1024 * 1024;
     static final int MAX_CACHE_ENTRIES = 256;
     static final int MAX_IMAGE_BYTES = 256 * 1024;
-    static final int BITMAP_BATCH_BYTES = 320 * 1024;
 
     record Key(long mediaId, long modifiedSeconds, long fileSize) {
         Key {
@@ -33,11 +32,6 @@ final class AndroidAutoDownloadsArtworkData {
     record Entry(String name, long bytes, long accessed) {}
 
     private AndroidAutoDownloadsArtworkData() {}
-
-    static int bitmapSide(int rowCount) {
-        if (rowCount <= 0) return 0;
-        return Math.min(96, (int) Math.sqrt(BITMAP_BATCH_BYTES / (4L * rowCount)));
-    }
 
     static Key parseFileName(String name) {
         if (name == null || !name.startsWith("v1-") || !name.endsWith(".jpg")) return null;

@@ -821,20 +821,6 @@ public final class AndroidAutoPatch {
         });
     }
 
-    /** The bitmap diagnostic route reloads only the affected local rows after asynchronous cache warming. */
-    static void onDownloadArtworkChanged() {
-        mainHandler.post(() -> {
-            FolderSubscription tracks;
-            FolderSubscription playlists;
-            synchronized (AndroidAutoPatch.class) {
-                tracks = downloadsSubscription;
-                playlists = downloadsFolderSubscription;
-            }
-            if (tracks != null) tracks.reload(true);
-            if (playlists != null) playlists.reload(true);
-        });
-    }
-
     /** Injection point. Refresh Android Auto after a successful request changes the Library. */
     public static void onRequestSucceeded(@Nullable String endpoint) {
         if (endpoint == null) return;

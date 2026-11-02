@@ -57,7 +57,7 @@ final class AndroidAutoDownloadsFolder {
             return items;
         }
         if (ROOT_ID.equals(requestedId)) {
-            var artwork = new AndroidAutoDownloadsArtwork.Batch(playlists.size());
+            var artwork = new AndroidAutoDownloadsArtwork.Batch();
             for (Playlist playlist : playlists) {
                 items.add(item(playlistId(playlist.id()), playlist.title(),
                         playlist.tracks().size() + " " + ResourceUtils.getString(
@@ -71,7 +71,7 @@ final class AndroidAutoDownloadsFolder {
             for (Playlist playlist : playlists) {
                 if (playlist.id() != playlistId) continue;
                 int count = playlist.tracks().size();
-                var artwork = new AndroidAutoDownloadsArtwork.Batch(count);
+                var artwork = new AndroidAutoDownloadsArtwork.Batch();
                 for (int index = 0; index < count; index++) {
                     Track track = playlist.tracks().get(index);
                     long seconds = track.durationMs() / 1000;
@@ -156,13 +156,26 @@ final class AndroidAutoDownloadsFolder {
         return cursor.isNull(column) ? "" : cursor.getString(column);
     }
 
+    /** Stock white PNG avoids the theme-dependent tint of Music's vector download drawable. */
+    private static Uri categoryIconUri() {
+        var context = Utils.getContext();
+        var resources = context.getResources();
+        String packageName = context.getPackageName();
+        String name = "yt_outline_download_white_24";
+        if (resources.getIdentifier(name, "drawable", packageName) == 0) {
+            name = "yt_outline_experimental_playlist_vd_theme_24";
+            if (resources.getIdentifier(name, "drawable", packageName) == 0) return null;
+        }
+        return Uri.parse("android.resource://" + packageName + "/drawable/" + name);
+    }
+
     private static MediaBrowserCompat.MediaItem item(String id, String title, String subtitle, int flags,
             Track cover, AndroidAutoDownloadsArtwork.Batch artwork) {
         Bundle extras = new Bundle();
         extras.putInt("android.media.browse.CONTENT_STYLE_BROWSABLE_HINT", 1);
         extras.putInt("android.media.browse.CONTENT_STYLE_PLAYABLE_HINT", 1);
         MediaDescriptionCompat description = artwork == null
-                ? new MediaDescriptionCompat(id, title, subtitle, null, null, (Uri) null, extras, null)
+                ? new MediaDescriptionCompat(id, title, subtitle, null, null, categoryIconUri(), extras, null)
                 : artwork.description(id, title, subtitle, extras, cover);
         return new MediaBrowserCompat.MediaItem(description, flags);
     }

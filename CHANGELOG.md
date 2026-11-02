@@ -4,8 +4,8 @@
 
 * **YouTube Music - Android Auto:** Show offline covers in the Downloaded playlists rows and their tracks.
   Playlist covers use the first ordered track's embedded artwork. Small cached images stay available
-  without data; tracks without embedded artwork keep their text-only row. A patch-time bitmap option
-  provides a diagnostic alternative to the default local artwork URIs.
+  without data; tracks without embedded artwork keep their text-only row. The Downloaded playlists and
+  cold-offline Library rows use Music's white outline download glyph, aligned with the sibling Library rows.
 
 ## [1.27.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.26.0...v1.27.0) (2026-11-01)
 

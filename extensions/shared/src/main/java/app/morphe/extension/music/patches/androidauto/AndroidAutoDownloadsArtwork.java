@@ -65,11 +65,6 @@ public final class AndroidAutoDownloadsArtwork {
         return "";
     }
 
-    /** Patch-time diagnostic alternative; never sends a full-size bitmap or compressed bytes through Binder. */
-    private static boolean useBitmaps() {
-        return false;
-    }
-
     private static Context context() {
         Context context = Utils.getContext();
         if (context == null) context = providerContext;
@@ -144,14 +139,14 @@ public final class AndroidAutoDownloadsArtwork {
         String root = providerRoot();
         if (root.isEmpty() || uri == null || !uri.toString().startsWith(uriPrefix(authority(), root))) return;
         Key key = parseUri(authority(), root, uri.toString());
-        if (!"r".equals(mode) || key == null || ensureImage(key, "provider") == null) {
+        if (!"r".equals(mode) || key == null || ensureImage(key) == null) {
             throw new FileNotFoundException("Downloaded cover unavailable");
         }
     }
 
     /** Serial extraction bounds decode memory even when the car requests several covers at once. */
     @Nullable
-    private static File ensureImage(Key key, String route) {
+    private static File ensureImage(Key key) {
         Utils.verifyOffMainThread();
         long started = SystemClock.elapsedRealtime();
         synchronized (EXTRACTION_LOCK) {
@@ -160,16 +155,16 @@ public final class AndroidAutoDownloadsArtwork {
                 File file = imageFile(key);
                 if (!downloaded.contains(key.mediaId()) || !key.equals(currentKey(key.mediaId()))) {
                     file.delete();
-                    logImage(key, route, "stale", 0, started);
+                    logImage(key, "stale", 0, started);
                     return null;
                 }
                 if (file.isFile() && file.length() > 0 && file.length() <= MAX_IMAGE_BYTES) {
                     file.setLastModified(System.currentTimeMillis());
-                    logImage(key, route, "hit", file.length(), started);
+                    logImage(key, "hit", file.length(), started);
                     return file;
                 }
                 if (isMissing(key)) {
-                    logImage(key, route, "missing-hit", 0, started);
+                    logImage(key, "missing-hit", 0, started);
                     return null;
                 }
 
@@ -183,7 +178,7 @@ public final class AndroidAutoDownloadsArtwork {
                     }
                 }
                 trim(downloaded, key);
-                logImage(key, route, written ? "miss" : "missing", written ? file.length() : 0, started);
+                logImage(key, written ? "miss" : "missing", written ? file.length() : 0, started);
                 return written ? file : null;
             } catch (IOException | RuntimeException | OutOfMemoryError ex) {
                 if (Utils.getContext() != null) {
@@ -278,30 +273,25 @@ public final class AndroidAutoDownloadsArtwork {
         }
     }
 
-    private static void logImage(Key key, String route, String cache, long bytes, long started) {
+    private static void logImage(Key key, String cache, long bytes, long started) {
         if (Utils.getContext() == null) return;
         long elapsed = SystemClock.elapsedRealtime() - started;
-        Logger.printDebug(() -> "AA downloads art route=" + route + " uri="
+        Logger.printDebug(() -> "AA downloads art route=provider uri="
                 + (providerRoot().isEmpty() ? "none" : uri(authority(), providerRoot(), key))
                 + " bytes=" + bytes + " cache=" + cache + " extractMs=" + elapsed + " key=" + key.fileName());
     }
 
-    /** Browse rows never wait for extraction: provider opens are lazy; the bitmap alternative warms separately. */
+    /** Browse rows never wait for extraction; provider opens generate missing images lazily. */
     static final class Batch {
         private final Set<Long> downloaded = downloadedIds();
         private final Set<Key> warm = new LinkedHashSet<>();
-        private final boolean bitmapRoute = useBitmaps();
-        private final Map<Key, Bitmap> bitmaps = bitmapRoute ? new HashMap<>() : Map.of();
-        private final int bitmapSide;
-        private final boolean available = bitmapRoute || providerAvailable();
+        private final boolean available = providerAvailable();
         private int hits;
         private int misses;
         private long bytes;
-        private long bitmapBytes;
         private String firstUri = "none";
 
-        Batch(int rows) {
-            bitmapSide = bitmapSide(rows);
+        Batch() {
             if (!available) return;
             ARTWORK_EXECUTOR.execute(() -> {
                 synchronized (EXTRACTION_LOCK) {
@@ -316,7 +306,6 @@ public final class AndroidAutoDownloadsArtwork {
 
         MediaDescriptionCompat description(String id, String title, String subtitle, Bundle extras, Track track) {
             Uri icon = null;
-            Bitmap bitmap = null;
             if (track != null && downloaded.contains(track.mediaId()) && track.modifiedSeconds() >= 0
                     && track.fileSize() > 0 && available) {
                 Key key = new Key(track.mediaId(), track.modifiedSeconds(), track.fileSize());
@@ -330,24 +319,15 @@ public final class AndroidAutoDownloadsArtwork {
                             file.setLastModified(System.currentTimeMillis());
                         } else {
                             misses++;
-                            if (!bitmapRoute || bitmapSide > 0) warm.add(key);
+                            warm.add(key);
                         }
-                        if (bitmapRoute) {
-                            bitmap = ready ? bitmap(key, file) : null;
-                            if (bitmap == null) {
-                                if (bitmapSide > 0) warm.add(key);
-                            } else {
-                                bitmapBytes += bitmap.getAllocationByteCount();
-                            }
-                        } else {
-                            icon = grant(key);
-                        }
+                        icon = grant(key);
                     }
                 } catch (IOException | RuntimeException | OutOfMemoryError ex) {
                     Logger.printInfo(() -> "Could not describe downloaded cover: " + key.fileName() + " " + ex);
                 }
             }
-            return new MediaDescriptionCompat(id, title, subtitle, null, bitmap, icon, extras, null);
+            return new MediaDescriptionCompat(id, title, subtitle, null, null, icon, extras, null);
         }
 
         private Uri grant(Key key) {
@@ -362,46 +342,25 @@ public final class AndroidAutoDownloadsArtwork {
             return uri;
         }
 
-        @Nullable
-        private Bitmap bitmap(Key key, File file) {
-            if (bitmapSide == 0) return null;
-            Bitmap cached = bitmaps.get(key);
-            if (cached != null) return cached;
-            BitmapFactory.Options options = new BitmapFactory.Options();
-            options.inSampleSize = Math.max(1, Integer.highestOneBit(256 / bitmapSide));
-            Bitmap decoded = BitmapFactory.decodeFile(file.getPath(), options);
-            if (decoded == null) {
-                file.delete();
-                return null;
-            }
-            Bitmap scaled = Bitmap.createScaledBitmap(decoded, bitmapSide, bitmapSide, true);
-            if (scaled != decoded) decoded.recycle();
-            bitmaps.put(key, scaled);
-            return scaled;
-        }
-
         void finish(int rows) {
-            Logger.printDebug(() -> "AA downloads art route=" + (bitmapRoute ? "bitmap" : "provider")
-                    + " uri=" + firstUri + " bytes=" + (bitmapRoute ? bitmapBytes : bytes) + " rows=" + rows
-                    + " hits=" + hits + " misses=" + misses + " bitmapSide=" + (bitmapRoute ? bitmapSide : 0)
-                    + " available=" + available);
+            Logger.printDebug(() -> "AA downloads art route=provider"
+                    + " uri=" + firstUri + " bytes=" + bytes + " rows=" + rows
+                    + " hits=" + hits + " misses=" + misses + " available=" + available);
             if (warm.isEmpty()) return;
             synchronized (STATE_LOCK) {
                 warm.removeIf(key -> !warming.add(key));
             }
             if (warm.isEmpty()) return;
             ARTWORK_EXECUTOR.execute(() -> {
-                boolean ready = false;
                 try {
                     for (Key key : warm) {
-                        if (ensureImage(key, bitmapRoute ? "bitmap" : "provider") != null) ready = true;
+                        ensureImage(key);
                     }
                 } finally {
                     synchronized (STATE_LOCK) {
                         warming.removeAll(warm);
                     }
                 }
-                if (ready && bitmapRoute) AndroidAutoPatch.onDownloadArtworkChanged();
             });
         }
     }

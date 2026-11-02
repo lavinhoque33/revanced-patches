@@ -152,14 +152,6 @@ val androidAutoPatch = bytecodePatch(
         required = true,
     )
 
-    val downloadedPlaylistArtworkBitmaps by booleanOption(
-        key = "downloadedPlaylistArtworkBitmaps",
-        default = false,
-        title = "Use downloaded-playlist artwork bitmaps",
-        description = "Diagnostic alternative to local FileProvider artwork URIs. Uses bounded tiny Binder bitmaps.",
-        required = true,
-    )
-
     execute {
         if (!is_9_15_or_greater) {
             printWarn(VERSION_WARNING)
@@ -194,7 +186,7 @@ val androidAutoPatch = bytecodePatch(
         patchCommandEncoder(encodeCommandMediaIdMethod)
         patchSearch()
         patchDownloadedPlaylistPlayback(encodeCommandMediaIdMethod, useStockDownloadedPlaylistBuilder == true)
-        patchDownloadedArtwork(downloadedPlaylistArtworkBitmaps == true)
+        patchDownloadedArtwork()
     }
 }
 
@@ -1104,15 +1096,11 @@ private fun BytecodePatchContext.patchDownloadedPlaylistPlayback(
     patchClass.methods.single { it.name == "useStockDownloadedPlaylistBuilder" }.returnEarly(true)
 }
 
-/** Only the default URI route needs the proven stock FileProvider open hook. */
-private fun BytecodePatchContext.patchDownloadedArtwork(useBitmaps: Boolean) {
+/** Reuses the verified stock FileProvider without changing the manifest retained by root installs. */
+private fun BytecodePatchContext.patchDownloadedArtwork() {
     val extension = mutableClassDefBy(ARTWORK_CLASS)
-    if (useBitmaps) {
-        extension.methods.single { it.name == "useBitmaps" }.returnEarly(true)
-        return
-    }
     if (!downloadedArtworkProviderVerified) {
-        printWarn("Android Auto downloaded covers: stock cache provider unavailable. Skipping covers; try bitmap option.")
+        printWarn("Android Auto downloaded covers: stock cache provider unavailable. Skipping covers.")
         return
     }
     val openFile = Fingerprint(
@@ -1130,7 +1118,7 @@ private fun BytecodePatchContext.patchDownloadedArtwork(useBitmaps: Boolean) {
         ),
     ).methodOrNull
     if (openFile == null) {
-        printWarn("Android Auto downloaded covers: stock file-open method unavailable. Skipping covers; try bitmap option.")
+        printWarn("Android Auto downloaded covers: stock file-open method unavailable. Skipping covers.")
         return
     }
     openFile.addInstruction(

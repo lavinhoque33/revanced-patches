@@ -67,9 +67,9 @@ public class AndroidAutoDownloadsDataTest {
 
     @Test
     public void queueOrderUsesNativePositionNotMediaIdOrInputOrder() {
-        var later = new Track(2, 41, "Later", "Artist", "Album", 123000);
-        var first = new Track(700, 0, "First", "Artist", "Album", 456000);
-        var middle = new Track(1, 9, "Middle", "Artist", "Album", 789000);
+        var later = new Track(2, 41, "Later", "Artist", "Album", 123000, 100, 2000);
+        var first = new Track(700, 0, "First", "Artist", "Album", 456000, 100, 2000);
+        var middle = new Track(1, 9, "Middle", "Artist", "Album", 789000, 100, 2000);
         var playlist = playlist(3, "PLdownload", "Ordered", "Not in a playlist", List.of(later, first, middle));
         assertEquals(List.of(first, middle, later), playlist.tracks());
         assertEquals("Ordered", playlist.title());
@@ -77,8 +77,8 @@ public class AndroidAutoDownloadsDataTest {
 
     @Test
     public void singlesBucketUsesItsLocalizedTitleAndKeepsItsNativeOrder() {
-        var newest = new Track(90, 0, "New", "", "", 1000);
-        var oldest = new Track(10, 1, "Old", "", "", 1000);
+        var newest = new Track(90, 0, "New", "", "", 1000, 100, 2000);
+        var oldest = new Track(10, 1, "Old", "", "", 1000, 100, 2000);
         var bucket = playlist(12, UNSORTED_KEY, "Stale language", "Not in a playlist", List.of(oldest, newest));
         assertEquals("Not in a playlist", bucket.title());
         assertEquals(List.of(newest, oldest), bucket.tracks());
@@ -89,7 +89,7 @@ public class AndroidAutoDownloadsDataTest {
     public void emptyPlaylistsIncludingEmptySinglesAreHidden() {
         var empty = playlist(1, "PLempty", "Empty", "Not in a playlist", List.of());
         var singles = playlist(2, UNSORTED_KEY, "Old title", "Not in a playlist", List.of());
-        var song = new Track(5, 0, "Song", "Artist", "Album", 1000);
+        var song = new Track(5, 0, "Song", "Artist", "Album", 1000, 100, 2000);
         var populated = playlist(3, "PLsaved", "Saved", "Not in a playlist", List.of(song));
         assertTrue(nonemptyPlaylists(List.of(empty, singles)).isEmpty());
         assertEquals(List.of(populated), nonemptyPlaylists(List.of(empty, populated, singles)));

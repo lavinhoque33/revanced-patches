@@ -40,12 +40,12 @@ final class AndroidAutoDownloadsFolder {
 
     static MediaBrowserCompat.MediaItem folder() {
         return item(ROOT_ID, ResourceUtils.getString("morphe_music_android_auto_downloaded_playlists_folder"),
-                null, MediaBrowserCompat.MediaItem.FLAG_BROWSABLE);
+                null, MediaBrowserCompat.MediaItem.FLAG_BROWSABLE, null, null);
     }
 
     static MediaBrowserCompat.MediaItem library() {
         return item(LIBRARY_ID, ResourceUtils.getString("morphe_music_android_auto_downloaded_playlists_library"),
-                null, MediaBrowserCompat.MediaItem.FLAG_BROWSABLE);
+                null, MediaBrowserCompat.MediaItem.FLAG_BROWSABLE, null, null);
     }
 
     static List<MediaBrowserCompat.MediaItem> load(String requestedId) {
@@ -57,25 +57,30 @@ final class AndroidAutoDownloadsFolder {
             return items;
         }
         if (ROOT_ID.equals(requestedId)) {
+            var artwork = new AndroidAutoDownloadsArtwork.Batch(playlists.size());
             for (Playlist playlist : playlists) {
                 items.add(item(playlistId(playlist.id()), playlist.title(),
                         playlist.tracks().size() + " " + ResourceUtils.getString(
                                 "morphe_music_android_auto_downloaded_playlists_tracks"),
-                        MediaBrowserCompat.MediaItem.FLAG_BROWSABLE));
+                        MediaBrowserCompat.MediaItem.FLAG_BROWSABLE,
+                        AndroidAutoDownloadsArtworkData.coverTrack(playlist), artwork));
             }
+            artwork.finish(items.size());
         } else {
             long playlistId = parsePlaylistId(requestedId);
             for (Playlist playlist : playlists) {
                 if (playlist.id() != playlistId) continue;
                 int count = playlist.tracks().size();
+                var artwork = new AndroidAutoDownloadsArtwork.Batch(count);
                 for (int index = 0; index < count; index++) {
                     Track track = playlist.tracks().get(index);
                     long seconds = track.durationMs() / 1000;
                     String duration = seconds / 60 + ":" + (seconds % 60 < 10 ? "0" : "") + seconds % 60;
                     String subtitle = track.artist() + " · " + track.album() + " · " + duration;
                     items.add(item(playId(playlistId, index, count), track.title(), subtitle,
-                            MediaBrowserCompat.MediaItem.FLAG_PLAYABLE));
+                            MediaBrowserCompat.MediaItem.FLAG_PLAYABLE, track, artwork));
                 }
+                artwork.finish(items.size());
                 break;
             }
         }
@@ -123,7 +128,7 @@ final class AndroidAutoDownloadsFolder {
                 Track track = audio.get(position[0]);
                 if (track == null) continue;
                 tracks.add(new Track(track.mediaId(), position[1], track.title(), track.artist(),
-                        track.album(), track.durationMs()));
+                        track.album(), track.durationMs(), track.modifiedSeconds(), track.fileSize()));
             }
             playlists.add(playlist(entry.getKey(), sources.get(entry.getKey()), entry.getValue(),
                     ResourceUtils.getString("morphe_music_not_in_playlist"), tracks));
@@ -134,12 +139,14 @@ final class AndroidAutoDownloadsFolder {
     private static Map<Long, Track> readAudio(String ids) {
         Map<Long, Track> audio = new HashMap<>();
         String[] projection = {MediaStore.Audio.Media._ID, MediaStore.Audio.Media.TITLE,
-                MediaStore.Audio.Media.ARTIST, MediaStore.Audio.Media.ALBUM, MediaStore.Audio.Media.DURATION};
+                MediaStore.Audio.Media.ARTIST, MediaStore.Audio.Media.ALBUM, MediaStore.Audio.Media.DURATION,
+                MediaStore.Audio.Media.DATE_MODIFIED, MediaStore.Audio.Media.SIZE};
         try (Cursor cursor = Utils.getContext().getContentResolver().query(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
                 projection, MediaStore.Audio.Media._ID + " IN (" + ids + ")", null, null)) {
             while (cursor != null && cursor.moveToNext()) {
                 long id = cursor.getLong(0);
-                audio.put(id, new Track(id, 0, text(cursor, 1), text(cursor, 2), text(cursor, 3), cursor.getLong(4)));
+                audio.put(id, new Track(id, 0, text(cursor, 1), text(cursor, 2), text(cursor, 3),
+                        cursor.getLong(4), cursor.getLong(5), cursor.getLong(6)));
             }
         }
         return audio;
@@ -149,12 +156,14 @@ final class AndroidAutoDownloadsFolder {
         return cursor.isNull(column) ? "" : cursor.getString(column);
     }
 
-    private static MediaBrowserCompat.MediaItem item(String id, String title, String subtitle, int flags) {
-        // Text-only descriptions avoid artwork decoding and bitmap traffic over the media-browser Binder connection.
+    private static MediaBrowserCompat.MediaItem item(String id, String title, String subtitle, int flags,
+            Track cover, AndroidAutoDownloadsArtwork.Batch artwork) {
         Bundle extras = new Bundle();
         extras.putInt("android.media.browse.CONTENT_STYLE_BROWSABLE_HINT", 1);
         extras.putInt("android.media.browse.CONTENT_STYLE_PLAYABLE_HINT", 1);
-        return new MediaBrowserCompat.MediaItem(new MediaDescriptionCompat(
-                id, title, subtitle, null, null, (Uri) null, extras, null), flags);
+        MediaDescriptionCompat description = artwork == null
+                ? new MediaDescriptionCompat(id, title, subtitle, null, null, (Uri) null, extras, null)
+                : artwork.description(id, title, subtitle, extras, cover);
+        return new MediaBrowserCompat.MediaItem(description, flags);
     }
 }

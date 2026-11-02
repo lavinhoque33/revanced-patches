@@ -18,7 +18,8 @@ final class AndroidAutoDownloadsData {
     static final String LIBRARY_ID = PREFIX + "library";
     static final String UNSORTED_KEY = "rvx:not_in_playlist";
 
-    record Track(long mediaId, long position, String title, String artist, String album, long durationMs) {}
+    record Track(long mediaId, long position, String title, String artist, String album, long durationMs,
+                 long modifiedSeconds, long fileSize) {}
 
     record Playlist(long id, String title, List<Track> tracks) {}
     record PlayRequest(long playlistId, int index, int count) {}

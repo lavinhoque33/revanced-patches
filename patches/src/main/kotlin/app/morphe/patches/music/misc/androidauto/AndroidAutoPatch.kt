@@ -23,6 +23,7 @@ import app.morphe.patcher.patch.BytecodePatchContext
 import app.morphe.patcher.patch.PatchException
 import app.morphe.patcher.patch.booleanOption
 import app.morphe.patcher.patch.bytecodePatch
+import app.morphe.patcher.patch.resourcePatch
 import app.morphe.patcher.util.proxy.mutableTypes.MutableClass
 import app.morphe.patcher.util.proxy.mutableTypes.MutableMethod
 import app.morphe.patches.music.interaction.jam.addBridge
@@ -55,9 +56,12 @@ import com.android.tools.smali.dexlib2.iface.instruction.TwoRegisterInstruction
 import com.android.tools.smali.dexlib2.iface.reference.FieldReference
 import com.android.tools.smali.dexlib2.iface.reference.MethodReference
 import com.android.tools.smali.dexlib2.immutable.ImmutableMethodParameter
+import org.w3c.dom.Element
 
 private const val EXTENSION_CLASS =
     "Lapp/morphe/extension/music/patches/androidauto/AndroidAutoPatch;"
+private const val ARTWORK_CLASS =
+    "Lapp/morphe/extension/music/patches/androidauto/AndroidAutoDownloadsArtwork;"
 private const val PHONE_BROWSE_CLIENT =
     $$"Lapp/morphe/extension/music/patches/androidauto/AndroidAutoPatch$PhoneBrowseClient;"
 private const val PHONE_BROWSE_RESPONSE =
@@ -85,6 +89,42 @@ private const val SUBTITLE_FIELD_NAME = "h"
 
 private const val VERSION_WARNING = "Android Auto requires YouTube Music 9.15 or newer. Skipping."
 
+private var downloadedArtworkProviderVerified = false
+
+/** Read-only probe: rooted installations retain the stock manifest and provider paths. */
+private val downloadedArtworkProviderPatch = resourcePatch {
+    execute {
+        downloadedArtworkProviderVerified = runCatching {
+            val providerVerified = document("AndroidManifest.xml").use { manifest ->
+                val packageName = manifest.getElementsByTagName("manifest").item(0)
+                    .attributes.getNamedItem("package").nodeValue
+                val providers = manifest.getElementsByTagName("provider")
+                (0 until providers.length).any { index ->
+                    val provider = providers.item(index) as Element
+                    provider.getAttribute("android:name") ==
+                            "com.google.android.apps.youtube.music.util.MusicFileProviderCompat" &&
+                            provider.getAttribute("android:authorities") == "$packageName.fileprovider" &&
+                            provider.getAttribute("android:exported") == "false" &&
+                            provider.getAttribute("android:grantUriPermissions") == "true" &&
+                            (0 until provider.childNodes.length).any { child ->
+                                val metadata = provider.childNodes.item(child) as? Element
+                                metadata?.getAttribute("android:name") == "android.support.FILE_PROVIDER_PATHS" &&
+                                        metadata.getAttribute("android:resource") == "@xml/file_provider_paths"
+                            }
+                }
+            }
+            providerVerified && document("res/xml/file_provider_paths.xml").use { paths ->
+                val roots = paths.getElementsByTagName("cache-path")
+                (0 until roots.length).any { index ->
+                    val root = roots.item(index) as Element
+                    root.getAttribute("name") == "image_share_files" &&
+                            root.getAttribute("path").trimEnd('/') == "image_share"
+                }
+            }
+        }.getOrDefault(false)
+    }
+}
+
 /**
  * Reuses YTM's phone requests and playback commands for Home, Library, and search in Android Auto.
  * Keeps native podcast folders in a Podcasts tab and refreshes folders after Library changes.
@@ -99,6 +139,7 @@ val androidAutoPatch = bytecodePatch(
         sharedExtensionPatch,
         settingsPatch,
         versionCheckPatch,
+        downloadedArtworkProviderPatch,
     )
 
     compatibleWith(COMPATIBILITY_YOUTUBE_MUSIC)
@@ -108,6 +149,14 @@ val androidAutoPatch = bytecodePatch(
         default = false,
         title = "Use stock downloaded-playlist command builder",
         description = "Diagnostic alternative to the verified sideloaded command bytes. Keeps the whole ordered queue.",
+        required = true,
+    )
+
+    val downloadedPlaylistArtworkBitmaps by booleanOption(
+        key = "downloadedPlaylistArtworkBitmaps",
+        default = false,
+        title = "Use downloaded-playlist artwork bitmaps",
+        description = "Diagnostic alternative to local FileProvider artwork URIs. Uses bounded tiny Binder bitmaps.",
         required = true,
     )
 
@@ -145,6 +194,7 @@ val androidAutoPatch = bytecodePatch(
         patchCommandEncoder(encodeCommandMediaIdMethod)
         patchSearch()
         patchDownloadedPlaylistPlayback(encodeCommandMediaIdMethod, useStockDownloadedPlaylistBuilder == true)
+        patchDownloadedArtwork(downloadedPlaylistArtworkBitmaps == true)
     }
 }
 
@@ -1052,6 +1102,43 @@ private fun BytecodePatchContext.patchDownloadedPlaylistPlayback(
         return-object v0
     """)
     patchClass.methods.single { it.name == "useStockDownloadedPlaylistBuilder" }.returnEarly(true)
+}
+
+/** Only the default URI route needs the proven stock FileProvider open hook. */
+private fun BytecodePatchContext.patchDownloadedArtwork(useBitmaps: Boolean) {
+    val extension = mutableClassDefBy(ARTWORK_CLASS)
+    if (useBitmaps) {
+        extension.methods.single { it.name == "useBitmaps" }.returnEarly(true)
+        return
+    }
+    if (!downloadedArtworkProviderVerified) {
+        printWarn("Android Auto downloaded covers: stock cache provider unavailable. Skipping covers; try bitmap option.")
+        return
+    }
+    val openFile = Fingerprint(
+        name = "openFile",
+        accessFlags = listOf(AccessFlags.PUBLIC, AccessFlags.FINAL),
+        returnType = "Landroid/os/ParcelFileDescriptor;",
+        parameters = listOf("Landroid/net/Uri;", "Ljava/lang/String;"),
+        strings = listOf("Invalid mode: "),
+        filters = listOf(
+            methodCall(
+                definingClass = "Landroid/os/ParcelFileDescriptor;",
+                name = "open",
+                parameters = listOf("Ljava/io/File;", "I"),
+            ),
+        ),
+    ).methodOrNull
+    if (openFile == null) {
+        printWarn("Android Auto downloaded covers: stock file-open method unavailable. Skipping covers; try bitmap option.")
+        return
+    }
+    openFile.addInstruction(
+        0,
+        "invoke-static/range { p0 .. p2 }, $ARTWORK_CLASS->" +
+                "onOpenFile(Landroid/content/ContentProvider;Landroid/net/Uri;Ljava/lang/String;)V",
+    )
+    extension.methods.single { it.name == "providerRoot" }.returnEarly("image_share_files")
 }
 
 /** Intercepts only the signed-out fall-through; stock account and recent-playback handling stays intact. */

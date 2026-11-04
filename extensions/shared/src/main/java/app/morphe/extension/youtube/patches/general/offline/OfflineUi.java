@@ -5,6 +5,7 @@
  * https://github.com/anddea/revanced-patches
  *
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-03.
  * Written by lavinhoque33, 2026-10-20.
  */
 
@@ -28,6 +29,7 @@ import android.widget.TextView;
 
 import androidx.annotation.Nullable;
 
+import java.util.function.BiConsumer;
 import java.util.function.IntConsumer;
 
 import app.morphe.extension.shared.utils.Utils;
@@ -58,8 +60,14 @@ final class OfflineUi {
      *
      * @param title Optional dialog title.
      */
-    static void showChoices(Activity activity, @Nullable String title, String[] labels, int selected,
-                            int foreground, IntConsumer onChosen) {
+    static AlertDialog showChoices(Activity activity, @Nullable String title, String[] labels, int selected,
+                                   int foreground, IntConsumer onChosen) {
+        return showChoices(activity, title, labels, selected, foreground, onChosen, null);
+    }
+
+    static AlertDialog showChoices(Activity activity, @Nullable String title, String[] labels, int selected,
+                                   int foreground, IntConsumer onChosen,
+                                   @Nullable BiConsumer<TextView, Integer> decorate) {
         final int padding = Utils.dipToPixels(24);
         final int checkSize = Utils.dipToPixels(24);
 
@@ -93,6 +101,7 @@ final class OfflineUi {
                 text.setText(labels[position]);
                 text.setTextColor(foreground);
                 text.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
+                if (decorate != null) decorate.accept(text, position);
                 row.addView(text, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
                 ImageView check = new ImageView(activity);
@@ -114,6 +123,7 @@ final class OfflineUi {
         if (dialog.getWindow() != null) {
             dialog.getWindow().setBackgroundDrawable(dialogBackground(foreground));
         }
+        return dialog;
     }
 
     private static Drawable dialogBackground(int foreground) {

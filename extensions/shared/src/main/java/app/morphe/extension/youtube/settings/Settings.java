@@ -476,7 +476,7 @@ public class Settings extends SharedYouTubeSettings {
     public static final StringSetting OFFLINE_SUBTITLES_FORMAT =
             new StringSetting("revanced_offline_subtitles_format", "srt", false, false);
     public static final StringSetting OFFLINE_SUBTITLES_STYLE =
-            new StringSetting("revanced_offline_subtitles_style", "1,0,0,0,1", false, false);
+            new StringSetting("revanced_offline_subtitles_style", "1,0,0,60,1,,v2,50,0,#FFFFFF", false, false);
     public static final BooleanSetting OFFLINE_CODEC_H264 = new BooleanSetting(
             "revanced_offline_codec_h264", TRUE, parent(IN_APP_DOWNLOADER));
     public static final BooleanSetting OFFLINE_CODEC_VP9 = new BooleanSetting(

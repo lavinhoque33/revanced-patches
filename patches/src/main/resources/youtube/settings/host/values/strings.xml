@@ -2228,7 +2228,7 @@ Works with YTDLnis and YTindir as the video downloader</string>
     <string name="revanced_offline_subtitles_off">Off</string>
     <string name="revanced_offline_subtitles_size">Size</string>
     <string name="revanced_offline_subtitles_colour">Colour</string>
-    <string name="revanced_offline_subtitles_background">Background</string>
+    <string name="revanced_offline_subtitles_background">Background opacity</string>
     <string name="revanced_offline_subtitles_position">Position</string>
     <string name="revanced_offline_subtitles_small">Small</string>
     <string name="revanced_offline_subtitles_medium">Medium</string>
@@ -2238,11 +2238,24 @@ Works with YTDLnis and YTindir as the video downloader</string>
     <string name="revanced_offline_subtitles_yellow">Yellow</string>
     <string name="revanced_offline_subtitles_cyan">Cyan</string>
     <string name="revanced_offline_subtitles_green">Green</string>
-    <string name="revanced_offline_subtitles_background_none">None</string>
-    <string name="revanced_offline_subtitles_background_dim">Semi-transparent</string>
     <string name="revanced_offline_subtitles_bottom">Bottom</string>
     <string name="revanced_offline_subtitles_middle">Middle</string>
     <string name="revanced_offline_subtitles_top">Top</string>
+    <string name="revanced_offline_subtitles_custom">Custom…</string>
+    <string name="revanced_offline_subtitles_custom_colour">Custom (%s)</string>
+    <string name="revanced_offline_subtitles_custom_colour_title">Custom subtitle colour</string>
+    <string name="revanced_offline_subtitles_vertical_position">Vertical position (centre from top)</string>
+    <string name="revanced_offline_subtitles_percentage">%1$s · %2$d%%</string>
+    <string name="revanced_offline_subtitles_done">Done</string>
+    <string name="revanced_offline_subtitles_preview">Subtitle appearance preview</string>
+    <string name="revanced_offline_subtitles_font">Font</string>
+    <string name="revanced_offline_subtitles_font_default">Default (sans-serif)</string>
+    <string name="revanced_offline_subtitles_font_medium">Sans-serif medium</string>
+    <string name="revanced_offline_subtitles_font_condensed">Condensed</string>
+    <string name="revanced_offline_subtitles_font_serif">Serif</string>
+    <string name="revanced_offline_subtitles_font_monospace">Monospace</string>
+    <string name="revanced_offline_subtitles_font_casual">Casual</string>
+    <string name="revanced_offline_subtitles_font_cursive">Cursive</string>
     <string name="revanced_offline_picker_footer">"Videos are saved to %1$s
 Audio is saved to %2$s"</string>
     <string name="revanced_offline_picker_audio_section">Audio only</string>

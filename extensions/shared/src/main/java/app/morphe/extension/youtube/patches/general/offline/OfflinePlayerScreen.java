@@ -5,8 +5,8 @@
  * https://github.com/anddea/revanced-patches
  *
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-03.
  * Written by lavinhoque33, 2026-10-10.
- * Modified by lavinhoque33, 2026-10-25.
  */
 
 package app.morphe.extension.youtube.patches.general.offline;
@@ -139,7 +139,7 @@ final class OfflinePlayerScreen implements OfflineScreens.Screen, OfflinePlayer.
         root.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> {
             if (r - l != or - ol || b - t != ob - ot) fitVideo();
         });
-        subtitles = new OfflineSubtitleOverlay(activity, root,
+        subtitles = new OfflineSubtitleOverlay(activity, root, surfaceView,
                 () -> handler.removeCallbacks(hideControls), this::scheduleHide);
 
         seekHint = text(18, Color.WHITE);
@@ -613,6 +613,7 @@ final class OfflinePlayerScreen implements OfflineScreens.Screen, OfflinePlayer.
     @Override
     public void onDestroy() {
         destroyed = true;
+        subtitles.close();
         handler.removeCallbacksAndMessages(null);
         OfflinePlayer.removeListener(this);
         OfflinePlayer.detachSurface(surfaceView.getHolder().getSurface());

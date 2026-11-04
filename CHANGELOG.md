@@ -1,3 +1,16 @@
+## Unreleased
+
+### Features
+
+* **YouTube - Built-in player subtitles:** Add live background-opacity and custom vertical-position sliders,
+  custom RGB text colours with the existing colour picker and recent colours, and seven built-in fonts.
+  Appearance is remembered across restarts; existing subtitle styles migrate automatically.
+
+### Bug Fixes
+
+* **YouTube - Built-in player subtitles:** Fit the rounded background to the caption text instead of showing
+  a full-width bar. Long cues wrap within 90% of the video width, with size-scaled padding.
+
 ## [1.28.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.27.0...v1.28.0) (2026-11-01)
 
 ### Features

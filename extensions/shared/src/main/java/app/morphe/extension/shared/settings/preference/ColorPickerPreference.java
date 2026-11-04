@@ -37,6 +37,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.regex.Pattern;
+import java.util.function.IntConsumer;
 
 import app.morphe.extension.shared.settings.Setting;
 import app.morphe.extension.shared.settings.StringSetting;
@@ -98,6 +99,12 @@ public class ColorPickerPreference extends EditTextPreference {
      * Dialog TextWatcher for the EditText to monitor color input changes.
      */
     private TextWatcher colorTextWatcher;
+
+    @Nullable
+    private Runnable transientDismiss;
+
+    @Nullable
+    private Dialog currentDialog;
 
     /**
      * Dialog color picker view.
@@ -186,6 +193,29 @@ public class ColorPickerPreference extends EditTextPreference {
     public ColorPickerPreference(Context context, AttributeSet attrs, int defStyleAttr) {
         super(context, attrs, defStyleAttr);
         init();
+    }
+
+    /** Uses the existing RGB picker, hex editor and recent colours without a registered preference. */
+    public static Dialog showRgbPicker(Context context, String title, int initialColor, int defaultColor,
+                                     IntConsumer onApplied, Runnable onDismiss) {
+        ColorPickerPreference picker = new ColorPickerPreference(context) {
+            @Override
+            protected void onDialogOkClicked() {
+                onApplied.accept(Color.parseColor(getText()) | 0xFF000000);
+            }
+
+            @Override
+            protected void onDialogNeutralClicked() {
+                dialogColorPickerView.setColor(defaultColor | 0xFF000000);
+            }
+        };
+        picker.setPersistent(false);
+        picker.setTitle(title);
+        picker.setOpacitySliderEnabled(false);
+        picker.setText(getColorString(initialColor, false));
+        picker.transientDismiss = onDismiss;
+        picker.showDialog(null);
+        return picker.currentDialog;
     }
 
     /**
@@ -583,7 +613,12 @@ public class ColorPickerPreference extends EditTextPreference {
 
         // Configure and show the dialog.
         Dialog dialog = dialogPair.first;
-        dialog.setOnDismissListener(dialogInterface -> clearDialogViews());
+        currentDialog = dialog;
+        dialog.setOnDismissListener(dialogInterface -> {
+            clearDialogViews();
+            currentDialog = null;
+            if (transientDismiss != null) transientDismiss.run();
+        });
         dialog.setCanceledOnTouchOutside(false);
         dialog.show();
     }

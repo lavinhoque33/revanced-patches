@@ -1,3 +1,18 @@
+## Unreleased
+
+### Bug Fixes
+
+* **YouTube - Feed card layout:** Keep the inline preview of a card visible. The surface that the patch draws
+  behind the metadata of a card also covered the thumbnail area, so a playing video showed only the colour
+  of the card. The surface now leaves the thumbnail area clear, and the card keeps its dynamic colour.
+* **YouTube - Feed card layout:** Fix the empty dark box in place of an autoplaying Short in the Shorts shelf.
+  A recycled row of Shorts could keep the mark of a card and get the card surface over its inline video.
+  Rows of Shorts are never cards now.
+* **YouTube - Feed card layout:** Keep the colour of the like, comment and save icons of the cards with buttons.
+  The tint of the metadata row was set on the image view, which the app reuses for other images, so a dark
+  tint of another card could stay on an icon. It is now set on the drawable and removed when the view is
+  reused.
+
 ## [1.29.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.28.0...v1.29.0) (2026-11-03)
 
 ### Features

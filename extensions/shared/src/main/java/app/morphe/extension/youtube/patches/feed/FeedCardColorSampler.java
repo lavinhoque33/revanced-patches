@@ -5,7 +5,7 @@
  * https://github.com/anddea/revanced-patches
  *
  * Licensed under the GNU General Public License v3.0.
- * Modified by lavinhoque33, 2026-10-29
+ * Modified by lavinhoque33, 2026-11-04
  * Written by lavinhoque33, 2026-10-26.
  */
 
@@ -41,6 +41,7 @@ import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -149,6 +150,9 @@ final class FeedCardColorSampler {
     private static final int MAXIMUM_SURFACE_LOGS = 6;
     private static final int MAXIMUM_MISSING_THUMBNAIL_LOGS = 6;
     private static final int MAXIMUM_SHARED_IMAGE_LOGS = 4;
+    private static final int MAXIMUM_FILL_LOGS = 12;
+    private static final int MAXIMUM_SHORTS_ROW_LOGS = 6;
+    private static final int MAXIMUM_STALE_ROW_LOGS = 12;
     /**
      * Number of the copies of the image of a row that are made for a card. The app replaces the image of
      * a row when it mounts the card again, and a card that replaces it before every frame keeps the filter
@@ -198,6 +202,16 @@ final class FeedCardColorSampler {
     private static final List<Drawable> foundBackgrounds = new ArrayList<>(4);
     private static final List<View> foundImages = new ArrayList<>(4);
     /**
+     * The filters that the patch set on the drawables of the images of the metadata of the cards, such as
+     * the image of the row of the channel, with the view that showed the drawable. The filter is kept on the
+     * drawable and not on the view, and a filter whose drawable is not an image of a card any more is removed.
+     */
+    private static final Map<Drawable, RowFilter> rowFilters = new WeakHashMap<>();
+    /**
+     * Images of the metadata of the cards of the list that was updated last, reused before every draw.
+     */
+    private static final Set<ImageView> activeRowImages = new HashSet<>();
+    /**
      * Classes of the drawables that could not be sampled, which are logged once.
      */
     private static final Set<Class<?>> loggedDrawableClasses = new HashSet<>();
@@ -222,6 +236,9 @@ final class FeedCardColorSampler {
     private static int surfaceLogs;
     private static int missingThumbnailLogs;
     private static int sharedImageLogs;
+    private static int fillLogs;
+    private static int shortsRowLogs;
+    private static int staleRowLogs;
     private static long slowUpdateLogTime;
 
     @Nullable
@@ -350,7 +367,15 @@ final class FeedCardColorSampler {
         }
 
         Boolean card = cardItems.get(item);
-        return card != null && card;
+        final boolean marked = card != null && card;
+        // The mark is not set again when the view is recycled for an item that the patch is not told about,
+        // such as a row of Shorts, which would get the surface of a card over its inline video.
+        final boolean shortsRow = marked && FeedCardLayoutPatch.isShortsRow(item);
+        if (shortsRow) {
+            cardItems.put(item, Boolean.FALSE);
+            logShortsRow(item);
+        }
+        return FeedCardFill.isMarkedCardItem(marked, shortsRow);
     }
 
     /**
@@ -447,12 +472,14 @@ final class FeedCardColorSampler {
                     sampleCard(item, state);
                 }
                 applyCardTint(item, state, dynamicColors);
+                activeRowImages.addAll(state.lowerImages);
                 logCardState(item, state);
             }
 
             // The backgrounds of the metadata are owned by the cards, so they are applied by the card that
             // the drawable is attached to now, not by the card that the drawable was last seen in.
             applyCardBackgroundColours(dynamicColors);
+            clearStaleRowFilters();
             logSlowUpdate(startTime);
         } catch (Exception ex) {
             Logger.printException(() -> "updateCardTints failure", ex);
@@ -586,9 +613,7 @@ final class FeedCardColorSampler {
             if (foundImages.contains(imageView)) {
                 continue;
             }
-            if (isOurFilter(imageView.getColorFilter())) {
-                imageView.clearColorFilter();
-            }
+            clearRowFilter(imageView);
             images.remove(i);
         }
 
@@ -619,14 +644,16 @@ final class FeedCardColorSampler {
 
     /**
      * Tints the image of a view of the metadata, such as the row of the channel, which the app paints over
-     * the surface of the card. A filter is set on the drawable, not on the view, and the app draws the image
-     * of the row of a card in the rows of the other cards too: the image is copied for the card that draws
-     * it, so the tint of a card is not replaced by the tint of another card.
+     * the surface of the card. The filter is set on the drawable of the image, never on the view: the
+     * filter of a view stays on every drawable that the view shows next, and the app mounts the same views
+     * again as the icons of the buttons of other cards, which would keep the tint of this card. The app draws
+     * the image of the row of a card in the rows of the other cards too, so the image is copied for the card
+     * that draws it, and the tint of a card is not replaced by the tint of another card.
      *
      * @return Whether the image has the tint of the card.
      */
     private static boolean tintRow(ImageView imageView, PorterDuffColorFilter filter, CardState state) {
-        final Drawable image = imageView.getDrawable();
+        Drawable image = imageView.getDrawable();
         if (image == null) {
             return false;
         }
@@ -636,19 +663,73 @@ final class FeedCardColorSampler {
             Drawable copy = state.rowCopies < MAXIMUM_ROW_COPIES ? copyRowImage(image, imageView) : null;
             if (copy == null) {
                 logSharedImage(imageView, image);
-                return imageView.getColorFilter() == filter;
+                return false;
             }
             state.rowCopies++;
             imageView.setImageDrawable(copy);
+            image = copy;
             state.dirty = true;
         }
 
-        if (imageView.getColorFilter() == filter) {
+        final RowFilter applied = rowFilters.get(image);
+        if (applied != null && applied.filter == filter && applied.view.get() == imageView) {
             return true;
         }
-        imageView.setColorFilter(filter);
+
+        // The filter of a bitmap is in a state that the drawables of the same image share, so the drawable
+        // gets a state of its own before it has the tint of the card.
+        image.mutate();
+        image.setColorFilter(filter);
+        rowFilters.put(image, new RowFilter(imageView, filter));
         state.dirty = true;
         return true;
+    }
+
+    /**
+     * Removes the tint of a card from the drawable of an image of the metadata.
+     *
+     * @return Whether the drawable had the tint of a card.
+     */
+    private static boolean clearRowFilter(ImageView imageView) {
+        final Drawable image = imageView.getDrawable();
+        return image != null && clearRowFilter(image);
+    }
+
+    private static boolean clearRowFilter(Drawable image) {
+        if (rowFilters.remove(image) == null) {
+            return false;
+        }
+        image.setColorFilter(null);
+        return true;
+    }
+
+    /**
+     * Removes the tints that are on drawables that are not the image of the metadata of a card that is in the
+     * list now: the app mounts the views of the image again as other images, such as the icons of the
+     * buttons, and moves the drawables between the views, and a card that scrolled out of the list is not
+     * updated again before its views are mounted. This runs after the cards of the list were updated.
+     */
+    private static void clearStaleRowFilters() {
+        final Iterator<Map.Entry<Drawable, RowFilter>> entries = rowFilters.entrySet().iterator();
+        while (entries.hasNext()) {
+            final Map.Entry<Drawable, RowFilter> entry = entries.next();
+            final Drawable image = entry.getKey();
+            final ImageView imageView = entry.getValue().view.get();
+            final boolean stale = FeedCardFill.isRowFilterStale(
+                    imageView != null,
+                    imageView != null && imageView.getDrawable() == image,
+                    imageView != null && activeRowImages.contains(imageView),
+                    imageView == null ? 0 : imageView.getWidth(),
+                    MINIMUM_THUMBNAIL_WIDTH);
+            if (!stale) {
+                continue;
+            }
+
+            entries.remove();
+            image.setColorFilter(null);
+            logStaleRowFilter(imageView);
+        }
+        activeRowImages.clear();
     }
 
     /**
@@ -764,9 +845,14 @@ final class FeedCardColorSampler {
         }
 
         final int surfaceColor = color == NO_TINT ? (darkMode ? CARD_COLOR_DARK : CARD_COLOR_LIGHT) : color;
+        // The video of the card plays in the zone of the thumbnail, which the surface leaves transparent.
+        final int videoZoneBottom = getVideoZoneBottom(item, state);
         CardSurface surface = state.surface;
         if (surface != null && item.getBackground() == surface.drawable) {
-            surface.setColor(surfaceColor);
+            if (surface.videoZoneBottom != videoZoneBottom) {
+                logFillZone(item, videoZoneBottom);
+            }
+            surface.update(surfaceColor, videoZoneBottom);
             return;
         }
 
@@ -774,9 +860,10 @@ final class FeedCardColorSampler {
         state.surface = null;
         // The clip of the card rounds the surface to the card, with its corners.
         FeedCardLayoutPatch.setCardClip(item);
-        surface = new CardSurface(surfaceColor, item.getBackground());
+        surface = new CardSurface(surfaceColor, videoZoneBottom, item.getBackground());
         state.surface = surface;
         item.setBackground(surface.drawable);
+        logFillZone(item, videoZoneBottom);
         if (loggedCardSurfaces.put(item, Boolean.TRUE) == null) {
             Logger.printDebug(() -> "Card background: the surface of the card is drawn by the patch");
         }
@@ -901,16 +988,38 @@ final class FeedCardColorSampler {
             return state.thumbnailBottom;
         }
 
-        final ImageView thumbnail = state.getThumbnailView(item);
-        if (thumbnail != null) {
-            final int top = getTopInItem(thumbnail, item);
-            // The thumbnail starts above the metadata, which is the lower part of the card.
-            if (top * 4 <= item.getHeight()) {
-                state.thumbnailBottom = top + thumbnail.getHeight();
-                return state.thumbnailBottom;
-            }
+        final int thumbnailBottom = measureThumbnailBottom(item, state);
+        if (thumbnailBottom >= 0) {
+            state.thumbnailBottom = thumbnailBottom;
+            return thumbnailBottom;
         }
         return item.getHeight() * 2 / 3;
+    }
+
+    /**
+     * @return The bottom of the thumbnail view of the card in the card, or -1 if the card has no thumbnail
+     *         view that is laid out in the upper part of the card. It is measured every time, because the
+     *         surface of the card must never cover the thumbnail zone, where the video of the card plays.
+     */
+    private static int measureThumbnailBottom(View item, CardState state) {
+        final ImageView thumbnail = state.getThumbnailView(item);
+        if (thumbnail == null || thumbnail.getHeight() <= 0) {
+            return -1;
+        }
+
+        final int top = getTopInItem(thumbnail, item);
+        // The thumbnail starts above the metadata, which is the lower part of the card.
+        return top * 4 <= item.getHeight() ? top + thumbnail.getHeight() : -1;
+    }
+
+    /**
+     * @return The bottom of the zone of the card where its video plays, which is the thumbnail, in the card.
+     *         A card without a thumbnail view, such as a card that plays, has the 16:9 box of its thumbnail.
+     */
+    private static int getVideoZoneBottom(View item, CardState state) {
+        return FeedCardFill.getVideoZoneBottom(measureThumbnailBottom(item, state), item.getWidth(),
+                Dim.dp(FeedCardLayoutPatch.CARD_HORIZONTAL_PADDING_DP),
+                Dim.dp(FeedCardLayoutPatch.CARD_VERTICAL_PADDING_DP));
     }
 
     private static int getTopInItem(View view, View item) {
@@ -1261,6 +1370,37 @@ final class FeedCardColorSampler {
         Logger.printDebug(() -> "Card colors: no thumbnail in " + describeChildren(item));
     }
 
+    private static void logShortsRow(View item) {
+        if (shortsRowLogs >= MAXIMUM_SHORTS_ROW_LOGS) {
+            return;
+        }
+        shortsRowLogs++;
+
+        Logger.printDebug(() -> "Card colors: the row of Shorts #" + Integer.toHexString(System.identityHashCode(item))
+                + " is not a card, so it has no surface over its inline video");
+    }
+
+    private static void logFillZone(View item, int videoZoneBottom) {
+        if (fillLogs >= MAXIMUM_FILL_LOGS) {
+            return;
+        }
+        fillLogs++;
+
+        Logger.printDebug(() -> String.format(Locale.US,
+                "Card fill: item #%08X %dx%d leaves the video zone above %d transparent",
+                System.identityHashCode(item), item.getWidth(), item.getHeight(), videoZoneBottom));
+    }
+
+    private static void logStaleRowFilter(@Nullable ImageView imageView) {
+        if (staleRowLogs >= MAXIMUM_STALE_ROW_LOGS) {
+            return;
+        }
+        staleRowLogs++;
+
+        Logger.printDebug(() -> "Card tint: removed the tint of a card from an image that is not a row of a card, "
+                + (imageView == null ? "its view is gone" : describeView(imageView)));
+    }
+
     private static void logRejectedSurface(@Nullable View drawableView, Drawable drawable, String reason) {
         if (surfaceLogs >= MAXIMUM_SURFACE_LOGS) {
             return;
@@ -1427,10 +1567,25 @@ final class FeedCardColorSampler {
         }
 
         /**
+         * Removes the tint of the card from the images of the metadata, which the app mounts again.
+         */
+        void clearRowImages() {
+            for (int i = 0, count = lowerImages.size(); i < count; i++) {
+                if (clearRowFilter(lowerImages.get(i))) {
+                    dirty = true;
+                }
+            }
+            lowerImages.clear();
+        }
+
+        /**
          * Drops the color and the sampling of the card that the view showed before. The surfaces are
-         * applied again with the color of the new card before the next pre-draw.
+         * applied again with the color of the new card before the next pre-draw. The images of the metadata
+         * lose the tint of the card, because the app mounts the view of an image again as another image.
          */
         void reset() {
+            clearRowImages();
+
             color = NO_TINT;
             sampledColour = NO_TINT;
             bandColour = NO_TINT;
@@ -1468,14 +1623,7 @@ final class FeedCardColorSampler {
             }
             lowerBackgrounds.clear();
 
-            for (int i = 0, count = lowerImages.size(); i < count; i++) {
-                ImageView imageView = lowerImages.get(i);
-                if (isOurFilter(imageView.getColorFilter())) {
-                    imageView.clearColorFilter();
-                    dirty = true;
-                }
-            }
-            lowerImages.clear();
+            clearRowImages();
         }
 
         @Nullable
@@ -1540,6 +1688,11 @@ final class FeedCardColorSampler {
     /**
      * The fill of the surface of a card: a rounded rectangle in the color of the card, inset like the
      * outline of the card, which keeps the corners of the card, also where the view does not clip it.
+     * <p>
+     * The fill does not paint the zone of the thumbnail, where the video of the card plays: the video is a
+     * surface below the window of the app, so any opaque pixel that the window has over it hides the video.
+     * The thumbnail of a card that does not play covers the zone, and the corners of the card are rounded by
+     * the clip of the card.
      */
     private static final class CardFillDrawable extends Drawable {
         private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -1548,8 +1701,13 @@ final class FeedCardColorSampler {
         private final int horizontalPadding = Dim.dp(FeedCardLayoutPatch.CARD_HORIZONTAL_PADDING_DP);
         private final int verticalPadding = Dim.dp(FeedCardLayoutPatch.CARD_VERTICAL_PADDING_DP);
         private int color;
+        /**
+         * Bottom of the zone of the thumbnail, relative to the top of the bounds of the drawable.
+         */
+        private int videoZoneBottom;
 
-        CardFillDrawable(int color) {
+        CardFillDrawable(int color, int videoZoneBottom) {
+            this.videoZoneBottom = videoZoneBottom;
             setColor(color);
         }
 
@@ -1561,12 +1719,31 @@ final class FeedCardColorSampler {
             }
         }
 
+        void setVideoZoneBottom(int videoZoneBottom) {
+            if (this.videoZoneBottom != videoZoneBottom) {
+                this.videoZoneBottom = videoZoneBottom;
+                invalidateSelf();
+            }
+        }
+
         @Override
         public void draw(@NonNull Canvas canvas) {
-            Rect bounds = getBounds();
-            rect.set(bounds.left + horizontalPadding, bounds.top + verticalPadding,
-                    bounds.right - horizontalPadding, bounds.bottom - verticalPadding);
+            final Rect bounds = getBounds();
+            final int left = bounds.left + horizontalPadding;
+            final int top = bounds.top + verticalPadding;
+            final int right = bounds.right - horizontalPadding;
+            final int bottom = bounds.bottom - verticalPadding;
+
+            final int paintedTop = FeedCardFill.getFillTop(top, bottom, bounds.top + videoZoneBottom);
+            if (paintedTop >= bottom) {
+                return;
+            }
+
+            rect.set(left, top, right, bottom);
+            canvas.save();
+            canvas.clipRect(left, paintedTop, right, bottom);
             canvas.drawRoundRect(rect, radius, radius, paint);
+            canvas.restore();
         }
 
         @Override
@@ -1594,19 +1771,39 @@ final class FeedCardColorSampler {
         private final Drawable background;
         private final Drawable drawable;
         private int color;
+        private int videoZoneBottom;
 
-        CardSurface(int color, @Nullable Drawable background) {
+        CardSurface(int color, int videoZoneBottom, @Nullable Drawable background) {
             this.color = color;
+            this.videoZoneBottom = videoZoneBottom;
             this.background = background;
-            this.fill = new CardFillDrawable(color);
+            this.fill = new CardFillDrawable(color, videoZoneBottom);
             this.drawable = background == null ? fill : new LayerDrawable(new Drawable[]{fill, background});
         }
 
-        void setColor(int color) {
+        void update(int color, int videoZoneBottom) {
             if (this.color != color) {
                 this.color = color;
                 fill.setColor(color);
             }
+            if (this.videoZoneBottom != videoZoneBottom) {
+                this.videoZoneBottom = videoZoneBottom;
+                fill.setVideoZoneBottom(videoZoneBottom);
+            }
+        }
+    }
+
+    /**
+     * The tint that the patch set on the drawable of an image of the metadata of a card, with the view that
+     * showed the drawable.
+     */
+    private static final class RowFilter {
+        private final WeakReference<ImageView> view;
+        private final ColorFilter filter;
+
+        RowFilter(ImageView view, ColorFilter filter) {
+            this.view = new WeakReference<>(view);
+            this.filter = filter;
         }
     }
 }

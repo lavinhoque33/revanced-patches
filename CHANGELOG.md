@@ -1,4 +1,4 @@
-## Unreleased
+## [1.29.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.28.0...v1.29.0) (2026-11-03)
 
 ### Features
 
@@ -10,6 +10,7 @@
 
 * **YouTube - Built-in player subtitles:** Fit the rounded background to the caption text instead of showing
   a full-width bar. Long cues wrap within 90% of the video width, with size-scaled padding.
+  The default background is now 60% opacity instead of none; set it to 0% to remove it.
 
 ## [1.28.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.27.0...v1.28.0) (2026-11-01)
 

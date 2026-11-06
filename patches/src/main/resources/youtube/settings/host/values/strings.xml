@@ -1,5 +1,61 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="revanced_about_patches">RVX Patches %1$s</string>
+    <string name="revanced_about_app">%1$s %2$s</string>
+    <string name="revanced_about_patched">Patched %1$s</string>
+    <string name="revanced_about_github">GitHub</string>
+    <string name="revanced_about_report_issue">Report an issue</string>
+    <string name="revanced_about_request_feature">Request a feature</string>
+    <string name="revanced_about_credits">Credits and licences</string>
+    <string name="revanced_about_copy_debug">Copy debug info</string>
+    <string name="revanced_about_copied">Copied</string>
+    <string name="revanced_about_debug_format"
+        >RVX Patches: %1$s\nApp: %2$s %3$s\nPatched: %4$s\nAndroid: %5$s (SDK %6$d)\nDevice: %7$s %8$s</string>
+    <string name="revanced_about_credits_text">
+        &lt;p&gt;This fork: &lt;a
+        href=\"https://github.com/lavinhoque33/revanced-patches\"&gt;lavinhoque33/revanced-patches&lt;/a&gt;&lt;/p&gt;
+        &lt;p&gt;RVX: &lt;a
+        href=\"https://github.com/anddea/revanced-patches\"&gt;anddea/revanced-patches&lt;/a&gt;&lt;/p&gt;
+        &lt;p&gt;&lt;a href=\"https://github.com/MorpheApp/morphe-patches\"&gt;Morphe&lt;/a&gt;&lt;/p&gt;
+        &lt;p&gt;&lt;a href=\"https://github.com/ReVanced/revanced-patches\"&gt;ReVanced&lt;/a&gt;&lt;/p&gt;
+        &lt;p&gt;Project licence: &lt;a
+        href=\"https://github.com/lavinhoque33/revanced-patches/blob/rvx-latest/LICENSE\"&gt;GNU General Public
+        License, version 3 (GPLv3)&lt;/a&gt;.
+        See the complete project licence and the additional notices below.&lt;/p&gt;
+        &lt;p&gt;NOTICE&lt;/p&gt;
+        &lt;p&gt;This software contains original work by
+        anddea:&lt;br&gt;https://github.com/anddea/revanced-patches&lt;/p&gt;
+        &lt;p&gt;Copyright (C) 2026 anddea&lt;/p&gt;
+        &lt;p&gt;=============&lt;/p&gt;
+        &lt;p&gt;microG Project Team NOTICE&lt;/p&gt;
+        &lt;p&gt;Portions of this software incorporate or are derived from code provided by the microG
+        Project:&lt;br&gt;https://github.com/microg/GmsCore&lt;/p&gt;
+        &lt;p&gt;Copyright 2020 microG Project Team&lt;br&gt;Licensed under the Apache License, Version
+        2.0.&lt;/p&gt;
+        &lt;p&gt;=============&lt;/p&gt;
+        &lt;p&gt;Reseam NOTICE&lt;/p&gt;
+        &lt;p&gt;Portions of this software incorporate or are derived from code provided by the Morphe software
+        project:&lt;br&gt;https://reseam.app.&lt;/p&gt;
+        &lt;p&gt;=============&lt;/p&gt;
+        &lt;p&gt;Morphe NOTICE&lt;/p&gt;
+        &lt;p&gt;Portions of this software incorporate or are derived from code provided by the Morphe software
+        project:&lt;br&gt;https://github.com/MorpheApp/morphe-patches&lt;/p&gt;
+        &lt;p&gt;=============&lt;/p&gt;
+        &lt;p&gt;GPLv3 Section 7b: Preservation of User Notices&lt;/p&gt;
+        &lt;p&gt;All derivative works (source code and binaries) must include this&lt;br&gt;NOTICE text and
+        provide it to the software user.&lt;/p&gt;
+        &lt;p&gt;Portions of this software are provided &amp;quot;AS IS&amp;quot; by the Morphe software
+        project.&lt;br&gt;Any express or implied warranties, including the implied warranties
+        of&lt;br&gt;merchantability and fitness for a particular purpose, are disclaimed.&lt;/p&gt;
+        &lt;p&gt;&lt;br&gt;GPLv3 Section 7c: Prohibiting Misrepresentation of Origin&lt;/p&gt;
+        &lt;p&gt;You are prohibited from misrepresenting the origin of the Program,&lt;br&gt;and modified
+        versions of the Program must be identified and marked in&lt;br&gt;reasonable ways as different from the
+        original version so as not to cause&lt;br&gt;confusion regarding their origin.&lt;/p&gt;
+        &lt;p&gt;&lt;br&gt;GPLv3 Section 7e: Declining Grant of Trademark Rights&lt;/p&gt;
+        &lt;p&gt;This License does not grant any rights or permission under trademark law&lt;br&gt;to use the
+        name &amp;quot;Morphe&amp;quot; or any of the Program&amp;#x27;s trade names,
+        trademarks,&lt;br&gt;service marks, or logos.&lt;/p&gt;
+    </string>
     <string name="accessibility_settings_edu_opt_in_text">Enable accessibility controls for the video player?</string>
     <string name="accessibility_settings_edu_opt_out_text">Your controls are modified because an accessibility service is on</string>
     <string name="gms_core_dialog_continue_text">Continue</string>

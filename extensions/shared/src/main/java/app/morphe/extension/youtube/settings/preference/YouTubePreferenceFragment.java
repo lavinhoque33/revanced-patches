@@ -2,6 +2,7 @@
  * Original author(s):
  * - anddea (https://github.com/anddea)
  * - COOLak (https://github.com/COOLak)
+ * Modified by lavinhoque33, 2026-11-06
  */
 
 package app.morphe.extension.youtube.settings.preference;
@@ -98,6 +99,9 @@ public class YouTubePreferenceFragment extends ToolbarPreferenceFragment {
         try {
             preferenceScreen = getPreferenceScreen();
             Utils.sortPreferenceGroups(preferenceScreen);
+
+            // Add after sorting: the keyless root header has no icon slot or searchable setting.
+            preferenceScreen.addPreference(new AboutPreference(getActivity()));
             setPreferenceScreenToolbar(preferenceScreen);
 
             // Import / Export

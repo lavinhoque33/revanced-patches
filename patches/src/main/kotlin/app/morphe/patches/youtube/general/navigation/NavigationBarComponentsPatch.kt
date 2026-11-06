@@ -13,7 +13,7 @@
  *
  * See the included NOTICE file for GPLv3 §7(b) and §7(c) terms that apply to Morphe contributions.
  *
- * Modified by lavinhoque33, 2026-10-21.
+ * Modified by lavinhoque33, 2026-11-06.
  */
 
 package app.morphe.patches.youtube.general.navigation
@@ -44,6 +44,7 @@ import app.morphe.patches.shared.misc.fix.proto.parseByteArrayWithRegistryMethod
 import app.morphe.patches.shared.spoof.guide.addClientOSVersionHook
 import app.morphe.patches.shared.spoof.guide.spoofClientGuideEndpointPatch
 import app.morphe.patches.youtube.utils.compatibility.Constants.COMPATIBILITY_YOUTUBE
+import app.morphe.patches.youtube.utils.YOUTUBE_PIVOT_BAR_CLASS_TYPE
 import app.morphe.patches.youtube.utils.extension.Constants.GENERAL_PATH
 import app.morphe.patches.youtube.utils.extension.Constants.PATCHES_PATH
 import app.morphe.patches.youtube.utils.fix.padding.BrowseListBottomPaddingFingerprint
@@ -268,6 +269,51 @@ val navigationBarComponentsPatch = bytecodePatch(
                         """
                     )
                 }
+            }
+
+            val roomMatches = if (NavigationBarBottomPaddingFingerprint.matchOrNull() == null) emptyList()
+                else NavigationBarBottomPaddingFingerprint.matchAll()
+            if (roomMatches.isEmpty()) {
+                printWarn("Glass navigation bar room is not supported in this version: inset hook not found.")
+            } else {
+                val matches = roomMatches.first().instructionMatches
+                val roomField = matches[0].fieldReference
+                val updateHeightMethod = matches[1].getMethodCalled()
+                mutableClassDefBy(YOUTUBE_PIVOT_BAR_CLASS_TYPE).apply {
+                    interfaces.add(
+                        "Lapp/morphe/extension/youtube/patches/general/NavigationButtonsPatch\$PivotBarAccess;"
+                    )
+                    addBridge(
+                        "patch_setSystemButtonsRoom", listOf("I"), "V", 2,
+                        """
+                            iput p1, p0, $roomField
+                            invoke-virtual { p0 }, $updateHeightMethod
+                            return-void
+                        """
+                    )
+                    addBridge(
+                        "patch_getSystemButtonsRoom", listOf(), "I", 2,
+                        """
+                            iget v0, p0, $roomField
+                            return v0
+                        """
+                    )
+                }
+
+                roomMatches.forEach { match ->
+                    match.method.apply {
+                        val index = match.instructionMatches.first().index
+                        val instruction = getInstruction<TwoRegisterInstruction>(index)
+                        addInstructionsAtControlFlowLabel(
+                            index,
+                            """
+                                invoke-static { v${instruction.registerB}, v${instruction.registerA} }, $EXTENSION_CLASS_DESCRIPTOR->getNavigationBarBottomPadding(Landroid/view/View;I)I
+                                move-result v${instruction.registerA}
+                            """
+                        )
+                    }
+                }
+                addBottomBarContainerHook("$EXTENSION_CLASS_DESCRIPTOR->watchSlimStatusBar(Landroid/view/View;)V")
             }
 
             if (is_20_21_or_greater) {

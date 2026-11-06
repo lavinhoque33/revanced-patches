@@ -12,7 +12,7 @@
  *
  * See the included NOTICE file for GPLv3 §7(b) and §7(c) terms that apply to Morphe contributions.
  *
- * Modified by lavinhoque33, 2026-10-21.
+ * Modified by lavinhoque33, 2026-11-06.
  */
 
 package app.morphe.extension.youtube.patches.general;
@@ -148,7 +148,6 @@ public final class NavigationButtonsPatch {
     private static final boolean SWITCH_CREATE_WITH_NOTIFICATIONS_BUTTON
             = Settings.SWITCH_CREATE_WITH_NOTIFICATIONS_BUTTON.get();
 
-    // modified by lavinhoque33, 2026-10-16: Hide the new content dot on the navigation bar tabs.
     private static final boolean HIDE_NAVIGATION_NEW_CONTENT_DOT
             = Settings.HIDE_NAVIGATION_NEW_CONTENT_DOT.get();
 
@@ -525,6 +524,95 @@ public final class NavigationButtonsPatch {
         return hardwareAccelerated && !(translucentNavigationBarBackgroundForced
                 && (NAVIGATION_BAR_STYLE == NavigationBarStyle.TRANSPARENT
                 || NAVIGATION_BAR_STYLE == NavigationBarStyle.OPAQUE));
+    }
+
+    private static boolean isGlassRoomEnabled() {
+        return NavigationBarRoom.isEnabled(Settings.NAVIGATION_BAR_GLASS.get(),
+                Settings.NAVIGATION_BAR_STYLE.get() == NavigationBarStyle.OPAQUE, HIDE_NAVIGATION_BAR);
+    }
+
+    /**
+     * Injection point. Leave the account's inset untouched unless glass is enabled.
+     */
+    public static int getNavigationBarBottomPadding(View navigationBar, int original) {
+        if (!isGlassRoomEnabled()) return original;
+
+        try {
+            int padding = original;
+            if (navigationBarCoversSystemButtons && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                WindowInsets insets = navigationBar.getRootWindowInsets();
+                if (insets != null) {
+                    padding = NavigationBarRoom.keyboardRoom(true, insets.isVisible(WindowInsets.Type.ime()),
+                            original, insets.getInsets(WindowInsets.Type.systemBars()).bottom);
+                }
+            }
+            return setSlimStatusBarRoom(navigationBar, padding);
+        } catch (Exception ex) {
+            Logger.printException(() -> "getNavigationBarBottomPadding failure", ex);
+            return original;
+        }
+    }
+
+    static final int SLIM_STATUS_BAR = ResourceUtils.getIdentifier(ResourceType.ID, "slim_status_bar");
+    static final int PIVOT_BAR = ResourceUtils.getIdentifier(ResourceType.ID, "pivot_bar");
+
+    public interface PivotBarAccess {
+        void patch_setSystemButtonsRoom(int room);
+
+        int patch_getSystemButtonsRoom();
+    }
+
+    private static volatile boolean slimStatusBarShown;
+    private static volatile int systemButtonsRoom;
+
+    private static int setSlimStatusBarRoom(View navigationBar, int room) {
+        if (!isGlassRoomEnabled() || !navigationBarCoversSystemButtons
+                || !(navigationBar instanceof PivotBarAccess)) {
+            return room;
+        }
+
+        systemButtonsRoom = room;
+        View slimStatusBar = navigationBar.getParent() instanceof ViewGroup container
+                ? container.findViewById(SLIM_STATUS_BAR) : null;
+        boolean moveRoom = slimStatusBarShown && slimStatusBar != null && room > 0;
+        if (slimStatusBar != null) {
+            int bottomPadding = slimStatusBar.getPaddingTop() + (moveRoom ? room : 0);
+            if (slimStatusBar.getPaddingBottom() != bottomPadding) {
+                slimStatusBar.setPadding(slimStatusBar.getPaddingLeft(), slimStatusBar.getPaddingTop(),
+                        slimStatusBar.getPaddingRight(), bottomPadding);
+            }
+        }
+        return moveRoom ? 0 : room;
+    }
+
+    /**
+     * Injection point. Follow offline/incognito strips without requesting fresh window insets.
+     */
+    public static void watchSlimStatusBar(View bottomBarContainer) {
+        if (!isGlassRoomEnabled() || SLIM_STATUS_BAR == 0 || PIVOT_BAR == 0) return;
+
+        bottomBarContainer.addOnLayoutChangeListener((view, left, top, right, bottom,
+                                                     oldLeft, oldTop, oldRight, oldBottom) -> {
+            try {
+                View slimStatusBar = view.findViewById(SLIM_STATUS_BAR);
+                boolean shown = slimStatusBar != null && slimStatusBar.getVisibility() == View.VISIBLE;
+                if (shown == slimStatusBarShown) return;
+                slimStatusBarShown = shown;
+
+                View navigationBar = view.findViewById(PIVOT_BAR);
+                if (navigationBarCoversSystemButtons && navigationBar instanceof PivotBarAccess access) {
+                    int room = systemButtonsRoom;
+                    view.post(() -> {
+                        int navigationBarRoom = setSlimStatusBarRoom(navigationBar, room);
+                        access.patch_setSystemButtonsRoom(navigationBarRoom);
+                        navigationBar.setPadding(navigationBar.getPaddingLeft(), navigationBar.getPaddingTop(),
+                                navigationBar.getPaddingRight(), navigationBarRoom);
+                    });
+                }
+            } catch (Exception ex) {
+                Logger.printException(() -> "watchSlimStatusBar layout failure", ex);
+            }
+        });
     }
 
     /**
@@ -1313,7 +1401,6 @@ public final class NavigationButtonsPatch {
             return;
         }
 
-        // modified by lavinhoque33, 2026-10-16: Hide the new content dot on the navigation bar tabs.
         if (HIDE_NAVIGATION_NEW_CONTENT_DOT) {
             hideNewContentDot(tabView);
         }
@@ -1323,7 +1410,6 @@ public final class NavigationButtonsPatch {
         }
     }
 
-    // modified by lavinhoque33, 2026-10-16: Hide the new content dot on the navigation bar tabs. Ported from Morphe.
     /**
      * The dot is a stub that is inflated when the tab has new content, and the app shows and
      * hides it again later. It is hidden right before every draw, so no frame shows it. The

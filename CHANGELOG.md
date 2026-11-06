@@ -1,3 +1,9 @@
+## Unreleased
+
+### Features
+
+* **YouTube - Navigation bar:** Prepare floating navigation-bar room handling without changing the default appearance.
+
 ## [1.32.2](https://github.com/lavinhoque33/revanced-patches/compare/v1.32.1...v1.32.2) (2026-11-06)
 
 ### Bug Fixes

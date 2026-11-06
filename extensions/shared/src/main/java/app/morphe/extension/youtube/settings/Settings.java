@@ -270,7 +270,6 @@ public class Settings extends SharedYouTubeSettings {
     public static final BooleanSetting HIDE_FLOATING_BUTTON = new BooleanSetting("revanced_hide_floating_button", FALSE, true);
     public static final BooleanSetting HIDE_IMAGE_SHELF = new BooleanSetting("revanced_hide_image_shelf", TRUE);
     public static final BooleanSetting HIDE_HYPED_LABEL = new BooleanSetting("morphe_hide_hyped_label", FALSE);
-    // modified by lavinhoque33, 2026-10-16: Hide History shelf setting (ported from Morphe).
     public static final BooleanSetting HIDE_HISTORY_SHELF = new BooleanSetting("revanced_hide_history_shelf", FALSE);
     public static final BooleanSetting HIDE_INVITE_TO_MESSAGE_CARD = new BooleanSetting("morphe_hide_invite_to_message_card", TRUE);
     public static final BooleanSetting HIDE_LATEST_POSTS = new BooleanSetting("revanced_hide_latest_posts", TRUE);
@@ -283,7 +282,6 @@ public class Settings extends SharedYouTubeSettings {
     public static final BooleanSetting HIDE_FEED_SEARCH_BAR = new BooleanSetting("revanced_hide_feed_search_bar", FALSE);
     public static final BooleanSetting HIDE_SHOW_MORE_BUTTON = new BooleanSetting("revanced_hide_show_more_button", FALSE, true);
     public static final BooleanSetting HIDE_SUBSCRIBED_CHANNELS_BAR = new BooleanSetting("revanced_hide_subscribed_channels_bar", FALSE, true);
-    // modified by lavinhoque33, 2026-10-16: Hide channel names in subscribed channels bar setting (ported from Morphe).
     public static final BooleanSetting HIDE_SUBSCRIBED_CHANNELS_BAR_NAMES = new BooleanSetting("revanced_hide_subscribed_channels_bar_names", FALSE, parentInverted(HIDE_SUBSCRIBED_CHANNELS_BAR));
     public static final BooleanSetting HIDE_SURVEYS = new BooleanSetting("revanced_hide_surveys", TRUE);
     public static final BooleanSetting HIDE_TICKET_SHELF = new BooleanSetting("revanced_hide_ticket_shelf", TRUE);
@@ -413,7 +411,6 @@ public class Settings extends SharedYouTubeSettings {
     public static final BooleanSetting HIDE_FLOATING_MICROPHONE = new BooleanSetting("revanced_hide_floating_microphone", TRUE, true);
     public static final BooleanSetting HIDE_VISUAL_SPACER = new BooleanSetting("revanced_hide_visual_spacer", TRUE, true);
     public static final BooleanSetting HIDE_SYNC_BUTTON = new BooleanSetting("morphe_hide_sync_button", FALSE, true);
-    // modified by lavinhoque33, 2026-10-16: Ported from Morphe, hide 'Help & feedback' in app bar menus.
     public static final BooleanSetting HIDE_HELP_FEEDBACK_MENU = new BooleanSetting("revanced_hide_help_feedback_menu", FALSE, true);
     public static final BooleanSetting REMOVE_VIEWER_DISCRETION_DIALOG = new BooleanSetting("revanced_remove_viewer_discretion_dialog", FALSE);
     public static final BooleanSetting FIX_TRANSCRIPT = new BooleanSetting("revanced_fix_transcript", TRUE, true);
@@ -425,10 +422,8 @@ public class Settings extends SharedYouTubeSettings {
     private static final BooleanSetting DEPRECATED_TABLET_LAYOUT_IN_PLAYER =
             new BooleanSetting("morphe_tablet_layout_in_player", FALSE, false, false);
     public static final BooleanSetting DISABLE_LAYOUT_UPDATES = new BooleanSetting("revanced_disable_layout_updates", FALSE, true, "revanced_disable_layout_updates_user_dialog_message");
-    // modified by lavinhoque33, 2026-10-15: Force system font setting.
     public static final BooleanSetting FORCE_SYSTEM_FONT = new BooleanSetting("revanced_force_system_font", FALSE, true);
     public static final EnumSetting<AnimationsMode> FORCE_ANIMATIONS = new EnumSetting<>("morphe_force_animations", AnimationsMode.DEFAULT);
-    // modified by lavinhoque33, 2026-10-16: Hide status bar setting.
     public static final BooleanSetting HIDE_STATUS_BAR = new BooleanSetting("revanced_hide_status_bar", FALSE, true);
     /** Device layout observation, not a user preference or an exported setting. */
     public static final BooleanSetting WINDOW_ABOVE_NAVIGATION_BAR = new BooleanSetting("morphe_window_above_navigation_bar", FALSE, false, false);
@@ -463,11 +458,11 @@ public class Settings extends SharedYouTubeSettings {
     public static final BooleanSetting HIDE_NAVIGATION_SHORTS_BUTTON = new BooleanSetting("revanced_hide_navigation_shorts_button", FALSE, true);
     public static final BooleanSetting HIDE_NAVIGATION_SUBSCRIPTIONS_BUTTON = new BooleanSetting("revanced_hide_navigation_subscriptions_button", FALSE, true);
     public static final BooleanSetting HIDE_NAVIGATION_LABEL = new BooleanSetting("revanced_hide_navigation_label", FALSE, true);
-    // modified by lavinhoque33, 2026-10-16: Hide the new content dot on the navigation bar tabs.
     public static final BooleanSetting HIDE_NAVIGATION_NEW_CONTENT_DOT = new BooleanSetting("revanced_hide_navigation_new_content_dot", FALSE, true);
     private static final BooleanSetting DEPRECATED_DISABLE_TRANSLUCENT_NAVIGATION_BAR = new BooleanSetting("revanced_disable_translucent_navigation_bar", FALSE);
     public static final BooleanSetting HIDE_NAVIGATION_BAR = new BooleanSetting("revanced_hide_navigation_bar", FALSE, true);
     public static final EnumSetting<NavigationBarStyle> NAVIGATION_BAR_STYLE = new EnumSetting<>("morphe_navigation_bar_style", NavigationBarStyle.DEFAULT, true, "morphe_navigation_bar_style_user_dialog_message", parentInverted(HIDE_NAVIGATION_BAR));
+    public static final BooleanSetting NAVIGATION_BAR_GLASS = new BooleanSetting("morphe_navigation_bar_glass", FALSE, true);
     public static final BooleanSetting DISABLE_AUTO_HIDE_NAVIGATION_BAR = new BooleanSetting("morphe_disable_auto_hide_navigation_bar", FALSE, true, parentInverted(HIDE_NAVIGATION_BAR));
     public static final BooleanSetting DISABLE_ICON_ONLY_NAVIGATION_BUTTONS = new BooleanSetting("morphe_disable_icon_only_navigation_buttons", TRUE, true, parentInverted(HIDE_NAVIGATION_BAR));
     public static final BooleanSetting DISABLE_TOOLBAR_NAVIGATION_TABS = new BooleanSetting("morphe_disable_toolbar_navigation_tabs", TRUE, true, parentInverted(HIDE_NAVIGATION_BAR));
@@ -490,9 +485,7 @@ public class Settings extends SharedYouTubeSettings {
     public static final BooleanSetting OVERRIDE_VIDEO_DOWNLOAD_BUTTON = new BooleanSetting("revanced_override_video_download_button", FALSE, true);
     public static final BooleanSetting OVERRIDE_VIDEO_DOWNLOAD_BUTTON_QUEUE_MANAGER = new BooleanSetting("revanced_override_video_download_button_queue_manager", FALSE, true,
             "revanced_queue_manager_user_dialog_message", parent(OVERRIDE_VIDEO_DOWNLOAD_BUTTON));
-    // modified by lavinhoque33, 2026-10-10: built-in downloader, offline library and Downloads page replacement.
     public static final BooleanSetting IN_APP_DOWNLOADER = new BooleanSetting("revanced_in_app_downloader", FALSE);
-    // modified by lavinhoque33, 2026-10-24: quick download menu for YTDLnis and YTindir.
     public static final BooleanSetting EXTERNAL_DOWNLOADER_QUICK_MENU = new BooleanSetting("morphe_external_downloader_quick_menu", FALSE, parentInverted(IN_APP_DOWNLOADER));
     public static final BooleanSetting REPLACE_DOWNLOADS_PAGE = new BooleanSetting("revanced_replace_downloads_page", FALSE, parent(IN_APP_DOWNLOADER));
     public static final BooleanSetting SHOW_OFFLINE_LIBRARY_BUTTON = new BooleanSetting("revanced_show_offline_library_button", TRUE, true, parent(IN_APP_DOWNLOADER));
@@ -604,7 +597,6 @@ public class Settings extends SharedYouTubeSettings {
             true, new SliderConfig(0, 100, 1, "%"));
     public static final BooleanSetting DISABLE_AUTO_SWITCH_MIX_PLAYLISTS = new BooleanSetting("revanced_disable_auto_switch_mix_playlists", FALSE, true, "revanced_disable_auto_switch_mix_playlists_user_dialog_message");
     public static final BooleanSetting DISABLE_AUTO_PLAYER_POPUP_PANELS = new BooleanSetting("revanced_disable_auto_player_popup_panels", TRUE, true);
-    // modified by lavinhoque33, 2026-10-17: Disable continue watching prompt setting (ported from Morphe).
     public static final BooleanSetting DISABLE_CONTINUE_WATCHING_PROMPT = new BooleanSetting("revanced_disable_continue_watching_prompt", FALSE);
     public static final BooleanSetting DISABLE_PLAYLIST_AUTOPLAY = new BooleanSetting("revanced_disable_playlist_autoplay", FALSE, true);
     public static final BooleanSetting DISABLE_CHAPTER_SKIP_DOUBLE_TAP = new BooleanSetting("revanced_disable_chapter_skip_double_tap", FALSE);
@@ -635,7 +627,6 @@ public class Settings extends SharedYouTubeSettings {
     public static final BooleanSetting DISABLE_LIKE_DISLIKE_GLOW = new BooleanSetting("revanced_disable_like_dislike_glow", FALSE);
     public static final BooleanSetting HIDE_ACTION_BAR = new BooleanSetting("revanced_hide_action_bar", FALSE, true);
     public static final BooleanSetting HIDE_ASK_BUTTON = new BooleanSetting("revanced_hide_ask_button", FALSE, true, parentInverted(HIDE_ACTION_BAR));
-    // modified by lavinhoque33, 2026-10-16: Ported from Morphe, hide channel/Subscribe in the action bar.
     public static final BooleanSetting HIDE_CHANNEL_PROFILE_BUTTON = new BooleanSetting("revanced_hide_channel_profile_button", FALSE, true, parentInverted(HIDE_ACTION_BAR));
     public static final BooleanSetting HIDE_CHANNEL_PROFILE_SUBSCRIBE_BUTTON = new BooleanSetting("revanced_hide_channel_profile_subscribe_button", FALSE, parentInverted(HIDE_ACTION_BAR));
     public static final BooleanSetting HIDE_CLIP_BUTTON = new BooleanSetting("revanced_hide_clip_button", FALSE, true, parentInverted(HIDE_ACTION_BAR));
@@ -693,7 +684,6 @@ public class Settings extends SharedYouTubeSettings {
     public static final BooleanSetting HIDE_PREVIEW_COMMENT_TYPE = new BooleanSetting("revanced_hide_preview_comment_type", FALSE, parent(HIDE_PREVIEW_COMMENT));
     public static final BooleanSetting HIDE_PREVIEW_COMMENT_OLD_METHOD = new BooleanSetting("revanced_hide_preview_comment_old_method", FALSE);
     public static final BooleanSetting HIDE_PREVIEW_COMMENT_NEW_METHOD = new BooleanSetting("revanced_hide_preview_comment_new_method", FALSE);
-    // modified by lavinhoque33, 2026-10-16: new comment settings (ported from Morphe)
     public static final BooleanSetting HIDE_COMMENTS_DISLIKE_BUTTON = new BooleanSetting("revanced_hide_comments_dislike_button", FALSE);
     public static final BooleanSetting HIDE_COMMENTS_MENU_BUTTON = new BooleanSetting("revanced_hide_comments_menu_button", FALSE);
     public static final BooleanSetting HIDE_COMMENTS_TRANSLATE_BUTTON = new BooleanSetting("revanced_hide_comments_translate_button", FALSE);
@@ -890,7 +880,6 @@ public class Settings extends SharedYouTubeSettings {
     public static final BooleanSetting DISABLE_ROLLING_NUMBER_ANIMATIONS = new BooleanSetting("revanced_disable_rolling_number_animations", FALSE);
     public static final BooleanSetting HIDE_AI_GENERATED_VIDEO_SUMMARY_SECTION = new BooleanSetting("revanced_hide_ai_generated_video_summary_section", FALSE);
     public static final BooleanSetting HIDE_ASK_SECTION = new BooleanSetting("revanced_hide_ask_section", FALSE);
-    // modified by lavinhoque33, 2026-10-16: Ported from Morphe, hide 'Ask Gemini' button in the Ask panel.
     public static final BooleanSetting HIDE_ASK_GEMINI_BUTTON = new BooleanSetting("revanced_hide_ask_gemini_button", FALSE);
     public static final BooleanSetting HIDE_ATTRIBUTES_SECTION = new BooleanSetting("revanced_hide_attributes_section", FALSE);
     public static final BooleanSetting HIDE_CHAPTERS_SECTION = new BooleanSetting("revanced_hide_chapters_section", FALSE);

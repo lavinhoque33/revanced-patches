@@ -19,6 +19,10 @@ public enum VideoActionBarLayout {
         return this == CLASSIC || this == CLASSIC_TWO_ROWS;
     }
 
+    public boolean usesSegmentedCounts(boolean serverHasSegmentedButton) {
+        return isClassic() || (this != MINIMAL && serverHasSegmentedButton);
+    }
+
     public VideoActionBarLayout effective(boolean tablet, boolean disableLayoutUpdates) {
         return tablet || disableLayoutUpdates ? DEFAULT : this;
     }

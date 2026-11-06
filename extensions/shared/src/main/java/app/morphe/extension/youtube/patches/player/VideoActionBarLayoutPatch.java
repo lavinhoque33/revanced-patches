@@ -39,7 +39,6 @@ import app.morphe.extension.youtube.innertube.FeedCardLayoutOuterClass.ElementMo
 import app.morphe.extension.youtube.innertube.FeedCardLayoutOuterClass.EnvironmentSubscriptionConfig;
 import app.morphe.extension.youtube.innertube.FeedCardLayoutOuterClass.SubscribeState;
 import app.morphe.extension.youtube.innertube.FeedCardLayoutOuterClass.SubscriptionConfig;
-import app.morphe.extension.youtube.innertube.FeedCardLayoutOuterClass.ToggleButtonViewModel;
 import app.morphe.extension.youtube.innertube.NextResponseOuterClass.NewElement;
 import app.morphe.extension.youtube.innertube.NextResponseOuterClass.SecondaryContents;
 import app.morphe.extension.youtube.innertube.NextResponseOuterClass.SlimVideoMetadataSectionRenderer;
@@ -85,6 +84,10 @@ public final class VideoActionBarLayoutPatch {
                 new FeedCardLayoutPatch.VideoTemplate("compact_channel_bar.eml", 391108665, 6, 5);
     }
 
+    public static VideoActionBarLayout getLayout() {
+        return RuntimeLayout.LAYOUT;
+    }
+
     /** Injection point. Unrelated elements and server-default layouts keep their original bytes. */
     public static byte[] setVideoActionBarLayout(byte[] bytes) {
         VideoActionBarLayout layout = RuntimeLayout.LAYOUT;
@@ -114,7 +117,8 @@ public final class VideoActionBarLayoutPatch {
         LockupModel lockupModel = componentType.getModel().getLockupModel();
         VideoActionBarViewModel actionBar = lockupModel.getViewModel().getVideoActionBarViewModel();
         VideoActionBarViewModel converted = convertActionBar(actionBar, layout, moreActionsText);
-        return converted == actionBar ? bytes : withActionBar(element, componentType, lockupModel, converted).toByteArray();
+        return converted == actionBar ? bytes
+                : withActionBar(element, componentType, lockupModel, converted).toByteArray();
     }
 
     static VideoActionBarViewModel convertActionBar(VideoActionBarViewModel actionBar,
@@ -133,7 +137,8 @@ public final class VideoActionBarLayoutPatch {
                 .build();
     }
 
-    private static VideoActionBarViewModel.Builder toMinimal(VideoActionBarViewModel actionBar, String moreActionsText) {
+    private static VideoActionBarViewModel.Builder toMinimal(
+            VideoActionBarViewModel actionBar, String moreActionsText) {
         VideoActionBarViewModel.Builder builder = actionBar.toBuilder().clearActions();
         VideoActionBarOverflow.Builder overflow = VideoActionBarOverflow.newBuilder();
         for (VideoActionBarItem action : actionBar.getActionsList()) {
@@ -146,7 +151,8 @@ public final class VideoActionBarLayoutPatch {
                 DislikeButtonViewModel dislikeButton = likeDislike.getDislikeButton().getDislikeButton();
                 VideoActionBarItemContent minimalLikeButton = VideoActionBarItemContent.newBuilder()
                         .setLikeButton(likeButton.toBuilder()
-                                .setToggleButtonViewModel(layoutToggleButton(likeButton.getToggleButtonViewModel(), true))
+                                .setToggleButtonViewModel(
+                                        layoutToggleButton(likeButton.getToggleButtonViewModel(), true))
                                 .setAnimationEnabled1(true)
                                 .setAnimationEnabled2(true)
                                 .setAnimationEnabled3(true)
@@ -408,27 +414,29 @@ public final class VideoActionBarLayoutPatch {
 
                     SubscriptionConfig config = FeedCardLayoutPatch.subscriptionConfig(
                             componentType.getSubscriptionConfig(), RuntimeLayout.CHANNEL_BAR_TEMPLATE);
-                    newRenderer.addTertiaryContents(elementRow(row, element.toBuilder()
-                            .setProperties(element.getProperties().toBuilder()
-                                    .setIdentifierProperties(element.getProperties().getIdentifierProperties().toBuilder()
+                    CompactChannelBarModel channelModel = CompactChannelBarModel.newBuilder()
+                            .setContext(lockupModel.getContext())
+                            .setSubscribeState(SubscribeState.newBuilder().setKey(channel.getSubscribeButton()
+                                    .getSubscribeButtonViewModel().getStateEntityStoreKey()))
+                            .setViewModel(CompactChannelBarViewModelHolder.newBuilder()
+                                    .setCompactChannelBarViewModel(newChannel))
+                            .setUseThemeFromContext(true)
+                            .build();
+                    EnvironmentSubscriptionConfig environment = EnvironmentSubscriptionConfig.newBuilder()
+                            .setModelField(RuntimeLayout.CHANNEL_BAR_TEMPLATE.modelField)
+                            .setResultField(CHANNEL_BAR_ENVIRONMENT_FIELD)
+                            .build();
+                    ComponentType.Builder channelComponent = ComponentType.newBuilder()
+                            .setTemplateConfig(FeedCardLayoutPatch.templateConfig(channelBarUri))
+                            .setModel(ElementModel.newBuilder().setCompactChannelBarModel(channelModel))
+                            .setSubscriptionConfig(config.toBuilder().setEnvironmentSubscriptionConfig(environment));
+                    Element channelElement = element.toBuilder()
+                            .setProperties(element.getProperties().toBuilder().setIdentifierProperties(
+                                    element.getProperties().getIdentifierProperties().toBuilder()
                                             .setIdentifier(channelBarUri)))
-                            .setType(element.getType().toBuilder()
-                                    .setComponentType(ComponentType.newBuilder()
-                                            .setTemplateConfig(FeedCardLayoutPatch.templateConfig(channelBarUri))
-                                            .setModel(ElementModel.newBuilder()
-                                                    .setCompactChannelBarModel(CompactChannelBarModel.newBuilder()
-                                                            .setContext(lockupModel.getContext())
-                                                            .setSubscribeState(SubscribeState.newBuilder().setKey(channel
-                                                                    .getSubscribeButton().getSubscribeButtonViewModel()
-                                                                    .getStateEntityStoreKey()))
-                                                            .setViewModel(CompactChannelBarViewModelHolder.newBuilder()
-                                                                    .setCompactChannelBarViewModel(newChannel))
-                                                            .setUseThemeFromContext(true)))
-                                            .setSubscriptionConfig(config.toBuilder()
-                                                    .setEnvironmentSubscriptionConfig(EnvironmentSubscriptionConfig.newBuilder()
-                                                            .setModelField(RuntimeLayout.CHANNEL_BAR_TEMPLATE.modelField)
-                                                            .setResultField(CHANNEL_BAR_ENVIRONMENT_FIELD)))))
-                            .build()));
+                            .setType(element.getType().toBuilder().setComponentType(channelComponent))
+                            .build();
+                    newRenderer.addTertiaryContents(elementRow(row, channelElement));
                 }
 
                 newRenderer.addTertiaryContents(elementRow(row,

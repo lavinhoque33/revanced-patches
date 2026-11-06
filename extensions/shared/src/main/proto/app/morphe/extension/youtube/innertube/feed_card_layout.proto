@@ -46,6 +46,8 @@ message ElementModel {
     VideoWithContextModel videoWithContextModel = 232954548;
     // Feed card video (lockup.eml).
     LockupModel lockupModel = 413471385;
+    // Action bar of tablets and older phone layouts.
+    VideoActionBarModel videoActionBarModel = 389155117;
     // Channel bar of the Classic Two-Rows layout.
     CompactChannelBarModel compactChannelBarModel = 391108665;
     // Header of the shelves, such as the Shorts shelf (shelf_header.eml).
@@ -238,6 +240,14 @@ message ChannelBarHeaderViewModelHolder {
 
 message ChannelBarHeaderViewModel {
     int32 style = 5;
+}
+
+message VideoActionBarModel {
+    VideoActionBarData videoActionBarData = 17;
+}
+
+message VideoActionBarData {
+    repeated VideoActionBarItem actions = 1;
 }
 
 // Action bar of the watch page, which shows the like button, the share button and the others.

@@ -664,8 +664,6 @@ public class Settings extends SharedYouTubeSettings {
     public static final StringSetting INNERTUBE_COLD_CONFIG_DATA = new StringSetting("revanced_innertube_cold_config_data", "", false, false);
     public static final StringSetting INNERTUBE_COLD_HASH_DATA = new StringSetting("revanced_innertube_cold_hash_data", "", false, false);
 
-    public static final BooleanSetting HIDE_ACTION_BUTTON_INDEX = new BooleanSetting("revanced_hide_action_button_index", FALSE, true, parentInverted(HIDE_ACTION_BAR));
-    public static final IntegerSetting REMIX_BUTTON_INDEX = new IntegerSetting("revanced_remix_button_index", 3, true, parent(HIDE_ACTION_BUTTON_INDEX));
 
     // PreferenceScreen: Player - Ambient mode
     public static final BooleanSetting DISABLE_AMBIENT_MODE = new BooleanSetting("revanced_disable_ambient_mode", FALSE, true);

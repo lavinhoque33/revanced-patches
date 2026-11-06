@@ -1154,16 +1154,6 @@ Some components may not be hidden"</string>
     <string name="revanced_hide_action_bar_summary_off">Action bar is shown</string>
     <string name="revanced_hide_action_bar_summary_on">Action bar is hidden</string>
     <string name="revanced_hide_action_bar_title">Hide action bar</string>
-    <string name="revanced_hide_action_button_index_summary_off">"Action buttons are hidden by identifier filter
-
-Info:
-• Supported action buttons are removed without leaving empty space"</string>
-    <string name="revanced_hide_action_button_index_summary_on">"Action buttons are hidden by index
-
-Info:
-• Wrong action buttons may be hidden, or action buttons may not be hidden
-• Hiding action buttons leaves no empty space"</string>
-    <string name="revanced_hide_action_button_index_title">Hide action button by index</string>
     <string name="revanced_hide_ai_chat_summary_summary_off">AI chat summary is shown</string>
     <string name="revanced_hide_ai_chat_summary_summary_on">AI chat summary is hidden</string>
     <string name="revanced_hide_ai_chat_summary_title">Hide AI chat summary</string>
@@ -2612,7 +2602,6 @@ Info:
     <string name="revanced_remember_video_quality_toast">Changed default %1$s quality to: %2$s</string>
     <string name="revanced_remember_video_quality_toast_shorts">Changed Shorts %1$s quality to: %2$s</string>
     <string name="revanced_remember_video_quality_wifi">WiFi</string>
-    <string name="revanced_remix_button_index_title">Remix button index</string>
     <string name="revanced_remove_viewer_discretion_dialog_summary">"Removes the viewer discretion dialog
 This does not bypass the age restriction. It just accepts it automatically"</string>
     <string name="revanced_remove_viewer_discretion_dialog_title">Remove viewer discretion dialog</string>

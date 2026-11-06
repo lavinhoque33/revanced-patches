@@ -38,6 +38,16 @@ public class VideoActionBarLayoutTest {
     }
 
     @Test
+    public void minimalUsesSeparateCountOverlaysEvenForSegmentedServerInput() {
+        assertFalse(MINIMAL.usesSegmentedCounts(true));
+        assertFalse(MINIMAL.usesSegmentedCounts(false));
+        assertTrue(CLASSIC.usesSegmentedCounts(false));
+        assertTrue(CLASSIC_TWO_ROWS.usesSegmentedCounts(false));
+        assertTrue(DEFAULT.usesSegmentedCounts(true));
+        assertFalse(DEFAULT.usesSegmentedCounts(false));
+    }
+
+    @Test
     public void parsesStoredEnumNames() {
         assertEquals(DEFAULT, valueOf("DEFAULT"));
         assertEquals(CLASSIC, valueOf("CLASSIC"));

@@ -34,10 +34,7 @@ import app.morphe.patches.shared.misc.spoof.addMediaSessionOverride
 import app.morphe.patches.youtube.shared.WatchNextResponseParserFingerprint
 import app.morphe.patches.youtube.shared.watchNextResultsFingerprint
 import app.morphe.patches.youtube.utils.commandrouter.parseProtoInstructions
-import app.morphe.patches.youtube.utils.auth.authHookPatch
 import app.morphe.patches.youtube.utils.compatibility.Constants.COMPATIBILITY_YOUTUBE
-import app.morphe.patches.youtube.utils.componentlist.hookElementList
-import app.morphe.patches.youtube.utils.componentlist.lazilyConvertedElementHookPatch
 import app.morphe.patches.youtube.utils.extension.Constants.COMPONENTS_PATH
 import app.morphe.patches.youtube.utils.extension.Constants.GENERAL_CLASS_DESCRIPTOR
 import app.morphe.patches.youtube.utils.extension.Constants.GENERAL_PATH
@@ -53,8 +50,6 @@ import app.morphe.patches.youtube.utils.proto.hookElement
 import app.morphe.patches.youtube.utils.settings.ResourceUtils.addPreference
 import app.morphe.patches.youtube.utils.settings.settingsPatch
 import app.morphe.patches.youtube.video.information.videoInformationPatch
-import app.morphe.patches.youtube.video.videoid.hookPlayerResponseVideoId
-import app.morphe.patches.youtube.video.videoid.videoIdPatch
 import app.morphe.util.findInstructionIndicesReversedOrThrow
 import app.morphe.util.indexOfFirstInstructionReversedOrThrow
 import app.morphe.util.insertLiteralOverride
@@ -73,8 +68,6 @@ import com.android.tools.smali.dexlib2.immutable.ImmutableMethodParameter
 
 private const val FILTER_CLASS_DESCRIPTOR =
     "$COMPONENTS_PATH/ActionButtonsFilter;"
-private const val ACTION_BUTTONS_CLASS_DESCRIPTOR =
-    "$PLAYER_PATH/ActionButtonsPatch;"
 private const val EXTENSION_CONFIG_INFO_INTERFACE =
     $$"$$GENERAL_PATH/GeneralPatch$ConfigInfoInterface;"
 private const val EXTENSION_REQUEST_INTERFACE =
@@ -292,39 +285,16 @@ val actionButtonsPatch = bytecodePatch(
         settingsPatch,
         lithoFilterPatch,
         lithoLayoutPatch,
-        lazilyConvertedElementHookPatch,
+        elementProtoParserHookPatch,
         fixProtoLibraryPatch,
         restoreOldVideoActionBarPatch,
         videoInformationPatch,
-        videoIdPatch,
-        authHookPatch,
         hypeButtonIconPatch,
     )
 
     execute {
         addLithoFilter(FILTER_CLASS_DESCRIPTOR)
-        hookElementList("$FILTER_CLASS_DESCRIPTOR->onLazilyConvertedElementLoaded")
-
-        // region patch for hide action buttons by index
-
-        hookPlayerResponseVideoId("$ACTION_BUTTONS_CLASS_DESCRIPTOR->fetchRequest(Ljava/lang/String;Z)V")
-        hookElementList("$ACTION_BUTTONS_CLASS_DESCRIPTOR->hideActionButtonByIndex")
-
-        // endregion
-
-        WatchNextResponseParserFingerprint.let {
-            it.clearMatch()
-            it.method.apply {
-                val index = it.instructionMatches[5].index
-                val register = getInstruction<OneRegisterInstruction>(index).registerA
-
-                addInstruction(
-                    index + 1,
-                    "invoke-static { v$register }, $FILTER_CLASS_DESCRIPTOR->" +
-                        "onSingleColumnWatchNextResultsLoaded(Lcom/google/protobuf/MessageLite;)V"
-                )
-            }
-        }
+        hookElement("$FILTER_CLASS_DESCRIPTOR->hideActionButtons([B)[B")
 
         // region add settings
 

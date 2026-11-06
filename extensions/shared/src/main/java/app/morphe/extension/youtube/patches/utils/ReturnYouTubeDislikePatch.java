@@ -76,7 +76,7 @@ import app.morphe.extension.shared.utils.Logger;
 import app.morphe.extension.shared.utils.ResourceUtils;
 import app.morphe.extension.shared.utils.Utils;
 import app.morphe.extension.youtube.patches.components.ActionButtonsFilter;
-import app.morphe.extension.youtube.patches.components.ActionButtonsFilter.ActionButton;
+import app.morphe.extension.youtube.patches.player.VideoActionBarLayoutPatch;
 import app.morphe.extension.youtube.returnyoutubedislike.DislikePill;
 import app.morphe.extension.youtube.returnyoutubedislike.ReturnYouTubeDislike;
 import app.morphe.extension.youtube.settings.Settings;
@@ -454,9 +454,9 @@ public class ReturnYouTubeDislikePatch {
      */
     private static boolean regularActionButtonCountOverlaysAreUnsupported() {
         return Settings.DISABLE_LAYOUT_UPDATES.get()
-                || Settings.VIDEO_ACTION_BAR_LAYOUT.get().isClassic()
-                // Segmented/old layouts already receive the count through onLithoTextLoaded().
-                || ActionButtonsFilter.hasCurrentVideoActionButton(ActionButton.LIKE_DISLIKE);
+                // Minimal splits server-sent segmented buttons, so it needs regular count overlays.
+                || VideoActionBarLayoutPatch.getLayout().usesSegmentedCounts(
+                        ActionButtonsFilter.hasCurrentVideoSegmentedButton());
     }
 
     /**

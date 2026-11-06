@@ -3,7 +3,9 @@
 ### Features
 
 * **YouTube - Navigation bar:** Add Morphe's optional floating glass capsule with an animated selected-tab
-  highlight and adjustable opacity. Existing navigation-bar appearance stays unchanged until glass is enabled.
+  highlight, adjustable opacity and a live size preview for height, maximum width and button spacing.
+  Buttons that do not fit are hidden from the end, while the selected tab stays visible.
+  Existing navigation-bar appearance stays unchanged until glass is enabled.
 
 ## [1.32.2](https://github.com/lavinhoque33/revanced-patches/compare/v1.32.1...v1.32.2) (2026-11-06)
 

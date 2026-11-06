@@ -200,7 +200,35 @@ public final class GlassNavigationBar {
      * The buttons of the last bar, also the buttons hidden because they do not fit, so the preview in the settings
      * shows their icons and labels.
      */
-    public static volatile List<WeakReference<View>> lastButtons = Collections.emptyList();
+    private static volatile List<WeakReference<View>> lastButtons = Collections.emptyList();
+
+    /**
+     * Prefer the measured capsule's buttons, including overflow. Before its first frame, use the
+     * actual tab hierarchy in view order rather than a second, guessed list of navigation items.
+     */
+    public static List<WeakReference<View>> getPreviewButtons() {
+        List<WeakReference<View>> snapshot = lastButtons;
+        for (WeakReference<View> reference : snapshot) {
+            if (reference.get() != null) return snapshot;
+        }
+
+        synchronized (tabViews) {
+            for (WeakReference<View> reference : tabViews.values()) {
+                View button = reference.get();
+                if (button == null || !(button.getParent() instanceof ViewGroup tabs)) continue;
+
+                List<WeakReference<View>> buttons = new ArrayList<>(tabs.getChildCount());
+                for (int index = 0; index < tabs.getChildCount(); index++) {
+                    View tab = tabs.getChildAt(index);
+                    if (tab.getVisibility() == View.VISIBLE || hiddenButtons.contains(tab)) {
+                        buttons.add(new WeakReference<>(tab));
+                    }
+                }
+                if (!buttons.isEmpty()) return buttons;
+            }
+        }
+        return Collections.emptyList();
+    }
 
     /**
      * @return The alpha scaled by the opacity slider, at most fully opaque.

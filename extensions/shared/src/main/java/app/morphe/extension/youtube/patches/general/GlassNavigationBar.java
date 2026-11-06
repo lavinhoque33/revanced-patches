@@ -197,37 +197,40 @@ public final class GlassNavigationBar {
     public static volatile int lastMinButtonWidth;
 
     /**
-     * The buttons of the last bar, also the buttons hidden because they do not fit, so the preview in the settings
-     * shows their icons and labels.
+     * Most recently registered tab. Captured even when glass is off so the first-enable preview
+     * can use the existing bar before the restart. Neither this reference nor the map owns a view.
      */
-    private static volatile List<WeakReference<View>> lastButtons = Collections.emptyList();
+    private static WeakReference<View> previewTab = new WeakReference<>(null);
 
-    /**
-     * Prefer the measured capsule's buttons, including overflow. Before its first frame, use the
-     * actual tab hierarchy in view order rather than a second, guessed list of navigation items.
-     */
     public static List<WeakReference<View>> getPreviewButtons() {
-        List<WeakReference<View>> snapshot = lastButtons;
-        for (WeakReference<View> reference : snapshot) {
-            if (reference.get() != null) return snapshot;
-        }
-
         synchronized (tabViews) {
-            for (WeakReference<View> reference : tabViews.values()) {
-                View button = reference.get();
-                if (button == null || !(button.getParent() instanceof ViewGroup tabs)) continue;
+            List<WeakReference<View>> buttons = snapshotPreviewTabs(previewTab.get());
+            if (!buttons.isEmpty()) return buttons;
 
-                List<WeakReference<View>> buttons = new ArrayList<>(tabs.getChildCount());
-                for (int index = 0; index < tabs.getChildCount(); index++) {
-                    View tab = tabs.getChildAt(index);
-                    if (tab.getVisibility() == View.VISIBLE || hiddenButtons.contains(tab)) {
-                        buttons.add(new WeakReference<>(tab));
-                    }
-                }
+            // A tab can be removed independently of the rest of its bar.
+            for (WeakReference<View> reference : tabViews.values()) {
+                buttons = snapshotPreviewTabs(reference.get());
                 if (!buttons.isEmpty()) return buttons;
             }
         }
         return Collections.emptyList();
+    }
+
+    private static List<WeakReference<View>> snapshotPreviewTabs(@Nullable View button) {
+        // An old Activity can still be awaiting collection after its window has detached.
+        if (button == null || !button.isAttachedToWindow()
+                || !(button.getParent() instanceof ViewGroup tabs)) {
+            return Collections.emptyList();
+        }
+
+        List<WeakReference<View>> buttons = new ArrayList<>(tabs.getChildCount());
+        for (int index = 0; index < tabs.getChildCount(); index++) {
+            View tab = tabs.getChildAt(index);
+            if (tab.getVisibility() == View.VISIBLE || hiddenButtons.contains(tab)) {
+                buttons.add(new WeakReference<>(tab));
+            }
+        }
+        return buttons;
     }
 
     /**
@@ -434,10 +437,10 @@ public final class GlassNavigationBar {
     }
 
     static void navigationTabCreated(NavigationButton button, View tabView) {
-        if (!ENABLED) return;
-
         synchronized (tabViews) {
-            tabViews.put(button, new WeakReference<>(tabView));
+            WeakReference<View> reference = new WeakReference<>(tabView);
+            tabViews.put(button, reference);
+            previewTab = reference;
         }
     }
 
@@ -633,18 +636,6 @@ public final class GlassNavigationBar {
                             lastMinButtonWidth = minButtonWidth;
                             lastContentHeight = contentHeight;
                             lastBaseHeight = baseHeight;
-                            List<WeakReference<View>> seenButtons = lastButtons;
-                            boolean buttonsChanged = seenButtons.size() != buttons.size();
-                            for (int i = 0, count = buttons.size(); i < count && !buttonsChanged; i++) {
-                                buttonsChanged = seenButtons.get(i).get() != buttons.get(i);
-                            }
-                            if (buttonsChanged) {
-                                List<WeakReference<View>> references = new ArrayList<>(buttons.size());
-                                for (View button : buttons) {
-                                    references.add(new WeakReference<>(button));
-                                }
-                                lastButtons = references;
-                            }
                         }
                     }
                 } else if (background == glass) {

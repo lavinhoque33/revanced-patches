@@ -6,6 +6,8 @@
   highlight, adjustable opacity and a live size preview for height, maximum width and button spacing.
   Buttons that do not fit are hidden from the end, while the selected tab stays visible.
   Existing navigation-bar appearance stays unchanged until glass is enabled.
+  The size preview shows existing tabs immediately after first enabling glass, before restarting.
+  Reset restores exact defaults even for imported values between slider steps.
 
 ## [1.32.2](https://github.com/lavinhoque33/revanced-patches/compare/v1.32.1...v1.32.2) (2026-11-06)
 

@@ -45,6 +45,7 @@ import app.morphe.extension.shared.ui.CustomDialog;
 import app.morphe.extension.shared.ui.Dim;
 import app.morphe.extension.youtube.patches.general.GlassNavigationBar;
 import app.morphe.extension.youtube.patches.general.GlassNavigationBarLayout;
+import app.morphe.extension.youtube.patches.general.GlassNavigationBarSizeValues;
 import app.morphe.extension.shared.settings.Setting.SliderConfig;
 import app.morphe.extension.shared.settings.preference.AbstractPreferenceFragment;
 import app.morphe.extension.youtube.settings.Settings;
@@ -112,6 +113,8 @@ public class GlassNavigationBarPreference extends Preference {
             icons.add(picture);
         }
         final int[] pending = new int[SETTINGS.length];
+        final int[] defaults = new int[SETTINGS.length];
+        final TextView[] valueLabels = new TextView[SETTINGS.length];
         PreviewView preview = new PreviewView(context, labels, icons, selected, showLabels, pending);
         TextView shownButtons = new TextView(context);
         shownButtons.setGravity(Gravity.CENTER);
@@ -141,12 +144,14 @@ public class GlassNavigationBarPreference extends Preference {
             final int index = i;
             SeekBarConfig config = SeekBarPreference.configFor(SETTINGS[i]);
             pending[i] = SeekBarPreference.clampToRange(SETTINGS[i]);
+            defaults[i] = SETTINGS[i].defaultValue;
 
             TextView title = new TextView(context);
             title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
             TextView value = new TextView(context);
             value.setTextColor(accentColor);
             value.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
+            valueLabels[i] = value;
             title.setText(str(TITLES[i]));
             value.setText(SeekBarPreference.formatLabel(pending[i], config));
 
@@ -198,10 +203,14 @@ public class GlassNavigationBarPreference extends Preference {
                 () -> {},
                 str("revanced_settings_reset"),
                 () -> {
+                    GlassNavigationBarSizeValues.resetPending(pending, defaults);
                     for (int i = 0; i < SETTINGS.length; i++) {
-                        seekBars[i].setProgress(SeekBarPreference.valueToProgress(
-                                SeekBarPreference.configFor(SETTINGS[i]), SETTINGS[i].defaultValue));
+                        SeekBarConfig config = SeekBarPreference.configFor(SETTINGS[i]);
+                        seekBars[i].setProgress(SeekBarPreference.valueToProgress(config, pending[i]));
+                        // setProgress does not notify when an imported non-step value shares this position.
+                        valueLabels[i].setText(SeekBarPreference.formatLabel(pending[i], config));
                     }
+                    update.run();
                 },
                 false
         );

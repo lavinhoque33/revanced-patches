@@ -24,6 +24,8 @@ Merged anddea/revanced-patches@dev (89104d55b, v4.4.0-dev.5).
 
 ### Bug Fixes
 
+* **YouTube - Built-in downloader:** Keep the complete footer visible in landscape and at larger font sizes,
+  including the playlist picker. Give the subtitle row a CC icon and the SponsorBlock settings toggle its shield icon.
 * **YouTube Music - Track crossfade:** Match the loop-state adapter with a prefix, because the string of the
   app has a suffix. Repeat-one detection works again.
 * **Both - Visual preferences icons:** Add icons for all new settings.

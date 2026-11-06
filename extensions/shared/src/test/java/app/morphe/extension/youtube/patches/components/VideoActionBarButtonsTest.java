@@ -193,4 +193,12 @@ public class VideoActionBarButtonsTest {
         }
         assertTrue(found);
     }
+
+    @Test
+    public void standaloneChannelRootHonorsChannelHideWithoutHidingAllActions() {
+        assertFalse(VideoActionBarButtons.shouldHideChannelBar(false, false));
+        assertTrue(VideoActionBarButtons.shouldHideChannelBar(true, false));
+        assertTrue(VideoActionBarButtons.shouldHideChannelBar(false, true));
+        assertTrue(VideoActionBarButtons.shouldHideChannelBar(true, true));
+    }
 }

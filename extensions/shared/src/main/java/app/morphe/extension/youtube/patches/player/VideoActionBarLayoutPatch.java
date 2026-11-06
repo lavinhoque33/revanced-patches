@@ -263,6 +263,9 @@ public final class VideoActionBarLayoutPatch {
             } else if (content.hasButton()) {
                 builder.addActions(VideoActionBarItem.newBuilder().setContent(content.toBuilder()
                         .setButton(layoutButton(content.getButton(), false))));
+            } else if (!content.hasMenuHeader()) {
+                // Clip, Connect and other action models keep their commands and unknown fields.
+                builder.addActions(VideoActionBarItem.newBuilder().setContent(content));
             }
         }
 

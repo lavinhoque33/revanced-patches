@@ -154,4 +154,63 @@ public class VideoActionBarLayoutPatchTest {
         assertEquals(visible.getChannelBarHeader(), hidden.getChannelBarHeader());
         assertTrue(channel.hasSubscribeButton());
     }
+
+    private static void assertClassicRoundTripRetains(VideoActionBarItemContent content) throws Exception {
+        VideoActionBarViewModel original = classic().toBuilder()
+                .addActions(VideoActionBarItem.newBuilder().setContent(content)).build();
+        VideoActionBarViewModel minimal = VideoActionBarLayoutPatch.convertActionBar(original, MINIMAL, "More");
+        VideoActionBarOverflow overflow = minimal.getActions(minimal.getActionsCount() - 1).getContent().getOverflow();
+        assertEquals(content, overflow.getMenuItems(overflow.getMenuItemsCount() - 1));
+
+        for (VideoActionBarLayout layout : new VideoActionBarLayout[]{CLASSIC, CLASSIC_TWO_ROWS}) {
+            VideoActionBarViewModel restored = VideoActionBarLayoutPatch.convertActionBar(minimal, layout, "");
+            assertEquals(original.getActionsCount(), restored.getActionsCount());
+            assertEquals(content, restored.getActions(restored.getActionsCount() - 1).getContent());
+        }
+    }
+
+    @Test
+    public void classicLayoutsRetainClipFromMinimalOverflow() throws Exception {
+        ByteString clip = app.morphe.extension.youtube.innertube.NextResponseOuterClass.ClipButtonViewModel
+                .newBuilder().setVideoActionButtonEnablementEntityKey("clip-enabled").build().toByteString();
+        assertClassicRoundTripRetains(VideoActionBarItemContent.newBuilder().setClipButton(clip).build());
+    }
+
+    @Test
+    public void classicLayoutsRetainConnectFromMinimalOverflow() throws Exception {
+        ByteString connect = app.morphe.extension.youtube.innertube.NextResponseOuterClass.AccountLinkButtonViewModel
+                .newBuilder().setAccountLinkStatusEntityKey("partnership").build().toByteString();
+        assertClassicRoundTripRetains(VideoActionBarItemContent.newBuilder().setAccountLinkButton(connect).build());
+    }
+
+    @Test
+    public void classicLayoutsRetainOtherOverflowModelsButNotMenuHeaders() throws Exception {
+        // The remaining PrimaryButtonViewModel oneof arms, besides generic, download, Clip and Connect.
+        VideoActionBarItemContent[] contents = {
+                VideoActionBarItemContent.newBuilder().setSaveButton(
+                        AddToPlaylistButtonViewModel.getDefaultInstance()).build(),
+                VideoActionBarItemContent.newBuilder().setSubscribeButton(ByteString.EMPTY).build(),
+                VideoActionBarItemContent.newBuilder().setLikeButton(LikeButtonViewModel.getDefaultInstance()).build(),
+                VideoActionBarItemContent.newBuilder().setDislikeButton(
+                        DislikeButtonViewModel.getDefaultInstance()).build(),
+                VideoActionBarItemContent.newBuilder().setOverflow(VideoActionBarOverflow.getDefaultInstance()).build(),
+                VideoActionBarItemContent.newBuilder().setLikeDislikeButtons(
+                        VideoActionBarLikeDislike.getDefaultInstance()).build()
+        };
+        VideoActionBarOverflow.Builder overflow = VideoActionBarOverflow.newBuilder()
+                .addMenuItems(VideoActionBarItemContent.newBuilder().setMenuHeader(ByteString.EMPTY));
+        for (VideoActionBarItemContent content : contents) {
+            overflow.addMenuItems(content);
+        }
+        VideoActionBarViewModel minimal = VideoActionBarViewModel.newBuilder().setLayoutStyle(6)
+                .addActions(item(VideoActionBarItemContent.newBuilder().setOverflow(overflow))).build();
+
+        for (VideoActionBarLayout layout : new VideoActionBarLayout[]{CLASSIC, CLASSIC_TWO_ROWS}) {
+            VideoActionBarViewModel converted = VideoActionBarLayoutPatch.convertActionBar(minimal, layout, "");
+            assertEquals(contents.length, converted.getActionsCount());
+            for (int index = 0; index < contents.length; index++) {
+                assertEquals(contents[index], converted.getActions(index).getContent());
+            }
+        }
+    }
 }

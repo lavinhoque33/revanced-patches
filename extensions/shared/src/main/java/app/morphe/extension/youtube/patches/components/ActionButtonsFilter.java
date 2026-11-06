@@ -211,7 +211,11 @@ public final class ActionButtonsFilter extends Filter {
             return StringUtils.startsWithAny(path, COMPACT_CHANNEL_BAR_PREFIX,
                     COMPACTIFY_VIDEO_ACTION_BAR_PREFIX, VIDEO_ACTION_BAR_PREFIX);
         }
-        if (matchedGroup == actionBarGroup || matchedGroup == channelBarGroup) {
+        if (matchedGroup == channelBarGroup) {
+            return VideoActionBarButtons.shouldHideChannelBar(
+                    Settings.HIDE_CHANNEL_PROFILE_BUTTON.get(), Settings.HIDE_ACTION_BAR.get());
+        }
+        if (matchedGroup == actionBarGroup) {
             if (Settings.HIDE_ACTION_BAR.get()) {
                 return true;
             }

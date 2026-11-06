@@ -129,6 +129,10 @@ final class VideoActionBarButtons {
     private static final ByteTrieSearch elementSearch = new ByteTrieSearch(
             ByteTrieSearch.convertStringsToBytes("video_action_bar.e"));
 
+    static boolean shouldHideChannelBar(boolean hideChannelAndSubscribe, boolean hideActionBar) {
+        return hideChannelAndSubscribe || hideActionBar;
+    }
+
     static ActionButton classify(VideoActionBarItemContent content) {
         if (content.hasButton()) {
             String iconName = content.getButton().getIconName();

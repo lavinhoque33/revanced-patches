@@ -6,9 +6,11 @@
   of the layout sent by YouTube (ported from Morphe). Existing restore selections migrate to Classic One-Row;
   the removed tablet layout toggle migrates to Classic Two-Rows and takes precedence. New installations
   use Default. Classic layouts retain the old-style More videos overlay.
+  Keep Clip, Connect and other overflow actions when converting to Classic layouts.
 * **YouTube - Hide action buttons:** Remove hidden buttons from every action bar layout, including
   Minimal overflow and the separate Two-Rows channel bar (ported from Morphe). Remove the obsolete
   Hide action button by index and Remix button index settings.
+  Hiding the channel and Subscribe button also removes server-provided standalone channel bars.
 
 ## [1.30.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.29.1...v1.30.0) (2026-11-06)
 

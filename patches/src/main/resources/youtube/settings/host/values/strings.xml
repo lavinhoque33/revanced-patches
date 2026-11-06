@@ -2378,6 +2378,9 @@ Audio is saved to %2$s"</string>
     <string name="revanced_offline_batch_part_failed">%d failed</string>
     <string name="revanced_offline_batch_part_cancelled">%d cancelled</string>
     <string name="revanced_offline_batch_part_already_downloaded">%d already downloaded</string>
+    <string name="revanced_offline_batch_subtitles_saved">%d subtitle tracks saved</string>
+    <string name="revanced_offline_batch_subtitles_skipped">%d subtitle tracks skipped</string>
+    <string name="revanced_offline_batch_subtitles_limited">Subtitles rate-limited; remaining subtitle requests skipped</string>
     <string name="revanced_offline_previous">Previous</string>
     <string name="revanced_offline_pause">Pause</string>
     <string name="revanced_offline_play">Play</string>

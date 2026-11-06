@@ -5,6 +5,7 @@
  * https://github.com/anddea/revanced-patches
  *
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-05.
  * Written by lavinhoque33, 2026-10-31.
  */
 
@@ -28,6 +29,8 @@ import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.Locale;
+import java.util.TreeMap;
 import java.util.concurrent.CancellationException;
 
 import app.morphe.extension.shared.innertube.PlayerResponseOuterClass.CaptionTrackList;
@@ -79,6 +82,30 @@ final class OfflineCaptions {
             }
         }
 
+        /** Language choices need no per-video player request; matching happens when each task starts. */
+        static Catalog forBatch() {
+            List<Track> languages = new ArrayList<>();
+            Set<String> included = new LinkedHashSet<>();
+            for (String key : Settings.OFFLINE_SUBTITLES_LANGUAGES.get().split(",")) {
+                String language = OfflineBatchSubtitles.languageOf(key);
+                if (!language.isEmpty() && included.add(language)) {
+                    languages.add(languageChoice(key, language));
+                }
+            }
+            TreeMap<String, String> sorted = new TreeMap<>();
+            for (String language : Locale.getISOLanguages()) {
+                if (!included.contains(language)) {
+                    sorted.put(Locale.forLanguageTag(language).getDisplayName(), language);
+                }
+            }
+            for (String language : sorted.values()) languages.add(languageChoice(language, language));
+            return new Catalog(languages);
+        }
+
+        private static Track languageChoice(String key, String language) {
+            return new Track(key, language, "", "", Locale.forLanguageTag(language).getDisplayName(), "");
+        }
+
         Selection selection() {
             if (!include) return Selection.none();
             List<Track> result = new ArrayList<>();
@@ -105,8 +132,11 @@ final class OfflineCaptions {
         }
     }
 
-    record Saved(String language, String kind, String format, String name, String uri,
-                 List<OfflineSubtitle.Cue> cues) {
+    record Saved(String language, String kind, String format, String name, String uri, OfflineCueFile data) {
+        Saved(String language, String kind, String format, String name, String uri, List<OfflineSubtitle.Cue> cues) {
+            this(language, kind, format, name, uri, new OfflineCueFile(cues));
+        }
+
         JSONObject toJson() throws JSONException {
             JSONObject json = new JSONObject();
             json.put("language", language);
@@ -114,34 +144,31 @@ final class OfflineCaptions {
             json.put("format", format);
             json.put("name", name);
             json.put("uri", uri);
-            JSONArray copy = new JSONArray();
-            for (OfflineSubtitle.Cue cue : cues) {
-                copy.put(new JSONArray().put(cue.startMs()).put(cue.endMs()).put(cue.text()));
+            try {
+                json.put("cueFile", data.store(cueDirectory(Utils.getContext())));
+            } catch (IOException ex) {
+                throw new JSONException(ex);
             }
-            json.put("cues", copy);
             return json;
         }
 
-        static Saved fromJson(JSONObject json) {
-            List<OfflineSubtitle.Cue> cues = new ArrayList<>();
-            JSONArray array = json.optJSONArray("cues");
-            long previousEnd = 0;
-            if (array != null) {
-                for (int index = 0; index < array.length(); index++) {
-                    JSONArray cue = array.optJSONArray(index);
-                    if (cue == null) continue;
-                    long start = cue.optLong(0, -1);
-                    long end = cue.optLong(1, -1);
-                    String text = cue.optString(2, "");
-                    if (start >= previousEnd && end > start && !text.isEmpty()) {
-                        cues.add(new OfflineSubtitle.Cue(start, end, text));
-                        previousEnd = end;
-                    }
-                }
+        List<OfflineSubtitle.Cue> cues() {
+            try {
+                return data.load(cueDirectory(Utils.getContext()));
+            } catch (Exception ex) {
+                Logger.printInfo(() -> "Could not read saved subtitle cues", ex);
+                return List.of();
             }
-            return new Saved(json.optString("language"), json.optString("kind"), json.optString("format"),
-                    json.optString("name"), json.optString("uri"), List.copyOf(cues));
         }
+
+        static Saved fromJson(JSONObject json) {
+            return new Saved(json.optString("language"), json.optString("kind"), json.optString("format"),
+                    json.optString("name"), json.optString("uri"), OfflineCueFile.fromJson(json));
+        }
+    }
+
+    private static File cueDirectory(Context context) {
+        return new File(OfflineIndex.getDirectory(context), "subs");
     }
 
     private OfflineCaptions() {
@@ -197,6 +224,11 @@ final class OfflineCaptions {
     static void download(Context context, OfflineVideo video, OfflineDownloader.Task task) {
         Selection selection = task.subtitles;
         Catalog refreshed = task.resolved.captions();
+        int savedBefore = video.subtitles.size();
+        if (task.batch != null && task.batch.subtitleCounts.rateLimited) {
+            task.batch.subtitleCounts.finished(selection.tracks.size(), 0, false);
+            return;
+        }
         String failedLanguage = null;
         String limitedLanguage = null;
         OfflineCaptionTranslationSession session = null;
@@ -256,7 +288,10 @@ final class OfflineCaptions {
                 if (pending != null) pending.abort();
             }
         }
-        if (limitedLanguage != null) {
+        if (task.batch != null) {
+            task.batch.subtitleCounts.finished(selection.tracks.size(), video.subtitles.size() - savedBefore,
+                    limitedLanguage != null);
+        } else if (limitedLanguage != null) {
             Utils.showToastShort(str("revanced_offline_subtitles_limited", limitedLanguage));
         } else if (failedLanguage != null) {
             Utils.showToastShort(str("revanced_offline_subtitles_failed", failedLanguage));
@@ -299,6 +334,7 @@ final class OfflineCaptions {
 
     static void delete(Context context, OfflineVideo video) {
         for (Saved subtitle : video.subtitles) {
+            subtitle.data.delete(cueDirectory(context));
             try {
                 Uri uri = Uri.parse(subtitle.uri);
                 if ("file".equals(uri.getScheme())) {

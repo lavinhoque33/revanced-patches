@@ -72,6 +72,7 @@ final class OfflinePickerSheet {
     private final TextView title;
     private final TextView author;
     private final ProgressBar loading;
+    private OfflineCaptions.Catalog playlistCaptions;
 
     private final int foreground;
     private final int secondary;
@@ -172,6 +173,8 @@ final class OfflinePickerSheet {
 
         LinearLayout list = new LinearLayout(activity);
         list.setOrientation(LinearLayout.VERTICAL);
+        playlistCaptions = OfflineCaptions.Catalog.forBatch();
+        OfflineSubtitlePicker.add(activity, list, playlistCaptions, foreground);
         list.addView(sectionTitle(str("revanced_offline_batch_subtitle")));
 
         boolean[] picked = {false};
@@ -196,6 +199,10 @@ final class OfflinePickerSheet {
         }
         if (OfflineOptions.allVideoCodecsOff()) footerText += "\n" + str("revanced_offline_codecs_all_off");
         addCappedList(list, footerText);
+    }
+
+    OfflineCaptions.Selection playlistSubtitles() {
+        return playlistCaptions == null ? OfflineCaptions.Selection.none() : playlistCaptions.selection();
     }
 
     /** Best, then the usual limits that lie within the quality range of the settings. */

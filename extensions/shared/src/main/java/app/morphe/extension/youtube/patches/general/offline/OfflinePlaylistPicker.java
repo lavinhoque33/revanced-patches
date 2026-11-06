@@ -33,6 +33,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
+import java.util.function.BooleanSupplier;
 
 import app.morphe.extension.shared.ui.Dim;
 import app.morphe.extension.shared.utils.Utils;
@@ -52,6 +53,7 @@ final class OfflinePlaylistPicker {
     private final OfflinePlaylistSelection selection;
     private final Button download;
     private final TextView quality;
+    private final BooleanSupplier active;
     private final BaseAdapter adapter = new BaseAdapter() {
         @Override public int getCount() {
             return selection.size();
@@ -73,9 +75,10 @@ final class OfflinePlaylistPicker {
     };
 
     OfflinePlaylistPicker(Activity activity, ListView list, LinearLayout header, Button download,
-                          List<Item> items, int foreground, Consumer<List<Item>> onPick) {
+                          List<Item> items, int foreground, BooleanSupplier active, Consumer<List<Item>> onPick) {
         this.activity = activity;
         this.foreground = foreground;
+        this.active = active;
         this.selection = new OfflinePlaylistSelection(items);
         this.download = download;
         quality = label(14);
@@ -212,8 +215,9 @@ final class OfflinePlaylistPicker {
             setOnClickListener(view -> checked.toggle());
             index.setText(Integer.toString(item.index()));
             title.setText(item.title());
+            int limit = Math.min(selection.heightLimit, item.heightLimit());
             String type = item.audioOnly() ? str("revanced_offline_batch_audio")
-                    : str("revanced_offline_batch_video", heightLabel(Math.min(selection.heightLimit, item.heightLimit())));
+                    : str("revanced_offline_batch_video", heightLabel(limit));
             format.setText(type + (item.alreadyDownloaded() ? " · " + str("revanced_offline_already_downloaded") : ""));
             duration.setText(item.lengthMs() > 0 ? OfflineLibraryScreen.formatDuration(item.lengthMs()) : "");
             duration.setVisibility(item.lengthMs() > 0 ? VISIBLE : GONE);
@@ -227,12 +231,13 @@ final class OfflinePlaylistPicker {
             image.setImageBitmap(cached);
             if (cached != null || !loading.add(videoId)) return;
             Utils.runOnBackgroundThread(() -> {
-                Bitmap bitmap = OfflinePickerSheet.fetchThumbnail("https://i.ytimg.com/vi/" + videoId + "/mqdefault.jpg");
+                Bitmap bitmap = OfflinePickerSheet.fetchThumbnail(
+                        "https://i.ytimg.com/vi/" + videoId + "/mqdefault.jpg");
                 loading.remove(videoId);
                 if (bitmap == null) return;
                 thumbnails.put(videoId, bitmap);
                 Utils.runOnMainThread(() -> {
-                    if (videoId.equals(imageKey)) image.setImageBitmap(bitmap);
+                    if (active.getAsBoolean() && videoId.equals(imageKey)) image.setImageBitmap(bitmap);
                 });
             });
         }

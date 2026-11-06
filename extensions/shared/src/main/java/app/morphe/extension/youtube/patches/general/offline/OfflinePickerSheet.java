@@ -76,6 +76,7 @@ final class OfflinePickerSheet {
     private final ProgressBar loading;
     private OfflineCaptions.Catalog playlistCaptions;
     private final OfflineSponsorBlock.Picker sponsorPicker;
+    private boolean dismissed;
 
     private final int foreground;
     private final int secondary;
@@ -84,8 +85,7 @@ final class OfflinePickerSheet {
 
     OfflinePickerSheet(Activity activity, @Nullable String videoId, Runnable onDismiss) {
         this.activity = activity;
-        sponsorPicker = new OfflineSponsorBlock.Picker(videoId == null);
-        if (videoId != null) sponsorPicker.fetch(videoId);
+        sponsorPicker = new OfflineSponsorBlock.Picker(videoId == null, this::isActive);
         foreground = ThemeUtils.getAppForegroundColor();
         secondary = withAlpha(foreground, 0xAA);
         divider = withAlpha(foreground, 0x1F);
@@ -139,20 +139,31 @@ final class OfflinePickerSheet {
         root.addView(loading, loadingParams);
 
         dialog = SheetBottomDialog.createSlideDialog(activity, root, ANIMATION_DURATION_MS);
-        dialog.setOnDismissListener(d -> onDismiss.run());
-        PipDismissHelper.dismissOnPip(dialog);
-        if (videoId != null) loadThumbnail(videoId);
+        PipDismissHelper.dismissOnPip(dialog, () -> {
+            dismissed = true;
+            onDismiss.run();
+        });
+        if (videoId != null) {
+            sponsorPicker.fetch(videoId);
+            loadThumbnail(videoId);
+        }
     }
 
     void show() {
+        if (activity.isFinishing() || activity.isDestroyed()) return;
         dialog.show();
     }
 
+    boolean isActive() {
+        return !dismissed && dialog.isShowing() && !activity.isFinishing() && !activity.isDestroyed();
+    }
+
     void dismiss() {
+        dismissed = true;
         try {
             dialog.dismiss();
         } catch (Exception ex) {
-            Logger.printDebug(() -> "Could not dismiss the quality picker", ex);
+            Logger.printException(() -> "Could not dismiss the quality picker", ex);
         }
     }
 
@@ -163,6 +174,7 @@ final class OfflinePickerSheet {
     /** Scrollable batch options and recycled playlist rows, with an always-visible download footer. */
     void showPlaylist(OfflinePlaylist.Result playlist, List<OfflinePlaylistSelection.Item> items,
                       Consumer<List<OfflinePlaylistSelection.Item>> onPick) {
+        if (!isActive()) return;
         title.setText(playlist.title().isEmpty() ? str("revanced_offline_batch_title") : playlist.title());
         author.setText(str("revanced_offline_batch_count", items.size()));
         author.setVisibility(View.VISIBLE);
@@ -193,7 +205,7 @@ final class OfflinePickerSheet {
 
         ListView list = new MaxHeightListView(activity, footer, root);
         list.setDivider(null);
-        new OfflinePlaylistPicker(activity, list, header, download, items, foreground, onPick);
+        new OfflinePlaylistPicker(activity, list, header, download, items, foreground, this::isActive, onPick);
         root.addView(list, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         root.addView(footer, new LinearLayout.LayoutParams(
@@ -223,6 +235,7 @@ final class OfflinePickerSheet {
      */
     void showFormats(OfflineFormats.Resolved resolved, Consumer<OfflineFormats.Stream> onPick,
                      Runnable onThumbnail) {
+        if (!isActive()) return;
         showDetails(resolved);
         root.removeView(loading);
 
@@ -429,7 +442,9 @@ final class OfflinePickerSheet {
     private void loadThumbnail(String videoId) {
         Utils.runOnBackgroundThread(() -> {
             Bitmap bitmap = fetchThumbnail(String.format(Locale.US, THUMBNAIL_URL, videoId));
-            if (bitmap != null) Utils.runOnMainThread(() -> thumbnail.setImageBitmap(bitmap));
+            if (bitmap != null) Utils.runOnMainThread(() -> {
+                if (isActive()) thumbnail.setImageBitmap(bitmap);
+            });
         });
     }
 

@@ -12,7 +12,7 @@ Merged anddea/revanced-patches@dev (89104d55b, v4.4.0-dev.5).
   audio auto-skips and a manual skip button, without cutting the media file.
 * **YouTube - Built-in downloader:** Select playlist items before queuing them, with thumbnails, durations and
   an individual video height cap or audio-only choice. Already-downloaded items start unchecked; the batch
-  keeps its global quality, subtitle and SponsorBlock choices.
+  keeps its global quality, subtitle and SponsorBlock choices. Unavailable playlists report a failure.
 * **YouTube - Captions:** Add the Captions patch (secondary caption language, caption scale, stable caption
   blocks) from upstream. Settings are under Captions.
 * **YouTube - Translate live chat:** Add live chat translation with provider, language, exclusion, style and
@@ -35,6 +35,7 @@ Merged anddea/revanced-patches@dev (89104d55b, v4.4.0-dev.5).
 
 * **YouTube - Built-in downloader:** Keep the complete footer visible in landscape and at larger font sizes,
   including the playlist picker. Give the subtitle row a CC icon and the SponsorBlock settings toggle its shield icon.
+  Dismissed pickers ignore late loading results, including after font-size changes.
 * **YouTube Music - Track crossfade:** Match the loop-state adapter with a prefix, because the string of the
   app has a suffix. Repeat-one detection works again.
 * **Both - Visual preferences icons:** Add icons for all new settings.

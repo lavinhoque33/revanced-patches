@@ -5,6 +5,7 @@
  * https://github.com/anddea/revanced-patches
  *
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-05.
  * Written by lavinhoque33, 2026-11-05.
  */
 package app.morphe.extension.youtube.patches.general.offline;
@@ -23,6 +24,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.function.BooleanSupplier;
 
 import app.morphe.extension.shared.utils.Utils;
 import app.morphe.extension.youtube.settings.Settings;
@@ -66,9 +68,11 @@ final class OfflineSponsorBlock {
         private Activity activity;
         private LinearLayout container;
         private int foreground;
+        private final BooleanSupplier active;
 
-        Picker(boolean batch) {
+        Picker(boolean batch, BooleanSupplier active) {
             this.batch = batch;
+            this.active = active;
             for (String key : OfflineSponsorSegments.CATEGORIES) {
                 if (!"ignore".equals(behavior(key))) categories.add(key);
             }
@@ -78,6 +82,7 @@ final class OfflineSponsorBlock {
             Utils.runOnBackgroundThread(() -> {
                 Result fetched = OfflineSponsorBlock.fetch(videoId);
                 Utils.runOnMainThread(() -> {
+                    if (!active.getAsBoolean()) return;
                     result = fetched;
                     render();
                 });
@@ -99,7 +104,7 @@ final class OfflineSponsorBlock {
         }
 
         private void render() {
-            if (container == null || activity.isFinishing()) return;
+            if (container == null || !active.getAsBoolean()) return;
             container.removeAllViews();
             boolean available = batch || (result != null && result.status() == SBRequester.DownloadStatus.OK);
             String summary = batch ? "revanced_offline_sponsorblock_summary"

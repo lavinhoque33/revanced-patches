@@ -260,7 +260,7 @@ public final class OfflineDownloader {
             }
         }
         Activity activity = Utils.getActivity();
-        if (activity == null || activity.isFinishing()) {
+        if (activity == null || activity.isFinishing() || activity.isDestroyed()) {
             Logger.printInfo(() -> "No activity to show the quality picker");
             return;
         }
@@ -282,7 +282,7 @@ public final class OfflineDownloader {
                 if (resolved == null) {
                     sheet.dismiss();
                     Utils.showToastLong(str("revanced_offline_no_formats"));
-                } else if (activity.isFinishing()) {
+                } else if (!sheet.isActive()) {
                     sheet.dismiss();
                 } else {
                     showFormats(sheet, resolved, savedKeys);
@@ -359,7 +359,7 @@ public final class OfflineDownloader {
 
     /** From the offline library, whose activity is not always the one {@link Utils#getActivity()} reports. */
     static void downloadPlaylist(Activity activity, String playlistId) {
-        downloadPlaylistOnMainThread(activity, playlistId);
+        Utils.runOnMainThread(() -> downloadPlaylistOnMainThread(activity, playlistId));
     }
 
     private static void downloadPlaylistOnMainThread(@Nullable Activity activity, @Nullable String playlistId) {
@@ -368,8 +368,11 @@ public final class OfflineDownloader {
             Utils.showToastShort(str("revanced_offline_download_unavailable"));
             return;
         }
-        if (activity == null || activity.isFinishing()) {
-            Logger.printInfo(() -> "No activity to show the playlist picker");
+        Logger.printInfo(() -> "Offline playlist " + playlistId + ": requested from "
+                + (activity == null ? "no activity" : activity.getClass().getName()));
+        if (activity == null || activity.isFinishing() || activity.isDestroyed()) {
+            Logger.printInfo(() -> "No active activity to show the playlist picker");
+            Utils.showToastLong(str("revanced_offline_batch_unavailable"));
             return;
         }
         if (!resolvingPlaylists.add(playlistId)) {
@@ -379,35 +382,78 @@ public final class OfflineDownloader {
 
         // Set once: either the user dismissed the sheet while loading, or the playlist arrived.
         AtomicBoolean settled = new AtomicBoolean();
-        OfflinePickerSheet sheet = new OfflinePickerSheet(activity, null, () -> {
-            if (settled.compareAndSet(false, true)) resolvingPlaylists.remove(playlistId);
-        });
-        sheet.setLoadingText(str("revanced_offline_batch_loading"));
-        sheet.show();
-
-        Utils.runOnBackgroundThread(() -> {
-            final OfflinePlaylist.Result playlist = OfflinePlaylist.fetch(playlistId);
-            List<OfflinePlaylistSelection.Item> items = playlist == null ? List.of()
-                    : OfflinePlaylistSelection.from(playlist.entries(), key -> {
-                        OfflineVideo existing = OfflineIndex.get(key);
-                        return existing != null && OfflineMediaStore.exists(Utils.getContext(), existing.contentUri);
-                    });
-            Utils.runOnMainThread(() -> {
-                if (!settled.compareAndSet(false, true)) return; // The user cancelled.
-                resolvingPlaylists.remove(playlistId);
-                if (playlist == null) {
-                    sheet.dismiss();
-                    Utils.showToastLong(str("revanced_offline_batch_unavailable"));
-                } else if (activity.isFinishing()) {
-                    sheet.dismiss();
-                } else {
-                    sheet.showPlaylist(playlist, items, selected -> {
-                        sheet.dismiss();
-                        enqueuePlaylist(playlist.title(), selected, sheet.playlistSubtitles(), sheet.sponsorSelection());
-                    });
+        OfflinePickerSheet loadingSheet = null;
+        try {
+            loadingSheet = new OfflinePickerSheet(activity, null, () -> {
+                if (settled.compareAndSet(false, true)) {
+                    resolvingPlaylists.remove(playlistId);
+                    Logger.printInfo(() -> "Offline playlist " + playlistId + ": loading sheet dismissed");
                 }
             });
-        });
+            loadingSheet.setLoadingText(str("revanced_offline_batch_loading"));
+            loadingSheet.show();
+        } catch (Exception ex) {
+            resolvingPlaylists.remove(playlistId);
+            if (loadingSheet != null) loadingSheet.dismiss();
+            Logger.printException(() -> "Offline playlist " + playlistId + ": could not open loading sheet", ex);
+            Utils.showToastLong(str("revanced_offline_batch_unavailable"));
+            return;
+        }
+
+        OfflinePickerSheet sheet = loadingSheet;
+        Logger.printInfo(() -> "Offline playlist " + playlistId + ": loading sheet shown");
+        Utils.runOnBackgroundThread(() -> loadPlaylist(sheet, playlistId, settled));
+    }
+
+    private static void loadPlaylist(OfflinePickerSheet sheet, String playlistId, AtomicBoolean settled) {
+        OfflinePlaylist.Result fetched = null;
+        List<OfflinePlaylistSelection.Item> loadedItems = List.of();
+        try {
+            fetched = OfflinePlaylist.fetch(playlistId);
+            if (OfflinePlaylist.hasVideos(fetched)) {
+                loadedItems = OfflinePlaylistSelection.from(fetched.entries(), key -> {
+                    OfflineVideo existing = OfflineIndex.get(key);
+                    return existing != null && OfflineMediaStore.exists(Utils.getContext(), existing.contentUri);
+                });
+            }
+        } catch (Exception ex) {
+            Logger.printException(() -> "Offline playlist " + playlistId + ": could not prepare entries", ex);
+        }
+
+        OfflinePlaylist.Result playlist = fetched;
+        List<OfflinePlaylistSelection.Item> items = loadedItems;
+        Logger.printInfo(() -> "Offline playlist " + playlistId + ": prepared " + items.size() + " entries");
+        Utils.runOnMainThread(() -> showPlaylist(sheet, playlistId, settled, playlist, items));
+    }
+
+    private static void showPlaylist(OfflinePickerSheet sheet, String playlistId, AtomicBoolean settled,
+                                     @Nullable OfflinePlaylist.Result playlist,
+                                     List<OfflinePlaylistSelection.Item> items) {
+        if (!settled.compareAndSet(false, true)) return;
+        resolvingPlaylists.remove(playlistId);
+        if (!sheet.isActive()) {
+            Logger.printInfo(() -> "Offline playlist " + playlistId + ": the loading sheet is gone, result dropped");
+            sheet.dismiss();
+            return;
+        }
+        if (!OfflinePlaylist.hasVideos(playlist) || items.isEmpty()) {
+            Logger.printInfo(() -> "Offline playlist " + playlistId + ": unavailable or empty");
+            sheet.dismiss();
+            Utils.showToastLong(str("revanced_offline_batch_unavailable"));
+            return;
+        }
+
+        try {
+            sheet.showPlaylist(playlist, items, selected -> {
+                sheet.dismiss();
+                enqueuePlaylist(playlist.title(), selected, sheet.playlistSubtitles(), sheet.sponsorSelection());
+            });
+            Logger.printInfo(() -> "Offline playlist " + playlistId + ": selection sheet ready");
+        } catch (Exception ex) {
+            Logger.printException(() -> "Offline playlist " + playlistId + ": could not build selection sheet", ex);
+            sheet.dismiss();
+            Utils.showToastLong(str("revanced_offline_batch_unavailable"));
+        }
     }
 
     private static void enqueuePlaylist(String playlistTitle, List<OfflinePlaylistSelection.Item> selected,

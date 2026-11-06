@@ -1,3 +1,11 @@
+## [1.32.1](https://github.com/lavinhoque33/revanced-patches/compare/v1.32.0...v1.32.1) (2026-11-06)
+
+### Bug Fixes
+
+* **YouTube - Settings:** Clarify quality, speed, toast, settings-button and queue-manager titles by location,
+  distinguish Feed and Player flyout menus, and add Shorts quality, Shorts speed and Playback headings.
+  Keep all settings and their behavior unchanged.
+
 ## [1.32.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.31.0...v1.32.0) (2026-11-06)
 
 ### Features
@@ -9,9 +17,6 @@
 
 * **YouTube - Settings:** Keep the About card first with either icon style, and log failed About actions
   without closing settings.
-* **YouTube - Settings:** Clarify quality, speed, toast, settings-button and queue-manager titles by location,
-  distinguish Feed and Player flyout menus, and add Shorts quality, Shorts speed and Playback headings.
-  Keep all settings and their behavior unchanged.
 
 ## [1.31.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.30.0...v1.31.0) (2026-11-06)
 

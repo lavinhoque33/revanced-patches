@@ -5,6 +5,11 @@
 * **YouTube - Settings:** Add an About card above the settings sections, with the chosen settings name,
   patch and app versions, GitHub links, credits and licences, and a privacy-safe Copy debug info action.
 
+### Bug Fixes
+
+* **YouTube - Settings:** Keep the About card first with either icon style, and log failed About actions
+  without closing settings.
+
 ## [1.31.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.30.0...v1.31.0) (2026-11-06)
 
 ### Features

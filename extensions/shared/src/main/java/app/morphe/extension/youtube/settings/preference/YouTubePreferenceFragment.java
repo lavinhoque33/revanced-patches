@@ -100,7 +100,8 @@ public class YouTubePreferenceFragment extends ToolbarPreferenceFragment {
             preferenceScreen = getPreferenceScreen();
             Utils.sortPreferenceGroups(preferenceScreen);
 
-            // Add after sorting: the keyless root header has no icon slot or searchable setting.
+            // Root rows retain XML order; the keyless header's finite negative order puts it first.
+            // Add after sorting so it has no icon slot or searchable setting.
             preferenceScreen.addPreference(new AboutPreference(getActivity()));
             setPreferenceScreenToolbar(preferenceScreen);
 

@@ -2,6 +2,7 @@
  * Copyright (C) 2026 lavinhoque33
  *
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-06
  * Written by lavinhoque33, 2026-11-06
  */
 
@@ -18,6 +19,8 @@ import android.net.Uri;
 import android.os.Build;
 import android.preference.Preference;
 import android.text.Html;
+import android.text.SpannableStringBuilder;
+import android.text.style.URLSpan;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
@@ -30,6 +33,7 @@ import java.util.Date;
 
 import app.morphe.extension.shared.patches.SettingsNamePatch;
 import app.morphe.extension.shared.ui.CustomDialog;
+import app.morphe.extension.shared.utils.Logger;
 import app.morphe.extension.shared.utils.Utils;
 import app.morphe.extension.youtube.utils.ExtendedUtils;
 import app.morphe.extension.youtube.utils.ThemeUtils;
@@ -48,7 +52,9 @@ public final class AboutPreference extends Preference {
 
         setSelectable(false);
         setPersistent(false);
-        setOrder(Integer.MIN_VALUE);
+
+        // Framework comparison subtracts orders; MIN_VALUE overflows against positive root orders.
+        setOrder(-1000);
     }
 
     @Override
@@ -129,10 +135,18 @@ public final class AboutPreference extends Preference {
         button.setMinHeight(dipToPixels(48));
         button.setMinimumHeight(dipToPixels(48));
         button.setPadding(dipToPixels(12), dipToPixels(8), dipToPixels(12), dipToPixels(8));
-        button.setOnClickListener(view -> action.run());
+        button.setOnClickListener(view -> runAction(labelKey, action));
         int width = parent.getOrientation() == LinearLayout.HORIZONTAL
                 ? ViewGroup.LayoutParams.WRAP_CONTENT : ViewGroup.LayoutParams.MATCH_PARENT;
         parent.addView(button, new LinearLayout.LayoutParams(width, ViewGroup.LayoutParams.WRAP_CONTENT));
+    }
+
+    private void runAction(String labelKey, Runnable action) {
+        try {
+            action.run();
+        } catch (Exception ex) {
+            Logger.printException(() -> "AboutPreference action failed: " + labelKey, ex);
+        }
     }
 
     private String patchedDate() {
@@ -148,7 +162,21 @@ public final class AboutPreference extends Preference {
     }
 
     private void showCredits() {
-        CharSequence message = Html.fromHtml(str("revanced_about_credits_text"), Html.FROM_HTML_MODE_LEGACY);
+        SpannableStringBuilder message = new SpannableStringBuilder(
+                Html.fromHtml(str("revanced_about_credits_text"), Html.FROM_HTML_MODE_LEGACY));
+        for (URLSpan link : message.getSpans(0, message.length(), URLSpan.class)) {
+            int start = message.getSpanStart(link);
+            int end = message.getSpanEnd(link);
+            int flags = message.getSpanFlags(link);
+            message.removeSpan(link);
+            message.setSpan(new URLSpan(link.getURL()) {
+                @Override
+                public void onClick(View widget) {
+                    runAction("revanced_about_credits", () -> super.onClick(widget));
+                }
+            }, start, end, flags);
+        }
+
         CustomDialog.create(getContext(), str("revanced_about_credits"), message,
                 null, null, null, null, null, null, false).first.show();
     }

@@ -1,5 +1,5 @@
 {
-  "version": "v1.30.0",
+  "version": "v1.31.0",
   "patches": [
     {
       "name": "Add to queue",
@@ -225,7 +225,6 @@
       "use": true,
       "dependencies": [
         "ResourcePatch",
-        "BytecodePatch",
         "BytecodePatch",
         "BytecodePatch",
         "BytecodePatch",
@@ -1620,8 +1619,6 @@
       "use": true,
       "dependencies": [
         "ResourcePatch",
-        "BytecodePatch",
-        "BytecodePatch",
         "BytecodePatch",
         "BytecodePatch",
         "BytecodePatch",

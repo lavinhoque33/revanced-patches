@@ -8,6 +8,8 @@
   Existing navigation-bar appearance stays unchanged until glass is enabled.
   The size preview shows existing tabs immediately after first enabling glass, before restarting.
   Reset restores exact defaults even for imported values between slider steps.
+  With glass enabled, Hide status bar keeps the status bar hidden when returning to the app
+  from another app or the miniplayer.
 
 ## [1.32.2](https://github.com/lavinhoque33/revanced-patches/compare/v1.32.1...v1.32.2) (2026-11-06)
 

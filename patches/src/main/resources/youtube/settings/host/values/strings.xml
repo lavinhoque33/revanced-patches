@@ -79,6 +79,17 @@ Reports are public and are reviewed before a channel is added to a list. Removal
     <string name="revanced_copy_video_title_success">Video title copied to clipboard</string>
     <string name="revanced_copy_video_title_summary">Tap and hold the title of the video to copy it</string>
     <string name="revanced_copy_video_title_title">Copy video title</string>
+    <string name="morphe_caption_block_translation_failed">Some caption translations are unavailable. Showing available captions</string>
+    <string name="morphe_caption_blocks_too_large">Both caption languages do not fit in this player. Showing the primary language</string>
+    <string name="morphe_caption_scale_summary">Applies to single-language and bilingual captions</string>
+    <string name="morphe_caption_scale_title">Caption size</string>
+    <string name="morphe_captions_screen_summary">Manage automatic captions and caption cookies</string>
+    <string name="morphe_captions_screen_title">Captions</string>
+    <string name="revanced_copy_select_text_copy_all">Copy all</string>
+    <string name="revanced_copy_select_text_dialog_title">Select text</string>
+    <string name="revanced_copy_select_text_success">Text copied to clipboard</string>
+    <string name="revanced_copy_select_text_summary">Tap and hold a video description or a post to select and copy any part of it</string>
+    <string name="revanced_copy_select_text_title">Select text of descriptions and posts</string>
     <string name="morphe_custom_branding_apply_to_rvx_settings_summary">Use the selected app icon for the RVX settings entry when available</string>
     <string name="morphe_custom_branding_apply_to_rvx_settings_title">Use icon in RVX settings</string>
     <string name="morphe_custom_branding_icon_title">App icon</string>
@@ -124,6 +135,7 @@ Tap here to open DeArrow.ajay.app"</string>
     <string name="morphe_disable_system_splash_title">Disable system splash</string>
     <string name="morphe_disable_toolbar_navigation_tabs_summary">Shows Subscriptions in the navigation bar, if YouTube moves it to a tab at the top of Home</string>
     <string name="morphe_disable_toolbar_navigation_tabs_title">Disable toolbar navigation tabs</string>
+    <string name="morphe_dual_captions_enabled_title">Bilingual captions</string>
     <string name="morphe_expand_livestream_dvr_duration_not_available">"\'Expand livestream DVR duration\' may not be available
 
 To fix this, turn on \'Spoof video streams\' and change the \'Default client\' to \'TV Simply\' or \'visionOS\'"</string>
@@ -231,6 +243,32 @@ To show the \'Audio Track\' menu, change \'Spoof video streams\' to any client e
     <string name="morphe_hide_youtube_works_menu_title">Hide \'How YouTube works\' menu</string>
     <string name="morphe_light_theme_custom_color_title">Custom light theme color</string>
     <string name="morphe_light_theme_title">Light theme</string>
+    <string name="morphe_live_chat_translate_bold_summary">Shows the translated text in bold</string>
+    <string name="morphe_live_chat_translate_bold_title">Bold translated text</string>
+    <string name="morphe_live_chat_translate_color_summary">Set the hex color of the translated text</string>
+    <string name="morphe_live_chat_translate_color_title">Translated text color</string>
+    <string name="morphe_live_chat_translate_copied">Message copied to clipboard</string>
+    <string name="morphe_live_chat_translate_copy_button_summary">Adds a small copy button to every chat message</string>
+    <string name="morphe_live_chat_translate_copy_button_title">Show copy message button</string>
+    <string name="morphe_live_chat_translate_deepl_api_key_summary">Your DeepL API key. Google Translate is used if DeepL fails, such as when the monthly limit of the key is reached</string>
+    <string name="morphe_live_chat_translate_deepl_api_key_title">DeepL API key</string>
+    <string name="morphe_live_chat_translate_exclude_summary">Comma separated language codes such as id,en. Messages in these languages are not translated</string>
+    <string name="morphe_live_chat_translate_exclude_title">Excluded languages</string>
+    <string name="morphe_live_chat_translate_language_title">Translation language</string>
+    <string name="morphe_live_chat_translate_max_length_no_limit">No limit</string>
+    <string name="morphe_live_chat_translate_max_length_summary">Longer messages are shown untranslated</string>
+    <string name="morphe_live_chat_translate_max_length_title">Maximum message length</string>
+    <string name="morphe_live_chat_translate_provider_deepl">DeepL</string>
+    <string name="morphe_live_chat_translate_screen_summary">Translate live chat and live chat replay messages</string>
+    <string name="morphe_live_chat_translate_screen_title">Live chat translation</string>
+    <string name="morphe_live_chat_translate_style_original_and_translated">Original (translated)</string>
+    <string name="morphe_live_chat_translate_style_title">Translation style</string>
+    <string name="morphe_live_chat_translate_style_translated_and_original">(Translated) original</string>
+    <string name="morphe_live_chat_translate_style_translated_only">Translated only</string>
+    <string name="morphe_live_chat_translate_summary">Translates live chat and live chat replay messages once they are on screen</string>
+    <string name="morphe_live_chat_translate_title">Translate live chat</string>
+    <string name="morphe_live_chat_translate_use_color_summary">Applies a custom color to the translated text</string>
+    <string name="morphe_live_chat_translate_use_color_title">Custom translated text color</string>
     <string name="morphe_livestream_dvr_not_available">"\'Enable livestream DVR\' may not be available
 
 To fix this, turn on \'Spoof video streams\' and change the \'Default client\' to \'TV Simply\' or \'visionOS\'"</string>
@@ -257,6 +295,9 @@ Info: The next queued video only starts while YouTube is on screen"</string>
     <string name="morphe_local_queue_unavailable">Could not add this video to the queue</string>
     <string name="morphe_music_package_name_summary">Package name of your installed music app</string>
     <string name="morphe_music_package_name_title">Music app package name</string>
+    <string name="morphe_navigation_bar_style_entry_2">Translucent</string>
+    <string name="morphe_navigation_bar_style_title">Navigation bar style</string>
+    <string name="morphe_navigation_bar_style_user_dialog_message">This style may not be supported by your device or YouTube version, and can cause layout issues or crashes</string>
     <string name="morphe_notification_dot_color_summary">Changes the color of notification dots</string>
     <string name="morphe_notification_dot_color_title">Notification dot color</string>
     <string name="morphe_notification_media_screen_summary">Customize the playback controls shown on your lock screen and notification panel</string>
@@ -300,6 +341,16 @@ Info: The next queued video only starts while YouTube is on screen"</string>
     <string name="morphe_player_icon_style_entry_sharp" translatable="false">Sharp</string>
     <string name="morphe_player_icon_style_summary">Changes the style of the player button icons. Restart the app to apply a new style</string>
     <string name="morphe_player_icon_style_title">Player icon style</string>
+    <string name="morphe_post_image_download_failed">Could not download the image</string>
+    <string name="morphe_post_image_download_flyout">Download images</string>
+    <string name="morphe_post_image_download_flyout_single">Download image</string>
+    <string name="morphe_post_image_download_not_found">No image found in this post</string>
+    <string name="morphe_post_image_download_saved">%1$s images saved to %2$s</string>
+    <string name="morphe_post_image_download_saved_single">Image saved to %s</string>
+    <string name="morphe_post_image_download_started">Downloading %s images…</string>
+    <string name="morphe_post_image_download_started_single">Downloading image…</string>
+    <string name="morphe_post_image_download_summary">A download button is shown next to the Share button of posts with images or GIFs, and a download item is added to their menu</string>
+    <string name="morphe_post_image_download_title">Download post images</string>
     <string name="morphe_potoken_provider_expired_dialog_message">"The token built into this version of PoToken provider no longer works
 
 Turn on \'Spoof video streams\' to fix playback"</string>
@@ -366,10 +417,6 @@ To use this feature, turn off \'Spoof video streams\'"</string>
     <string name="morphe_save_to_watch_later_button_title">Show Save to Watch later button</string>
     <string name="morphe_save_to_watch_later_error_toast">Cannot save this video in watch later playlist</string>
     <string name="morphe_save_to_watch_later_flyout_title">Save to Watch later</string>
-    <string name="morphe_save_to_watch_later_kids_flyout_button_summary">Allows saving kid related videos in the \'Watch later\' flyout menu</string>
-    <string name="morphe_save_to_watch_later_kids_flyout_button_title">Show Save to Watch later button in kids videos</string>
-    <string name="morphe_save_to_watch_later_shorts_flyout_button_summary">Allows saving Shorts to the \'Watch later\' playlist from the feed flyout menu</string>
-    <string name="morphe_save_to_watch_later_shorts_flyout_button_title">Save button for Shorts</string>
     <string name="morphe_save_to_watch_later_success_toast">Video successfully saved in watch later playlist</string>
     <string name="morphe_search_comments_applied">Change the sort order or open the comments again to search them</string>
     <string name="morphe_search_comments_clear">Clear</string>
@@ -386,6 +433,8 @@ To use this feature, turn off \'Spoof video streams\'"</string>
     <string name="morphe_seek_notification_media_prev_next_title">Seek with Previous &amp; Next buttons</string>
     <string name="morphe_seek_notification_media_rewind_length_summary">Seconds to rewind with the Previous button</string>
     <string name="morphe_seek_notification_media_rewind_length_title">Rewind length</string>
+    <string name="morphe_secondary_caption_language_summary">Shows a second language with the captions, and adds a Bilingual captions toggle to the captions menu</string>
+    <string name="morphe_secondary_caption_language_title">Secondary caption language</string>
     <string name="morphe_seekbar_thumbnail_heatmap_peak_point">Most replayed</string>
     <string name="morphe_seekbar_thumbnail_preview_summary">Shows a video thumbnail while dragging the seekbar</string>
     <string name="morphe_seekbar_thumbnail_preview_title">Enable seekbar thumbnails</string>
@@ -409,6 +458,8 @@ To use this feature, turn off \'Spoof video streams\'"</string>
     <string name="morphe_shorts_icon_style_title">Shorts icon style</string>
     <string name="morphe_skip_live_shorts_summary">Skips live streams that appear in the Shorts feed</string>
     <string name="morphe_skip_live_shorts_title">Skip live Shorts</string>
+    <string name="morphe_settings_new_indicator_days_summary">Maximum number of days new settings and options are highlighted. Dots fade after viewing</string>
+    <string name="morphe_settings_new_indicator_days_title">Highlight new settings</string>
     <string name="morphe_skip_silence_minimum_pause_summary">Only pauses at least this long are shortened. Takes effect when the next video starts</string>
     <string name="morphe_skip_silence_minimum_pause_title">Minimum pause length</string>
     <string name="morphe_skip_silence_summary">Automatically skips silent pauses in video audio</string>
@@ -479,6 +530,8 @@ To use this feature, turn off 'PoToken provider'"</string>
 
 If you are a YouTube Premium user, this setting may not be required"</string>
     <string name="morphe_spoof_video_streams_user_dialog_message">Turning off this setting may cause playback issues</string>
+    <string name="morphe_stable_caption_blocks_summary">Group single-language automatic captions into stable, readable blocks. Bilingual captions always use blocks. Some words may appear before they are spoken</string>
+    <string name="morphe_stable_caption_blocks_title">Stable caption blocks</string>
     <string name="morphe_swap_save_and_queue_actions_summary">Tap for queue options, tap and hold to save to Watch later</string>
     <string name="morphe_swap_save_and_queue_actions_title">Swap Save and Queue actions</string>
     <string name="morphe_tablet_layout_in_player_summary">"Restores the old player layout
@@ -521,6 +574,8 @@ Limitation: If \'Restore old video action bar\' is turned off, \'More videos\' o
     <string name="morphe_video_delay_dialog_input_hint">Delay in milliseconds</string>
     <string name="morphe_video_delay_summary">Delays the video to keep it in sync with laggy audio, such as Bluetooth headphones (0-5000 ms)</string>
     <string name="morphe_video_delay_title">Video delay</string>
+    <string name="morphe_unlock_queue_summary">Unlocks YouTube’s video queue</string>
+    <string name="morphe_unlock_queue_title">Unlock queue</string>
     <string name="morphe_video_quality_prioritize_dialog">If this setting is turned off, then older videos can show no video quality options</string>
     <string name="morphe_video_quality_prioritize_summary">Prioritizes the highest available video quality over codec efficiency</string>
     <string name="morphe_video_quality_prioritize_title">Prioritize video quality</string>
@@ -2045,8 +2100,12 @@ Miniplayer can be dragged off-screen to the left or right"</string>
     <string name="revanced_navigation_bar_animations_summary">Animates transitions when switching between tabs</string>
     <string name="revanced_navigation_bar_animations_title">Enable navigation bar animations</string>
     <string name="revanced_navigation_bar_order_drag_handle">Drag to reorder</string>
-    <string name="revanced_navigation_bar_order_summary">Drag navigation items into the order in which they should appear</string>
-    <string name="revanced_navigation_bar_order_title">Navigation bar order</string>
+    <string name="revanced_navigation_bar_order_summary">Tap items to show or hide them. Drag to reorder. Changes apply after restarting</string>
+    <string name="revanced_navigation_bar_order_title">Navigation bar items</string>
+    <string name="revanced_navigation_bar_order_hide">Hide %s</string>
+    <string name="revanced_navigation_bar_order_instructions">Tap an item to show or hide it, and drag its handle to reorder. Create and Notifications share a slot. Explore is available only in supported YouTube layouts</string>
+    <string name="revanced_navigation_bar_order_show">Show %s</string>
+    <string name="revanced_navigation_bar_visibility_instructions">Tap an item to show or hide it. Create and Notifications share a slot. Changes apply after restarting</string>
     <string name="revanced_open_links_externally_summary_off">Opens links in in-app browser</string>
     <string name="revanced_open_links_externally_summary_on">Opens links in external browser</string>
     <string name="revanced_open_links_externally_title">Open links externally</string>

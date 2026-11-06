@@ -13,6 +13,7 @@
  * (inlined Cairo fragment flag).
  *
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-10-23.
  *
  * ------------------------------------------------------------------------
  * GPLv3 Section 7 – Additional Terms & Attribution Requirements
@@ -52,6 +53,8 @@ import app.morphe.patcher.patch.BytecodePatchContext
 import app.morphe.patcher.patch.bytecodePatch
 import app.morphe.patcher.patch.resourcePatch
 import app.morphe.patcher.patch.stringOption
+import app.morphe.patcher.util.getFreeRegisterProvider
+import app.morphe.patcher.util.getReference
 import app.morphe.patcher.util.proxy.mutableTypes.MutableMethod
 import app.morphe.patcher.util.proxy.mutableTypes.MutableMethod.Companion.toMutable
 import app.morphe.patches.shared.BOLD_ICONS_FEATURE_FLAG
@@ -71,6 +74,7 @@ import app.morphe.patches.youtube.utils.extension.Constants.UTILS_PATH
 import app.morphe.patches.youtube.utils.extension.sharedExtensionPatch
 import app.morphe.patches.youtube.utils.fix.attributes.themeAttributesPatch
 import app.morphe.patches.youtube.utils.fix.contentprovider.fixContentProviderPatch
+import app.morphe.patches.youtube.utils.fix.padding.fixPagePaddingPatch
 import app.morphe.patches.youtube.utils.fix.playbackspeed.playbackSpeedWhilePlayingPatch
 import app.morphe.patches.youtube.utils.fix.preference.fixPreferenceIconPatch
 import app.morphe.patches.youtube.utils.fix.splash.darkModeSplashScreenPatch
@@ -93,8 +97,6 @@ import app.morphe.util.findElementByAttributeValueOrThrow
 import app.morphe.util.findInstructionIndicesReversedOrThrow
 import app.morphe.util.fingerprint.methodCall
 import app.morphe.util.fingerprint.methodOrThrow
-import app.morphe.util.getFreeRegisterProvider
-import app.morphe.util.getReference
 import app.morphe.util.indexOfFirstInstructionOrThrow
 import app.morphe.util.indexOfFirstLiteralInstructionOrThrow
 import app.morphe.util.insertLiteralOverride
@@ -292,7 +294,8 @@ private val settingsBytecodePatch = bytecodePatch(
                 null,
                 MutableMethodImplementation(3),
             ).toMutable().apply {
-                addInstructions(
+                this.addInstructions(
+                    0,
                     """
                         invoke-static { p1 }, $EXTENSION_CLASS_DESCRIPTOR->getAttachBaseContext(Landroid/content/Context;)Landroid/content/Context;
                         move-result-object p1
@@ -314,7 +317,8 @@ private val settingsBytecodePatch = bytecodePatch(
                 MutableMethodImplementation(3),
             ).toMutable().apply {
                 // Pass the activity, so offline screens can handle back presses.
-                addInstructions(
+                this.addInstructions(
+                    0,
                     """
                         invoke-static { p0 }, $EXTENSION_CLASS_DESCRIPTOR->handleBackPress(Landroid/app/Activity;)Z
                         move-result v0
@@ -387,6 +391,7 @@ val settingsPatch = resourcePatch(
         */
         // contentProviderNullMapEntryReproPatch,
         fixContentProviderPatch,
+        fixPagePaddingPatch,
     )
 
     val rvxSettingsLabel = stringOption(

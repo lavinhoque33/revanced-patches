@@ -26,6 +26,7 @@ import java.util.Date;
 
 import app.morphe.extension.shared.settings.Setting;
 import app.morphe.extension.shared.settings.preference.LogBufferManager;
+import app.morphe.extension.shared.settings.preference.NewSettingsIndicator;
 import app.morphe.extension.shared.settings.preference.ToolbarPreferenceFragment;
 import app.morphe.extension.shared.utils.Logger;
 import app.morphe.extension.shared.utils.Utils;
@@ -59,6 +60,13 @@ public class YouTubePreferenceFragment extends ToolbarPreferenceFragment {
             Setting<?> setting = Setting.getSettingFromPath(str);
             if (setting == null) {
                 return;
+            }
+
+            // Visibility settings are edited inside the navigation order dialog, without switches.
+            if (NavigationBarOrderPreference.isVisibilitySetting(setting)) {
+                updateUIAvailability();
+                Preference orderPreference = findPreference(Settings.NAVIGATION_BAR_ORDER.key);
+                if (orderPreference instanceof NavigationBarOrderPreference order) order.updateSummary();
             }
 
             Preference mPreference = findPreference(str);
@@ -102,6 +110,8 @@ public class YouTubePreferenceFragment extends ToolbarPreferenceFragment {
             setVotProxyPreference();
 
             setPreferenceAvailability();
+
+            NewSettingsIndicator.markNewPreferences(preferenceScreen);
         } catch (Exception ex) {
             Logger.printException(() -> "initialize failure", ex);
         }

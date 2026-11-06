@@ -42,6 +42,8 @@ import app.morphe.patches.youtube.utils.patch.PatchList.HIDE_ACTION_BUTTONS
 import app.morphe.patches.youtube.utils.playservice.is_20_30_or_greater
 import app.morphe.patches.youtube.utils.playservice.is_20_39_or_greater
 import app.morphe.patches.youtube.utils.playservice.versionCheckPatch
+import app.morphe.patches.youtube.utils.proto.elementProtoParserHookPatch
+import app.morphe.patches.youtube.utils.proto.hookElement
 import app.morphe.patches.youtube.utils.settings.ResourceUtils.addPreference
 import app.morphe.patches.youtube.utils.settings.settingsPatch
 import app.morphe.patches.youtube.video.information.videoInformationPatch
@@ -122,6 +124,7 @@ internal val restoreOldVideoActionBarPatch = bytecodePatch(
         buildRequestPatch,
         fixProtoLibraryPatch,
         versionCheckPatch,
+        elementProtoParserHookPatch,
     )
 
     execute {
@@ -130,6 +133,9 @@ internal val restoreOldVideoActionBarPatch = bytecodePatch(
         }
 
         if (is_20_30_or_greater) {
+            // Elements without compactify_video_action_bar.eml retain their original bytes.
+            hookElement("$PLAYER_PATH/VideoActionBarLayoutPatch;->setVideoActionBarLayout([B)[B")
+
             addPreference(
                 arrayOf(
                     "PREFERENCE_SCREEN: PLAYER",

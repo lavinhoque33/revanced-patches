@@ -2,9 +2,10 @@
 
 ### Features
 
-* **YouTube - Video action bar layout:** Replace Restore old video action bar with a layout list.
-  Existing restore selections migrate to Classic One-Row; the removed tablet layout toggle migrates to
-  Classic Two-Rows and takes precedence. New installations use Default. Ported from Morphe.
+* **YouTube - Video action bar layout:** Choose Default, Classic One-Row or Minimal layouts independently
+  of the layout sent by YouTube (ported from Morphe). Existing restore selections migrate to Classic One-Row;
+  the removed tablet layout toggle migrates to Classic Two-Rows and takes precedence. New installations
+  use Default. Classic layouts retain the old-style More videos overlay.
 
 ## [1.30.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.29.1...v1.30.0) (2026-11-06)
 

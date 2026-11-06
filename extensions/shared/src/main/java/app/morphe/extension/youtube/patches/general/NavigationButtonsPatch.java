@@ -24,6 +24,7 @@ import static app.morphe.extension.youtube.shared.NavigationBar.NavigationButton
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Color;
+import android.graphics.Paint;
 import android.graphics.drawable.ColorDrawable;
 import android.os.Build;
 import android.view.View;
@@ -117,7 +118,14 @@ public final class NavigationButtonsPatch {
         OPAQUE
     }
 
-    private static final NavigationBarStyle NAVIGATION_BAR_STYLE = Settings.NAVIGATION_BAR_STYLE.get();
+    private static final NavigationBarStyle NAVIGATION_BAR_STYLE =
+            Settings.NAVIGATION_BAR_STYLE.get() == NavigationBarStyle.DEFAULT
+                    && Settings.NAVIGATION_BAR_GLASS.get() && !Settings.HIDE_NAVIGATION_BAR.get()
+                    ? NavigationBarStyle.TRANSLUCENT : Settings.NAVIGATION_BAR_STYLE.get();
+
+    private static final boolean PAGES_BEHIND_GLASS_NAVIGATION_BAR = NavigationBarRoom.isEnabled(
+            Settings.NAVIGATION_BAR_GLASS.get(), NAVIGATION_BAR_STYLE == NavigationBarStyle.OPAQUE,
+            Settings.HIDE_NAVIGATION_BAR.get());
 
     private static final boolean HIDE_NAVIGATION_LABEL
             = Settings.HIDE_NAVIGATION_LABEL.get();
@@ -221,7 +229,7 @@ public final class NavigationButtonsPatch {
      * Injection point.
      */
     public static boolean enableNarrowNavigationButton(boolean original) {
-        return ENABLE_NARROW_NAVIGATION_BUTTONS || original;
+        return (ENABLE_NARROW_NAVIGATION_BUTTONS && !GlassNavigationBar.isEnabled()) || original;
     }
 
     /**
@@ -402,6 +410,11 @@ public final class NavigationButtonsPatch {
                 return false;
             }
 
+            // Android 15 enforces edge-to-edge even when Hide status bar disables the top-bar flag.
+            if (PAGES_BEHIND_GLASS_NAVIGATION_BAR && Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
+                return original || NAVIGATION_BAR_STYLE != NavigationBarStyle.DEFAULT;
+            }
+
             Boolean edgeToEdge = StatusBarPatch.isEdgeToEdgeTopBar();
             // Null if not known yet, or the Hide status bar patch is not included.
             // The edge to edge layout is then the one of the account, which the flags of the account follow.
@@ -468,7 +481,8 @@ public final class NavigationButtonsPatch {
             accountFeedBehindNavigationBar = accountValue;
         }
 
-        final boolean feedBehind = isNavigationBarBehindSystemButtons(accountValue);
+        final boolean feedBehind = PAGES_BEHIND_GLASS_NAVIGATION_BAR
+                || isNavigationBarBehindSystemButtons(accountValue);
         if (firstRead) {
             Logger.printDebug(() -> "Feed behind navigation bar: " + feedBehind + " (account: " + original + ")");
         }
@@ -493,11 +507,15 @@ public final class NavigationButtonsPatch {
         if (NAVIGATION_BAR_STYLE != NavigationBarStyle.OPAQUE && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             translucent = true;
         } else {
-            translucent = isNavigationBarBehindSystemButtons(original);
+            translucent = PAGES_BEHIND_GLASS_NAVIGATION_BAR || isNavigationBarBehindSystemButtons(original);
         }
 
         translucentNavigationBarBackgroundForced = translucent;
         return translucent;
+    }
+
+    public static boolean useTranslucentNavigationBarStyle(boolean original) {
+        return original || (PAGES_BEHIND_GLASS_NAVIGATION_BAR && Build.VERSION.SDK_INT < Build.VERSION_CODES.S);
     }
 
     /**
@@ -527,8 +545,7 @@ public final class NavigationButtonsPatch {
     }
 
     private static boolean isGlassRoomEnabled() {
-        return NavigationBarRoom.isEnabled(Settings.NAVIGATION_BAR_GLASS.get(),
-                Settings.NAVIGATION_BAR_STYLE.get() == NavigationBarStyle.OPAQUE, HIDE_NAVIGATION_BAR);
+        return GlassNavigationBar.isEnabled();
     }
 
     /**
@@ -546,7 +563,9 @@ public final class NavigationButtonsPatch {
                             original, insets.getInsets(WindowInsets.Type.systemBars()).bottom);
                 }
             }
-            return setSlimStatusBarRoom(navigationBar, padding);
+            padding = GlassNavigationBar.getFloatingRoom(navigationBar, setSlimStatusBarRoom(navigationBar, padding));
+            GlassNavigationBar.setAppRoom(padding);
+            return padding;
         } catch (Exception ex) {
             Logger.printException(() -> "getNavigationBarBottomPadding failure", ex);
             return original;
@@ -596,15 +615,19 @@ public final class NavigationButtonsPatch {
             try {
                 View slimStatusBar = view.findViewById(SLIM_STATUS_BAR);
                 boolean shown = slimStatusBar != null && slimStatusBar.getVisibility() == View.VISIBLE;
+                View navigationBar = view.findViewById(PIVOT_BAR);
+                if (navigationBar != null) navigationBar.invalidate();
                 if (shown == slimStatusBarShown) return;
                 slimStatusBarShown = shown;
 
-                View navigationBar = view.findViewById(PIVOT_BAR);
+                // Move room only after visibility changes; translation changes still invalidate the capsule.
                 if (navigationBarCoversSystemButtons && navigationBar instanceof PivotBarAccess access) {
                     int room = systemButtonsRoom;
                     view.post(() -> {
-                        int navigationBarRoom = setSlimStatusBarRoom(navigationBar, room);
+                        int navigationBarRoom = GlassNavigationBar.getFloatingRoom(
+                                navigationBar, setSlimStatusBarRoom(navigationBar, room));
                         access.patch_setSystemButtonsRoom(navigationBarRoom);
+                        GlassNavigationBar.setAppRoom(navigationBarRoom);
                         navigationBar.setPadding(navigationBar.getPaddingLeft(), navigationBar.getPaddingTop(),
                                 navigationBar.getPaddingRight(), navigationBarRoom);
                     });
@@ -613,6 +636,32 @@ public final class NavigationButtonsPatch {
                 Logger.printException(() -> "watchSlimStatusBar layout failure", ex);
             }
         });
+    }
+
+    public static int getNavigationBarHeightMeasureSpec(View navigationBar, int heightMeasureSpec) {
+        return GlassNavigationBar.getHeightMeasureSpec(navigationBar, heightMeasureSpec);
+    }
+
+    public static float getNavigationBarTranslationY(View navigationBar, float translationY) {
+        return GlassNavigationBar.getTranslationY(navigationBar, translationY);
+    }
+
+    public static int getNavigationBarPadding(View navigationBar, int bottom) {
+        return GlassNavigationBar.getFloatingRoom(navigationBar, bottom);
+    }
+
+    public static void setNavigationBarBlurTint(Paint tint) {
+        GlassNavigationBar.lightenBlurTint(tint);
+    }
+
+    public static void setNavigationBarGlass(View bottomBarContainer) {
+        if (!GlassNavigationBar.isEnabled()) return;
+
+        try {
+            GlassNavigationBar.apply(bottomBarContainer);
+        } catch (Exception ex) {
+            Logger.printException(() -> "setNavigationBarGlass failure", ex);
+        }
     }
 
     /**
@@ -1383,6 +1432,8 @@ public final class NavigationButtonsPatch {
      * Injection point.
      */
     public static void navigationTabCreated(NavigationButton button, View tabView) {
+        GlassNavigationBar.navigationTabCreated(button, tabView);
+
         if (SHOW_SETTINGS_BUTTON && button == NavigationButton.SETTINGS) {
             Utils.runOnMainThread(() -> tabView.setOnClickListener(v -> {
                 if (SHOW_SETTINGS_BUTTON_TYPE) {

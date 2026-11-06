@@ -1,5 +1,7 @@
 package app.morphe.extension.youtube.settings;
 
+import app.morphe.extension.youtube.patches.general.GlassNavigationBar;
+
 import static java.lang.Boolean.FALSE;
 import static java.lang.Boolean.TRUE;
 import static app.morphe.extension.shared.patches.AutoCaptionsPatch.AutoCaptionsStyle.BOTH_DISABLED;
@@ -448,7 +450,6 @@ public class Settings extends SharedYouTubeSettings {
     public static final StringSetting SETTINGS_MENU_FILTER_DISCOVERED = new StringSetting("morphe_settings_menu_filter_discovered", "", true, false);
 
     // PreferenceScreen: General - Navigation bar
-    public static final BooleanSetting ENABLE_NARROW_NAVIGATION_BUTTONS = new BooleanSetting("revanced_enable_narrow_navigation_buttons", FALSE, true);
     public static final BooleanSetting SWITCH_CREATE_WITH_NOTIFICATIONS_BUTTON = new BooleanSetting("revanced_switch_create_with_notifications_button", TRUE, true,
             "revanced_switch_create_with_notifications_button_user_dialog_message");
     public static final BooleanSetting HIDE_NAVIGATION_CREATE_BUTTON = new BooleanSetting("revanced_hide_navigation_create_button", FALSE, true, parentInverted(SWITCH_CREATE_WITH_NOTIFICATIONS_BUTTON));
@@ -462,7 +463,33 @@ public class Settings extends SharedYouTubeSettings {
     private static final BooleanSetting DEPRECATED_DISABLE_TRANSLUCENT_NAVIGATION_BAR = new BooleanSetting("revanced_disable_translucent_navigation_bar", FALSE);
     public static final BooleanSetting HIDE_NAVIGATION_BAR = new BooleanSetting("revanced_hide_navigation_bar", FALSE, true);
     public static final EnumSetting<NavigationBarStyle> NAVIGATION_BAR_STYLE = new EnumSetting<>("morphe_navigation_bar_style", NavigationBarStyle.DEFAULT, true, "morphe_navigation_bar_style_user_dialog_message", parentInverted(HIDE_NAVIGATION_BAR));
-    public static final BooleanSetting NAVIGATION_BAR_GLASS = new BooleanSetting("morphe_navigation_bar_glass", FALSE, true);
+    public static final BooleanSetting NAVIGATION_BAR_GLASS = new BooleanSetting(
+            "morphe_navigation_bar_glass", FALSE, true,
+            parentsAll(parentInverted(HIDE_NAVIGATION_BAR), new GlassNavigationBar.GlassAvailability()));
+
+    public static final IntegerSetting NAVIGATION_BAR_GLASS_OPACITY = new IntegerSetting(
+            "morphe_navigation_bar_glass_opacity", 50, true, new SliderConfig(0, 100, 1, "%"),
+            parentsAll(parent(NAVIGATION_BAR_GLASS), parentInverted(HIDE_NAVIGATION_BAR),
+                    new GlassNavigationBar.GlassAvailability()));
+
+    public static final IntegerSetting NAVIGATION_BAR_GLASS_HEIGHT = new IntegerSetting(
+            "morphe_navigation_bar_glass_height", 100, true, new SliderConfig(60, 160, 5, "%"),
+            parentsAll(parent(NAVIGATION_BAR_GLASS), parentInverted(HIDE_NAVIGATION_BAR),
+                    new GlassNavigationBar.GlassAvailability()));
+
+    public static final IntegerSetting NAVIGATION_BAR_GLASS_WIDTH = new IntegerSetting(
+            "morphe_navigation_bar_glass_width", 100, true, new SliderConfig(50, 100, 5, "%"),
+            parentsAll(parent(NAVIGATION_BAR_GLASS), parentInverted(HIDE_NAVIGATION_BAR),
+                    new GlassNavigationBar.GlassAvailability()));
+
+    public static final IntegerSetting NAVIGATION_BAR_GLASS_BUTTON_SPACING = new IntegerSetting(
+            "morphe_navigation_bar_glass_button_spacing", 48, true, new SliderConfig(8, 96, 4, "dp"),
+            parentsAll(parent(NAVIGATION_BAR_GLASS), parentInverted(HIDE_NAVIGATION_BAR),
+                    new GlassNavigationBar.GlassAvailability()));
+
+    public static final BooleanSetting ENABLE_NARROW_NAVIGATION_BUTTONS = new BooleanSetting(
+            "revanced_enable_narrow_navigation_buttons", FALSE, true,
+            parentsAll(parentInverted(HIDE_NAVIGATION_BAR), parentInverted(NAVIGATION_BAR_GLASS)));
     public static final BooleanSetting DISABLE_AUTO_HIDE_NAVIGATION_BAR = new BooleanSetting("morphe_disable_auto_hide_navigation_bar", FALSE, true, parentInverted(HIDE_NAVIGATION_BAR));
     public static final BooleanSetting DISABLE_ICON_ONLY_NAVIGATION_BUTTONS = new BooleanSetting("morphe_disable_icon_only_navigation_buttons", TRUE, true, parentInverted(HIDE_NAVIGATION_BAR));
     public static final BooleanSetting DISABLE_TOOLBAR_NAVIGATION_TABS = new BooleanSetting("morphe_disable_toolbar_navigation_tabs", TRUE, true, parentInverted(HIDE_NAVIGATION_BAR));

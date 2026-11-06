@@ -10,6 +10,9 @@ Merged anddea/revanced-patches@dev (89104d55b, v4.4.0-dev.5).
 * **YouTube - Built-in downloader:** Save SponsorBlock segments with single or playlist downloads and choose
   categories below the subtitle row. The built-in player follows your category behavior, including background
   audio auto-skips and a manual skip button, without cutting the media file.
+* **YouTube - Built-in downloader:** Select playlist items before queuing them, with thumbnails, durations and
+  an individual video height cap or audio-only choice. Already-downloaded items start unchecked; the batch
+  keeps its global quality, subtitle and SponsorBlock choices.
 * **YouTube - Captions:** Add the Captions patch (secondary caption language, caption scale, stable caption
   blocks) from upstream. Settings are under Captions.
 * **YouTube - Translate live chat:** Add live chat translation with provider, language, exclusion, style and

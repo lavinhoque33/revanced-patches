@@ -117,6 +117,8 @@ public final class OfflineDownloader {
         volatile OfflineFormats.Stream stream;
         volatile OfflineCaptions.Selection subtitles;
         final OfflineSponsorBlock.Selection sponsor;
+        @Nullable
+        final OfflinePlaylistSelection.Item item;
 
         Task(OfflineFormats.Resolved resolved, OfflineFormats.Stream stream, OfflineSponsorBlock.Selection sponsor) {
             this.key = OfflineVideo.keyOf(resolved.videoId(), stream.isAudioOnly());
@@ -129,13 +131,15 @@ public final class OfflineDownloader {
             this.batch = null;
             this.subtitles = stream.isAudioOnly() ? OfflineCaptions.Selection.none() : resolved.captions().selection();
             this.sponsor = sponsor;
+            this.item = null;
         }
 
         /** A playlist entry. Stream urls expire, so the stream is chosen when the task starts. */
-        Task(String videoId, String title, int index, Batch batch) {
-            this.key = OfflineVideo.keyOf(videoId, false);
-            this.videoId = videoId;
-            this.title = title;
+        Task(OfflinePlaylistSelection.Item item, int index, Batch batch) {
+            this.item = item;
+            this.key = item.key();
+            this.videoId = item.videoId();
+            this.title = item.title();
             this.qualityLabel = "";
             this.index = index;
             this.batch = batch;
@@ -168,8 +172,6 @@ public final class OfflineDownloader {
         final int id = NEXT_ID.incrementAndGet();
         final String title;
         final int total;
-        /** Largest video height to download. */
-        final int heightLimit;
         /** Videos left out because the library already has them. */
         final int alreadyDownloaded;
         final AtomicInteger remaining;
@@ -181,11 +183,10 @@ public final class OfflineDownloader {
         final OfflineBatchSubtitles subtitleCounts = new OfflineBatchSubtitles();
         final OfflineSponsorBlock.Selection sponsor;
 
-        Batch(String title, int total, int heightLimit, int alreadyDownloaded, OfflineCaptions.Selection subtitles,
+        Batch(String title, int total, int alreadyDownloaded, OfflineCaptions.Selection subtitles,
               OfflineSponsorBlock.Selection sponsor) {
             this.title = title;
             this.total = total;
-            this.heightLimit = heightLimit;
             this.alreadyDownloaded = alreadyDownloaded;
             this.remaining = new AtomicInteger(total);
             this.subtitles = subtitles;
@@ -386,6 +387,11 @@ public final class OfflineDownloader {
 
         Utils.runOnBackgroundThread(() -> {
             final OfflinePlaylist.Result playlist = OfflinePlaylist.fetch(playlistId);
+            List<OfflinePlaylistSelection.Item> items = playlist == null ? List.of()
+                    : OfflinePlaylistSelection.from(playlist.entries(), key -> {
+                        OfflineVideo existing = OfflineIndex.get(key);
+                        return existing != null && OfflineMediaStore.exists(Utils.getContext(), existing.contentUri);
+                    });
             Utils.runOnMainThread(() -> {
                 if (!settled.compareAndSet(false, true)) return; // The user cancelled.
                 resolvingPlaylists.remove(playlistId);
@@ -395,40 +401,38 @@ public final class OfflineDownloader {
                 } else if (activity.isFinishing()) {
                     sheet.dismiss();
                 } else {
-                    sheet.showHeightLimits(playlist.title(), playlist.entries().size(),
-                            playlist.entries().get(0).videoId(), limit -> {
-                                sheet.dismiss();
-                                enqueuePlaylist(playlist, limit, sheet.playlistSubtitles(), sheet.sponsorSelection());
-                            });
+                    sheet.showPlaylist(playlist, items, selected -> {
+                        sheet.dismiss();
+                        enqueuePlaylist(playlist.title(), selected, sheet.playlistSubtitles(), sheet.sponsorSelection());
+                    });
                 }
             });
         });
     }
 
-    private static void enqueuePlaylist(OfflinePlaylist.Result playlist, int heightLimit,
+    private static void enqueuePlaylist(String playlistTitle, List<OfflinePlaylistSelection.Item> selected,
                                         OfflineCaptions.Selection subtitles, OfflineSponsorBlock.Selection sponsor) {
         Utils.runOnBackgroundThread(() -> {
             final Context context = Utils.getContext();
-            List<OfflinePlaylist.Entry> pending = new ArrayList<>();
+            List<OfflinePlaylistSelection.Item> pending = new ArrayList<>();
             int alreadyDownloaded = 0;
-            for (OfflinePlaylist.Entry entry : playlist.entries()) {
-                OfflineVideo existing = OfflineIndex.get(entry.videoId());
+            for (OfflinePlaylistSelection.Item item : selected) {
+                OfflineVideo existing = OfflineIndex.get(item.key());
                 if (existing != null && OfflineMediaStore.exists(context, existing.contentUri)) {
                     alreadyDownloaded++;
                 } else {
-                    pending.add(entry);
+                    pending.add(item);
                 }
             }
 
             int queued = 0;
             synchronized (tasks) {
                 // A video already being downloaded on its own keeps its task.
-                pending.removeIf(entry -> tasks.containsKey(entry.videoId()));
+                pending.removeIf(item -> tasks.containsKey(item.key()));
                 if (!pending.isEmpty()) {
-                    Batch batch = new Batch(playlist.title(), pending.size(), heightLimit, alreadyDownloaded,
-                            subtitles, sponsor);
-                    for (OfflinePlaylist.Entry entry : pending) {
-                        Task task = new Task(entry.videoId(), entry.title(), ++queued, batch);
+                    Batch batch = new Batch(playlistTitle, pending.size(), alreadyDownloaded, subtitles, sponsor);
+                    for (OfflinePlaylistSelection.Item item : pending) {
+                        Task task = new Task(item, ++queued, batch);
                         tasks.put(task.key, task);
                         task.future = queue.submit(() -> run(task));
                     }
@@ -437,8 +441,8 @@ public final class OfflineDownloader {
 
             final int count = queued;
             final int skipped = alreadyDownloaded;
-            Logger.printInfo(() -> "Queued " + count + " videos of playlist " + playlist.title()
-                    + ", " + skipped + " already downloaded, height limit " + heightLimit);
+            Logger.printInfo(() -> "Queued " + count + " items of playlist " + playlistTitle
+                    + ", " + skipped + " already downloaded");
             Utils.runOnMainThread(() -> {
                 if (count == 0) {
                     Utils.showToastLong(str("revanced_offline_batch_nothing_new"));
@@ -452,6 +456,15 @@ public final class OfflineDownloader {
                 notifyChanged(true);
             });
         });
+    }
+
+    @Nullable
+    private static OfflineFormats.Stream selectAudio(OfflineFormats.Resolved resolved) {
+        OfflineFormats.Stream best = null;
+        for (OfflineFormats.Stream candidate : OfflineOptions.filterAudio(resolved.audioOnly())) {
+            if (candidate.playable() && (best == null || candidate.bitrate() > best.bitrate())) best = candidate;
+        }
+        return best;
     }
 
     /**
@@ -692,16 +705,18 @@ public final class OfflineDownloader {
 
     /** A playlist entry: its formats are resolved now, since stream urls expire within hours. */
     private static void chooseBatchStream(Task task) throws IOException {
-        boolean withCaptions = task.batch.subtitleCounts.shouldResolve(!task.batch.subtitles.tracks().isEmpty());
+        boolean withCaptions = !task.item.audioOnly()
+                && task.batch.subtitleCounts.shouldResolve(!task.batch.subtitles.tracks().isEmpty());
         OfflineFormats.Resolved resolved = OfflineFormats.resolve(task.videoId, 0, false, withCaptions);
         checkCancelled(task);
         if (resolved == null) throw new IOException(str("revanced_offline_no_formats"));
 
-        OfflineFormats.Stream video = selectStream(resolved, task.batch.heightLimit);
+        OfflineFormats.Stream video = task.item.audioOnly() ? selectAudio(resolved)
+                : selectStream(resolved, task.item.heightLimit());
         if (video == null) throw new IOException(str("revanced_offline_batch_no_quality"));
 
         task.resolved = resolved;
-        if (!task.batch.subtitles.tracks().isEmpty()) {
+        if (!task.item.audioOnly() && !task.batch.subtitles.tracks().isEmpty()) {
             List<OfflineCaptionChoices.Track> matches = withCaptions
                     ? OfflineBatchSubtitles.match(task.batch.subtitles.tracks(), resolved.captions().tracks) : List.of();
             task.batch.subtitleCounts.skipped += task.batch.subtitles.tracks().size() - matches.size();

@@ -2374,9 +2374,9 @@ Audio is saved to %2$s"</string>
     <string name="revanced_offline_batch_count">%d videos</string>
     <string name="revanced_offline_batch_subtitle">Maximum quality</string>
     <string name="revanced_offline_batch_best">Best available</string>
-    <string name="revanced_offline_batch_footer">Each video is downloaded in the best quality up to this limit. Videos you already downloaded are skipped.</string>
+    <string name="revanced_offline_batch_footer">Choose videos or audio only per item. The codec determines the container; no transcoding. Already-downloaded items are skipped.</string>
     <string name="revanced_offline_batch_range">Quality range in Download options: %1$s to %2$s</string>
-    <string name="revanced_offline_batch_queued">%d videos queued</string>
+    <string name="revanced_offline_batch_queued">%d items queued</string>
     <string name="revanced_offline_batch_nothing_new">Every video of this playlist is already downloaded or downloading</string>
     <string name="revanced_offline_batch_no_quality">No quality within the limit</string>
     <string name="revanced_offline_batch_part_downloaded">%d downloaded</string>
@@ -2386,6 +2386,13 @@ Audio is saved to %2$s"</string>
     <string name="revanced_offline_batch_subtitles_saved">%d subtitle tracks saved</string>
     <string name="revanced_offline_batch_subtitles_skipped">%d subtitle tracks skipped</string>
     <string name="revanced_offline_batch_subtitles_limited">Subtitles rate-limited; remaining subtitle requests skipped</string>
+    <string name="revanced_offline_batch_select_all">Select all</string>
+    <string name="revanced_offline_batch_select_none">Select none</string>
+    <string name="revanced_offline_batch_edit">Edit</string>
+    <string name="revanced_offline_batch_audio">Audio only</string>
+    <string name="revanced_offline_batch_video">Video · %s</string>
+    <string name="revanced_offline_batch_global_quality">Maximum video quality: %s</string>
+    <string name="revanced_offline_batch_download_selected">Download (%d selected)</string>
     <string name="revanced_offline_previous">Previous</string>
     <string name="revanced_offline_pause">Pause</string>
     <string name="revanced_offline_play">Play</string>

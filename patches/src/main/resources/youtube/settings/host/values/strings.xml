@@ -2655,7 +2655,7 @@ Info:
     <string name="revanced_remember_video_quality_last_selected_title">Remember video quality changes</string>
     <string name="revanced_remember_video_quality_last_selected_toast_summary_off">A toast will not be shown when changing the default video quality</string>
     <string name="revanced_remember_video_quality_last_selected_toast_summary_on">A toast will be shown when changing the default video quality</string>
-    <string name="revanced_remember_video_quality_last_selected_toast_title">Show a toast when quality changes (videos and Shorts)</string>
+    <string name="revanced_remember_video_quality_last_selected_toast_title">Show a toast when video quality changes</string>
     <string name="revanced_remember_video_quality_mobile">Mobile</string>
     <string name="revanced_remember_video_quality_none">Failed to set video quality</string>
     <string name="revanced_remember_video_quality_shorts_last_selected_summary_off">Quality changes only apply to the current Short</string>
@@ -2663,7 +2663,7 @@ Info:
     <string name="revanced_remember_video_quality_shorts_last_selected_title">Remember Shorts quality changes</string>
     <string name="revanced_remember_video_quality_shorts_last_selected_toast_summary_off">A toast will not be shown when changing the default Shorts quality</string>
     <string name="revanced_remember_video_quality_shorts_last_selected_toast_summary_on">A toast will be shown when changing the default Shorts quality</string>
-    <string name="revanced_remember_video_quality_shorts_last_selected_toast_title">Show a toast</string>
+    <string name="revanced_remember_video_quality_shorts_last_selected_toast_title">Show a toast when Shorts quality changes</string>
     <string name="revanced_remember_video_quality_toast">Changed default %1$s quality to: %2$s</string>
     <string name="revanced_remember_video_quality_toast_shorts">Changed Shorts %1$s quality to: %2$s</string>
     <string name="revanced_remember_video_quality_wifi">WiFi</string>

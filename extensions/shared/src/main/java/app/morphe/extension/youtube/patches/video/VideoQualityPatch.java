@@ -6,6 +6,7 @@
  * https://github.com/ReVanced/revanced-patches/commit/724e6d61b2ecd868c1a9a37d465a688e83a74799
  *
  * See the included NOTICE file for GPLv3 Section 7 terms that apply to Morphe contributions.
+ * Modified by lavinhoque33, 2026-11-06
  */
 
 package app.morphe.extension.youtube.patches.video;
@@ -169,15 +170,15 @@ public class VideoQualityPatch {
     }
 
     public static void saveDefaultQuality(int qualityResolution) {
-        final boolean shortPlayerOpen = isShortsActive();
+        final boolean isShorts = isShortsActive();
         String networkTypeMessage;
         IntegerSetting qualitySetting;
         if (Utils.getNetworkType() == Utils.NetworkType.MOBILE) {
             networkTypeMessage = str("revanced_remember_video_quality_mobile");
-            qualitySetting = shortPlayerOpen ? shortsQualityMobile : videoQualityMobile;
+            qualitySetting = isShorts ? shortsQualityMobile : videoQualityMobile;
         } else {
             networkTypeMessage = str("revanced_remember_video_quality_wifi");
-            qualitySetting = shortPlayerOpen ? shortsQualityWifi : videoQualityWifi;
+            qualitySetting = isShorts ? shortsQualityWifi : videoQualityWifi;
         }
 
         if (qualitySetting.get() == qualityResolution) {
@@ -187,10 +188,14 @@ public class VideoQualityPatch {
         }
         qualitySetting.save(qualityResolution);
 
-        if (Settings.REMEMBER_VIDEO_QUALITY_LAST_SELECTED_TOAST.get()) {
+        BooleanSetting showToastSetting = isShorts
+                ? Settings.REMEMBER_VIDEO_QUALITY_SHORTS_LAST_SELECTED_TOAST
+                : Settings.REMEMBER_VIDEO_QUALITY_LAST_SELECTED_TOAST;
+
+        if (showToastSetting.get()) {
             String qualityLabel = qualityResolution + "p";
             Utils.showToastShort(str(
-                    shortPlayerOpen
+                    isShorts
                             ? "revanced_remember_video_quality_toast_shorts"
                             : "revanced_remember_video_quality_toast",
                     networkTypeMessage,

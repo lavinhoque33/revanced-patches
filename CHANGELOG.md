@@ -1,3 +1,11 @@
+## Unreleased
+
+### Bug Fixes
+
+* **YouTube - Video quality:** Make the Shorts quality toast switch control Shorts only, and the video
+  quality toast switch control regular videos only. If you previously turned off video quality toasts,
+  turn off the Shorts quality toast switch too to keep Shorts toasts off; existing choices are not copied.
+
 ## [1.32.1](https://github.com/lavinhoque33/revanced-patches/compare/v1.32.0...v1.32.1) (2026-11-06)
 
 ### Bug Fixes

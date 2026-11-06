@@ -276,7 +276,7 @@ Tap here to open AiSlopList.com and see downloads for other platforms"</string>
     <string name="morphe_hide_music_menu_title">Hide \'Music &amp; TV\' menu</string>
     <string name="morphe_hide_news_menu_title">Hide News menu</string>
     <string name="morphe_hide_notification_media_prev_next_summary">Hides Previous and Next buttons in media notification, lock screen, and headphone controls</string>
-    <string name="morphe_hide_notification_media_prev_next_title">Hide Previous &amp; Next buttons</string>
+    <string name="morphe_hide_notification_media_prev_next_title">Hide Previous &amp; Next buttons (notification controls)</string>
     <string name="morphe_hide_playables_menu_title">Hide Playables menu</string>
     <string name="morphe_hide_player_flyout_audio_track_not_available">"\'Audio Track\' menu is hidden
 
@@ -692,7 +692,7 @@ Tap here to open OpenRouter.ai"</string>
     <string name="revanced_advanced_video_quality_menu_title">Show advanced video quality menu</string>
     <string name="revanced_advanced_video_quality_menu_type_summary_off">Old style flyout menu is used</string>
     <string name="revanced_advanced_video_quality_menu_type_summary_on">Custom dialog is used</string>
-    <string name="revanced_advanced_video_quality_menu_type_title">Advanced video quality menu type in Shorts</string>
+    <string name="revanced_advanced_video_quality_menu_type_title">Shorts quality menu style</string>
     <string name="revanced_alt_thumbnail_dearrow_api_url_summary">The URL of the DeArrow thumbnail cache endpoint</string>
     <string name="revanced_alt_thumbnail_dearrow_api_url_title">DeArrow API endpoint</string>
     <string name="revanced_alt_thumbnail_dearrow_connection_toast_summary_off">Toast is not shown if DeArrow is unavailable</string>
@@ -725,7 +725,7 @@ Tap and hold to toggle the appended information type"</string>
     <string name="revanced_append_time_stamp_information_type_summary_off">Append playback speed</string>
     <string name="revanced_append_time_stamp_information_type_summary_on">Append video quality</string>
     <string name="revanced_append_time_stamp_information_type_title">Append information type</string>
-    <string name="revanced_append_time_stamp_information_video_quality_menu_type_title">Video quality menu type</string>
+    <string name="revanced_append_time_stamp_information_video_quality_menu_type_title">Timestamp quality menu style</string>
     <string name="revanced_auto_captions_style_entry_1">Always show</string>
     <string name="revanced_auto_captions_style_entry_2">Never show</string>
     <string name="revanced_auto_captions_style_entry_3">Show when unmuted</string>
@@ -834,7 +834,7 @@ Limitation: Back button on the toolbar may not work"</string>
     <string name="revanced_custom_playback_speed_menu_type_entry_custom_no_theme">Custom (No theme)</string>
     <string name="revanced_custom_playback_speed_menu_type_entry_youtube_legacy">YouTube legacy</string>
     <string name="revanced_custom_playback_speed_menu_type_summary_off">Modern bottom sheet is used</string>
-    <string name="revanced_custom_playback_speed_menu_type_title">Custom playback speed menu type</string>
+    <string name="revanced_custom_playback_speed_menu_type_title">Custom playback speed menu type (video flyout)</string>
     <string name="revanced_custom_playback_speeds_invalid">Custom speeds must be less than %sx</string>
     <string name="revanced_custom_playback_speeds_parse_exception">Invalid custom playback speeds</string>
     <string name="revanced_custom_playback_speeds_summary">Add or change available playback speeds</string>
@@ -1697,7 +1697,7 @@ Limitation: All overlay buttons may be hidden after the video ends"</string>
     <string name="revanced_hide_player_popup_ads_title">Hide player popup ads</string>
     <string name="revanced_hide_player_previous_next_button_summary_off">Previous &amp; Next buttons are shown</string>
     <string name="revanced_hide_player_previous_next_button_summary_on">Previous &amp; Next buttons are hidden</string>
-    <string name="revanced_hide_player_previous_next_button_title">Hide Previous &amp; Next buttons</string>
+    <string name="revanced_hide_player_previous_next_button_title">Hide Previous &amp; Next buttons (player)</string>
     <string name="revanced_hide_player_youtube_music_button_summary_off">YouTube Music button is shown</string>
     <string name="revanced_hide_player_youtube_music_button_summary_on">YouTube Music button is hidden</string>
     <string name="revanced_hide_player_youtube_music_button_title">Hide YouTube Music button</string>
@@ -2163,6 +2163,8 @@ Tap and hold to copy video timestamp"</string>
     <string name="revanced_overlay_button_copy_video_url_title">Show copy video URL button</string>
     <string name="revanced_overlay_button_external_downloader_queue_manager_summary">Instead of launching an external downloader, open the queue manager</string>
     <string name="revanced_overlay_button_external_downloader_queue_manager_title">Queue manager</string>
+    <string name="revanced_overlay_button_queue_manager_title">Queue manager (player button)</string>
+    <string name="revanced_override_video_download_button_queue_manager_title">Queue manager (download action)</string>
     <string name="revanced_overlay_button_external_downloader_summary">Tap to launch external downloader</string>
     <string name="revanced_overlay_button_external_downloader_title">Show external downloader button</string>
     <string name="revanced_overlay_button_gemini_about_summary">"Parsing the video may take a while depending on its length. Transcribing long videos may exceed Gemini's limits
@@ -2220,7 +2222,7 @@ Info:
     <string name="revanced_overlay_button_speed_dialog_summary">"Tap to open speed dialog
 Tap and hold to reset playback speed to 1.0x. Tap and hold again to reset back to default speed"</string>
     <string name="revanced_overlay_button_speed_dialog_title">Show speed dialog button</string>
-    <string name="revanced_overlay_button_speed_dialog_type_title">Speed dialog type</string>
+    <string name="revanced_overlay_button_speed_dialog_type_title">Speed dialog type (player button)</string>
     <string name="revanced_overlay_button_vot_summary">Show overlay button to toggle voice-over translation for the current video</string>
     <string name="revanced_overlay_button_vot_title">Voice Over Translation</string>
     <string name="revanced_overlay_button_whitelist_summary">"Tap to open whitelist dialog
@@ -2498,8 +2500,11 @@ Audio is saved to %2$s"</string>
     <string name="revanced_preference_category_others">Others</string>
     <string name="revanced_preference_category_patch_information">Patch information</string>
     <string name="revanced_preference_category_playback_speed">Playback speed</string>
+    <string name="revanced_preference_category_playback">Playback</string>
     <string name="revanced_preference_category_quick_actions">Quick actions</string>
     <string name="revanced_preference_category_shorts_shelf">Shorts shelves</string>
+    <string name="revanced_preference_category_shorts_video_quality">Shorts video quality</string>
+    <string name="revanced_preference_category_shorts_playback_speed">Shorts playback speed</string>
     <string name="revanced_preference_category_suggested_actions">Suggested actions</string>
     <string name="revanced_preference_category_video_quality">Video quality</string>
     <string name="revanced_preference_category_view_counts_filter">View count filter</string>
@@ -2526,7 +2531,8 @@ Audio is saved to %2$s"</string>
     <string name="revanced_preference_screen_debugging_summary">Enable or disable debugging options</string>
     <string name="revanced_preference_screen_debugging_title">Debugging</string>
     <string name="revanced_preference_screen_feed_flyout_menu_summary">Hide or show feed flyout menu components</string>
-    <string name="revanced_preference_screen_feed_flyout_menu_title">Flyout menu</string>
+    <string name="revanced_preference_screen_feed_flyout_menu_title">Feed flyout menu</string>
+    <string name="revanced_preference_screen_player_flyout_menu_title">Player flyout menu</string>
     <string name="revanced_preference_screen_feed_title">Feed</string>
     <string name="revanced_preference_screen_fullscreen_summary">Hide or change fullscreen related components</string>
     <string name="revanced_preference_screen_fullscreen_title">Fullscreen</string>
@@ -2631,7 +2637,7 @@ Description
     <string name="revanced_remember_playback_speed_last_selected_title">Remember playback speed changes</string>
     <string name="revanced_remember_playback_speed_last_selected_toast_summary_off">A toast will not be shown when changing the default playback speed</string>
     <string name="revanced_remember_playback_speed_last_selected_toast_summary_on">A toast will be shown when changing the default playback speed</string>
-    <string name="revanced_remember_playback_speed_last_selected_toast_title">Show a toast</string>
+    <string name="revanced_remember_playback_speed_last_selected_toast_title">Show a toast when speed or pitch changes</string>
     <string name="revanced_remember_playback_speed_shorts_last_selected_summary_off">Playback speed changes only apply to the current Short</string>
     <string name="revanced_remember_playback_speed_shorts_last_selected_summary_on">"Playback speed changes apply to all Shorts
 
@@ -2641,6 +2647,7 @@ Info:
     <string name="revanced_remember_playback_speed_shorts_last_selected_title">Remember playback speed changes on Shorts</string>
     <string name="revanced_remember_playback_speed_shorts_last_selected_toast_summary_off">A toast will not be shown when changing the default playback speed on Shorts</string>
     <string name="revanced_remember_playback_speed_shorts_last_selected_toast_summary_on">A toast will be shown when changing the default playback speed on Shorts</string>
+    <string name="revanced_remember_playback_speed_shorts_last_selected_toast_title">Show a toast when Shorts speed changes</string>
     <string name="revanced_remember_playback_speed_toast">Changed default playback speed to: %s</string>
     <string name="revanced_remember_playback_speed_toast_shorts">Changed default Shorts playback speed to: %s</string>
     <string name="revanced_remember_video_quality_last_selected_summary_off">Quality changes only apply to the current video</string>
@@ -2648,6 +2655,7 @@ Info:
     <string name="revanced_remember_video_quality_last_selected_title">Remember video quality changes</string>
     <string name="revanced_remember_video_quality_last_selected_toast_summary_off">A toast will not be shown when changing the default video quality</string>
     <string name="revanced_remember_video_quality_last_selected_toast_summary_on">A toast will be shown when changing the default video quality</string>
+    <string name="revanced_remember_video_quality_last_selected_toast_title">Show a toast when quality changes (videos and Shorts)</string>
     <string name="revanced_remember_video_quality_mobile">Mobile</string>
     <string name="revanced_remember_video_quality_none">Failed to set video quality</string>
     <string name="revanced_remember_video_quality_shorts_last_selected_summary_off">Quality changes only apply to the current Short</string>
@@ -2655,6 +2663,7 @@ Info:
     <string name="revanced_remember_video_quality_shorts_last_selected_title">Remember Shorts quality changes</string>
     <string name="revanced_remember_video_quality_shorts_last_selected_toast_summary_off">A toast will not be shown when changing the default Shorts quality</string>
     <string name="revanced_remember_video_quality_shorts_last_selected_toast_summary_on">A toast will be shown when changing the default Shorts quality</string>
+    <string name="revanced_remember_video_quality_shorts_last_selected_toast_title">Show a toast</string>
     <string name="revanced_remember_video_quality_toast">Changed default %1$s quality to: %2$s</string>
     <string name="revanced_remember_video_quality_toast_shorts">Changed Shorts %1$s quality to: %2$s</string>
     <string name="revanced_remember_video_quality_wifi">WiFi</string>
@@ -3066,6 +3075,7 @@ Most bugs cannot be fixed due to client-side limitations, so use it only for tes
     <string name="revanced_shorts_custom_actions_speed_dialog_summary_on">Speed dialog menu is shown</string>
     <string name="revanced_shorts_custom_actions_speed_dialog_title">Show speed dialog menu</string>
     <string name="revanced_shorts_custom_actions_speed_dialog_type_user_dialog_message">Modern speed ​dialog may not work on YouTube 19.01-19.34</string>
+    <string name="revanced_shorts_custom_actions_speed_dialog_type_title">Speed dialog type (Shorts)</string>
     <string name="revanced_shorts_custom_actions_speed_summary_off">Playback speed menu is hidden\n\nInfo:\n• Shorts default playback speed should be enabled\n• The selected speed will be applied to the next video</string>
     <string name="revanced_shorts_custom_actions_speed_summary_on">Playback speed menu is shown\n\nInfo:\n• Shorts default playback speed should be enabled\n• The selected speed will be applied to the next video</string>
     <string name="revanced_shorts_custom_actions_speed_title">Show playback speed menu</string>
@@ -3092,7 +3102,7 @@ Most bugs cannot be fixed due to client-side limitations, so use it only for tes
     <string name="revanced_show_settings_button_title">Show Settings</string>
     <string name="revanced_show_settings_button_type_summary_off">Tap to open YouTube settings</string>
     <string name="revanced_show_settings_button_type_summary_on">Tap to open RVX settings</string>
-    <string name="revanced_show_settings_button_type_title">Settings button action</string>
+    <string name="revanced_show_settings_button_type_title">Settings button action (navigation bar)</string>
     <string name="revanced_show_toolbar_settings_button_index_title">Toolbar Settings button index</string>
     <string name="revanced_show_toolbar_settings_button_summary_off">Settings button is not shown in the toolbar</string>
     <string name="revanced_show_toolbar_settings_button_summary_on">Settings button is shown in the toolbar</string>
@@ -3100,6 +3110,7 @@ Most bugs cannot be fixed due to client-side limitations, so use it only for tes
     <string name="revanced_show_toolbar_settings_button_type_in_you_tab_summary_off">Original Settings button action is preserved in the You tab</string>
     <string name="revanced_show_toolbar_settings_button_type_in_you_tab_summary_on">Settings button action is applied to the You tab</string>
     <string name="revanced_show_toolbar_settings_button_type_in_you_tab_title">Apply to You tab</string>
+    <string name="revanced_show_toolbar_settings_button_type_title">Settings button action (toolbar)</string>
     <string name="revanced_show_video_title_section_summary">"Shows the video title section in fullscreen
 
 Limitation: Video title disappears when clicked"</string>

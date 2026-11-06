@@ -58,17 +58,19 @@ final class OfflineCaptions {
         final Set<String> selected = new LinkedHashSet<>();
         boolean include;
         String format;
+        final boolean rateLimited;
 
         Catalog(List<Track> tracks) {
+            this(tracks, false);
+        }
+
+        Catalog(List<Track> tracks, boolean rateLimited) {
+            this.rateLimited = rateLimited;
             this.tracks = tracks;
             include = Settings.OFFLINE_SUBTITLES_INCLUDE.get();
             format = "vtt".equals(Settings.OFFLINE_SUBTITLES_FORMAT.get()) ? "vtt" : "srt";
             String[] remembered = Settings.OFFLINE_SUBTITLES_LANGUAGES.get().split(",");
-            for (String key : remembered) {
-                for (Track track : tracks) {
-                    if (track.key().equals(key)) OfflineSubtitle.select(selected, key, true);
-                }
-            }
+            OfflineCaptionChoices.restoreRemembered(selected, tracks, remembered);
             if (selected.isEmpty() && !tracks.isEmpty()) {
                 Track preferred = tracks.get(0);
                 for (Track track : tracks) {
@@ -177,16 +179,19 @@ final class OfflineCaptions {
     static Catalog resolve(String videoId, PlayerResponse response, boolean fetchMissing) {
         CaptionTrackList list = response.getCaptions().getPlayerCaptionsTracklistRenderer();
         logMetadata(videoId, "download", list);
+        boolean rateLimited = false;
         if (fetchMissing && OfflineCaptionChoices.needsMetadata(list)) {
             try {
                 CaptionTrackList fetched = fetchPlayer(videoId).getCaptions().getPlayerCaptionsTracklistRenderer();
                 logMetadata(videoId, "ANDROID", fetched);
                 if (fetched.getCaptionTracksCount() > 0) list = fetched;
+            } catch (RateLimitException ex) {
+                rateLimited = true;
             } catch (Exception ex) {
                 Logger.printInfo(() -> "Offline captions unavailable for " + videoId, ex);
             }
         }
-        return new Catalog(OfflineCaptionChoices.from(list));
+        return new Catalog(OfflineCaptionChoices.from(list), rateLimited);
     }
 
     private static void logMetadata(String videoId, String source, CaptionTrackList list) {
@@ -212,13 +217,18 @@ final class OfflineCaptions {
             }
             int status = connection.getResponseCode();
             Logger.printDebug(() -> "Offline caption player " + videoId + " HTTP " + status);
-            if (status != 200) throw new IOException("Caption player HTTP " + status);
+            checkPlayerStatus(status);
             try (InputStream input = connection.getInputStream()) {
                 return PlayerResponse.parseFrom(input);
             }
         } finally {
             connection.disconnect();
         }
+    }
+
+    static void checkPlayerStatus(int status) throws IOException {
+        if (OfflineSubtitle.isRateLimited(status, "")) throw new RateLimitException();
+        if (status != 200) throw new IOException("Caption player HTTP " + status);
     }
 
     static void download(Context context, OfflineVideo video, OfflineDownloader.Task task) {
@@ -350,6 +360,6 @@ final class OfflineCaptions {
         }
     }
 
-    private static final class RateLimitException extends IOException {
+    static final class RateLimitException extends IOException {
     }
 }

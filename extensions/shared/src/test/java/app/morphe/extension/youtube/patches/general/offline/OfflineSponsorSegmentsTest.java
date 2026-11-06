@@ -5,6 +5,7 @@
  * https://github.com/anddea/revanced-patches
  *
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-05.
  * Written by lavinhoque33, 2026-11-05.
  */
 package app.morphe.extension.youtube.patches.general.offline;
@@ -94,5 +95,29 @@ public class OfflineSponsorSegmentsTest {
         assertEquals(100_000, copy.sponsorDurationMs);
         assertEquals(SELECTED, copy.sponsorCategories);
         assertEquals(SEGMENTS, copy.sponsorSegments);
+    }
+
+    @Test public void skippedOnceSegmentsBecomeManualWhenSeekingBack() {
+        assertEquals(SPONSOR, OfflineSponsorSegments.at(List.of(SPONSOR), SELECTED, 2000,
+                true, Set.of(), key -> "skip-once"));
+        assertNull(OfflineSponsorSegments.at(List.of(SPONSOR), SELECTED, 2000,
+                false, Set.of(), key -> "skip-once"));
+        assertNull(OfflineSponsorSegments.at(List.of(SPONSOR), SELECTED, 2000,
+                true, Set.of(SPONSOR), key -> "skip-once"));
+        assertEquals(SPONSOR, OfflineSponsorSegments.at(List.of(SPONSOR), SELECTED, 2000,
+                false, Set.of(SPONSOR), key -> "skip-once"));
+        assertNull(OfflineSponsorSegments.at(List.of(SPONSOR), SELECTED, 5000,
+                false, Set.of(SPONSOR), key -> "skip-once"));
+    }
+
+    @Test public void toleratedOutroEndClampsToTheFileDuration() {
+        Segment outro = new Segment("outro", 95_000, 105_000);
+        assertEquals(100_000, OfflineSponsorSegments.skipTarget(outro, 98_000, 105_000, 100_000));
+        assertEquals(105_000, OfflineSponsorSegments.skipTarget(outro, 98_000, 105_000, 106_000));
+        assertEquals(-1, OfflineSponsorSegments.skipTarget(outro, 100_000, 105_000, 100_000));
+        assertEquals(-1, OfflineSponsorSegments.skipTarget(outro, 94_999, 105_000, 100_000));
+        assertEquals(-1, OfflineSponsorSegments.skipTarget(outro, 98_000, 105_001, 100_000));
+        assertEquals(-1, OfflineSponsorSegments.skipTarget(new Segment("outro", 95_000, 105_001),
+                98_000, 105_000, 100_000));
     }
 }

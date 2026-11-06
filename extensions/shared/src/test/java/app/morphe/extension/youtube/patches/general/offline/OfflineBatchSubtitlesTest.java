@@ -5,6 +5,7 @@
  * https://github.com/anddea/revanced-patches
  *
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-05.
  * Written by lavinhoque33, 2026-11-05.
  */
 package app.morphe.extension.youtube.patches.general.offline;
@@ -53,5 +54,32 @@ public class OfflineBatchSubtitlesTest {
         assertEquals("en-US", OfflineBatchSubtitles.languageOf("a.en-US"));
         assertEquals("fr", OfflineBatchSubtitles.languageOf("fr:asr"));
         assertEquals("", OfflineBatchSubtitles.languageOf("translate:en"));
+    }
+
+    @Test public void metadataRateLimitOpensTheBatchCircuitWithoutFailingTheVideo() throws Exception {
+        OfflineBatchSubtitles counts = new OfflineBatchSubtitles();
+        OfflineCaptions.checkPlayerStatus(200);
+        counts.metadataResolved(false);
+        assertTrue(counts.shouldResolve(true));
+        try {
+            OfflineCaptions.checkPlayerStatus(429);
+            fail("Caption metadata HTTP 429 must retain its rate-limit type");
+        } catch (OfflineCaptions.RateLimitException expected) {
+            counts.metadataResolved(true);
+        }
+        counts.finished(2, 0, false);
+        counts.metadataResolved(false);
+        assertFalse(counts.shouldResolve(true));
+        assertTrue(counts.summaryKeys().contains("revanced_offline_batch_subtitles_limited"));
+        assertEquals(2, counts.skipped);
+    }
+
+    @Test public void ordinaryMetadataErrorsAreNotClassifiedAsRateLimits() {
+        try {
+            OfflineCaptions.checkPlayerStatus(503);
+            fail("Non-success metadata status must remain an I/O error");
+        } catch (java.io.IOException expected) {
+            assertFalse(expected instanceof OfflineCaptions.RateLimitException);
+        }
     }
 }

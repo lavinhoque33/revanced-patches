@@ -109,7 +109,8 @@ public final class OfflinePlayer {
                     && OfflineSponsorSegments.durationMatches(video.sponsorDurationMs, getDuration());
             OfflineSponsorSegments.Segment automatic = valid ? OfflineSponsorSegments.at(video.sponsorSegments,
                     video.sponsorCategories, position, true, skippedOnce, sponsorBehavior) : null;
-            if (automatic != null && automatic.endMs() <= getDuration()
+            if (automatic != null && OfflineSponsorSegments.skipTarget(automatic, position,
+                    video.sponsorDurationMs, getDuration()) >= 0
                     && OfflineSponsorSegments.canRepeat(SystemClock.elapsedRealtime(), lastSponsorSkip)) {
                 skipSponsor(automatic);
             }
@@ -137,10 +138,14 @@ public final class OfflinePlayer {
 
     private static void skipSponsor(OfflineSponsorSegments.Segment segment) {
         long position = getPosition();
+        OfflineVideo video = current;
+        if (video == null) return;
+        long target = OfflineSponsorSegments.skipTarget(segment, position, video.sponsorDurationMs, getDuration());
+        if (target < 0) return;
         skippedOnce.add(segment);
         lastSponsorSkip = SystemClock.elapsedRealtime();
         manualSegment = null;
-        seekTo(segment.endMs());
+        seekTo(target);
         SegmentCategory category = SegmentCategory.byCategoryKey(segment.category());
         if (category != null && Settings.SB_TOAST_ON_SKIP.get()) {
             long duration = getDuration();

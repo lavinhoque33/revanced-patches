@@ -5,6 +5,7 @@
  * https://github.com/anddea/revanced-patches
  *
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-05.
  * Written by lavinhoque33, 2026-11-05.
  */
 package app.morphe.extension.youtube.patches.general.offline;
@@ -22,6 +23,10 @@ final class OfflineBatchSubtitles {
 
     boolean shouldResolve(boolean requested) {
         return requested && !rateLimited;
+    }
+
+    void metadataResolved(boolean limited) {
+        rateLimited |= limited;
     }
 
     void finished(int requested, int downloaded, boolean limited) {

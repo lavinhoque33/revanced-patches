@@ -710,6 +710,7 @@ public final class OfflineDownloader {
         OfflineFormats.Resolved resolved = OfflineFormats.resolve(task.videoId, 0, false, withCaptions);
         checkCancelled(task);
         if (resolved == null) throw new IOException(str("revanced_offline_no_formats"));
+        task.batch.subtitleCounts.metadataResolved(resolved.captions().rateLimited);
 
         OfflineFormats.Stream video = task.item.audioOnly() ? selectAudio(resolved)
                 : selectStream(resolved, task.item.heightLimit());
@@ -717,7 +718,7 @@ public final class OfflineDownloader {
 
         task.resolved = resolved;
         if (!task.item.audioOnly() && !task.batch.subtitles.tracks().isEmpty()) {
-            List<OfflineCaptionChoices.Track> matches = withCaptions
+            List<OfflineCaptionChoices.Track> matches = task.batch.subtitleCounts.shouldResolve(withCaptions)
                     ? OfflineBatchSubtitles.match(task.batch.subtitles.tracks(), resolved.captions().tracks) : List.of();
             task.batch.subtitleCounts.skipped += task.batch.subtitles.tracks().size() - matches.size();
             task.subtitles = new OfflineCaptions.Selection(matches, task.batch.subtitles.format());
@@ -742,8 +743,12 @@ public final class OfflineDownloader {
                 final int next = task.resolved.clientIndex() + 1;
                 final OfflineFormats.Resolved other = next < OfflineFormats.clientCount()
                         ? OfflineFormats.resolve(task.videoId, next, stream.premium() && stream.hls(),
-                                !task.subtitles.tracks().isEmpty())
+                                !task.subtitles.tracks().isEmpty()
+                                        && (task.batch == null || !task.batch.subtitleCounts.rateLimited))
                         : null;
+                if (other != null && task.batch != null) {
+                    task.batch.subtitleCounts.metadataResolved(other.captions().rateLimited);
+                }
                 final OfflineFormats.Stream match = other == null ? null : other.find(stream.key());
                 if (match == null) throw ex;
 

@@ -5,6 +5,7 @@
  * https://github.com/anddea/revanced-patches
  *
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-05.
  * Written by lavinhoque33, 2026-11-05.
  */
 package app.morphe.extension.youtube.patches.general.offline;
@@ -69,6 +70,14 @@ final class OfflineSponsorSegments {
         return reported > 0 && actual > 0 && Math.abs(reported - actual) <= 5000;
     }
 
+    /** A tolerated tail segment may end just beyond the file, but must still move playback forward. */
+    static long skipTarget(Segment segment, long position, long reportedDuration, long actualDuration) {
+        if (!durationMatches(reportedDuration, actualDuration)
+                || (segment.endMs() > actualDuration && segment.endMs() - actualDuration > 5000)) return -1;
+        long target = Math.min(segment.endMs(), actualDuration);
+        return position >= segment.startMs() && position < target ? target : -1;
+    }
+
     static Segment at(List<Segment> segments, List<String> selected, long position, boolean automatic,
                       Set<Segment> skippedOnce, Function<String, String> behavior) {
         Segment chosen = null;
@@ -77,8 +86,10 @@ final class OfflineSponsorSegments {
                 continue;
             }
             String mode = behavior.apply(segment.category());
-            boolean skip = "skip".equals(mode) || ("skip-once".equals(mode) && !skippedOnce.contains(segment));
-            if (automatic ? !skip : !"manual-skip".equals(mode)) continue;
+            boolean alreadySkipped = skippedOnce.contains(segment);
+            boolean skip = "skip".equals(mode) || ("skip-once".equals(mode) && !alreadySkipped);
+            boolean manual = "manual-skip".equals(mode) || ("skip-once".equals(mode) && alreadySkipped);
+            if (automatic ? !skip : !manual) continue;
             if (chosen == null || segment.endMs() > chosen.endMs()) chosen = segment;
         }
         return chosen;

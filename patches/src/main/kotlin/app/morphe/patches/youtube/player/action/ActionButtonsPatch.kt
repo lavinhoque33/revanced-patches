@@ -4,6 +4,7 @@
  * https://github.com/MorpheApp/morphe-patches
  *
  * See the included NOTICE file for GPLv3 §7(b) and §7(c) terms that apply to Morphe contributions.
+ * Modified by lavinhoque33, 2026-11-06.
  */
 
 package app.morphe.patches.youtube.player.action
@@ -133,7 +134,7 @@ internal val restoreOldVideoActionBarPatch = bytecodePatch(
                 arrayOf(
                     "PREFERENCE_SCREEN: PLAYER",
                     "PREFERENCE_SCREENS: PLAYER_BUTTONS",
-                    "SETTINGS: RESTORE_OLD_VIDEO_ACTION_BAR"
+                    "SETTINGS: VIDEO_ACTION_BAR_LAYOUT"
                 )
             )
 

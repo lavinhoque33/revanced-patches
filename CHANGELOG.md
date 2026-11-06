@@ -1,3 +1,11 @@
+## Unreleased
+
+### Features
+
+* **YouTube - Video action bar layout:** Replace Restore old video action bar with a layout list.
+  Existing restore selections migrate to Classic One-Row; the removed tablet layout toggle migrates to
+  Classic Two-Rows and takes precedence. New installations use Default. Ported from Morphe.
+
 ## [1.30.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.29.1...v1.30.0) (2026-11-06)
 
 Merged anddea/revanced-patches@dev (89104d55b, v4.4.0-dev.5).

@@ -9,7 +9,7 @@
  * - inotia00 (https://github.com/inotia00)
  *
  * Licensed under the GNU General Public License v3.0.
- * Modified by lavinhoque33, 2026-10-28
+ * Modified by lavinhoque33, 2026-11-06.
  *
  * ------------------------------------------------------------------------
  * GPLv3 Section 7 – Additional Terms & Attribution Requirements
@@ -454,7 +454,7 @@ public class ReturnYouTubeDislikePatch {
      */
     private static boolean regularActionButtonCountOverlaysAreUnsupported() {
         return Settings.DISABLE_LAYOUT_UPDATES.get()
-                || Settings.RESTORE_OLD_VIDEO_ACTION_BAR.get()
+                || Settings.VIDEO_ACTION_BAR_LAYOUT.get().isClassic()
                 // Segmented/old layouts already receive the count through onLithoTextLoaded().
                 || ActionButtonsFilter.hasCurrentVideoActionButton(ActionButton.LIKE_DISLIKE);
     }

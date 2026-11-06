@@ -534,10 +534,6 @@ If you are a YouTube Premium user, this setting may not be required"</string>
     <string name="morphe_stable_caption_blocks_title">Stable caption blocks</string>
     <string name="morphe_swap_save_and_queue_actions_summary">Tap for queue options, tap and hold to save to Watch later</string>
     <string name="morphe_swap_save_and_queue_actions_title">Swap Save and Queue actions</string>
-    <string name="morphe_tablet_layout_in_player_summary">"Restores the old player layout
-
-Limitation: If \'Restore old video action bar\' is turned off, \'More videos\' overlay may not be available"</string>
-    <string name="morphe_tablet_layout_in_player_title">Enable tablet layout in player</string>
     <string name="morphe_theme_color_change_foreground_summary">Use the theme color for text and icons</string>
     <string name="morphe_theme_color_change_foreground_title">Change foreground color</string>
     <string name="morphe_theme_entry_amoled_black">Amoled Black</string>
@@ -2637,10 +2633,12 @@ Tap and hold to open YouTube settings"</string>
     <string name="revanced_restart_first_run">Restart to load the layout normally</string>
     <string name="revanced_restart_title">Restart required</string>
     <string name="revanced_restore_old_settings_menus_title">Restore old YouTube settings screen</string>
-    <string name="revanced_restore_old_video_action_bar_summary">"Fixes dislikes not shown and action buttons that cannot be hidden
-
-Limitations: Reverts to old style 'More videos' overlay"</string>
-    <string name="revanced_restore_old_video_action_bar_title">Restore old video action bar</string>
+    <string name="morphe_video_action_bar_layout_title">Video action bar layout</string>
+    <string name="morphe_video_action_bar_layout_entry_1">Default</string>
+    <string name="morphe_video_action_bar_layout_entry_2">Classic One-Row</string>
+    <string name="morphe_video_action_bar_layout_entry_3">Classic Two-Rows</string>
+    <string name="morphe_video_action_bar_layout_entry_4">Minimal</string>
+    <string name="morphe_video_action_bar_layout_user_dialog_message">Limitation: Classic layouts revert to the old style \'More videos\' overlay.</string>
     <string name="revanced_restore_shorts_old_player_layout_summary_off">Old player layout is not used</string>
     <string name="revanced_restore_shorts_old_player_layout_summary_on">"Old player layout is used
 No margins on top and bottom of player"</string>

@@ -74,7 +74,7 @@ import app.morphe.extension.youtube.patches.dearrow.DeArrowPatch.ThumbnailStillT
 import app.morphe.extension.youtube.patches.components.FeedComponentsFilter;
 import app.morphe.extension.youtube.patches.feed.FeedCardLayoutPatch.FeedCardLayout;
 import app.morphe.extension.youtube.patches.general.ChangeFormFactorPatch.FormFactor;
-import app.morphe.extension.youtube.patches.general.ChangeFormFactorPatch.TabletLayoutInPlayerAvailability;
+import app.morphe.extension.youtube.patches.player.VideoActionBarLayout;
 import app.morphe.extension.youtube.patches.general.ChangeStartPagePatch;
 import app.morphe.extension.youtube.patches.general.ChangeStartPagePatch.StartPage;
 import app.morphe.extension.youtube.patches.player.ExitFullscreenPatch.FullscreenMode;
@@ -422,7 +422,8 @@ public class Settings extends SharedYouTubeSettings {
     public static final StringSetting TRANSCRIPT_COOKIES = new StringSetting("revanced_transcript_cookies", "", true, parent(SET_TRANSCRIPT_COOKIES));
 
     public static final EnumSetting<FormFactor> CHANGE_FORM_FACTOR = new EnumSetting<>("revanced_change_form_factor", FormFactor.DEFAULT, true, "revanced_change_form_factor_user_dialog_message");
-    public static final BooleanSetting TABLET_LAYOUT_IN_PLAYER = new BooleanSetting("morphe_tablet_layout_in_player", FALSE, true, new TabletLayoutInPlayerAvailability());
+    private static final BooleanSetting DEPRECATED_TABLET_LAYOUT_IN_PLAYER =
+            new BooleanSetting("morphe_tablet_layout_in_player", FALSE, false, false);
     public static final BooleanSetting DISABLE_LAYOUT_UPDATES = new BooleanSetting("revanced_disable_layout_updates", FALSE, true, "revanced_disable_layout_updates_user_dialog_message");
     // modified by lavinhoque33, 2026-10-15: Force system font setting.
     public static final BooleanSetting FORCE_SYSTEM_FONT = new BooleanSetting("revanced_force_system_font", FALSE, true);
@@ -655,7 +656,11 @@ public class Settings extends SharedYouTubeSettings {
     public static final BooleanSetting HIDE_SHOP_BUTTON = new BooleanSetting("revanced_hide_shop_button", FALSE, true, parentInverted(HIDE_ACTION_BAR));
     public static final BooleanSetting HIDE_STOP_ADS_BUTTON = new BooleanSetting("revanced_hide_stop_ads_button", FALSE, true, parentInverted(HIDE_ACTION_BAR));
     public static final BooleanSetting HIDE_THANKS_BUTTON = new BooleanSetting("revanced_hide_thanks_button", FALSE, true, parentInverted(HIDE_ACTION_BAR));
-    public static final BooleanSetting RESTORE_OLD_VIDEO_ACTION_BAR = new BooleanSetting("revanced_restore_old_video_action_bar", FALSE, true);
+    private static final BooleanSetting DEPRECATED_RESTORE_OLD_VIDEO_ACTION_BAR =
+            new BooleanSetting("revanced_restore_old_video_action_bar", FALSE, false, false);
+    public static final EnumSetting<VideoActionBarLayout> VIDEO_ACTION_BAR_LAYOUT = new EnumSetting<>(
+            "morphe_video_action_bar_layout", VideoActionBarLayout.DEFAULT, true,
+            "morphe_video_action_bar_layout_user_dialog_message");
     public static final StringSetting INNERTUBE_COLD_CONFIG_DATA = new StringSetting("revanced_innertube_cold_config_data", "", false, false);
     public static final StringSetting INNERTUBE_COLD_HASH_DATA = new StringSetting("revanced_innertube_cold_hash_data", "", false, false);
 
@@ -1448,6 +1453,14 @@ public class Settings extends SharedYouTubeSettings {
                 migrateFromOldPreferences(ytPrefs, setting, key);
             }
         }
+
+        if (!Setting.preferences.preferences.contains(VIDEO_ACTION_BAR_LAYOUT.key)
+                && (DEPRECATED_RESTORE_OLD_VIDEO_ACTION_BAR.get() || DEPRECATED_TABLET_LAYOUT_IN_PLAYER.get())) {
+            VIDEO_ACTION_BAR_LAYOUT.save(VideoActionBarLayout.migrate(
+                    DEPRECATED_RESTORE_OLD_VIDEO_ACTION_BAR.get(), DEPRECATED_TABLET_LAYOUT_IN_PLAYER.get()));
+        }
+        DEPRECATED_RESTORE_OLD_VIDEO_ACTION_BAR.resetToDefault();
+        DEPRECATED_TABLET_LAYOUT_IN_PLAYER.resetToDefault();
 
         migrateLegacyMiniplayerType();
 

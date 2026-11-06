@@ -1,4 +1,4 @@
-## Unreleased
+## [1.30.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.29.1...v1.30.0) (2026-11-06)
 
 Merged anddea/revanced-patches@dev (89104d55b, v4.4.0-dev.5).
 

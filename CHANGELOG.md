@@ -2,7 +2,7 @@
 
 ### Features
 
-* **YouTube - Video action bar layout:** Choose Default, Classic One-Row or Minimal layouts independently
+* **YouTube - Video action bar layout:** Choose Default, Classic One-Row, Classic Two-Rows or Minimal layouts independently
   of the layout sent by YouTube (ported from Morphe). Existing restore selections migrate to Classic One-Row;
   the removed tablet layout toggle migrates to Classic Two-Rows and takes precedence. New installations
   use Default. Classic layouts retain the old-style More videos overlay.

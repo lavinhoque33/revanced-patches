@@ -16,6 +16,8 @@ import app.morphe.patcher.extensions.InstructionExtensions.getInstruction
 import app.morphe.patcher.fieldAccess
 import app.morphe.patcher.literal
 import app.morphe.patcher.patch.bytecodePatch
+import app.morphe.patcher.patch.BytecodePatchContext
+import app.morphe.patcher.extensions.InstructionExtensions.addInstructionsWithLabels
 import app.morphe.patcher.util.getReference
 import app.morphe.patcher.util.proxy.mutableTypes.MutableMethod.Companion.toMutable
 import app.morphe.patcher.util.registersUsed
@@ -23,11 +25,15 @@ import app.morphe.patches.shared.CLIENT_INFO_CLASS_DESCRIPTOR
 import app.morphe.patches.shared.litho.addLithoFilter
 import app.morphe.patches.shared.litho.lithoFilterPatch
 import app.morphe.patches.shared.misc.fix.proto.fixProtoLibraryPatch
+import app.morphe.patches.shared.misc.fix.proto.immutableMethodRef
+import app.morphe.patches.shared.misc.fix.proto.mutableCopyMethodRef
 import app.morphe.patches.shared.misc.request.buildRequestPatch
 import app.morphe.patches.shared.misc.request.hookBuildRequest
 import app.morphe.patches.shared.misc.spoof.BuildInnerTubeProtoRequestUriFingerprint
 import app.morphe.patches.shared.misc.spoof.addMediaSessionOverride
 import app.morphe.patches.youtube.shared.WatchNextResponseParserFingerprint
+import app.morphe.patches.youtube.shared.watchNextResultsFingerprint
+import app.morphe.patches.youtube.utils.commandrouter.parseProtoInstructions
 import app.morphe.patches.youtube.utils.auth.authHookPatch
 import app.morphe.patches.youtube.utils.compatibility.Constants.COMPATIBILITY_YOUTUBE
 import app.morphe.patches.youtube.utils.componentlist.hookElementList
@@ -52,6 +58,7 @@ import app.morphe.patches.youtube.video.videoid.videoIdPatch
 import app.morphe.util.findInstructionIndicesReversedOrThrow
 import app.morphe.util.indexOfFirstInstructionReversedOrThrow
 import app.morphe.util.insertLiteralOverride
+import app.morphe.util.Utils.printWarn
 import com.android.tools.smali.dexlib2.AccessFlags
 import com.android.tools.smali.dexlib2.Opcode
 import com.android.tools.smali.dexlib2.builder.MutableMethodImplementation
@@ -135,6 +142,9 @@ internal val restoreOldVideoActionBarPatch = bytecodePatch(
         if (is_20_30_or_greater) {
             // Elements without compactify_video_action_bar.eml retain their original bytes.
             hookElement("$PLAYER_PATH/VideoActionBarLayoutPatch;->setVideoActionBarLayout([B)[B")
+            runCatching { hookTwoRowsSection() }.onFailure {
+                printWarn("Classic Two-Rows is unavailable: could not hook watch-next sections (${it.message})")
+            }
 
             addPreference(
                 arrayOf(
@@ -328,5 +338,82 @@ val actionButtonsPatch = bytecodePatch(
 
         // endregion
 
+    }
+}
+
+private fun BytecodePatchContext.hookTwoRowsSection() {
+    watchNextResultsFingerprint(
+        immutableMethodRef.get()!!.definingClass,
+        with (WatchNextResponseParserFingerprint) {
+            clearMatch() // Fingerprint is shared and indexes may no longer be correct.
+            instructionMatches[2].fieldReference.definingClass
+        }
+    ).let {
+        val sectionsField = it.instructionMatches.first().fieldReference
+        val sectionClass = it.instructionMatches.last().fieldReference.definingClass
+        val makeImmutableMethod = classDefBy(sectionsField.type).methods.single { method ->
+            method.returnType == "V" && method.parameterTypes.isEmpty()
+        }
+
+        it.method.apply {
+            val helperMethod = ImmutableMethod(
+                definingClass,
+                "patch_setTwoRowsSection",
+                listOf(ImmutableMethodParameter(parameterTypes.first().toString(), null, null)),
+                "V",
+                AccessFlags.PRIVATE.value or AccessFlags.FINAL.value,
+                null,
+                null,
+                MutableMethodImplementation(8),
+            ).toMutable().apply {
+                addInstructionsWithLabels(
+                    0,
+                    """
+                        iget-object v0, p1, $sectionsField
+                        invoke-interface { v0 }, Ljava/util/List;->isEmpty()Z
+                        move-result v1
+                        if-nez v1, :exit
+
+                        # The section of the channel and the buttons is the first section.
+                        # The others may have been changed in place by 'Hide related videos',
+                        # and cannot be serialized.
+                        const/4 v2, 0x0
+                        invoke-interface { v0, v2 }, Ljava/util/List;->get(I)Ljava/lang/Object;
+                        move-result-object v3
+                        check-cast v3, Lcom/google/protobuf/MessageLite;
+                        invoke-static { v3 }, $PLAYER_PATH/VideoActionBarLayoutPatch;->getTwoRowsSection(Lcom/google/protobuf/MessageLite;)[B
+                        move-result-object v3
+                        if-eqz v3, :exit
+
+                        ${parseProtoInstructions(sectionClass, "v3", "v4", "v5")}
+                        check-cast v4, $sectionClass
+
+                        # The list of a parsed response cannot be modified. 'Hide related videos'
+                        # relies on it, so the new list cannot be modified either.
+                        invoke-interface { v0 }, ${immutableMethodRef.get()!!}
+                        move-result v5
+                        if-nez v5, :set
+                        invoke-static { v0 }, ${mutableCopyMethodRef.get()!!}
+                        move-result-object v0
+
+                        :set
+                        invoke-interface { v0, v2, v4 }, Ljava/util/List;->set(ILjava/lang/Object;)Ljava/lang/Object;
+                        if-nez v5, :exit
+                        invoke-interface { v0 }, $makeImmutableMethod
+                        iput-object v0, p1, $sectionsField
+
+                        :exit
+                        return-void
+                    """
+                )
+            }
+
+            it.classDef.methods.add(helperMethod)
+
+            addInstruction(
+                0,
+                "invoke-direct { p0, p1 }, $helperMethod"
+            )
+        }
     }
 }

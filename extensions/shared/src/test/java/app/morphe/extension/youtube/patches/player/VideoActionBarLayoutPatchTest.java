@@ -122,4 +122,36 @@ public class VideoActionBarLayoutPatchTest {
         assertEquals(element.getType().getComponentType().getTemplateConfig(),
                 rewritten.getType().getComponentType().getTemplateConfig());
     }
+
+    @Test
+    public void splitsChannelFromButtonsAndLabelsShare() {
+        VideoActionBarViewModel original = classic().toBuilder().setLayoutConfig(
+                VideoActionBarLayoutConfig.newBuilder().setEnableMarginStartAdjustment(true)).build();
+        VideoActionBarViewModel buttons = VideoActionBarLayoutPatch.buttonsRow(original);
+        assertEquals(original.getActionsCount() - 1, buttons.getActionsCount());
+        assertEquals(original.getActions(1), buttons.getActions(0));
+        assertFalse(buttons.getLayoutConfig().getEnableMarginStartAdjustment());
+        assertEquals("Share", buttons.getActions(1).getContent().getButton().getTitle());
+        assertEquals(original.getActions(3), buttons.getActions(2));
+        assertEquals(5, original.getActionsCount());
+    }
+
+    @Test
+    public void channelRowResetsHeaderStyleAndCanHideOnlySubscribe() {
+        CompactChannelBarViewModel channel = CompactChannelBarViewModel.newBuilder()
+                .setChannelBarStyle(1)
+                .setChannelBarHeader(ChannelBarHeaderViewModelHolder.newBuilder().setChannelBarHeaderViewModel(
+                        ChannelBarHeaderViewModel.newBuilder().setStyle(7)))
+                .setSubscribeButton(SubscribeButtonViewModelHolder.newBuilder().setSubscribeButtonViewModel(
+                        SubscribeButtonViewModel.newBuilder().setStateEntityStoreKey("subscription")))
+                .build();
+        CompactChannelBarViewModel visible = VideoActionBarLayoutPatch.channelRow(channel, false);
+        assertEquals(2, visible.getChannelBarStyle());
+        assertEquals(0, visible.getChannelBarHeader().getChannelBarHeaderViewModel().getStyle());
+        assertEquals(channel.getSubscribeButton(), visible.getSubscribeButton());
+        CompactChannelBarViewModel hidden = VideoActionBarLayoutPatch.channelRow(channel, true);
+        assertFalse(hidden.hasSubscribeButton());
+        assertEquals(visible.getChannelBarHeader(), hidden.getChannelBarHeader());
+        assertTrue(channel.hasSubscribeButton());
+    }
 }

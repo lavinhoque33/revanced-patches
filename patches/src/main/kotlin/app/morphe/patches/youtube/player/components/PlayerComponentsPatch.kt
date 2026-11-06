@@ -4,12 +4,12 @@
  * https://github.com/MorpheApp/morphe-patches
  *
  * See the included NOTICE file for GPLv3 §7(b) and §7(c) terms that apply to Morphe contributions.
+ * Modified by lavinhoque33, 2026-11-06.
  */
 
 package app.morphe.patches.youtube.player.components
 
 import app.morphe.patcher.Fingerprint
-import app.morphe.patcher.InstructionLocation.MatchAfterImmediately
 import app.morphe.patcher.extensions.InstructionExtensions.addInstruction
 import app.morphe.patcher.extensions.InstructionExtensions.addInstructions
 import app.morphe.patcher.extensions.InstructionExtensions.addInstructionsWithLabels
@@ -36,6 +36,7 @@ import app.morphe.patches.shared.startVideoInformerFingerprint
 import app.morphe.patches.shared.textcomponent.hookSpannableString
 import app.morphe.patches.shared.textcomponent.textComponentPatch
 import app.morphe.patches.youtube.shared.WatchNextResponseParserFingerprint
+import app.morphe.patches.youtube.shared.watchNextResultsFingerprint
 import app.morphe.patches.youtube.utils.bottomsheet.bottomSheetHookPatch
 import app.morphe.patches.youtube.utils.compatibility.Constants.COMPATIBILITY_YOUTUBE
 import app.morphe.patches.youtube.utils.dismiss.dismissPlayerHookPatch
@@ -827,33 +828,7 @@ val playerComponentsPatch = bytecodePatch(
             ),
         ).instructionMatches.last().methodReference
 
-        val sectionIdentifierField = RelatedItemSectionFingerprint
-            .instructionMatches[1].fieldReference
-        val watchNextResponseModelClass = WatchNextResponseModelClassResolverFingerprint
-            .instructionMatches.last().instruction.getReference<TypeReference>()!!.type
-
-        Fingerprint(
-            definingClass = watchNextResponseModelClass,
-            accessFlags = listOf(AccessFlags.PRIVATE, AccessFlags.FINAL),
-            returnType = "V",
-            parameters = listOf(resultsClass),
-            filters = listOf(
-                fieldAccess(
-                    opcode = Opcode.IGET_OBJECT,
-                    definingClass = resultsClass,
-                    type = emptyProtobufListMethod.returnType,
-                ),
-                methodCall(
-                    opcode = Opcode.INVOKE_INTERFACE,
-                    name = "iterator",
-                    location = MatchAfterImmediately(),
-                ),
-                fieldAccess(
-                    opcode = Opcode.IGET_OBJECT,
-                    type = sectionIdentifierField.definingClass,
-                ),
-            ),
-        ).let {
+        watchNextResultsFingerprint(emptyProtobufListMethod.returnType, resultsClass).let {
             val contentsField =
                 it.instructionMatches.first().fieldReference
             val itemSectionRendererField =

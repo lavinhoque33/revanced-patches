@@ -73,6 +73,7 @@ final class OfflinePickerSheet {
     private final TextView author;
     private final ProgressBar loading;
     private OfflineCaptions.Catalog playlistCaptions;
+    private final OfflineSponsorBlock.Picker sponsorPicker;
 
     private final int foreground;
     private final int secondary;
@@ -81,6 +82,8 @@ final class OfflinePickerSheet {
 
     OfflinePickerSheet(Activity activity, @Nullable String videoId, Runnable onDismiss) {
         this.activity = activity;
+        sponsorPicker = new OfflineSponsorBlock.Picker(videoId == null);
+        if (videoId != null) sponsorPicker.fetch(videoId);
         foreground = ThemeUtils.getAppForegroundColor();
         secondary = withAlpha(foreground, 0xAA);
         divider = withAlpha(foreground, 0x1F);
@@ -175,6 +178,7 @@ final class OfflinePickerSheet {
         list.setOrientation(LinearLayout.VERTICAL);
         playlistCaptions = OfflineCaptions.Catalog.forBatch();
         OfflineSubtitlePicker.add(activity, list, playlistCaptions, foreground);
+        sponsorPicker.add(activity, list, foreground);
         list.addView(sectionTitle(str("revanced_offline_batch_subtitle")));
 
         boolean[] picked = {false};
@@ -203,6 +207,10 @@ final class OfflinePickerSheet {
 
     OfflineCaptions.Selection playlistSubtitles() {
         return playlistCaptions == null ? OfflineCaptions.Selection.none() : playlistCaptions.selection();
+    }
+
+    OfflineSponsorBlock.Selection sponsorSelection() {
+        return sponsorPicker.selection();
     }
 
     /** Best, then the usual limits that lie within the quality range of the settings. */
@@ -236,6 +244,7 @@ final class OfflinePickerSheet {
         LinearLayout list = new LinearLayout(activity);
         list.setOrientation(LinearLayout.VERTICAL);
         OfflineSubtitlePicker.add(activity, list, resolved.captions(), foreground);
+        sponsorPicker.add(activity, list, foreground);
         addVideoSection(list, resolved, video -> once.accept(() -> onPick.accept(video)));
         addAudioSection(list, resolved, audio -> once.accept(() -> onPick.accept(audio)));
         addThumbnailSection(list, () -> once.accept(onThumbnail));

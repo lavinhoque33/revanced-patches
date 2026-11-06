@@ -7,6 +7,9 @@ Merged anddea/revanced-patches@dev (89104d55b, v4.4.0-dev.5).
 * **YouTube - Built-in downloader:** Choose native subtitle languages and SRT or VTT for playlist downloads.
   Subtitle failures do not stop videos; the batch summary reports saved, skipped and rate-limited tracks.
   Private subtitle cues no longer enlarge the download index or its resume-position writes.
+* **YouTube - Built-in downloader:** Save SponsorBlock segments with single or playlist downloads and choose
+  categories below the subtitle row. The built-in player follows your category behavior, including background
+  audio auto-skips and a manual skip button, without cutting the media file.
 * **YouTube - Captions:** Add the Captions patch (secondary caption language, caption scale, stable caption
   blocks) from upstream. Settings are under Captions.
 * **YouTube - Translate live chat:** Add live chat translation with provider, language, exclusion, style and

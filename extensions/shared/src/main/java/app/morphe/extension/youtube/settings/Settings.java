@@ -502,6 +502,8 @@ public class Settings extends SharedYouTubeSettings {
             new StringSetting("revanced_offline_aspect_mode", "FIT", false, false);
     public static final BooleanSetting OFFLINE_SUBTITLES_INCLUDE =
             new BooleanSetting("revanced_offline_subtitles_include", FALSE, false, false);
+    public static final BooleanSetting OFFLINE_SPONSORBLOCK_INCLUDE =
+            new BooleanSetting("revanced_offline_sponsorblock_include", FALSE, false, false);
     public static final StringSetting OFFLINE_SUBTITLES_LANGUAGES =
             new StringSetting("revanced_offline_subtitles_languages", "", false, false);
     public static final StringSetting OFFLINE_SUBTITLES_FORMAT =

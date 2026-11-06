@@ -2270,6 +2270,11 @@ Works with YTDLnis and YTindir as the video downloader</string>
     <string name="revanced_offline_loading_formats">Loading available qualities…</string>
     <string name="revanced_offline_picker_subtitle">Download quality</string>
     <string name="revanced_offline_subtitles_include">Include subtitles</string>
+    <string name="revanced_offline_sponsorblock_include">Include SponsorBlock</string>
+    <string name="revanced_offline_sponsorblock_summary">Skip selected interruptions in the built-in player using your SponsorBlock category settings</string>
+    <string name="revanced_offline_sponsorblock_loading">Checking SponsorBlock segments…</string>
+    <string name="revanced_offline_sponsorblock_none">No SponsorBlock segments available</string>
+    <string name="revanced_offline_sponsorblock_error">SponsorBlock lookup failed</string>
     <string name="revanced_offline_subtitles_none">No subtitles to download</string>
     <string name="revanced_offline_subtitles_languages">Languages (%1$d/%2$d selected)</string>
     <string name="revanced_offline_subtitles_languages_title">Subtitle languages</string>

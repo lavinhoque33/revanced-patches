@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-07.
  */
 package app.morphe.extension.music.patches.downloads;
 
@@ -83,6 +84,7 @@ final class NativeAudioStore {
             // Deleting a track from Music's native Library also invalidates the download lookup.
         }
         preferences().edit().remove(videoId).apply();
+        RawAudioStore.delete(videoId);
         return null;
     }
 

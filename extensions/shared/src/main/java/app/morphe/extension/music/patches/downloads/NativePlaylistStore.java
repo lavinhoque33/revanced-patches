@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
- * Modified by lavinhoque33, 2026-11-01.
+ * Modified by lavinhoque33, 2026-11-07.
  */
 package app.morphe.extension.music.patches.downloads;
 
@@ -49,6 +49,7 @@ public final class NativePlaylistStore {
     /** Called at the end of Music's own repository constructor. */
     public static void onDatabase(Object instance) {
         database = (Database) instance;
+        RawAudioStore.startCleanup();
         refreshUnsortedLater();
     }
 

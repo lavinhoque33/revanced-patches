@@ -4,7 +4,7 @@
  *
  * See the included NOTICE file for GPLv3 Section 7 terms that apply to this code.
  *
- * Modified by lavinhoque33, 2026-10-21.
+ * Modified by lavinhoque33, 2026-11-07.
  */
 
 package app.morphe.extension.music.patches.downloads;
@@ -193,6 +193,7 @@ public final class LocalDownloadManager {
             }
             Uri uri = NativeAudioStore.finish(videoId, destination);
             destination = null;
+            RawAudioStore.retain(videoId, temporary, format, uri);
             awaitNotificationSlot();
             showDownloadNotification(videoId, title, 100, false, str("morphe_music_downloads_complete"));
             return uri;

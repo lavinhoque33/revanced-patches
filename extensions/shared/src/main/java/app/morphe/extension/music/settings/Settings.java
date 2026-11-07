@@ -413,6 +413,10 @@ public class Settings extends SharedYouTubeSettings {
     public static final BooleanSetting DOWNLOADED_CHECKMARKS = new BooleanSetting(
             "morphe_music_downloaded_checkmarks", TRUE, false,
             parentsAll(parent(EXTERNAL_DOWNLOADER_ACTION_BUTTON), parent(PLAY_DOWNLOADS_LOCALLY)));
+    // Only songs with a stream copy start in audio mode, so this too needs Play downloads locally.
+    public static final BooleanSetting START_DOWNLOADED_IN_AUDIO = new BooleanSetting(
+            "morphe_music_start_downloaded_in_audio", TRUE, false,
+            parentsAll(parent(EXTERNAL_DOWNLOADER_ACTION_BUTTON), parent(PLAY_DOWNLOADS_LOCALLY)));
     public static final BooleanSetting ANDROID_AUTO_DOWNLOADED_PLAYLISTS = new BooleanSetting(
             "morphe_music_android_auto_downloaded_playlists", TRUE, false, parent(IN_APP_DOWNLOADS));
     public static final StringSetting DOWNLOADS_SORT = new StringSetting("morphe_music_downloads_sort", "ARTIST", false, false);

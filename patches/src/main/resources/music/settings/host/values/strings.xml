@@ -166,6 +166,8 @@ YouTube Music 8.x - crossfade only runs on 9.x and newer"</string>
     <string name="morphe_music_play_downloads_locally_summary">Downloads songs and playlists as a private copy of the audio that plays from this device while online. The copy is saved inside the app, so it is not visible in Device files or the library, and takes about 5 MB a song. Radio, lyrics and the queue stay online. Applies to tracks downloaded while this is on. Turn on Download in app too to also keep the songs as files</string>
     <string name="morphe_music_downloaded_checkmarks_title">Downloaded checkmarks</string>
     <string name="morphe_music_downloaded_checkmarks_summary">Shows a green check on songs and playlists saved for local playback. Requires Play downloads locally</string>
+    <string name="morphe_music_start_downloaded_in_audio_title">Start downloaded songs in audio mode</string>
+    <string name="morphe_music_start_downloaded_in_audio_summary">Songs with a stream copy start in audio mode, so the local copy is used. The Song/Video switch still works and plays the online video. Requires Play downloads locally</string>
     <string name="morphe_music_stream_downloads_title">Stream downloads</string>
     <string name="morphe_music_stream_downloads_summary">%1$s songs saved for local playback, %2$s MB. Tap to delete them</string>
     <string name="morphe_music_stream_downloads_none">No stream downloads saved</string>

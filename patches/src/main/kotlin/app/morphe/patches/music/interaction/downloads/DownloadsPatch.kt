@@ -64,6 +64,12 @@ private val downloadsResourcePatch = resourcePatch {
     execute {
         addPreferenceCategory(CategoryType.MISC.value)
         addSwitchPreference(CategoryType.MISC, "morphe_music_in_app_downloads", "false", "revanced_external_downloader_action")
+        addSwitchPreference(
+            CategoryType.MISC,
+            "morphe_music_play_downloads_locally",
+            "false",
+            "morphe_music_in_app_downloads",
+        )
     }
 }
 

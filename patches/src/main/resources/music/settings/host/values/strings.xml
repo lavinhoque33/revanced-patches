@@ -160,8 +160,10 @@ YouTube Music 8.x - crossfade only runs on 9.x and newer"</string>
     <string name="morphe_music_fade_screen_title">Fade in and out</string>
     <string name="morphe_music_in_app_downloads_summary">Downloads songs and playlists for native offline playback</string>
     <string name="morphe_music_in_app_downloads_title">Download in app</string>
-    <!-- modified by lavinhoque33, 2026-10-16: downloads use shared audio storage and Music's native local-file Library/player, with embedded tags. -->
-    <!-- modified by lavinhoque33, 2026-10-17: mention and name the derived "Not in a playlist" playlist. -->
+    <string name="morphe_music_play_downloads_locally_title">Play downloads locally</string>
+    <string name="morphe_music_play_downloads_locally_summary">Plays downloaded songs from the saved audio while online;
+        radio, lyrics and queue stay online. Off by default. Applies only to tracks downloaded while enabled.
+        Keeps a second raw audio copy, roughly doubling each track’s audio storage</string>
     <string name="morphe_music_in_app_downloads_user_dialog_message">"Songs and playlists are saved to Music/RVX and played by YouTube Music’s native local-file player. Allow audio access when Music asks
 
 Downloads (in Library or the account menu) opens the native device-files library. Choose Songs, Playlists, Albums or Artists there. Tracks keep their title, artist, album and cover. Downloaded songs that are in no playlist are listed in the “Not in a playlist” playlist. Existing in-app downloads are migrated without redownloading.

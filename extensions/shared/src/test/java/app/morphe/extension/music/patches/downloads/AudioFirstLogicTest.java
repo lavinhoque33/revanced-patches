@@ -115,4 +115,27 @@ public class AudioFirstLogicTest {
         assertTrue(AudioFirstLogic.declineForVideo("OMV_PREFERRED", "id", "other", 1_000, 2_000, TTL));
         assertTrue(AudioFirstLogic.declineForVideo("OMV_PREFERRED", "id", "id", 1_000, 11_001, TTL));
     }
+
+    @Test public void onlyTheVideoFallbackIsTurnedIntoTheAudioMode() {
+        assertEquals("ATV_PREFERRED", AudioFirstLogic.modeToSet(true, true, "OMV_PREFERRED"));
+    }
+
+    @Test public void theModeIsLeftAloneInEveryOtherCase() {
+        assertNull(AudioFirstLogic.modeToSet(true, true, "OMV_PREFERRED_USER_TRIGGERED"));
+        assertNull(AudioFirstLogic.modeToSet(true, true, "ATV_PREFERRED_USER_TRIGGERED"));
+        assertNull(AudioFirstLogic.modeToSet(true, true, "DONT_PLAY_VIDEO_OVERRIDE"));
+        assertNull(AudioFirstLogic.modeToSet(true, true, "ATV_PREFERRED"));
+        assertNull(AudioFirstLogic.modeToSet(true, true, null));
+        assertNull(AudioFirstLogic.modeToSet(true, false, "OMV_PREFERRED"));
+        assertNull(AudioFirstLogic.modeToSet(false, true, "OMV_PREFERRED"));
+    }
+
+    @Test public void aRowIsRetargetedInEveryModeButTheUsersVideoChoice() {
+        assertFalse(AudioFirstLogic.retargetsIn("OMV_PREFERRED_USER_TRIGGERED"));
+        assertTrue(AudioFirstLogic.retargetsIn("OMV_PREFERRED"));
+        assertTrue(AudioFirstLogic.retargetsIn("ATV_PREFERRED"));
+        assertTrue(AudioFirstLogic.retargetsIn("ATV_PREFERRED_USER_TRIGGERED"));
+        assertTrue(AudioFirstLogic.retargetsIn("DONT_PLAY_VIDEO_OVERRIDE"));
+        assertTrue(AudioFirstLogic.retargetsIn(null));
+    }
 }

@@ -77,6 +77,22 @@ public class CommandRewriteTest {
         });
     }
 
+    private static CommandRewrite.Result retarget(byte[] command, String from, String to) {
+        return CommandRewrite.retarget(command, from, to, false);
+    }
+
+    private static byte[] supportedOf(byte[] music) {
+        return build(out -> out.writeByteArray(CommandRewrite.MUSIC_CONFIG_FIELD, music));
+    }
+
+    /** The config of an album row as the device showed it: {2:type, 4:2}. */
+    private static byte[] albumMusic(int type) {
+        return build(out -> {
+            out.writeInt32(2, type);
+            out.writeInt32(4, 2);
+        });
+    }
+
     private static byte[] omvRow() {
         return command(watch(OMV, supportedConfig(CommandRewrite.TYPE_OMV)));
     }
@@ -105,7 +121,7 @@ public class CommandRewriteTest {
     }
 
     @Test public void replacesTheVideoIdAndTheTypeOfAnOmvRow() throws Exception {
-        CommandRewrite.Result result = CommandRewrite.retarget(omvRow(), OMV, ATV);
+        CommandRewrite.Result result = retarget(omvRow(), OMV, ATV);
 
         assertNotNull(result);
         assertEquals("2->1", result.type());
@@ -118,7 +134,7 @@ public class CommandRewriteTest {
 
     @Test public void onlyTheIdAndTheTypeChange() throws Exception {
         byte[] original = omvRow();
-        byte[] rewritten = CommandRewrite.retarget(original, OMV, ATV).command();
+        byte[] rewritten = retarget(original, OMV, ATV).command();
 
         // The same row built with the song id and type from the start is the rewritten row, byte for byte.
         byte[] expected = command(watch(ATV, supportedConfig(CommandRewrite.TYPE_ATV)));
@@ -135,7 +151,7 @@ public class CommandRewriteTest {
 
     @Test public void theTypeIsSwitchedOnlyWhenItIsOmv() throws Exception {
         byte[] ugc = command(watch(OMV, supportedConfig(3)));
-        CommandRewrite.Result result = CommandRewrite.retarget(ugc, OMV, ATV);
+        CommandRewrite.Result result = retarget(ugc, OMV, ATV);
 
         assertEquals("untouched", result.type());
         assertEquals(ATV, TapCommand.parse(result.command()).videoId);
@@ -144,7 +160,7 @@ public class CommandRewriteTest {
 
     @Test public void aRowWithoutAConfigKeepsItsShape() {
         byte[] row = command(watch(OMV, null));
-        CommandRewrite.Result result = CommandRewrite.retarget(row, OMV, ATV);
+        CommandRewrite.Result result = retarget(row, OMV, ATV);
 
         assertEquals("untouched", result.type());
         assertArrayEquals(command(watch(ATV, null)), result.command());
@@ -153,7 +169,7 @@ public class CommandRewriteTest {
     @Test public void aConfigOfAnotherShapeIsLeftUntouched() {
         // The supported config holds a string where a message is expected.
         byte[] odd = build(out -> out.writeString(CommandRewrite.MUSIC_CONFIG_FIELD, "\u0001"));
-        CommandRewrite.Result result = CommandRewrite.retarget(command(watch(OMV, odd)), OMV, ATV);
+        CommandRewrite.Result result = retarget(command(watch(OMV, odd)), OMV, ATV);
 
         assertNotNull(result);
         assertEquals("untouched", result.type());
@@ -164,17 +180,17 @@ public class CommandRewriteTest {
     @Test public void aTypeThatIsNotAVarintIsLeftUntouched() {
         byte[] music = build(out -> out.writeString(CommandRewrite.MUSIC_VIDEO_TYPE_FIELD, "omv"));
         byte[] supported = build(out -> out.writeByteArray(CommandRewrite.MUSIC_CONFIG_FIELD, music));
-        CommandRewrite.Result result = CommandRewrite.retarget(command(watch(OMV, supported)), OMV, ATV);
+        CommandRewrite.Result result = retarget(command(watch(OMV, supported)), OMV, ATV);
 
         assertEquals("untouched", result.type());
     }
 
     @Test public void nothingIsRewrittenWithoutThatWatchEndpoint() {
-        assertNull(CommandRewrite.retarget(omvRow(), ATV, OMV));
-        assertNull(CommandRewrite.retarget(build(out -> out.writeString(2, "no watch")), OMV, ATV));
-        assertNull(CommandRewrite.retarget(new byte[]{(byte) 0xFF}, OMV, ATV));
-        assertNull(CommandRewrite.retarget(omvRow(), OMV, "not-an-id"));
-        assertNull(CommandRewrite.retarget(omvRow(), "short", ATV));
+        assertNull(retarget(omvRow(), ATV, OMV));
+        assertNull(retarget(build(out -> out.writeString(2, "no watch")), OMV, ATV));
+        assertNull(retarget(new byte[]{(byte) 0xFF}, OMV, ATV));
+        assertNull(retarget(omvRow(), OMV, "not-an-id"));
+        assertNull(retarget(omvRow(), "short", ATV));
     }
 
     @Test public void theRewrittenCommandReadsBackAsAnAlbumRowOfTheSong() {
@@ -189,11 +205,11 @@ public class CommandRewriteTest {
         assertEquals(new AudioFirstLogic.Arm("playlist-index", ATV), arm);
         assertTrue(AudioFirstLogic.namesTheRow(arm.rule(), arm.videoId(), tap.videoId, registry::isDownloaded));
 
-        TapCommand after = TapCommand.parse(CommandRewrite.retarget(bytes, tap.videoId, arm.videoId()).command());
+        TapCommand after = TapCommand.parse(retarget(bytes, tap.videoId, arm.videoId()).command());
         assertEquals(ATV, after.videoId);
         assertTrue(after.ids.contains(ATV));
         assertFalse(after.ids.contains(OMV));
-        assertEquals(registry.findSource(bytes), registry.findSource(CommandRewrite.retarget(bytes, OMV, ATV).command()));
+        assertEquals(registry.findSource(bytes), registry.findSource(retarget(bytes, OMV, ATV).command()));
     }
 
     @Test public void theDescriptionShowsNumbersSizesTheTypeValueAndCutsLongStrings() {
@@ -225,5 +241,82 @@ public class CommandRewriteTest {
                 AudioFirstLogic.ARM_TTL_MILLIS));
         assertTrue(AudioFirstLogic.declineForVideo(AudioFirstLogic.OMV_PREFERRED, OMV, ATV, now, now + 500,
                 AudioFirstLogic.ARM_TTL_MILLIS));
+    }
+
+    @Test public void theAudioHintIsInsertedInFieldOrderAndNothingElseMoves() {
+        byte[] row = command(watch(OMV, supportedOf(albumMusic(2))));
+        CommandRewrite.Result result = CommandRewrite.retarget(row, OMV, ATV, true);
+
+        assertEquals("2->1", result.type());
+        assertEquals("added", result.hint());
+        byte[] expectedMusic = build(out -> {
+            out.writeInt32(2, 1);
+            out.writeInt32(3, 1);
+            out.writeInt32(4, 2);
+        });
+        assertArrayEquals(command(watch(ATV, supportedOf(expectedMusic))), result.command());
+    }
+
+    @Test public void theAudioHintIsAppendedWhenNoLaterFieldFollows() {
+        byte[] music = build(out -> out.writeInt32(2, 2));
+        CommandRewrite.Result result = CommandRewrite.retarget(command(watch(OMV, supportedOf(music))), OMV, ATV, true);
+
+        byte[] expected = build(out -> {
+            out.writeInt32(2, 1);
+            out.writeInt32(3, 1);
+        });
+        assertEquals("added", result.hint());
+        assertArrayEquals(command(watch(ATV, supportedOf(expected))), result.command());
+    }
+
+    @Test public void aVideoPreferredHintIsReplacedAndAnAudioOneKept() {
+        byte[] video = build(out -> {
+            out.writeInt32(2, 2);
+            out.writeInt32(3, 2);
+        });
+        CommandRewrite.Result replaced = CommandRewrite.retarget(command(watch(OMV, supportedOf(video))), OMV, ATV, true);
+        assertEquals("replaced", replaced.hint());
+
+        byte[] expected = build(out -> {
+            out.writeInt32(2, 1);
+            out.writeInt32(3, 1);
+        });
+        assertArrayEquals(command(watch(ATV, supportedOf(expected))), replaced.command());
+
+        CommandRewrite.Result again = CommandRewrite.retarget(replaced.command(), ATV, ATV, true);
+        assertEquals("present", again.hint());
+        assertEquals("untouched", again.type());
+        assertArrayEquals(replaced.command(), again.command());
+    }
+
+    @Test public void noHintIsAddedUnlessAsked() {
+        byte[] row = command(watch(OMV, supportedOf(albumMusic(2))));
+        CommandRewrite.Result result = retarget(row, OMV, ATV);
+
+        assertEquals("none", result.hint());
+        byte[] expected = build(out -> {
+            out.writeInt32(2, 1);
+            out.writeInt32(4, 2);
+        });
+        assertArrayEquals(command(watch(ATV, supportedOf(expected))), result.command());
+    }
+
+    @Test public void aHintOfAnotherWireTypeLeavesTheConfigUntouched() {
+        byte[] music = build(out -> {
+            out.writeInt32(2, 2);
+            out.writeString(3, "x");
+        });
+        CommandRewrite.Result result = CommandRewrite.retarget(command(watch(OMV, supportedOf(music))), OMV, ATV, true);
+
+        assertEquals("none", result.hint());
+        assertEquals("untouched", result.type());
+        assertArrayEquals(command(watch(ATV, supportedOf(music))), result.command());
+    }
+
+    @Test public void aRowWithoutAMusicConfigGetsNoHint() {
+        CommandRewrite.Result result = CommandRewrite.retarget(command(watch(OMV, null)), OMV, ATV, true);
+
+        assertEquals("none", result.hint());
+        assertArrayEquals(command(watch(ATV, null)), result.command());
     }
 }

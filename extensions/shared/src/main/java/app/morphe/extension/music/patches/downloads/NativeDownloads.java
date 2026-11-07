@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-07.
  */
 package app.morphe.extension.music.patches.downloads;
 
@@ -118,9 +119,6 @@ public final class NativeDownloads {
 
     private static final int COMMAND_EXECUTOR = 204158123;
     private static final int UPSELL_COMMAND = 443434441;
-    // Download-state entity types in the header button's key: playlists use 24, albums use 17 (id is the OLAK audio playlist id).
-    private static final int PLAYLIST_DOWNLOAD_ENTITY = 24;
-    private static final int ALBUM_DOWNLOAD_ENTITY = 17;
     private static final String ENDPOINT_TAG = "com.google.android.libraries.youtube.innertube.endpoint.tag";
 
     /**
@@ -177,17 +175,7 @@ public final class NativeDownloads {
     }
 
     private static String playlistFromEntityKey(byte[] value) {
-        try {
-            String text = new String(value, StandardCharsets.US_ASCII);
-            if (!text.matches("[A-Za-z0-9_%=+/-]{8,}")) return null;
-            byte[] key = Base64.decode(Uri.decode(text), Base64.URL_SAFE);
-            int entityType = fieldNumber(key, 4);
-            if (entityType != PLAYLIST_DOWNLOAD_ENTITY && entityType != ALBUM_DOWNLOAD_ENTITY) return null;
-            byte[] id = fieldBytes(key, 2);
-            return id == null ? null : new String(id, StandardCharsets.UTF_8);
-        } catch (IllegalArgumentException | IOException ex) {
-            return null;
-        }
+        return HeaderPlaylistId.playlistFromKey(value);
     }
 
     private static boolean containsField(byte[] message, int number, int depth) {
@@ -208,7 +196,7 @@ public final class NativeDownloads {
     }
 
     /** Returns the length-delimited fields of a well-formed message, or null when the bytes are not a message. */
-    private static java.util.List<byte[]> lengthDelimited(byte[] message) {
+    static java.util.List<byte[]> lengthDelimited(byte[] message) {
         java.util.List<byte[]> fields = new java.util.ArrayList<>();
         try {
             CodedInputStream input = CodedInputStream.newInstance(message);
@@ -278,7 +266,7 @@ public final class NativeDownloads {
         return id == null ? null : new String(id, StandardCharsets.UTF_8);
     }
 
-    private static byte[] fieldBytes(byte[] message, int number) throws IOException {
+    static byte[] fieldBytes(byte[] message, int number) throws IOException {
         CodedInputStream input = CodedInputStream.newInstance(message);
         while (!input.isAtEnd()) {
             int tag = input.readTag();
@@ -288,7 +276,7 @@ public final class NativeDownloads {
         return null;
     }
 
-    private static int fieldNumber(byte[] message, int number) throws IOException {
+    static int fieldNumber(byte[] message, int number) throws IOException {
         CodedInputStream input = CodedInputStream.newInstance(message);
         while (!input.isAtEnd()) {
             int tag = input.readTag();

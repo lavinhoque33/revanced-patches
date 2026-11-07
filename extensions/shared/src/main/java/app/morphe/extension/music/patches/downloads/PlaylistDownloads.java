@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-07.
  */
 package app.morphe.extension.music.patches.downloads;
 
@@ -73,6 +74,7 @@ public final class PlaylistDownloads {
                     mediaIds.add(NativeAudioStore.mediaId(track));
                 }
                 NativePlaylistStore.save(playlistId, title, mediaIds);
+                DownloadedMarkers.onPlaylistSaved(playlistId, tracks);
                 LocalDownloadManager.awaitNotificationSlot();
                 LocalDownloadManager.showDownloadNotification("playlist:" + playlistId, title, 100,
                         false, str("morphe_music_playlist_download_complete", tracks.size()));

@@ -408,6 +408,8 @@ public class Settings extends SharedYouTubeSettings {
     public static final BooleanSetting IN_APP_DOWNLOADS = new BooleanSetting("morphe_music_in_app_downloads", FALSE, false, "morphe_music_in_app_downloads_user_dialog_message", parent(EXTERNAL_DOWNLOADER_ACTION_BUTTON));
     public static final BooleanSetting PLAY_DOWNLOADS_LOCALLY = new BooleanSetting(
             "morphe_music_play_downloads_locally", FALSE, false, parent(IN_APP_DOWNLOADS));
+    public static final BooleanSetting DOWNLOADED_CHECKMARKS = new BooleanSetting(
+            "morphe_music_downloaded_checkmarks", TRUE, false, parent(IN_APP_DOWNLOADS));
     public static final BooleanSetting ANDROID_AUTO_DOWNLOADED_PLAYLISTS = new BooleanSetting(
             "morphe_music_android_auto_downloaded_playlists", TRUE, false, parent(IN_APP_DOWNLOADS));
     public static final StringSetting DOWNLOADS_SORT = new StringSetting("morphe_music_downloads_sort", "ARTIST", false, false);

@@ -1,3 +1,11 @@
+## Unreleased
+
+### Features
+
+* **YouTube Music - Downloads:** Add Play downloads locally, off by default, to play saved audio while
+  radio, lyrics and queue stay online. Tracks downloaded while enabled keep a second raw audio copy,
+  roughly doubling their audio storage.
+
 ## [1.33.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.32.2...v1.33.0) (2026-11-06)
 
 ### Features

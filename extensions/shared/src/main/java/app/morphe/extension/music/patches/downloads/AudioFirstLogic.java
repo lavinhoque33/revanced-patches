@@ -141,4 +141,13 @@ final class AudioFirstLogic {
         return ATV_PREFERRED.equals(stateName) || "ATV_PREFERRED_USER_TRIGGERED".equals(stateName)
                 || "DONT_PLAY_VIDEO_OVERRIDE".equals(stateName);
     }
+
+    /**
+     * Whether a queue item shows its song (the local copy's id) rather than the music video the server listed.
+     *
+     * @param hasSong The item's album position names a song with a stream copy.
+     */
+    static boolean showsSong(boolean enabled, @Nullable String mode, boolean hasSong) {
+        return enabled && hasSong && isAudioMode(mode);
+    }
 }

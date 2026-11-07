@@ -49,23 +49,34 @@ public final class DownloadedMarkers {
     private static final AtomicBoolean revalidating = new AtomicBoolean();
     private static volatile boolean loaded;
     private static volatile long lastRevalidation;
-    private static int badgesContainerId = -1;
+    static int badgesContainerId;
+    private static final DownloadedRowLog rowLog = new DownloadedRowLog();
 
     // Main thread only. Values hold weak references: a value must never keep its key's view tree alive.
     private static final Map<View, RowState> rows = new WeakHashMap<>();
     private static final Map<ViewGroup, DownloadedHeaders.State> headers = new WeakHashMap<>();
 
-    private static final class RowState {
+    /** What is known of a list row's view; the model is only weakly held, the view tree owns the check. */
+    static final class RowState {
         static final RowState NOT_A_ROW = new RowState();
 
         WeakReference<Object> model = new WeakReference<>(null);
         WeakReference<DownloadedCheck> check = new WeakReference<>(null);
+        String lastOutcome = "";
     }
 
     private DownloadedMarkers() {}
 
     static boolean enabled() {
         return Settings.IN_APP_DOWNLOADS.get() && Settings.DOWNLOADED_CHECKMARKS.get();
+    }
+
+    static int registrySize() {
+        return registry.trackCount();
+    }
+
+    static boolean isLoaded() {
+        return loaded;
     }
 
     static boolean isSourceDownloaded(@Nullable String sourceId) {
@@ -77,14 +88,15 @@ public final class DownloadedMarkers {
         try {
             RowState state = rows.get(view);
             if (state == null) {
-                state = view.findViewById(badgesContainerId()) == null ? RowState.NOT_A_ROW : new RowState();
+                state = badgesContainer(view) == null ? RowState.NOT_A_ROW : new RowState();
                 rows.put(view, state);
             }
+            rowLog.bound(view, model, state == RowState.NOT_A_ROW);
             if (state == RowState.NOT_A_ROW) return;
 
             state.model = new WeakReference<>(model);
             if (enabled()) ensureLoaded();
-            applyRow(view, state);
+            applyRow(view, state, true);
         } catch (Exception ex) {
             Logger.printException(() -> "Could not mark a downloaded song", ex);
         }
@@ -112,27 +124,54 @@ public final class DownloadedMarkers {
         }
     }
 
-    private static int badgesContainerId() {
-        if (badgesContainerId == -1) badgesContainerId = ResourceUtils.getIdIdentifier("subtitle_badges_container");
-        return badgesContainerId;
+    /** The row's subtitle badges container, or null when this is not a classic list row. */
+    @Nullable
+    private static ViewGroup badgesContainer(View row) {
+        if (badgesContainerId == 0) badgesContainerId = ResourceUtils.getIdIdentifier("subtitle_badges_container");
+        return badgesContainerId == 0 ? null : row.findViewById(badgesContainerId) instanceof ViewGroup group
+                ? group : null;
     }
 
-    private static void applyRow(View view, RowState state) {
+    private static void applyRow(View view, RowState state, boolean binding) {
         Object model = state.model.get();
-        boolean show = enabled() && model instanceof MessageLite lite && registry.hasTracks()
-                && registry.findDownloaded(lite.toByteArray()) != null;
-        DownloadedCheck check = state.check.get();
-        if (!show) {
-            if (check != null) check.setShown(false);
-            return;
+        byte[] bytes = null;
+        String videoId = null;
+        String reason;
+        if (!enabled()) {
+            reason = "setting-off";
+        } else if (model == null) {
+            reason = "model-gone";
+        } else if (!registry.hasTracks()) {
+            reason = "registry-empty";
+        } else if ((bytes = DownloadedModels.serialize(model)) == null) {
+            reason = "model-has-no-proto";
+        } else {
+            videoId = registry.findDownloaded(bytes);
+            if (videoId == null) videoId = registry.findDownloadedLoose(bytes);
+            reason = videoId == null ? "id-not-downloaded" : "downloaded";
         }
 
-        ViewGroup badges = view.findViewById(badgesContainerId());
-        if (badges == null || !(badges.getParent() instanceof LinearLayout line)) return;
+        DownloadedCheck check = state.check.get();
+        String outcome;
+        if (videoId == null) {
+            if (check != null) check.setShown(false);
+            outcome = "hidden";
+        } else {
+            outcome = showRowCheck(view, state, check);
+        }
+        rowLog.decided(view, state, model, bytes, registry, reason, videoId, outcome, binding);
+    }
 
+    /** Adds or shows the check in the row's subtitle line; returns what happened, for the log. */
+    private static String showRowCheck(View view, RowState state, @Nullable DownloadedCheck check) {
+        ViewGroup badges = badgesContainer(view);
+        if (badges == null) return "no-container";
+        if (!(badges.getParent() instanceof LinearLayout line)) return "container-parent-not-linear";
+
+        String outcome = "shown";
         if (check == null || check.getParent() != line) {
             check = DownloadedCheck.create(view.getContext(), false);
-            if (check == null) return;
+            if (check == null) return "no-icon";
 
             int size = DownloadedCheck.dp(ROW_CHECK_DP);
             LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(size, size);
@@ -140,9 +179,12 @@ public final class DownloadedMarkers {
             params.setMarginEnd(DownloadedCheck.dp(ROW_CHECK_MARGIN_DP));
             line.addView(check, 0, params);
             state.check = new WeakReference<>(check);
+            outcome = "added";
         }
         check.restyle();
         check.setShown(true);
+        if (outcome.equals("added")) rowLog.afterLayout(check);
+        return outcome;
     }
 
     /** Called when a download finished: the track is downloaded from now on. */
@@ -255,7 +297,13 @@ public final class DownloadedMarkers {
     private static void refreshViews() {
         for (Map.Entry<View, RowState> row : new ArrayList<>(rows.entrySet())) {
             View view = row.getKey();
-            if (view != null && row.getValue() != RowState.NOT_A_ROW) applyRow(view, row.getValue());
+            if (view == null || row.getValue() == RowState.NOT_A_ROW) continue;
+
+            try {
+                applyRow(view, row.getValue(), false);
+            } catch (Exception ex) {
+                Logger.printException(() -> "Could not refresh a downloaded song", ex);
+            }
         }
         for (Map.Entry<ViewGroup, DownloadedHeaders.State> header : new ArrayList<>(headers.entrySet())) {
             ViewGroup container = header.getKey();

@@ -97,14 +97,52 @@ final class DownloadedRegistry {
         return null;
     }
 
+    /**
+     * Finds a downloaded video id that sits as a stand-alone word in a model: exactly 11 id characters with
+     * a non-id character (or the edge of the model) on both sides, as in a URL or a plain text field.
+     * The fallback of {@link #findDownloaded} for ids that are not whole protobuf strings.
+     */
+    @Nullable
+    String findDownloadedLoose(byte[] message) {
+        if (tracks.isEmpty()) return null;
+        int runStart = 0;
+        for (int index = 0; index <= message.length; index++) {
+            if (index < message.length && isIdCharacter(message[index])) continue;
+
+            if (index - runStart == VIDEO_ID_LENGTH) {
+                String candidate = new String(message, runStart, VIDEO_ID_LENGTH, StandardCharsets.ISO_8859_1);
+                if (tracks.contains(candidate)) return candidate;
+            }
+            runStart = index + 1;
+        }
+        return null;
+    }
+
+    /** The video-id-shaped strings of a model, at most {@code limit}: what {@link #findDownloaded} looks at. */
+    static List<String> candidateIds(byte[] message, int limit) {
+        List<String> candidates = new ArrayList<>();
+        for (int start = 0; start + VIDEO_ID_LENGTH < message.length && candidates.size() < limit; start++) {
+            if (message[start] == VIDEO_ID_LENGTH && isVideoId(message, start + 1)) {
+                candidates.add(new String(message, start + 1, VIDEO_ID_LENGTH, StandardCharsets.ISO_8859_1));
+            }
+        }
+        return candidates;
+    }
+
     private static boolean isVideoId(byte[] message, int from) {
         for (int index = from; index < from + VIDEO_ID_LENGTH; index++) {
-            byte character = message[index];
-            boolean valid = (character >= 'a' && character <= 'z') || (character >= 'A' && character <= 'Z')
-                    || (character >= '0' && character <= '9') || character == '-' || character == '_';
-            if (!valid) return false;
+            if (!isIdCharacter(message[index])) return false;
         }
         return true;
+    }
+
+    private static boolean isIdCharacter(byte character) {
+        return (character >= 'a' && character <= 'z') || (character >= 'A' && character <= 'Z')
+                || (character >= '0' && character <= '9') || character == '-' || character == '_';
+    }
+
+    int trackCount() {
+        return tracks.size();
     }
 
     /**

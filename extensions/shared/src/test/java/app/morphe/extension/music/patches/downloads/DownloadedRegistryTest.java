@@ -12,6 +12,7 @@ import com.google.protobuf.CodedOutputStream;
 import org.junit.Test;
 
 import java.io.ByteArrayOutputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -173,6 +174,33 @@ public class DownloadedRegistryTest {
         assertEquals(SONG, registryOf(SONG).findDownloaded(row));
         assertNull(registryOf(SONG).findDownloaded(Arrays.copyOf(row, row.length - 1)));
         assertNull(registryOf(SONG).findDownloaded(new byte[0]));
+    }
+
+    @Test public void looseScanFindsAnIdThatIsNotAWholeProtobufString() {
+        byte[] url = "https://music.youtube.com/watch?v=dQw4w9WgXcQ&list=PLx".getBytes(StandardCharsets.US_ASCII);
+        byte[] atEdges = SONG.getBytes(StandardCharsets.US_ASCII);
+
+        DownloadedRegistry registry = registryOf(SONG);
+        assertNull(registry.findDownloaded(url));
+        assertEquals(SONG, registry.findDownloadedLoose(url));
+        assertEquals(SONG, registry.findDownloadedLoose(atEdges));
+    }
+
+    @Test public void looseScanNeedsAWholeElevenCharacterWord() {
+        DownloadedRegistry registry = registryOf(SONG);
+
+        assertNull(registry.findDownloadedLoose(("x" + SONG).getBytes(StandardCharsets.US_ASCII)));
+        assertNull(registry.findDownloadedLoose((SONG + "y").getBytes(StandardCharsets.US_ASCII)));
+        assertNull(registry.findDownloadedLoose(("v=" + OTHER).getBytes(StandardCharsets.US_ASCII)));
+        assertNull(new DownloadedRegistry().findDownloadedLoose(SONG.getBytes(StandardCharsets.US_ASCII)));
+    }
+
+    @Test public void candidatesAreEveryVideoIdShapedStringUpToTheLimit() throws Exception {
+        byte[] row = message(1, OTHER, 2, "not an id!", 3, THIRD, 4, SONG);
+
+        assertEquals(Arrays.asList(OTHER, THIRD), DownloadedRegistry.candidateIds(row, 2));
+        assertEquals(Arrays.asList(OTHER, THIRD, SONG), DownloadedRegistry.candidateIds(row, 10));
+        assertTrue(DownloadedRegistry.candidateIds(new byte[0], 3).isEmpty());
     }
 
     @Test public void earlierPlaylistsAreRecoveredOnlyWhenEveryTrackIsADownload() {

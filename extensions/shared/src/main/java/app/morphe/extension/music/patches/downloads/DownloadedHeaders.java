@@ -43,6 +43,7 @@ final class DownloadedHeaders {
         WeakReference<DownloadedCheck> badge = new WeakReference<>(null);
         boolean listening;
         boolean applyQueued;
+        String lastLogged = "";
     }
 
     private DownloadedHeaders() {}
@@ -57,13 +58,14 @@ final class DownloadedHeaders {
         }
         if (!downloaded) {
             if (badge != null) badge.setShown(false);
+            logOnChange(state, "not downloaded");
             return;
         }
 
         View button = downloadButton(container, state, badge);
         if (button == null) {
-            Logger.printDebug(() -> "No Download button in the header");
             if (badge != null) badge.setShown(false);
+            logOnChange(state, "downloaded but no Download button in the header (collapsed or not laid out)");
             return;
         }
 
@@ -81,6 +83,17 @@ final class DownloadedHeaders {
         if (container.indexOfChild(badge) != container.getChildCount() - 1) badge.bringToFront();
         place(container, button, badge);
         badge.setShown(true);
+        logOnChange(state, "check shown at " + button.getClass().getSimpleName()
+                + " " + button.getWidth() + "x" + button.getHeight());
+    }
+
+    /** One line per change of what the header shows, never one per bind or layout. */
+    private static void logOnChange(State state, String result) {
+        String line = "Header sources=" + state.sourceIds + ": " + result;
+        if (line.equals(state.lastLogged)) return;
+
+        state.lastLogged = line;
+        Logger.printDebug(() -> line);
     }
 
     /** The header lays its content out after it was bound, so the check is re-placed after every layout. */

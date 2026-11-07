@@ -18,6 +18,7 @@ import app.morphe.util.returnEarly
 import com.android.tools.smali.dexlib2.AccessFlags
 import com.android.tools.smali.dexlib2.Opcode
 import com.android.tools.smali.dexlib2.iface.Method
+import com.android.tools.smali.dexlib2.iface.reference.FieldReference
 import com.android.tools.smali.dexlib2.iface.reference.MethodReference
 
 private const val AUDIO_FIRST_PATH = "Lapp/morphe/extension/music/patches/downloads/"
@@ -26,6 +27,8 @@ private const val OVERRIDE_MODE = "$AUDIO_FIRST->overrideMode(Ljava/lang/Enum;)L
 private const val ON_COMMAND = "$AUDIO_FIRST->onCommand(Ljava/lang/Object;)V"
 private const val OVERRIDE_COMMAND = "$AUDIO_FIRST->overrideCommand(Ljava/lang/Object;)Ljava/lang/Object;"
 private const val MODE_HOLDER = $$"$${AUDIO_FIRST_PATH}AudioFirst$ModeHolder;"
+private const val QUEUE_ITEM = $$"$${AUDIO_FIRST_PATH}AudioFirst$QueueItem;"
+private const val ON_QUEUE_ITEM = "$AUDIO_FIRST->onQueueItem(Ljava/lang/Object;)V"
 private const val CAPTURE_HOLDER = "$AUDIO_FIRST->captureHolder(Ljava/lang/Object;)V"
 private const val OBJECT = "Ljava/lang/Object;"
 private const val MAX_SETTER_INSTRUCTIONS = 6
@@ -89,6 +92,7 @@ internal fun BytecodePatchContext.installAudioFirst() {
         supported.returnEarly(true)
         audioFirstResolved = true
         installModeHolderAccess(setter.classDef.type, setter.method, enumType)
+        installQueueItemSelection(setter.classDef.type, enumType, commandResolver.parameterTypes[0].toString())
         printInfo("AudioFirst: mode enum $enumType, holder ${setter.classDef.type}, setter ${setter.method.name}, " +
             "taps ${commandResolver.definingClass}->${commandResolver.name}")
     } catch (ex: Exception) {
@@ -135,6 +139,76 @@ private fun BytecodePatchContext.installModeHolderAccess(holderType: String, set
     } catch (ex: Exception) {
         printWarn("Start downloaded songs in audio mode cannot start the audio mode from the tap on this Music " +
             "version, it only answers the app's video fallback: ${ex.message}")
+    }
+}
+
+/** The queue item class, found by the log string of its constructor's renderer set-up. */
+private val queueItemFingerprint = Fingerprint(
+    strings = listOf("Counterpart renderer absent in response. "),
+)
+
+/**
+ * A queue item holds the renderer of a track's video and of its song, selects the one the server listed first and only
+ * changes it when the mode is switched. In an audio mode the next items of an album therefore kept their video ids,
+ * which have no stream copy. The item gets three bridge methods (its holder, the command of a mode's renderer, and
+ * selecting a mode's renderer: the app's own `w(mode)`), and its renderer set-up reports the finished item to the
+ * extension, which selects the song renderer when that song is downloaded and the mode is an audio one.
+ *
+ * Resolved by shape on 9.40.51 / 9.15.51 / 8.30.54: item `Lhxq` / `Lnpa` / `Lnav`, set-up `z()` / `z()` / `v()`,
+ * renderer picker `v(mode)` / `v(mode)` / `u(mode)`, selector `w(mode)`, renderer command field `l` / `l` / `k`.
+ * Kept apart: if any part is missing only this selection is, with a warning.
+ */
+private fun BytecodePatchContext.installQueueItemSelection(holderType: String, enumType: String, commandType: String) {
+    try {
+        val match = queueItemFingerprint.matchSingle()
+        val itemType = match.classDef.type
+        val item = mutableClassDefBy(itemType)
+
+        fun Method.isInstance() = !AccessFlags.STATIC.isSet(accessFlags) && !AccessFlags.ABSTRACT.isSet(accessFlags)
+        fun Method.takes(vararg types: String) = parameterTypes.map(CharSequence::toString) == types.toList()
+
+        // The renderer is the type of the four fields the item keeps its renderers in (primary, current, song, video).
+        val rendererType = item.fields.filter { !AccessFlags.STATIC.isSet(it.accessFlags) }
+            .groupBy { it.type }.filter { it.value.size >= 4 }.keys.single()
+        val picker = item.methods.single { it.isInstance() && it.takes(enumType) && it.returnType == rendererType }
+        val selector = item.methods.single { it.isInstance() && it.takes(enumType) && it.returnType == "V" }
+        val holderField = item.fields.single { it.type == holderType && !AccessFlags.STATIC.isSet(it.accessFlags) }
+        val commandField = item.methods.filter { it.isInstance() && it.takes(rendererType) && it.returnType != "V" }
+            .flatMap { it.implementation?.instructions?.toList().orEmpty() }
+            .mapNotNull { it.getReference<FieldReference>() }
+            .filter { it.definingClass == rendererType && it.type == commandType }
+            .map { it.name }.distinct().single()
+
+        val builder = item.findMutableMethodOf(match.method)
+        val returns = builder.implementation!!.instructions.withIndex()
+            .filter { it.value.opcode == Opcode.RETURN_VOID }.map { it.index }
+        if (returns.isEmpty()) throw IllegalStateException("the renderer set-up has no return")
+
+        item.interfaces.add(QUEUE_ITEM)
+        item.addDownloadsBridge("rvxHolder", emptyList(), OBJECT, 2, """
+            iget-object v0, p0, $itemType->${holderField.name}:$holderType
+            return-object v0
+        """)
+        item.addDownloadsBridge("rvxCommand", listOf(OBJECT), OBJECT, 3, """
+            check-cast p1, $enumType
+            invoke-virtual {p0, p1}, $itemType->${picker.name}($enumType)$rendererType
+            move-result-object v0
+            iget-object v0, v0, $rendererType->$commandField:$commandType
+            return-object v0
+        """)
+        item.addDownloadsBridge("rvxSelect", listOf(OBJECT), "V", 2, """
+            check-cast p1, $enumType
+            invoke-virtual {p0, p1}, $itemType->${selector.name}($enumType)V
+            return-void
+        """)
+        for (index in returns.reversed()) {
+            builder.addInstructions(index, "invoke-static {p0}, $ON_QUEUE_ITEM")
+        }
+        printInfo("AudioFirst: queue item $itemType, set-up ${builder.name}, picker ${picker.name}, " +
+            "selector ${selector.name}, command field $commandField")
+    } catch (ex: Exception) {
+        printWarn("Start downloaded songs in audio mode cannot keep the next songs of an album on their song " +
+            "renderers on this Music version: ${ex.message}")
     }
 }
 

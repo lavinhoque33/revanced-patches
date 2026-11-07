@@ -85,17 +85,18 @@ final class AudioFirstLogic {
      * @param enabled     The setting and the stream copies are on.
      * @param armed       A tap just armed the start for a song with a copy.
      * @param currentMode The mode the app holds now, or null when unknown.
-     * @return The mode to set now, or null for none. Only the video fallback the app picks without being told is
-     * turned into the audio mode: the two user-triggered modes, the audio modes and the data-saving override stay.
+     * @return The mode to set now, or null for none. A tap is a fresh selection (stock resets the mode itself on
+     * every tap), so both video modes become the audio mode, the user's Video included; the audio modes and the
+     * data-saving override stay. A later toggle by the user is a setter call of its own and is never changed.
      */
     @Nullable
     static String modeToSet(boolean enabled, boolean armed, @Nullable String currentMode) {
-        return enabled && armed && OMV_PREFERRED.equals(currentMode) ? ATV_PREFERRED : null;
+        return enabled && armed && isVideoMode(currentMode) ? ATV_PREFERRED : null;
     }
 
-    /** A row is retargeted at its song unless the user chose the video mode: that choice keeps winning. */
-    static boolean retargetsIn(@Nullable String currentMode) {
-        return !OMV_PREFERRED_USER_TRIGGERED.equals(currentMode);
+    /** The command asks for the audio mode unless the data-saving override is held, which is audio already. */
+    static boolean hintsIn(@Nullable String currentMode) {
+        return !"DONT_PLAY_VIDEO_OVERRIDE".equals(currentMode);
     }
 
     static boolean isLive(@Nullable String armedId, long armedAt, long now, long ttl) {
@@ -120,14 +121,24 @@ final class AudioFirstLogic {
      *
      * @param stateName The last mode the app set, or null if it is not known on this version.
      * @param pendingId The song a tap armed, which the app is about to switch to the audio mode.
-     * @return True for the video mode, or an unknown mode, unless the song is the one a tap just armed and the app
-     * still has its video fallback set.
+     * @param modeUnchangedSinceTap No mode was set since that tap: the video mode still held is the one the tap found
+     *                              (a user's explicit Video, reset by the tap as a fresh selection), not a new choice.
+     * @return True for the video mode, or an unknown mode, unless the song is the one a tap just armed and the mode
+     * still is the video one the tap found (the fallback, or the user's choice a tap resets).
      */
     static boolean declineForVideo(@Nullable String stateName, String videoId, @Nullable String pendingId,
-                                   long pendingAt, long now, long ttl) {
+                                   long pendingAt, long now, long ttl, boolean modeUnchangedSinceTap) {
         if (stateName == null) return true;
         if (!isVideoMode(stateName)) return false;
-        return !(videoId.equals(pendingId) && isLive(pendingId, pendingAt, now, ttl)
-                && OMV_PREFERRED.equals(stateName));
+
+        boolean armed = videoId.equals(pendingId) && isLive(pendingId, pendingAt, now, ttl);
+        if (armed && OMV_PREFERRED.equals(stateName)) return false;
+        return !(armed && OMV_PREFERRED_USER_TRIGGERED.equals(stateName) && modeUnchangedSinceTap);
+    }
+
+    /** The modes stock treats as audio: the audio fallback, the user's Song and the data-saving override. */
+    static boolean isAudioMode(@Nullable String stateName) {
+        return ATV_PREFERRED.equals(stateName) || "ATV_PREFERRED_USER_TRIGGERED".equals(stateName)
+                || "DONT_PLAY_VIDEO_OVERRIDE".equals(stateName);
     }
 }

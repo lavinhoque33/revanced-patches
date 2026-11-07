@@ -42,6 +42,10 @@ public final class AudioFirst {
     private static String armedId;
     private static long armedAt;
 
+    /** Counts the mode changes, so a tap can tell whether the mode it found is still the one held. */
+    private static long modeEpoch;
+    private static long armedEpoch;
+
     private static final long COMMAND_LOG_INTERVAL_MILLIS = 300;
     private static long lastCommandLogAt;
 
@@ -56,6 +60,21 @@ public final class AudioFirst {
 
         /** The app's own setter, so the subject, the queue and the pill all follow. */
         void rvxSetMode(Object mode);
+    }
+
+    /**
+     * A queue item of the app, by the three methods the patch adds to it. An item holds the video renderer and the
+     * song renderer of a track and plays the one it has selected.
+     */
+    public interface QueueItem {
+        /** The mode holder the item reads. */
+        Object rvxHolder();
+
+        /** The command of the renderer the item would select in the mode, or null. */
+        Object rvxCommand(Object mode);
+
+        /** Selects the renderer of the mode, as the app does when the mode changes. */
+        void rvxSelect(Object mode);
     }
 
     /** Every mode holder built, not kept alive by this list. */
@@ -116,29 +135,45 @@ public final class AudioFirst {
      * is in the audio mode and the next rows keep their song ids. On the thread of the app's mode changes when it is
      * not this one, for every holder built (the app may have more than one). The arm stays live: the app may still set its video fallback, which the setter hook turns back.
      *
-     * @return How it was set, or null when it was not (the mode is not the video fallback, or no holder is known).
+     * @return What was done, for the log.
      */
-    @Nullable
     private static String startAudioMode() {
-        String was = null;
-        for (ModeHolder holder : liveHolders()) {
+        List<ModeHolder> live = liveHolders();
+        if (live.isEmpty()) return "no mode holder known yet";
+
+        StringBuilder status = new StringBuilder();
+        for (ModeHolder holder : live) {
             Enum<?> mode = modeOf(holder);
             if (mode == null) continue;
 
             String target = AudioFirstLogic.modeToSet(true, true, mode.name());
-            if (target == null) continue;
+            if (target == null) {
+                status.append("holder is ").append(mode.name()).append(", left as it is; ");
+                continue;
+            }
 
             Enum<?> audio = constant(mode, target);
+            String was = mode.name();
             Utils.runOnMainThreadNowOrLater(() -> {
                 try {
                     holder.rvxSetMode(audio);
+                    Enum<?> now = modeOf(holder);
+                    Logger.printDebug(() -> "AudioFirst: mode ATV_PREFERRED set (direct, was " + was
+                            + ", read back " + (now == null ? "?" : now.name()) + ")");
                 } catch (Exception ex) {
                     Logger.printException(() -> "AudioFirst: could not set the mode", ex);
                 }
             });
-            was = mode.name();
+            status.append("holder was ").append(was).append(", set requested; ");
         }
-        return was == null ? null : "direct, was " + was;
+        return status.length() == 0 ? "no holder answered" : status.toString();
+    }
+
+    /** Whether a video mode still held now is the one found by the last tap: no mode was set since. */
+    private static boolean modeUnchangedSinceTap() {
+        synchronized (lock) {
+            return modeEpoch == armedEpoch;
+        }
     }
 
     /** Enabled by the patch only after the mode setter and the tap hook resolve. */
@@ -151,6 +186,39 @@ public final class AudioFirst {
         if (!supported()) return null;
         String mode = lastMode;
         return mode != null ? mode : AudioFirstLogic.ATV_PREFERRED;
+    }
+
+    /**
+     * Injection point: the end of a queue item's construction. The item selects the renderer the server listed
+     * first, which is the music video for the rows of an album, and only the mode switch changes it, so in the audio
+     * mode Next reached the video ids that have no stream copy. An item whose song renderer is a downloaded song
+     * selects it when the app is in an audio mode. Nothing else changes: a track without a copy, a video mode (the
+     * user's choice included) and an item without a song renderer stay as the app made them.
+     */
+    public static void onQueueItem(@Nullable Object item) {
+        try {
+            if (!supported() || !(item instanceof QueueItem queueItem)) return;
+            if (!Settings.START_DOWNLOADED_IN_AUDIO.get() || !StreamSwap.enabled()) return;
+
+            DownloadedMarkers.warmUp();
+            DownloadedRegistry registry = DownloadedMarkers.loadedRegistry();
+            if (registry == null) return;
+
+            Object holder = queueItem.rvxHolder();
+            captureHolder(holder);
+            Enum<?> mode = holder instanceof ModeHolder modeHolder ? modeOf(modeHolder) : null;
+            if (mode == null || !AudioFirstLogic.isAudioMode(mode.name())) return;
+
+            if (!(queueItem.rvxCommand(mode) instanceof MessageLite command)) return;
+
+            String videoId = TapCommand.parse(command.toByteArray()).videoId;
+            if (videoId == null || !registry.isDownloaded(videoId)) return;
+
+            queueItem.rvxSelect(mode);
+            Logger.printDebug(() -> "AudioFirst: queue item v=" + videoId + " selects its song (" + mode.name() + ")");
+        } catch (Exception ex) {
+            Logger.printException(() -> "AudioFirst: queue item failure", ex);
+        }
     }
 
     /** Injection point where the app cannot rebuild a command: arms the start, never changes the command. */
@@ -196,24 +264,24 @@ public final class AudioFirst {
             synchronized (lock) {
                 armedId = arm == null ? null : arm.videoId();
                 armedAt = SystemClock.elapsedRealtime();
+                armedEpoch = modeEpoch;
             }
             if (arm == null) return null;
             Logger.printDebug(() -> "AudioFirst: armed by " + arm.rule() + " v=" + arm.videoId());
 
             if (logged) Logger.printDebug(() -> "AudioFirst: watch config fields=" + CommandRewrite.describeWatch(bytes));
 
-            // The mode the user chose keeps winning: nothing is retargeted or set in it.
-            if (!AudioFirstLogic.retargetsIn(mode)) return null;
-
+            // A tap is a fresh selection: stock resets the mode on every tap, so the user's earlier Video choice does
+            // not hold for it. The toggle the user presses afterwards is a setter call of its own, left as it is.
             String direct = startAudioMode();
-            if (direct != null) Logger.printDebug(() -> "AudioFirst: mode ATV_PREFERRED set (" + direct + ")");
+            Logger.printDebug(() -> "AudioFirst: mode set attempt: " + direct);
 
             if (!mayRewrite || !(command instanceof NativeDownloads.Command rebuildable)) return null;
             if (!AudioFirstLogic.namesTheRow(arm.rule(), arm.videoId(), tap.videoId, registry::isDownloaded)) {
                 return null;
             }
 
-            boolean hint = AudioFirstLogic.modeToSet(true, true, mode) != null;
+            boolean hint = AudioFirstLogic.hintsIn(mode);
             CommandRewrite.Result result = CommandRewrite.retarget(bytes, tap.videoId, arm.videoId(), hint);
             if (result == null) {
                 Logger.printDebug(() -> "AudioFirst: command not rewritten v=" + tap.videoId + " (unreadable)");
@@ -249,6 +317,9 @@ public final class AudioFirst {
             if (mode == null) return null;
 
             String name = mode.name();
+            synchronized (lock) {
+                modeEpoch++;
+            }
             String forced = null;
             Enum<?> result = mode;
             if (AudioFirstLogic.OMV_PREFERRED.equals(name) && Settings.START_DOWNLOADED_IN_AUDIO.get()) {
@@ -286,7 +357,7 @@ public final class AudioFirst {
             pendingAt = armedAt;
         }
         return AudioFirstLogic.declineForVideo(currentMode(), videoId, pending, pendingAt,
-                SystemClock.elapsedRealtime(), AudioFirstLogic.ARM_TTL_MILLIS);
+                SystemClock.elapsedRealtime(), AudioFirstLogic.ARM_TTL_MILLIS, modeUnchangedSinceTap());
     }
 
     private static Enum<?> constant(Enum<?> sample, String name) {

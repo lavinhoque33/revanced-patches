@@ -4,7 +4,7 @@
  *
  * See the included NOTICE file for GPLv3 Section 7 terms that apply to Morphe contributions.
  *
- * Modified by lavinhoque33, 2026-10-21.
+ * Modified by lavinhoque33, 2026-11-07.
  */
 
 package app.morphe.patches.music.interaction.downloads
@@ -67,7 +67,7 @@ private val downloadsResourcePatch = resourcePatch {
     }
 }
 
-private fun MutableClass.addDownloadsBridge(
+internal fun MutableClass.addDownloadsBridge(
     name: String, parameters: List<String>, returnType: String, registers: Int, instructions: String,
 ) {
     methods.add(
@@ -125,6 +125,8 @@ val downloadsPatch = bytecodePatch(
         // reparse with the generated registry so browse endpoint extensions survive.
         val resolver = nativeDownloadsCommandResolverFingerprint.method
         val command = mutableClassDefBy(resolver.parameters[1].type)
+
+        installStreamSwap()
         command.interfaces.add(NATIVE_COMMAND)
         val defaultCommand = command.fields.single { it.type == command.type && AccessFlags.STATIC.isSet(it.accessFlags) }
         val parserOwner = parseByteArrayMethodRef.get()!!.definingClass

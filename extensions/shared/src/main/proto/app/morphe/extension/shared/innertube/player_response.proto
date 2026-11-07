@@ -91,6 +91,7 @@ enum Status {
 }
 
 message StreamingData {
+  optional int64 expiresInSeconds = 1;
   repeated Format formats = 2;
   repeated Format adaptiveFormats = 3;
   // The built-in downloader reads the 1080p Premium (itag 616) HLS stream from it.
@@ -99,6 +100,10 @@ message StreamingData {
 }
 
 message Format {
+  // Original stream identity and byte layout, dex-verified on Music 8.30.54, 9.15.51 and 9.40.51.
+  optional int64 lastModified = 11;
+  optional ByteRange initRange = 9;
+  optional ByteRange indexRange = 10;
   optional int32 itag = 1;
   optional int32 bitrate = 6;
   optional int32 averageBitrate = 31;
@@ -109,18 +114,40 @@ message Format {
   optional string mimeType = 5;
   optional string url = 2;
   optional string signatureCipher = 48;
-  // modified by lavinhoque33, 2026-10-10: video dimensions for the built-in downloader's quality picker.
+  // Video dimensions for the built-in downloader's quality picker.
   optional int32 width = 7;
   optional int32 height = 8;
   optional int32 fps = 25;
   optional string qualityLabel = 26;
 }
 
+message ByteRange {
+  optional int64 start = 3;
+  optional int64 end = 4;
+}
+
 message PlayerConfig {
   optional AudioConfig audioConfig = 55405814;
   optional AndroidMedialibConfig androidMedialibConfig = 78958444;
+  // Dex-verified on the three supported Music versions; preserve unrelated config when stripping SABR.
+  optional MediaCommonConfig mediaCommonConfig = 215771584;
   optional PlayerGestureConfig playerGestureConfig = 262192541;
   optional InlinePlaybackConfig inlinePlaybackConfig = 399288314;
+  optional PlaybackRoutingConfig playbackRoutingConfig = 470799370;
+}
+
+message MediaCommonConfig {
+  optional MediaUstreamerRequestConfig mediaUstreamerRequestConfig = 2;
+  optional bool enableSabr = 13;
+}
+
+message MediaUstreamerRequestConfig {
+  optional bytes videoPlaybackUstreamerConfig = 4;
+}
+
+message PlaybackRoutingConfig {
+  // Raw value 3 maps to forced Platypus in all three Music versions.
+  optional int32 preferredEngine = 4;
 }
 
 message AudioConfig {

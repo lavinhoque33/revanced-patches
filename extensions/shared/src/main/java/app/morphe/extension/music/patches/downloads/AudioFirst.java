@@ -22,6 +22,10 @@ import app.morphe.extension.shared.utils.Logger;
  * turns the video fallback the app picks into the audio mode once. The two user-triggered modes are never changed, so
  * the Song/Video switch keeps working. The mode is read back for the swap, which leaves the video mode online.
  *
+ * <p>A row of an album can carry the id of its music video, resolved from the current mode, while the copy is under
+ * the id of the song. Setting the mode later cannot retarget that row, so such a command is rewritten before the
+ * player request (see {@link CommandRewrite}); the mode force stays as the second layer.
+ *
  * <p>Nothing here touches storage: the stream copies come from the in-memory set the checkmarks keep.
  */
 @SuppressWarnings("unused")
@@ -54,53 +58,85 @@ public final class AudioFirst {
         return mode != null ? mode : AudioFirstLogic.ATV_PREFERRED;
     }
 
-    /** Injection point: every command a tap resolves. Never changes the command. */
+    /** Injection point where the app cannot rebuild a command: arms the start, never changes the command. */
     public static void onCommand(@Nullable Object command) {
+        handle(command, false);
+    }
+
+    /**
+     * Injection point: every command a tap resolves. Arms the start and, for a row whose command carries the id of
+     * the music video while its song has a stream copy, returns the command retargeted at the song, so the first
+     * player request is already the one the copy answers. Any other command is returned as it is.
+     */
+    public static Object overrideCommand(@Nullable Object command) {
+        Object rewritten = handle(command, true);
+        return rewritten != null ? rewritten : command;
+    }
+
+    @Nullable
+    private static Object handle(@Nullable Object command, boolean mayRewrite) {
         try {
-            if (!supported() || !(command instanceof MessageLite message)) return;
-            if (!Settings.START_DOWNLOADED_IN_AUDIO.get() || !StreamSwap.enabled()) return;
+            if (!supported() || !(command instanceof MessageLite message)) return null;
+            if (!Settings.START_DOWNLOADED_IN_AUDIO.get() || !StreamSwap.enabled()) return null;
 
             DownloadedMarkers.warmUp();
             DownloadedRegistry registry = DownloadedMarkers.loadedRegistry();
             // The first tap after a start can come before the copies are known: it is not armed.
-            if (registry == null) return;
+            if (registry == null) return null;
 
             byte[] bytes = message.toByteArray();
             TapCommand tap = TapCommand.parse(bytes);
-            if (tap.ids.isEmpty() && !tap.isWatch()) return;
+            if (tap.ids.isEmpty() && !tap.isWatch()) return null;
 
             String source = registry.findSource(bytes);
-            logCommand(tap, source);
+            boolean logged = logCommand(tap, source);
 
             AudioFirstLogic.Arm arm = AudioFirstLogic.chooseArm(true, tap.ids, registry.sourceTracks(source),
                     tap.index, tap.hasParams, registry::isDownloaded);
             // Only a watch command that ties to no copy disarms an earlier tap: a command of another kind may
             // follow the tap that armed.
-            if (arm == null && !tap.isWatch()) return;
+            if (arm == null && !tap.isWatch()) return null;
 
             synchronized (lock) {
                 armedId = arm == null ? null : arm.videoId();
                 armedAt = SystemClock.elapsedRealtime();
             }
-            if (arm != null) {
-                Logger.printDebug(() -> "AudioFirst: armed by " + arm.rule() + " v=" + arm.videoId());
+            if (arm == null) return null;
+            Logger.printDebug(() -> "AudioFirst: armed by " + arm.rule() + " v=" + arm.videoId());
+
+            if (logged) Logger.printDebug(() -> "AudioFirst: watch config fields=" + CommandRewrite.describeWatch(bytes));
+            if (!mayRewrite || !(command instanceof NativeDownloads.Command rebuildable)) return null;
+            if (!AudioFirstLogic.namesTheRow(arm.rule(), arm.videoId(), tap.videoId, registry::isDownloaded)) {
+                return null;
             }
+
+            CommandRewrite.Result result = CommandRewrite.retarget(bytes, tap.videoId, arm.videoId());
+            if (result == null) {
+                Logger.printDebug(() -> "AudioFirst: command not rewritten v=" + tap.videoId + " (unreadable)");
+                return null;
+            }
+            Object rewritten = rebuildable.rvxWithBytes(result.command());
+            Logger.printDebug(() -> "AudioFirst: rewrote command v=" + tap.videoId + " -> " + arm.videoId()
+                    + " type=" + result.type());
+            return rewritten;
         } catch (Exception ex) {
-            Logger.printException(() -> "AudioFirst: onCommand failure", ex);
+            Logger.printException(() -> "AudioFirst: command failure", ex);
+            return null;
         }
     }
 
     /** What the tap carried, which decides how it ties to a copy; at most once every 300 ms. */
-    private static void logCommand(TapCommand tap, @Nullable String source) {
+    private static boolean logCommand(TapCommand tap, @Nullable String source) {
         long now = SystemClock.elapsedRealtime();
         synchronized (lock) {
-            if (now - lastCommandLogAt < COMMAND_LOG_INTERVAL_MILLIS) return;
+            if (now - lastCommandLogAt < COMMAND_LOG_INTERVAL_MILLIS) return false;
             lastCommandLogAt = now;
         }
         Logger.printDebug(() -> "AudioFirst: command ids=" + tap.ids + " video=" + tap.videoId
                 + " playlist=" + (tap.playlistId.isEmpty() ? "-" : tap.playlistId)
                 + " index=" + (tap.index < 0 ? "-" : tap.index) + " params=" + tap.hasParams
                 + " source=" + (source == null ? "-" : source) + " fields=" + tap.fields);
+        return true;
     }
 
     /** Injection point: the argument of the app's mode setter. */

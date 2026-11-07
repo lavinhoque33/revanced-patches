@@ -23,6 +23,7 @@ import com.android.tools.smali.dexlib2.iface.reference.MethodReference
 private const val AUDIO_FIRST = "Lapp/morphe/extension/music/patches/downloads/AudioFirst;"
 private const val OVERRIDE_MODE = "$AUDIO_FIRST->overrideMode(Ljava/lang/Enum;)Ljava/lang/Enum;"
 private const val ON_COMMAND = "$AUDIO_FIRST->onCommand(Ljava/lang/Object;)V"
+private const val OVERRIDE_COMMAND = "$AUDIO_FIRST->overrideCommand(Ljava/lang/Object;)Ljava/lang/Object;"
 private const val OBJECT = "Ljava/lang/Object;"
 private const val MAX_SETTER_INSTRUCTIONS = 6
 
@@ -47,7 +48,8 @@ private fun Method.callsOneObjectSubject(): Boolean {
  * Start downloaded songs in audio mode. Stock keeps one global audio/video mode (an enum of five values) in a state
  * holder, and falls back to `OMV_PREFERRED` for an account without Premium when a tap names no mode, so an album row
  * opens in video mode and requests the music video's id. Two hooks:
- *  - every command resolved by a tap is reported, which arms a short flag when its song has a stream copy;
+ *  - every command resolved by a tap is reported, which arms a short flag when its song has a stream copy. The
+ *    command hook is installed by [installAudioFirstCommandHook] once every patch has run, see there;
  *  - the holder's setter is routed through the extension, which turns an armed `OMV_PREFERRED` into
  *    `ATV_PREFERRED` and never touches the user-triggered values. It also records the mode for the swap.
  *
@@ -56,6 +58,7 @@ private fun Method.callsOneObjectSubject(): Boolean {
  * warns: no audio-first start, and the swap then declines in every mode it cannot read.
  */
 internal fun BytecodePatchContext.installAudioFirst() {
+    audioFirstResolved = false
     try {
         val enumType = audioVideoModeEnumFingerprint.matchSingle().classDef.type
         val setter = Fingerprint(
@@ -74,16 +77,51 @@ internal fun BytecodePatchContext.installAudioFirst() {
         val commandResolver = CommandResolverFingerprint.method
         val supported = mutableClassDefBy(AUDIO_FIRST).methods.single { it.name == "supported" }
 
-        commandResolver.addInstructions(0, "invoke-static {p1}, $ON_COMMAND")
         mutableClassDefBy(setter.classDef.type).findMutableMethodOf(setter.method).addInstructions(0, """
             invoke-static {p1}, $OVERRIDE_MODE
             move-result-object p1
             check-cast p1, $enumType
         """)
         supported.returnEarly(true)
+        audioFirstResolved = true
         printInfo("AudioFirst: mode enum $enumType, holder ${setter.classDef.type}, setter ${setter.method.name}, " +
             "taps ${commandResolver.definingClass}->${commandResolver.name}")
     } catch (ex: Exception) {
         printWarn("Start downloaded songs in audio mode is unavailable on this Music version: ${ex.message}")
     }
 }
+
+/**
+ * The tap hook of [installAudioFirst]. It runs after every patch, because the playlist track tap patch hooks the very
+ * same method at its start: installed last, this one runs FIRST whichever patch executed first, so the start is armed
+ * (and a row of a downloaded album retargeted) on the command the app built, with its playlist, before the track tap
+ * action turns it into a single-track or queue command. Each hook then continues with the command the previous returned.
+ *
+ * When the command class cannot rebuild itself from bytes, only the arming is installed, with a warning.
+ */
+internal fun BytecodePatchContext.installAudioFirstCommandHook() {
+    if (!audioFirstResolved) return
+
+    try {
+        val commandResolver = CommandResolverFingerprint.method
+        val commandType = commandResolver.parameterTypes[0].toString()
+        val rebuildable = mutableClassDefBy(commandType).interfaces.contains(NATIVE_COMMAND)
+
+        if (rebuildable) {
+            commandResolver.addInstructions(0, """
+                invoke-static {p1}, $OVERRIDE_COMMAND
+                move-result-object p1
+                check-cast p1, $commandType
+            """)
+        } else {
+            commandResolver.addInstructions(0, "invoke-static {p1}, $ON_COMMAND")
+            printWarn("Start downloaded songs in audio mode cannot retarget an album row on this Music version: " +
+                "$commandType cannot be rebuilt from bytes")
+        }
+        printInfo("AudioFirst: tap hook ${if (rebuildable) "rewrites" else "arms"} $commandType")
+    } catch (ex: Exception) {
+        printWarn("Start downloaded songs in audio mode lost its tap hook on this Music version: ${ex.message}")
+    }
+}
+
+private var audioFirstResolved = false

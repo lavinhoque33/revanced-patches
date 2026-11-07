@@ -53,7 +53,7 @@ import com.android.tools.smali.dexlib2.immutable.ImmutableMethodParameter
 private const val DOWNLOADS_PATH = "Lapp/morphe/extension/music/patches/downloads"
 private const val EXTENSION_CLASS = "$DOWNLOADS_PATH/LocalDownloadManager;"
 private const val NATIVE_DOWNLOADS = "$DOWNLOADS_PATH/NativeDownloads;"
-private const val NATIVE_COMMAND = $$"$$DOWNLOADS_PATH/NativeDownloads$Command;"
+internal const val NATIVE_COMMAND = $$"$$DOWNLOADS_PATH/NativeDownloads$Command;"
 private const val PLAYLIST_STORE = "$DOWNLOADS_PATH/NativePlaylistStore;"
 private const val PLAYLIST_DATABASE = $$"$$DOWNLOADS_PATH/NativePlaylistStore$Database;"
 private const val FUTURE = "Ljava/util/concurrent/Future;"
@@ -260,5 +260,10 @@ val downloadsPatch = bytecodePatch(
             "invoke-static/range {p0 .. p0}, $PLAYLIST_STORE->onDatabase(Ljava/lang/Object;)V")
 
         updatePatchStatus(DOWNLOADS)
+    }
+
+    // After the playlist track tap patch, which hooks the same method: this hook has to run first.
+    finalize {
+        installAudioFirstCommandHook()
     }
 }

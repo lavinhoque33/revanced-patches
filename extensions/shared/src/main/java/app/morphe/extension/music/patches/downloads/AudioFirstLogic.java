@@ -70,6 +70,17 @@ final class AudioFirstLogic {
         return new Arm(RULE_PLAYLIST_SOURCE, commandIds.isEmpty() ? sourceTracks.get(0) : commandIds.get(0));
     }
 
+    /**
+     * Whether an arm names exactly the song of the tapped row, so the command may be retargeted at it: the rule
+     * identified one video id (the header rule cannot), it differs from the id the command carries, and that id has no
+     * copy of its own.
+     */
+    static boolean namesTheRow(String rule, String armedId, @Nullable String commandVideoId,
+                               Predicate<String> hasCopy) {
+        if (!RULE_ID.equals(rule) && !RULE_PLAYLIST_INDEX.equals(rule)) return false;
+        return commandVideoId != null && !commandVideoId.equals(armedId) && !hasCopy.test(commandVideoId);
+    }
+
     static boolean isLive(@Nullable String armedId, long armedAt, long now, long ttl) {
         return armedId != null && now >= armedAt && now - armedAt <= ttl;
     }

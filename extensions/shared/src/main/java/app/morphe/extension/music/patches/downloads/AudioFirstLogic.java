@@ -7,6 +7,9 @@ package app.morphe.extension.music.patches.downloads;
 
 import androidx.annotation.Nullable;
 
+import java.util.List;
+import java.util.function.Predicate;
+
 /**
  * Pure rules of the audio-first start, so they can be tested without Android. The modes are the names of the
  * five-value audio/video mode of the app.
@@ -21,9 +24,50 @@ final class AudioFirstLogic {
 
     private AudioFirstLogic() {}
 
-    /** A tapped song arms the start only with the setting on, the stream copies in effect and a copy of this song. */
-    static boolean shouldArm(boolean settingOn, boolean streamCopiesEnabled, boolean hasCopy) {
-        return settingOn && streamCopiesEnabled && hasCopy;
+    /** The rule that armed the start, and the song it is armed for. */
+    record Arm(String rule, String videoId) {}
+
+    static final String RULE_ID = "id";
+    static final String RULE_PLAYLIST_INDEX = "playlist-index";
+    static final String RULE_PLAYLIST_SOURCE = "playlist-source";
+
+    /**
+     * Ties a tap to a stream copy. The row of an album can carry the id of its music video while the copy is under the
+     * id of the song, so the rules are layered, from the most to the least specific:
+     * <ol>
+     *   <li>{@link #RULE_ID}: any video id of the command has a stream copy;</li>
+     *   <li>{@link #RULE_PLAYLIST_INDEX}: the command names a downloaded playlist or album and the track at the tapped
+     *   position has a copy (an endpoint with params, such as a play or shuffle button, names no position);</li>
+     *   <li>{@link #RULE_PLAYLIST_SOURCE}: the command names a playlist or album every track of which has a copy.
+     *   The start only sets the mode, never the song, so a row that is not downloaded simply plays online in song
+     *   mode.</li>
+     * </ol>
+     *
+     * @param enabled      The setting is on and the stream copies are in effect; otherwise nothing is ever armed.
+     * @param commandIds   The video ids found in the command.
+     * @param sourceTracks The ordered tracks of the downloaded playlist the command names, or null.
+     * @param index        The position the command names, or -1.
+     * @param hasParams    The command carries params, so it is not a row tap.
+     * @return The rule and the song to arm for, or null when no copy is tied to the tap.
+     */
+    @Nullable
+    static Arm chooseArm(boolean enabled, List<String> commandIds, @Nullable List<String> sourceTracks, int index, boolean hasParams,
+                         Predicate<String> hasCopy) {
+        if (!enabled) return null;
+
+        for (String id : commandIds) {
+            if (hasCopy.test(id)) return new Arm(RULE_ID, id);
+        }
+        if (sourceTracks == null || sourceTracks.isEmpty()) return null;
+
+        int position = index >= 0 ? index : (hasParams ? -1 : 0);
+        if (position >= 0 && position < sourceTracks.size() && hasCopy.test(sourceTracks.get(position))) {
+            return new Arm(RULE_PLAYLIST_INDEX, sourceTracks.get(position));
+        }
+        for (String track : sourceTracks) {
+            if (!hasCopy.test(track)) return null;
+        }
+        return new Arm(RULE_PLAYLIST_SOURCE, commandIds.isEmpty() ? sourceTracks.get(0) : commandIds.get(0));
     }
 
     static boolean isLive(@Nullable String armedId, long armedAt, long now, long ttl) {

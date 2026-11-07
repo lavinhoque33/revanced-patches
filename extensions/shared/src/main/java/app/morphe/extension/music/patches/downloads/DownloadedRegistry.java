@@ -75,6 +75,36 @@ final class DownloadedRegistry {
         sources.remove(sourceId);
     }
 
+    /** The ordered video ids of a remembered playlist or album, or null. */
+    @Nullable
+    List<String> sourceTracks(@Nullable String sourceId) {
+        return sourceId == null ? null : sources.get(sourceId);
+    }
+
+    /**
+     * The remembered playlist or album whose id is a whole string of the serialized command, or null. A playlist id
+     * is a protobuf string, so it is preceded by its length; that keeps a radio id that merely contains it apart.
+     */
+    @Nullable
+    String findSource(byte[] message) {
+        for (String sourceId : sources.keySet()) {
+            byte[] id = sourceId.getBytes(StandardCharsets.ISO_8859_1);
+            if (id.length == 0 || id.length > 127) continue;
+            for (int start = 1; start + id.length <= message.length; start++) {
+                if (message[start - 1] != id.length || !matches(message, start, id)) continue;
+                return sourceId;
+            }
+        }
+        return null;
+    }
+
+    private static boolean matches(byte[] message, int start, byte[] id) {
+        for (int index = 0; index < id.length; index++) {
+            if (message[start + index] != id[index]) return false;
+        }
+        return true;
+    }
+
     boolean hasSource(String sourceId) {
         return sources.containsKey(sourceId);
     }

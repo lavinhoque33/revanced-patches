@@ -86,6 +86,16 @@ public final class DownloadedMarkers {
         return registry.trackCount();
     }
 
+    /** Starts the background load of the stream copy ids, if it has not started. */
+    static void warmUp() {
+        ensureLoaded();
+    }
+
+    /** Whether the stream copy of the song is known to exist. In memory: no I/O, false until the load finished. */
+    static boolean hasStreamCopy(String videoId) {
+        return loaded && registry.isDownloaded(videoId);
+    }
+
     static boolean isLoaded() {
         return loaded;
     }

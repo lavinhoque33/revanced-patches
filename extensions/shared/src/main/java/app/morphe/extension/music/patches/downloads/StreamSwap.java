@@ -59,6 +59,8 @@ public final class StreamSwap {
             videoId = adapter.rvxVideoId();
             RawAudioFiles.Entry raw = RawAudioStore.find(videoId);
             if (raw == null) return unchanged(original, videoId, "no current raw download");
+            // A music video the user switched to must stay the online video; audio only would replace it.
+            if (AudioFirst.declinesForVideo(videoId)) return unchanged(original, videoId, "video mode");
             PlayerResponse online = PlayerResponse.parseFrom(adapter.rvxBytes());
             if (!online.hasStreamingData()) return unchanged(original, videoId, "no StreamingData");
             Format selected = null;

@@ -77,6 +77,12 @@ private val downloadsResourcePatch = resourcePatch {
             "true",
             "morphe_music_play_downloads_locally",
         )
+        addSwitchPreference(
+            CategoryType.MISC,
+            "morphe_music_start_downloaded_in_audio",
+            "true",
+            "morphe_music_play_downloads_locally",
+        )
         // The stream copies are invisible in Device files, so they are managed here. No dependency: they can be
         // deleted after Play downloads locally was turned off.
         addCustomPreference(
@@ -148,6 +154,7 @@ val downloadsPatch = bytecodePatch(
 
         installStreamSwap()
         installDownloadedMarkers()
+        installAudioFirst()
         command.interfaces.add(NATIVE_COMMAND)
         val defaultCommand = command.fields.single { it.type == command.type && AccessFlags.STATIC.isSet(it.accessFlags) }
         val parserOwner = parseByteArrayMethodRef.get()!!.definingClass

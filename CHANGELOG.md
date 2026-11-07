@@ -2,13 +2,16 @@
 
 ### Features
 
-* **YouTube Music - Downloads:** Add Play downloads locally, off by default, to play saved audio while
-  radio, lyrics and queue stay online. Tracks downloaded while enabled keep a second raw audio copy,
-  roughly doubling their audio storage.
-* **YouTube Music - Downloads:** Add green downloaded checkmarks, on by default and a child of Download in app.
-  Songs saved by the app show a check on playlist pages, in the Search songs filter and in the player queue, and a
-  playlist or album page whose every track is saved shows one on its Download button. Album track rows and the
-  search All cards are not marked.
+* **YouTube Music - Downloads:** Add Play downloads locally, off by default, to play downloaded songs from a private
+  copy of the audio while radio, lyrics and queue stay online. It is independent of Download in app: on its own it
+  saves only that copy, which is kept inside the app and is not shown in Device files or the library (about 5 MB a
+  song); with Download in app also on, one download feeds both the files and the copy. Add a Stream downloads action
+  that shows what the copies take and deletes them all, without touching the saved files.
+* **YouTube Music - Downloads:** Add green downloaded checkmarks, on by default and a child of Play downloads locally.
+  Songs and playlists saved for local playback show a check on playlist pages, in the Search songs filter and in the
+  player queue, and a playlist or album page whose every track has a stream copy shows one on its Download button.
+  Songs saved only as files by Download in app are not marked. Album track rows and the search All cards are not
+  marked.
 
 ## [1.33.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.32.2...v1.33.0) (2026-11-06)
 

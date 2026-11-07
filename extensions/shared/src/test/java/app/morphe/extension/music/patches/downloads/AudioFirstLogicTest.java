@@ -169,4 +169,20 @@ public class AudioFirstLogicTest {
         assertTrue(AudioFirstLogic.declineForVideo(USER_VIDEO, "id", "id", 1_000, 11_001, TTL, true));
         assertTrue(AudioFirstLogic.declineForVideo(USER_VIDEO, "id", null, 0, 1_500, TTL, true));
     }
+
+    @Test
+    public void queueItemShowsTheSongOnlyInAnAudioModeWithACopy() {
+        assertTrue(AudioFirstLogic.showsSong(true, "ATV_PREFERRED", true));
+        assertTrue(AudioFirstLogic.showsSong(true, "ATV_PREFERRED_USER_TRIGGERED", true));
+        assertTrue(AudioFirstLogic.showsSong(true, "DONT_PLAY_VIDEO_OVERRIDE", true));
+    }
+
+    @Test
+    public void queueItemShowsTheVideoInAVideoModeOrWithoutACopyOrWhenOff() {
+        assertFalse(AudioFirstLogic.showsSong(true, "OMV_PREFERRED", true));
+        assertFalse(AudioFirstLogic.showsSong(true, "OMV_PREFERRED_USER_TRIGGERED", true));
+        assertFalse(AudioFirstLogic.showsSong(true, null, true));
+        assertFalse(AudioFirstLogic.showsSong(true, "ATV_PREFERRED", false));
+        assertFalse(AudioFirstLogic.showsSong(false, "ATV_PREFERRED", true));
+    }
 }

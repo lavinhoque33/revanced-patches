@@ -19,7 +19,8 @@ import app.morphe.extension.shared.utils.Utils;
 /** Android lifecycle for original stream copies. Settings reads themselves are in-memory only. */
 final class RawAudioStore {
     private static final AtomicBoolean observing = new AtomicBoolean();
-    private static final AtomicBoolean cleanupQueued = new AtomicBoolean();
+    private static final CoalescedRunner cleanup = new CoalescedRunner(
+            Utils::runOnBackgroundThread, RawAudioStore::cleanupNow);
     private static final class Storage {
         static final RawAudioFiles files = new RawAudioFiles(
                 new File(Utils.getContext().getFilesDir(), "rvx_raw"));
@@ -49,20 +50,20 @@ final class RawAudioStore {
     }
 
     private static void cleanupLater() {
-        if (!cleanupQueued.compareAndSet(false, true)) return;
-        Utils.runOnBackgroundThread(() -> {
-            cleanupQueued.set(false);
-            try {
-                Utils.verifyOffMainThread();
-                Storage.files.cleanup(id -> {
-                    Uri uri = NativeAudioStore.find(id);
-                    return uri == null ? null : uri.toString();
-                });
-                StreamSwapSources.invalidateMissing();
-            } catch (Exception ex) {
-                Logger.printException(() -> "StreamSwap: raw cleanup failed", ex);
-            }
-        });
+        cleanup.request();
+    }
+
+    private static void cleanupNow() {
+        try {
+            Utils.verifyOffMainThread();
+            Storage.files.cleanup(id -> {
+                Uri uri = NativeAudioStore.find(id);
+                return uri == null ? null : uri.toString();
+            });
+            StreamSwapSources.invalidateMissing();
+        } catch (Exception ex) {
+            Logger.printException(() -> "StreamSwap: raw cleanup failed", ex);
+        }
     }
 
     static void retain(String videoId, File temporary, Format format, Uri muxed) {

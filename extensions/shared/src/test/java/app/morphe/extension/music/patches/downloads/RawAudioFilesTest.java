@@ -125,12 +125,12 @@ public class RawAudioFilesTest {
         assertNotNull(store.find("other", MUXED));
     }
 
-    @Test public void cleanupRetainsOnlyValidDownloadedCommits() throws Exception {
+    @Test public void cleanupRetainsOnlyStructurallyValidDownloadedCommits() throws Exception {
         RawAudioFiles store = store();
         retain(store, "valid");
         retain(store, "deleted");
-        retain(store, "corrupt");
-        Files.write(raw("corrupt.251").toPath(), new byte[8]);
+        retain(store, "short");
+        Files.write(raw("short.251").toPath(), new byte[7]);
         write(raw("bad.json"), "not json");
         Files.write(raw("orphan.251").toPath(), new byte[8]);
         write(raw("pending.json.part"), "{}");
@@ -139,6 +139,67 @@ public class RawAudioFilesTest {
         String[] remaining = raw("unused").getParentFile().list();
         Arrays.sort(remaining);
         assertArrayEquals(new String[]{"valid.251", "valid.json"}, remaining);
+    }
+
+    @Test public void cleanupDoesNotHashAndAdmissionStillRejectsSameLengthCorruption() throws Exception {
+        RawAudioFiles store = store();
+        retain(store, "corrupt");
+        Files.write(raw("corrupt.251").toPath(), new byte[8]);
+        store.cleanup(id -> MUXED);
+        assertTrue(raw("corrupt.251").exists());
+        assertNull(store.find("corrupt", MUXED));
+    }
+
+    @Test public void cleanupRemovesACommitWhoseNativeMappingChanged() throws Exception {
+        RawAudioFiles store = store();
+        retain(store, "moved");
+        store.cleanup(id -> MUXED + "9");
+        assertFalse(raw("moved.251").exists());
+        assertFalse(raw("moved.json").exists());
+    }
+
+    @Test public void verifiedCopyIsNotHashedAgainWhileLengthAndTimeAreUnchanged() throws Exception {
+        RawAudioFiles store = store();
+        retain(store, "track");
+        File file = raw("track.251");
+        long modified = file.lastModified();
+        assertNotNull(store.find("track", MUXED));
+
+        // Same length and mtime: the memoized verification is reused (the digest is not recomputed).
+        Files.write(file.toPath(), new byte[8]);
+        assertTrue(file.setLastModified(modified));
+        assertNotNull(store.find("track", MUXED));
+    }
+
+    @Test public void changedModifiedTimeLengthOrReplacementIsVerifiedAgain() throws Exception {
+        RawAudioFiles store = store();
+        retain(store, "track");
+        File file = raw("track.251");
+        long modified = file.lastModified();
+        assertNotNull(store.find("track", MUXED));
+
+        Files.write(file.toPath(), new byte[8]);
+        assertTrue(file.setLastModified(modified + 5000));
+        assertNull(store.find("track", MUXED));
+
+        retain(store, "track");
+        assertNotNull(store.find("track", MUXED));
+        Files.write(file.toPath(), new byte[7]);
+        assertNull(store.find("track", MUXED));
+    }
+
+    @Test public void deletionAndRetainDropTheVerificationMemo() throws Exception {
+        RawAudioFiles store = store();
+        retain(store, "track");
+        File file = raw("track.251");
+        long modified = file.lastModified();
+        assertNotNull(store.find("track", MUXED));
+
+        store.delete("track");
+        retain(store, "track");
+        Files.write(raw("track.251").toPath(), new byte[8]);
+        assertTrue(raw("track.251").setLastModified(modified));
+        assertNull(store.find("track", MUXED));
     }
 
     @Test public void invalidMetadataCannotPublishAndPathTraversalCannotDelete() throws Exception {

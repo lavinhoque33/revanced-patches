@@ -61,8 +61,18 @@ public final class DownloadedMarkers {
         static final RowState NOT_A_ROW = new RowState();
 
         WeakReference<Object> model = new WeakReference<>(null);
-        WeakReference<DownloadedCheck> check = new WeakReference<>(null);
+        // One check per subtitle line of the row; a card row has one line per layout variant (see badgeLines).
+        final List<WeakReference<DownloadedCheck>> checks = new ArrayList<>();
         String lastOutcome = "";
+
+        List<DownloadedCheck> liveChecks() {
+            List<DownloadedCheck> live = new ArrayList<>(checks.size());
+            for (WeakReference<DownloadedCheck> reference : checks) {
+                DownloadedCheck check = reference.get();
+                if (check != null && check.getParent() != null) live.add(check);
+            }
+            return live;
+        }
     }
 
     private DownloadedMarkers() {}
@@ -88,7 +98,7 @@ public final class DownloadedMarkers {
         try {
             RowState state = rows.get(view);
             if (state == null) {
-                state = badgesContainer(view) == null ? RowState.NOT_A_ROW : new RowState();
+                state = hasBadgesContainer(view) ? new RowState() : RowState.NOT_A_ROW;
                 rows.put(view, state);
             }
             rowLog.bound(view, model, state == RowState.NOT_A_ROW);
@@ -124,12 +134,40 @@ public final class DownloadedMarkers {
         }
     }
 
-    /** The row's subtitle badges container, or null when this is not a classic list row. */
-    @Nullable
-    private static ViewGroup badgesContainer(View row) {
+    private static boolean hasBadgesContainer(View row) {
+        int id = badgesContainerId();
+        return id != 0 && row.findViewById(id) != null;
+    }
+
+    private static int badgesContainerId() {
         if (badgesContainerId == 0) badgesContainerId = ResourceUtils.getIdIdentifier("subtitle_badges_container");
-        return badgesContainerId == 0 ? null : row.findViewById(badgesContainerId) instanceof ViewGroup group
-                ? group : null;
+        return badgesContainerId;
+    }
+
+    /**
+     * The subtitle line of every subtitle badges container in the row: the parent LinearLayout that holds the
+     * container next to the subtitle text. A plain list row has one. A Search top-result card inflates all three of
+     * its layout variants (default, thumbnail above, thumbnail to the side) and shows one, and each variant has
+     * its own container with the same id, so findViewById alone could return the hidden variant's.
+     * Lines are in view order and never repeat.
+     */
+    private static List<ViewGroup> badgeLines(View row) {
+        List<ViewGroup> lines = new ArrayList<>(1);
+        int id = badgesContainerId();
+        if (id == 0) return lines;
+
+        List<View> pending = new ArrayList<>();
+        pending.add(row);
+        while (!pending.isEmpty()) {
+            View next = pending.remove(pending.size() - 1);
+            if (next.getId() == id && next.getParent() instanceof ViewGroup line && !lines.contains(line)) {
+                lines.add(line);
+            }
+            if (next instanceof ViewGroup group) {
+                for (int i = group.getChildCount() - 1; i >= 0; i--) pending.add(group.getChildAt(i));
+            }
+        }
+        return lines;
     }
 
     private static void applyRow(View view, RowState state, boolean binding) {
@@ -151,26 +189,45 @@ public final class DownloadedMarkers {
             reason = videoId == null ? "id-not-downloaded" : "downloaded";
         }
 
-        DownloadedCheck check = state.check.get();
         String outcome;
         if (videoId == null) {
-            if (check != null) check.setShown(false);
+            for (DownloadedCheck check : state.liveChecks()) check.setShown(false);
             outcome = "hidden";
         } else {
-            outcome = showRowCheck(view, state, check);
+            outcome = showRowChecks(view, state);
         }
         rowLog.decided(view, state, model, bytes, registry, reason, videoId, outcome, binding);
     }
 
-    /** Adds or shows the check in the row's subtitle line; returns what happened, for the log. */
-    private static String showRowCheck(View view, RowState state, @Nullable DownloadedCheck check) {
-        ViewGroup badges = badgesContainer(view);
-        if (badges == null) return "no-container";
-        if (!(badges.getParent() instanceof LinearLayout line)) return "container-parent-not-linear";
-
+    /** Adds or shows the checks in the row's subtitle lines; returns what happened, for the log. */
+    private static String showRowChecks(View view, RowState state) {
+        List<DownloadedCheck> checks = state.liveChecks();
         String outcome = "shown";
-        if (check == null || check.getParent() != line) {
-            check = DownloadedCheck.create(view.getContext(), false);
+        if (checks.isEmpty()) {
+            outcome = addRowChecks(view, state);
+            if (!outcome.equals("added")) return outcome;
+
+            checks = state.liveChecks();
+        }
+        for (DownloadedCheck check : checks) {
+            check.restyle();
+            check.setShown(true);
+        }
+        if (outcome.equals("added")) rowLog.afterLayout(checks);
+        return outcome;
+    }
+
+    private static String addRowChecks(View view, RowState state) {
+        List<ViewGroup> lines = badgeLines(view);
+        if (lines.isEmpty()) return "no-container";
+
+        state.checks.clear();
+        boolean linear = false;
+        for (ViewGroup line : lines) {
+            if (!(line instanceof LinearLayout)) continue;
+
+            linear = true;
+            DownloadedCheck check = DownloadedCheck.create(view.getContext(), false);
             if (check == null) return "no-icon";
 
             int size = DownloadedCheck.dp(ROW_CHECK_DP);
@@ -178,13 +235,9 @@ public final class DownloadedMarkers {
             params.gravity = Gravity.CENTER_VERTICAL;
             params.setMarginEnd(DownloadedCheck.dp(ROW_CHECK_MARGIN_DP));
             line.addView(check, 0, params);
-            state.check = new WeakReference<>(check);
-            outcome = "added";
+            state.checks.add(new WeakReference<>(check));
         }
-        check.restyle();
-        check.setShown(true);
-        if (outcome.equals("added")) rowLog.afterLayout(check);
-        return outcome;
+        return linear ? "added" : "container-parent-not-linear";
     }
 
     /** Called when a download finished: the track is downloaded from now on. */

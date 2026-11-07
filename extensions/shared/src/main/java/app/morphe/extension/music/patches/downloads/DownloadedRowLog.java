@@ -25,16 +25,19 @@ import app.morphe.extension.shared.utils.Logger;
  */
 final class DownloadedRowLog {
     private static final int TRANSITION_BUDGET = 40;
-    private static final int HIDDEN_BUDGET = 25;
+    private static final int HIDDEN_BUDGET = 10;
+    private static final int HIDDEN_WITH_IDS_BUDGET = 40;
     private static final int SKIPPED_BUDGET = 3;
-    private static final int LAYOUT_BUDGET = 10;
-    private static final int CANDIDATES_SHOWN = 3;
+    private static final int LAYOUT_BUDGET = 16;
+    private static final int CANDIDATES_SHOWN = 4;
 
     private final Map<String, Integer> outcomes = new TreeMap<>();
+    private final Map<String, Integer> models = new TreeMap<>();
     private int binds;
     private int notRows;
     private int transitionsLeft = TRANSITION_BUDGET;
     private int hiddenLeft = HIDDEN_BUDGET;
+    private int hiddenWithIdsLeft = HIDDEN_WITH_IDS_BUDGET;
     private int layoutsLeft = LAYOUT_BUDGET;
 
     private static boolean enabled() {
@@ -46,6 +49,7 @@ final class DownloadedRowLog {
         if (!enabled()) return;
 
         binds++;
+        models.merge(model.getClass().getSimpleName(), 1, Integer::sum);
         if (notARow) notRows++;
         if (binds == 1) {
             Logger.printDebug(() -> "Row hook alive: first bind view=" + view.getClass().getSimpleName()
@@ -61,7 +65,8 @@ final class DownloadedRowLog {
             int bindsNow = binds;
             int notRowsNow = notRows;
             Logger.printDebug(() -> "Row summary: binds=" + bindsNow + " notClassicRows=" + notRowsNow
-                    + " outcomes=" + outcomes + " registry=" + DownloadedMarkers.registrySize()
+                    + " models=" + models + " outcomes=" + outcomes
+                    + " registry=" + DownloadedMarkers.registrySize()
                     + " loaded=" + DownloadedMarkers.isLoaded());
         }
     }
@@ -79,9 +84,12 @@ final class DownloadedRowLog {
         boolean wasHidden = state.lastOutcome.isEmpty() || state.lastOutcome.endsWith("/hidden");
         boolean quiet = outcome.equals("hidden") && wasHidden;
         state.lastOutcome = result;
-        if (quiet ? hiddenLeft-- <= 0 : transitionsLeft-- <= 0) return;
-
         List<String> candidates = bytes == null ? null : DownloadedRegistry.candidateIds(bytes, CANDIDATES_SHOWN);
+        boolean hasIds = candidates != null && !candidates.isEmpty();
+        // A hidden row that holds video ids says which ids a page carries, so it has a larger budget than one
+        // without; neither may crowd out the rows that were marked.
+        if (quiet ? (hasIds ? hiddenWithIdsLeft-- : hiddenLeft--) <= 0 : transitionsLeft-- <= 0) return;
+
         Logger.printDebug(() -> "Row " + (binding ? "bind" : "refresh") + ": view=" + view.getClass().getSimpleName()
                 + " model=" + (model == null ? "null" : model.getClass().getSimpleName())
                 + " bytes=" + (bytes == null ? "-" : bytes.length) + " reason=" + reason
@@ -89,15 +97,29 @@ final class DownloadedRowLog {
                 + " registry=" + registry.trackCount() + " outcome=" + outcome);
     }
 
-    /** After a check was added: its real size, to tell a check that is shown from one that is invisible. */
-    void afterLayout(View check) {
+    /**
+     * After the checks were added: the real size and place of the check that is shown (or of the first one when
+     * none is), to tell a check that is shown from one that is invisible. More than one check means a card row
+     * with several layout variants, of which one is shown.
+     */
+    void afterLayout(List<DownloadedCheck> checks) {
         if (!enabled() || layoutsLeft <= 0) return;
 
-        check.post(() -> {
+        checks.get(0).post(() -> {
             if (layoutsLeft-- <= 0) return;
 
+            DownloadedCheck reported = checks.get(0);
+            int shownCount = 0;
+            for (DownloadedCheck check : checks) {
+                if (!check.isShown()) continue;
+
+                if (shownCount++ == 0) reported = check;
+            }
+            DownloadedCheck check = reported;
+            int shown = shownCount;
             Logger.printDebug(() -> "Row check laid out: " + check.getWidth() + "x" + check.getHeight()
-                    + " visibility=" + check.getVisibility() + " shown=" + check.isShown()
+                    + " left=" + check.getLeft() + " visibility=" + check.getVisibility()
+                    + " variants=" + checks.size() + " shownVariants=" + shown
                     + " parent=" + check.getParent().getClass().getSimpleName());
         });
     }

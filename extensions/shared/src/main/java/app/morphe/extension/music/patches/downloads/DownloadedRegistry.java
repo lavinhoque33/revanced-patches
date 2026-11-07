@@ -123,7 +123,8 @@ final class DownloadedRegistry {
         List<String> candidates = new ArrayList<>();
         for (int start = 0; start + VIDEO_ID_LENGTH < message.length && candidates.size() < limit; start++) {
             if (message[start] == VIDEO_ID_LENGTH && isVideoId(message, start + 1)) {
-                candidates.add(new String(message, start + 1, VIDEO_ID_LENGTH, StandardCharsets.ISO_8859_1));
+                String candidate = new String(message, start + 1, VIDEO_ID_LENGTH, StandardCharsets.ISO_8859_1);
+                if (!candidates.contains(candidate)) candidates.add(candidate);
             }
         }
         return candidates;

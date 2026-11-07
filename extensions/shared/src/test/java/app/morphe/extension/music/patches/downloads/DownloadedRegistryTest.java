@@ -195,8 +195,8 @@ public class DownloadedRegistryTest {
         assertNull(new DownloadedRegistry().findDownloadedLoose(SONG.getBytes(StandardCharsets.US_ASCII)));
     }
 
-    @Test public void candidatesAreEveryVideoIdShapedStringUpToTheLimit() throws Exception {
-        byte[] row = message(1, OTHER, 2, "not an id!", 3, THIRD, 4, SONG);
+    @Test public void candidatesAreEveryDistinctVideoIdShapedStringUpToTheLimit() throws Exception {
+        byte[] row = message(1, OTHER, 2, "not an id!", 3, OTHER, 4, THIRD, 5, SONG, 6, THIRD);
 
         assertEquals(Arrays.asList(OTHER, THIRD), DownloadedRegistry.candidateIds(row, 2));
         assertEquals(Arrays.asList(OTHER, THIRD, SONG), DownloadedRegistry.candidateIds(row, 10));

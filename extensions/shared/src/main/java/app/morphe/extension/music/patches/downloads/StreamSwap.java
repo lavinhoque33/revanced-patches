@@ -38,7 +38,7 @@ public final class StreamSwap {
     }
 
     static boolean enabled() {
-        return supported() && Settings.IN_APP_DOWNLOADS.get() && Settings.PLAY_DOWNLOADS_LOCALLY.get();
+        return supported() && Settings.PLAY_DOWNLOADS_LOCALLY.get();
     }
 
     public static Object swap(Object original) {
@@ -50,8 +50,7 @@ public final class StreamSwap {
             if (onMainThread()) return original;
             original = cached.online();
         }
-        String gate = StreamSwapLogic.gate(Settings.IN_APP_DOWNLOADS.get(),
-                Settings.PLAY_DOWNLOADS_LOCALLY.get(), onMainThread());
+        String gate = StreamSwapLogic.gate(Settings.PLAY_DOWNLOADS_LOCALLY.get(), onMainThread());
         if (gate != null) return unchanged(original, "?", gate);
         if (!(original instanceof Response adapter)) return original;
 

@@ -70,7 +70,8 @@ public final class NativeDownloads {
     }
 
     public static Object rewriteCommand(Object original, java.util.Map<?, ?> context) {
-        if (!Settings.IN_APP_DOWNLOADS.get() || !(original instanceof Command command)) return original;
+        // Either kind of download takes over the download command; neither leaves the stock command alone.
+        if (!LocalDownloadManager.interceptsDownloads() || !(original instanceof Command command)) return original;
         try {
             // signed-in non-Premium accounts receive an upsell batch without a playlist id.
             String headerPlaylist = playlistFromHeaderUpsell(command.toByteArray(), context);
@@ -100,7 +101,9 @@ public final class NativeDownloads {
                     }
                     continue;
                 }
-                if (WireFormat.getTagFieldNumber(tag) == BROWSE_ENDPOINT
+                // Navigation to Downloads is the device-files library: only local files own it, a stream copy
+                // is private and leaves the stock navigation alone.
+                if (Settings.IN_APP_DOWNLOADS.get() && WireFormat.getTagFieldNumber(tag) == BROWSE_ENDPOINT
                         && WireFormat.getTagWireType(tag) == WireFormat.WIRETYPE_LENGTH_DELIMITED) {
                     byte[] endpoint = input.readByteArray();
                     byte[] rewritten = rewriteBrowse(endpoint);

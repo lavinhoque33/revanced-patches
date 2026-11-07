@@ -29,10 +29,8 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
@@ -89,8 +87,8 @@ final class NativeAudioStore {
 
         // Deleting a track from Music's native Library also invalidates the download lookup.
         preferences().edit().remove(videoId).apply();
-        RawAudioStore.delete(videoId);
-        DownloadedMarkers.onTrackForgotten(videoId);
+        // The copy tied to this track goes with it; a stream-only copy never belonged to it and stays.
+        RawAudioStore.deleteWithNativeTrack(videoId);
         return null;
     }
 
@@ -129,11 +127,6 @@ final class NativeAudioStore {
         return ids;
     }
 
-    /** The video ids of every remembered download, whether or not its audio still exists. */
-    static Set<String> rememberedVideoIds() {
-        return new HashSet<>(preferences().getAll().keySet());
-    }
-
     /** Remembered downloads by MediaStore id. */
     static Map<Long, String> videoIdsByMediaId() {
         Map<Long, String> videoIds = new HashMap<>();
@@ -146,29 +139,6 @@ final class NativeAudioStore {
             }
         }
         return videoIds;
-    }
-
-    /**
-     * The remembered downloads whose MediaStore row still exists, or null when MediaStore could not be asked.
-     * An answer that is not certain must never make a download look deleted.
-     */
-    @Nullable
-    static Set<String> existingVideoIds() {
-        Map<Long, String> remembered = videoIdsByMediaId();
-        Set<String> existing = new HashSet<>();
-        if (remembered.isEmpty()) return existing;
-        StringBuilder selection = new StringBuilder();
-        for (long id : remembered.keySet()) selection.append(selection.length() == 0 ? "" : ",").append(id);
-        try (Cursor cursor = Utils.getContext().getContentResolver().query(
-                MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, new String[]{MediaStore.Audio.Media._ID},
-                MediaStore.Audio.Media._ID + " IN (" + selection + ")", null, null)) {
-            if (cursor == null) return null;
-            while (cursor.moveToNext()) existing.add(remembered.get(cursor.getLong(0)));
-        } catch (RuntimeException ex) {
-            Logger.printException(() -> "Could not list the existing downloads", ex);
-            return null;
-        }
-        return existing;
     }
 
     private static String displayName(String videoId, String title, String artist) {
@@ -261,7 +231,6 @@ final class NativeAudioStore {
             if (!preferences().edit().putString(videoId, audio.toString()).commit()) {
                 throw new IOException("Could not remember downloaded audio");
             }
-            DownloadedMarkers.onTrackDownloaded(videoId);
             return audio;
         } catch (Exception ex) {
             // API 26-28 destinations have no URI until scanning. Roll that row back too.

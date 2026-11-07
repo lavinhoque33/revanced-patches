@@ -5,6 +5,8 @@
  */
 package app.morphe.extension.music.patches.downloads;
 
+import androidx.annotation.Nullable;
+
 import org.json.JSONObject;
 
 import java.io.File;
@@ -21,9 +23,29 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 
-/** Original itag bytes; the JSON is the commit record and is published last. All callers own a worker thread. */
+/**
+ * Original itag bytes; the JSON is the commit record and is published last. All callers own a worker thread.
+ *
+ * <p>An entry is self-contained. It is either a stream-only copy (the private copy of Play downloads locally, with
+ * no native track) or tied to a native track (written together with a local file); only a tied entry needs its
+ * native track to still exist. The JSON names the origin ({@code "origin"}); earlier test builds wrote only tied
+ * entries, with a {@code "muxed"} URI and no origin, and are read as tied.
+ */
 final class RawAudioFiles {
-    record Entry(File file, int itag, String mime, long length, long modified, String muxed, String digest) {}
+    /** {@code muxed} is the native track's URI for an entry tied to a native track, null for a stream-only copy. */
+    record Entry(File file, int itag, String mime, long length, long modified, @Nullable String muxed,
+                 String digest) {
+        boolean tiedToNativeTrack() {
+            return muxed != null;
+        }
+    }
+
+    /** What a directory holds, for the management action: committed copies and the bytes they occupy. */
+    record Stats(int count, long bytes) {}
+
+    private static final String ORIGIN = "origin";
+    private static final String ORIGIN_STREAM = "stream";
+    private static final String ORIGIN_NATIVE = "native";
 
     private static final Pattern VIDEO_ID = Pattern.compile("[A-Za-z0-9_-]{1,20}");
     private static final long MAX_METADATA_BYTES = 4096;
@@ -41,19 +63,27 @@ final class RawAudioFiles {
         return id != null && VIDEO_ID.matcher(id).matches();
     }
 
-    void retain(String videoId, File temporary, int itag, String mime, long length,
-                long modified, String muxed) throws Exception {
+    /**
+     * Publishes the copy. {@code muxed} is the native track's URI, or null for a stream-only copy.
+     *
+     * @return Whether the copy was published; false when the arguments cannot describe a playable copy.
+     */
+    boolean retain(String videoId, File temporary, int itag, String mime, long length,
+                   long modified, @Nullable String muxed) throws Exception {
         if (!validId(videoId) || !StreamSwapLogic.supportedAudio(itag, mime) || length <= 0
-                || modified <= 0 || temporary.length() != length || muxed == null || muxed.isEmpty()) {
-            return;
+                || modified <= 0 || temporary.length() != length || (muxed != null && muxed.isEmpty())) {
+            return false;
         }
         // The temporary file is private to this download: hash it before taking the monitor playback needs.
         String digest = digest(temporary);
         JSONObject metadata = new JSONObject().put("itag", itag).put("mime", mime).put("length", length)
-                .put("lmt", modified).put("muxed", muxed).put("sha256", digest);
+                .put("lmt", modified).put("sha256", digest)
+                .put(ORIGIN, muxed == null ? ORIGIN_STREAM : ORIGIN_NATIVE);
+        if (muxed != null) metadata.put("muxed", muxed);
         synchronized (this) {
             publish(videoId, temporary, itag, metadata);
         }
+        return true;
     }
 
     private void publish(String videoId, File temporary, int itag, JSONObject metadata) throws Exception {
@@ -78,14 +108,22 @@ final class RawAudioFiles {
     }
 
     /**
-     * The committed copy for the current native track, or null. The SHA-256 is computed outside the monitor (it
-     * reads the whole file) and re-checked under it; an unchanged file (path, length, mtime) is hashed only once.
+     * The committed copy that may be played, or null. A stream-only copy needs nothing else. A copy tied to a native
+     * track also needs that track to still exist: {@code currentMuxed} answers the native URI, and is only asked
+     * for such a copy and never while the monitor is held, because it may query MediaStore and playback needs the
+     * monitor. The SHA-256 is computed outside the monitor (it reads the whole file) and re-checked under it; an
+     * unchanged file (path, length, mtime) is hashed only once.
      */
-    Entry find(String videoId, String currentMuxed) {
+    Entry find(String videoId, Function<String, String> currentMuxed) {
         try {
+            // Read without the monitor: the claim is re-read under it once the native lookup is done.
+            Entry claimed = committed(videoId);
+            if (claimed == null) return null;
+
+            String muxed = claimed.tiedToNativeTrack() ? currentMuxed.apply(videoId) : null;
             Candidate candidate;
             synchronized (this) {
-                candidate = candidate(videoId, currentMuxed);
+                candidate = candidate(videoId, muxed);
                 if (candidate == null) return null;
                 if (candidate.equals(verified.get(videoId))) return candidate.entry();
             }
@@ -93,7 +131,7 @@ final class RawAudioFiles {
             String actual = digest(candidate.entry().file());
             synchronized (this) {
                 // A concurrent retain, delete or replacement while hashing makes this result stale.
-                if (!candidate.equals(candidate(videoId, currentMuxed))) return null;
+                if (!candidate.equals(candidate(videoId, muxed))) return null;
                 if (!candidate.entry().digest().equals(actual)) return null;
 
                 verified.put(videoId, candidate);
@@ -104,9 +142,10 @@ final class RawAudioFiles {
         }
     }
 
-    private Candidate candidate(String videoId, String currentMuxed) throws Exception {
+    private Candidate candidate(String videoId, @Nullable String currentMuxed) throws Exception {
         Entry entry = committed(videoId);
-        if (entry == null || currentMuxed == null || !currentMuxed.equals(entry.muxed())) return null;
+        if (entry == null) return null;
+        if (entry.tiedToNativeTrack() && !entry.muxed().equals(currentMuxed)) return null;
 
         return new Candidate(entry, entry.file().length(), entry.file().lastModified());
     }
@@ -122,13 +161,72 @@ final class RawAudioFiles {
         String mime = metadata.getString("mime");
         long length = metadata.getLong("length");
         long modified = metadata.getLong("lmt");
-        String muxed = metadata.getString("muxed");
         String checksum = metadata.getString("sha256");
+        String muxed = metadata.optString("muxed", null);
+        // No origin is an earlier test build: those only wrote copies tied to a native track.
+        boolean streamOnly = ORIGIN_STREAM.equals(metadata.optString(ORIGIN, ORIGIN_NATIVE));
+        if (streamOnly) muxed = null;
+        else if (muxed == null || muxed.isEmpty()) return null;
+
         File raw = new File(directory, videoId + "." + itag);
         if (!StreamSwapLogic.supportedAudio(itag, mime) || length <= 0 || modified <= 0
                 || !raw.isFile() || raw.length() != length) return null;
 
         return new Entry(raw, itag, mime, length, modified, muxed, checksum);
+    }
+
+    /**
+     * The ids of every structurally committed copy, stream-only or tied: what Play downloads locally holds.
+     * Read-only and tolerant of concurrent writes, so it never takes the monitor playback needs.
+     */
+    Set<String> committedIds() {
+        Set<String> ids = new HashSet<>();
+        File[] files = directory.listFiles();
+        if (files == null) return ids;
+
+        for (File file : files) {
+            if (!isSidecar(file)) continue;
+
+            String id = idOf(file.getName());
+            try {
+                if (committed(id) != null) ids.add(id);
+            } catch (Exception ignored) {
+                // A malformed commit is not a copy.
+            }
+        }
+        return ids;
+    }
+
+    /** The committed copies and the bytes of their audio. */
+    Stats stats() {
+        int count = 0;
+        long bytes = 0;
+        File[] files = directory.listFiles();
+        if (files == null) return new Stats(0, 0);
+
+        for (File file : files) {
+            if (!isSidecar(file)) continue;
+
+            try {
+                Entry entry = committed(idOf(file.getName()));
+                if (entry == null) continue;
+
+                count++;
+                bytes += entry.length();
+            } catch (Exception ignored) {
+                // A malformed commit is not a copy.
+            }
+        }
+        return new Stats(count, bytes);
+    }
+
+    /** Removes every file of the directory, copies and leftovers alike. @return How many copies were committed. */
+    synchronized int clear() {
+        int count = stats().count();
+        verified.clear();
+        File[] files = directory.listFiles();
+        if (files != null) for (File file : files) file.delete();
+        return count;
     }
 
     synchronized void delete(String videoId) {
@@ -139,9 +237,28 @@ final class RawAudioFiles {
     }
 
     /**
-     * Remove uncommitted, structurally broken and no-longer-downloaded entries, including interrupted download
-     * leftovers. Entries are NOT hashed here (that is left to {@link #find}): this runs after every media change and
-     * must stay cheap. The native lookups run before the monitor is taken because playback needs it too.
+     * Deletes the files of a track whose native track is gone, unless the copy is a committed stream-only copy,
+     * which never belonged to the native track.
+     *
+     * @return Whether anything was deleted.
+     */
+    synchronized boolean deleteUnlessStreamOnly(String videoId) {
+        if (!validId(videoId)) return false;
+        try {
+            Entry entry = committed(videoId);
+            if (entry != null && !entry.tiedToNativeTrack()) return false;
+        } catch (Exception ignored) {
+            // A malformed commit is deleted with the rest.
+        }
+        delete(videoId);
+        return true;
+    }
+
+    /**
+     * Remove uncommitted and structurally broken entries, interrupted download leftovers, and the copies tied to a
+     * native track that is confirmed gone. A stream-only copy is never an orphan. Entries are NOT hashed here (that
+     * is left to {@link #find}): this runs after every media change and must stay cheap. The native lookups run
+     * before the monitor is taken because playback needs it too, and only for copies tied to a native track.
      */
     void cleanup(Function<String, String> currentMuxed) {
         File[] snapshot = directory.listFiles();
@@ -149,9 +266,14 @@ final class RawAudioFiles {
 
         Map<String, String> nativeUris = new HashMap<>();
         for (File file : snapshot) {
-            if (isSidecar(file)) {
-                String id = idOf(file.getName());
-                nativeUris.put(id, currentMuxed.apply(id));
+            if (!isSidecar(file)) continue;
+
+            String id = idOf(file.getName());
+            try {
+                Entry entry = committed(id);
+                if (entry != null && entry.tiedToNativeTrack()) nativeUris.put(id, currentMuxed.apply(id));
+            } catch (Exception ignored) {
+                // Judged again under the monitor.
             }
         }
 
@@ -166,8 +288,9 @@ final class RawAudioFiles {
                 try {
                     Entry entry = committed(id);
                     if (entry == null) continue;
-                    // A commit published after the snapshot has no lookup yet: keep it for the next pass.
-                    if (nativeUris.containsKey(id) && !entry.muxed().equals(nativeUris.get(id))) continue;
+                    // A tied commit published after the snapshot has no lookup yet: keep it for the next pass.
+                    if (entry.tiedToNativeTrack() && nativeUris.containsKey(id)
+                            && !entry.muxed().equals(nativeUris.get(id))) continue;
                     retained.add(sidecar.getName());
                     retained.add(entry.file().getName());
                 } catch (Exception ignored) {

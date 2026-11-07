@@ -10,7 +10,7 @@
  * - inotia00 (https://github.com/inotia00)
  *
  * Licensed under the GNU General Public License v3.0.
- * Modified by lavinhoque33, 2026-10-21.
+ * Modified by lavinhoque33, 2026-11-07.
  *
  * ------------------------------------------------------------------------
  * GPLv3 Section 7 – Additional Terms & Attribution Requirements
@@ -76,6 +76,7 @@ import java.util.Map;
 import java.util.regex.Pattern;
 
 import app.morphe.extension.music.patches.actionbar.ActionBarPatch;
+import app.morphe.extension.music.patches.downloads.LocalDownloadManager;
 import app.morphe.extension.music.settings.Settings;
 import app.morphe.extension.music.shared.VideoInformation;
 import app.morphe.extension.music.shared.VideoType;
@@ -146,7 +147,7 @@ public class FlyoutPatch {
     }
 
     private static boolean isFlyoutMenuOverridden() {
-        return Settings.IN_APP_DOWNLOADS.get() || Settings.EXTERNAL_DOWNLOADER_FLYOUT_MENU.get();
+        return LocalDownloadManager.interceptsDownloads() || Settings.EXTERNAL_DOWNLOADER_FLYOUT_MENU.get();
     }
 
     /**

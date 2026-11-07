@@ -98,6 +98,12 @@ final class StreamSwapSources {
         latest.remove(videoId);
     }
 
+    /** Every stream copy was deleted: no issued source may serve from a file again. */
+    static void invalidateAll() {
+        for (Source source : sources.values()) source.available = false;
+        latest.clear();
+    }
+
     static void invalidateMissing() {
         for (Source source : sources.values()) {
             if (!source.raw.file().isFile() || source.raw.file().length() != source.raw.length()) {

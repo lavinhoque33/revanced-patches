@@ -7,8 +7,6 @@ package app.morphe.extension.music.patches.downloads;
 
 import static app.morphe.extension.shared.utils.StringRef.str;
 
-import android.net.Uri;
-
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -31,7 +29,10 @@ public final class PlaylistDownloads {
     private PlaylistDownloads() {}
 
     public static void enqueue(String playlistId) {
-        if (!NativeDownloads.ensureStoragePermission()) return;
+        // Decided once for the whole playlist, so a setting changed mid-way cannot split it between modes.
+        DownloadMode mode = LocalDownloadManager.currentMode();
+        if (mode == DownloadMode.OFF) return;
+        if (mode.localFiles() && !NativeDownloads.ensureStoragePermission()) return;
         if (!active.add(playlistId)) {
             Utils.showToastShort(str("morphe_music_downloads_already_running"));
             return;
@@ -40,7 +41,7 @@ public final class PlaylistDownloads {
         Utils.submitOnBackgroundThread(() -> {
             String title = playlistId;
             try {
-                NativeDownloads.migrateLegacy();
+                if (mode.localFiles()) NativeDownloads.migrateLegacy();
                 List<String> tracks = new ArrayList<>();
                 Set<String> continuations = new HashSet<>();
                 String continuation = null;
@@ -62,6 +63,7 @@ public final class PlaylistDownloads {
                 } while (continuation != null);
                 if (tracks.isEmpty()) throw new IOException("Playlist contains no downloadable tracks");
                 List<Long> mediaIds = new ArrayList<>(tracks.size());
+                int downloaded = 0;
                 for (int index = 0; index < tracks.size(); index++) {
                     // already-saved tracks finish in milliseconds; unpaced
                     // updates exceed Android's per-app rate limit, which then drops the final notification.
@@ -70,30 +72,44 @@ public final class PlaylistDownloads {
                                 index * 100 / tracks.size(), true,
                                 str("morphe_music_playlist_download_progress", index + 1, tracks.size()));
                     }
-                    Uri track = LocalDownloadManager.download(tracks.get(index));
-                    mediaIds.add(NativeAudioStore.mediaId(track));
+                    LocalDownloadManager.Saved saved = LocalDownloadManager.download(tracks.get(index), mode);
+                    if (saved.downloaded()) downloaded++;
+                    if (mode.localFiles()) mediaIds.add(NativeAudioStore.mediaId(saved.nativeTrack()));
                 }
-                NativePlaylistStore.save(playlistId, title, mediaIds);
-                DownloadedMarkers.onPlaylistSaved(playlistId, tracks);
+                // The playlist in Device files exists only for local files; a stream copy is invisible there.
+                if (mode.localFiles()) NativePlaylistStore.save(playlistId, title, mediaIds);
+                // The header check follows the stream copies: only a playlist that has them is remembered.
+                if (mode.streamCopy()) DownloadedMarkers.onPlaylistSaved(playlistId, tracks);
+                String done = completionText(mode, downloaded, tracks.size());
                 LocalDownloadManager.awaitNotificationSlot();
-                LocalDownloadManager.showDownloadNotification("playlist:" + playlistId, title, 100,
-                        false, str("morphe_music_playlist_download_complete", tracks.size()));
-                Utils.showToastShort(str("morphe_music_playlist_download_complete", tracks.size()));
+                LocalDownloadManager.showDownloadNotification("playlist:" + playlistId, title, 100, false, done);
+                Utils.showToastShort(done);
             } catch (Exception ex) {
                 Logger.printException(() -> "Playlist download failed", ex);
                 // Completed songs remain playable, but never label a truncated playlist complete.
                 LocalDownloadManager.awaitNotificationSlot();
-                LocalDownloadManager.showDownloadNotification("playlist:" + playlistId, title, 0,
-                        false, str("morphe_music_playlist_download_failed"));
-                Utils.showToastLong(str("morphe_music_playlist_download_failed"));
+                String failed = str(mode.localFiles()
+                        ? "morphe_music_playlist_download_failed" : "morphe_music_playlist_stream_failed");
+                LocalDownloadManager.showDownloadNotification("playlist:" + playlistId, title, 0, false, failed);
+                Utils.showToastLong(failed);
             } finally {
                 active.remove(playlistId);
                 // tracks now in a playlist leave "Not in a playlist";
                 // songs kept from a failed download join it.
-                NativePlaylistStore.refreshUnsortedLater();
+                if (mode.localFiles()) NativePlaylistStore.refreshUnsortedLater();
             }
             return null;
         });
+    }
+
+    /**
+     * The text of a finished playlist download. A stream-only download that found every copy already saved says
+     * so, because nothing was downloaded.
+     */
+    static String completionText(DownloadMode mode, int downloaded, int total) {
+        if (mode.localFiles()) return str("morphe_music_playlist_download_complete", total);
+        if (downloaded == 0) return str("morphe_music_playlist_stream_already_saved", total);
+        return str("morphe_music_playlist_stream_complete", total);
     }
 
     record Page(List<String> videoIds, String continuation) {}

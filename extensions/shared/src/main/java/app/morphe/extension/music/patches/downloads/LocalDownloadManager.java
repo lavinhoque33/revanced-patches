@@ -87,7 +87,7 @@ public final class LocalDownloadManager {
     private static final Pattern VIDEO_ID = Pattern.compile("[A-Za-z0-9_-]{1,20}");
 
     // song and playlist requests share one result for each active media download.
-    private static final ConcurrentHashMap<String, FutureTask<Uri>> ACTIVE_DOWNLOADS = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<String, FutureTask<Saved>> ACTIVE_DOWNLOADS = new ConcurrentHashMap<>();
 
     private static volatile String currentTitle;
     private static volatile String currentArtist;
@@ -101,28 +101,49 @@ public final class LocalDownloadManager {
     private LocalDownloadManager() {
     }
 
+    /**
+     * What a download does now: files for Download in app, a private stream copy for Play downloads locally, both
+     * when both are on. The stream copy counts only where the swap is supported.
+     */
+    static DownloadMode currentMode() {
+        return DownloadMode.of(Settings.IN_APP_DOWNLOADS.get(), StreamSwap.enabled());
+    }
+
+    /** True when either kind of download is on, i.e. the download command is ours and not the stock one. */
+    public static boolean interceptsDownloads() {
+        return currentMode() != DownloadMode.OFF;
+    }
+
+    /** One finished track: its native track when a local file exists, and whether the network was used. */
+    record Saved(@Nullable Uri nativeTrack, boolean downloaded) {
+    }
+
     /** Must be called from the main thread. Resolution and downloading happen in background. */
     public static void enqueue(String videoId) {
+        DownloadMode mode = currentMode();
+        if (mode == DownloadMode.OFF) return;
         if (!VIDEO_ID.matcher(videoId).matches()) {
             Utils.showToastShort(str("morphe_music_downloads_unknown_track"));
             return;
         }
-        if (!NativeDownloads.ensureStoragePermission()) return;
+        if (mode.localFiles() && !NativeDownloads.ensureStoragePermission()) return;
         if (ACTIVE_DOWNLOADS.containsKey(videoId)) {
             Utils.showToastShort(str("morphe_music_downloads_already_running"));
             return;
         }
         Utils.submitOnBackgroundThread(() -> {
             try {
-                NativeDownloads.migrateLegacy();
-                if (NativeAudioStore.find(videoId) != null) {
-                    Utils.showToastShort(str("morphe_music_downloads_already_saved"));
+                if (mode.localFiles()) NativeDownloads.migrateLegacy();
+                if (plan(videoId, mode) == DownloadMode.Work.SKIP) {
+                    Utils.showToastShort(str(mode.localFiles()
+                            ? "morphe_music_downloads_already_saved" : "morphe_music_downloads_stream_already_saved"));
                     return null;
                 }
                 Utils.showToastShort(str("morphe_music_downloads_started"));
-                download(videoId);
-                Utils.showToastShort(str("morphe_music_downloads_complete"));
-                NativePlaylistStore.refreshUnsortedLater(); // list the new single.
+                download(videoId, mode);
+                Utils.showToastShort(str(mode.localFiles()
+                        ? "morphe_music_downloads_complete" : "morphe_music_downloads_stream_complete"));
+                if (mode.localFiles()) NativePlaylistStore.refreshUnsortedLater(); // list the new single.
             } catch (Exception ex) {
                 Logger.printException(() -> "Local audio download failed: " + videoId, ex);
                 Utils.showToastShort(str("morphe_music_downloads_failed"));
@@ -131,37 +152,78 @@ public final class LocalDownloadManager {
         });
     }
 
-    static Uri download(String videoId) throws Exception {
-        Utils.verifyOffMainThread();
-        if (!VIDEO_ID.matcher(videoId).matches()) throw new IOException("Invalid video id");
-        Uri saved = NativeAudioStore.find(videoId);
-        if (saved != null) return saved;
-        boolean playing = videoId.equals(VideoInformation.getVideoId());
-        String title = playing ? currentTitle : null;
-        String artist = playing ? currentArtist : null;
-        FutureTask<Uri> task = new FutureTask<>(() -> downloadBlocking(videoId, title, artist));
-        FutureTask<Uri> existing = ACTIVE_DOWNLOADS.putIfAbsent(videoId, task);
-        if (existing == null) task.run();
+    /** What the track still needs in this mode. Asks only the stores the mode cares about. */
+    static DownloadMode.Work plan(String videoId, DownloadMode mode) {
+        return mode.plan(() -> NativeAudioStore.find(videoId) != null, () -> streamCopyExists(videoId));
+    }
+
+    private static boolean streamCopyExists(String videoId) {
         try {
-            return (existing == null ? task : existing).get();
-        } catch (ExecutionException ex) {
-            if (ex.getCause() instanceof Exception cause) throw cause;
-            throw ex;
-        } finally {
-            if (existing == null) ACTIVE_DOWNLOADS.remove(videoId, task);
+            return RawAudioStore.find(videoId) != null;
+        } catch (Exception ex) {
+            Logger.printDebug(() -> "Could not check the stream copy: " + videoId, ex);
+            return false;
         }
     }
 
-    // the stream is downloaded to a private temporary file and
-    // published with embedded tags, since Music's device-files library reads metadata only from the file.
-    private static Uri downloadBlocking(String videoId, String title, String artist) throws Exception {
+    /**
+     * Brings one track to what the mode asks for: one network download feeds the local file, the stream copy or
+     * both. Returns at once when there is nothing left to do.
+     */
+    static Saved download(String videoId, DownloadMode mode) throws Exception {
+        Utils.verifyOffMainThread();
+        if (!VIDEO_ID.matcher(videoId).matches()) throw new IOException("Invalid video id");
+        boolean playing = videoId.equals(VideoInformation.getVideoId());
+        String title = playing ? currentTitle : null;
+        String artist = playing ? currentArtist : null;
+
+        while (true) {
+            if (plan(videoId, mode) == DownloadMode.Work.SKIP) return saved(videoId, mode, false);
+
+            FutureTask<Saved> task = new FutureTask<>(() -> downloadBlocking(videoId, mode, title, artist));
+            FutureTask<Saved> existing = ACTIVE_DOWNLOADS.putIfAbsent(videoId, task);
+            if (existing == null) {
+                try {
+                    task.run();
+                    return task.get();
+                } catch (ExecutionException ex) {
+                    if (ex.getCause() instanceof Exception cause) throw cause;
+                    throw ex;
+                } finally {
+                    ACTIVE_DOWNLOADS.remove(videoId, task);
+                }
+            }
+
+            // Another request owns this track. Its mode may differ, so look again when it is done.
+            try {
+                existing.get();
+            } catch (ExecutionException ex) {
+                if (ex.getCause() instanceof Exception cause) throw cause;
+                throw ex;
+            }
+        }
+    }
+
+    private static Saved saved(String videoId, DownloadMode mode, boolean downloaded) throws IOException {
+        if (!mode.localFiles()) return new Saved(null, downloaded);
+
+        Uri uri = NativeAudioStore.find(videoId);
+        if (uri == null) throw new IOException("The downloaded audio is not available: " + videoId);
+        return new Saved(uri, downloaded);
+    }
+
+    // the stream is downloaded to a private temporary file; then it is published with embedded tags as a local
+    // file, since Music's device-files library reads metadata only from the file, and/or moved to the stream copy.
+    private static Saved downloadBlocking(String videoId, DownloadMode mode, String title, String artist)
+            throws Exception {
         NativeAudioStore.Destination destination = null;
         File temporary = null;
         try {
-            // A competing request may have published the track between the lookup and single-flight ownership.
-            Uri saved = NativeAudioStore.find(videoId);
-            if (saved != null) return saved;
-            StreamCandidates candidates = new StreamCandidates(videoId);
+            // A competing request may have finished the track between the lookup and single-flight ownership.
+            DownloadMode.Work work = plan(videoId, mode);
+            if (work == DownloadMode.Work.SKIP) return saved(videoId, mode, false);
+
+            StreamCandidates candidates = new StreamCandidates(videoId, !work.writesLocalFile());
             ResolvedStream resolved = candidates.next();
             if (resolved == null) throw new IOException("Audio stream unavailable");
             AudioTagger.Tags tags = TrackMetadata.resolve(videoId, title, artist, resolved.details());
@@ -185,18 +247,30 @@ public final class LocalDownloadManager {
                     if (resolved == null) throw ex;
                 }
             }
-            // Pending MediaStore files are hidden from native Library until the full audio has been indexed.
-            destination = NativeAudioStore.create(videoId, AudioTagger.outputMimeType(format.getMimeType()),
-                    tags.title, tags.artist);
-            try (FileOutputStream output = destination.openOutput()) {
-                AudioTagger.write(temporary, format.getMimeType(), output, tags);
+
+            Uri uri = null;
+            if (work.writesLocalFile()) {
+                // Pending MediaStore files are hidden from native Library until the full audio has been indexed.
+                destination = NativeAudioStore.create(videoId, AudioTagger.outputMimeType(format.getMimeType()),
+                        tags.title, tags.artist);
+                try (FileOutputStream output = destination.openOutput()) {
+                    AudioTagger.write(temporary, format.getMimeType(), output, tags);
+                }
+                uri = NativeAudioStore.finish(videoId, destination);
+                destination = null;
+            } else if (mode.localFiles()) {
+                uri = NativeAudioStore.find(videoId);
             }
-            Uri uri = NativeAudioStore.finish(videoId, destination);
-            destination = null;
-            RawAudioStore.retain(videoId, temporary, format, uri);
+
+            if (work.keepsStreamCopy()) {
+                boolean kept = RawAudioStore.retain(videoId, temporary, format, uri);
+                // The stream copy is the whole point of a stream-only download; beside a local file it is optional.
+                if (!kept && !mode.localFiles()) throw new IOException("Could not keep the stream copy");
+            }
             awaitNotificationSlot();
-            showDownloadNotification(videoId, title, 100, false, str("morphe_music_downloads_complete"));
-            return uri;
+            showDownloadNotification(videoId, title, 100, false, str(mode.localFiles()
+                    ? "morphe_music_downloads_complete" : "morphe_music_downloads_stream_complete"));
+            return new Saved(uri, true);
         } catch (Exception ex) {
             awaitNotificationSlot();
             showDownloadNotification(videoId, title, 0, false, str("morphe_music_downloads_failed"));
@@ -223,10 +297,13 @@ public final class LocalDownloadManager {
      */
     private static final class StreamCandidates {
         private final String videoId;
+        private final boolean playableCopyOnly;
         private final Iterator<ClientType> clients;
 
-        StreamCandidates(String videoId) {
+        /** {@code playableCopyOnly}: no local file is written, so only a format the stream swap can play is useful. */
+        StreamCandidates(String videoId, boolean playableCopyOnly) {
             this.videoId = videoId;
+            this.playableCopyOnly = playableCopyOnly;
             Logger.printDebug(() -> "Resolving stream and metadata for download: " + videoId);
             // The clients are named here because the playback order is only set up while spoofing
             // is on, and a download needs a client that answers with plain urls either way.
@@ -244,7 +321,7 @@ public final class LocalDownloadManager {
                 StreamOrDetailsDataRequest request = StreamOrDetailsDataRequest.fetchRequestForDownload(
                         videoId, List.of(client), client);
 
-                ResolvedStream stream = parseStream(videoId, request);
+                ResolvedStream stream = parseStream(videoId, request, playableCopyOnly);
                 if (stream != null) return stream;
             }
             return null;
@@ -571,8 +648,8 @@ public final class LocalDownloadManager {
     }
 
     @Nullable
-    private static ResolvedStream parseStream(String videoId,
-                                              StreamOrDetailsDataRequest request) {
+    private static ResolvedStream parseStream(String videoId, StreamOrDetailsDataRequest request,
+                                              boolean playableCopyOnly) {
         StreamOrDetailsDataRequest.StreamData stream = request.getStream();
         if (stream == null) {
             Logger.printDebug(() -> "No stream data resolved for " + videoId);
@@ -586,6 +663,8 @@ public final class LocalDownloadManager {
                     .stream()
                     .filter(format -> format.getMimeType().startsWith("audio/")
                             && AudioTagger.canTag(format.getMimeType())
+                            && (!playableCopyOnly
+                            || StreamSwapLogic.supportedAudio(format.getItag(), format.getMimeType()))
                             && !format.getUrl().isBlank())
                     .max(Comparator.comparingInt(Format::getBitrate))
                     .orElse(null);

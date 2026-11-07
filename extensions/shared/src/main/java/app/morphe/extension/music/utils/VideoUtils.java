@@ -28,7 +28,7 @@ public class VideoUtils extends IntentUtils {
 
     public static void launchExternalDownloader(@NonNull String videoId) {
         try {
-            if (Settings.IN_APP_DOWNLOADS.get()) {
+            if (LocalDownloadManager.interceptsDownloads()) {
                 LocalDownloadManager.enqueue(videoId);
                 return;
             }

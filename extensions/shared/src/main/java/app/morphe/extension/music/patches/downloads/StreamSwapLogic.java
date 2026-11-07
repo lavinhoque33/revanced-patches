@@ -15,8 +15,8 @@ import app.morphe.extension.shared.innertube.PlayerResponseOuterClass.PlayerResp
 final class StreamSwapLogic {
     private StreamSwapLogic() {}
 
-    static String gate(boolean downloads, boolean localPlayback, boolean mainThread) {
-        if (!downloads || !localPlayback) return "setting off";
+    static String gate(boolean localPlayback, boolean mainThread) {
+        if (!localPlayback) return "setting off";
         return mainThread ? "main thread" : null;
     }
 

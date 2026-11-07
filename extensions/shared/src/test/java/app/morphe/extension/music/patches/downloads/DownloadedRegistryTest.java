@@ -285,4 +285,30 @@ public class DownloadedRegistryTest {
         assertFalse(registry.isDownloaded(OTHER));
         assertTrue(registry.isDownloaded(THIRD));
     }
+
+    @Test public void aSourceKeepsTheOrderOfItsTracksAndDuplicates() {
+        DownloadedRegistry registry = registryOf(SONG, OTHER, THIRD);
+        registry.putSource("OLAK5uy_album", Arrays.asList(THIRD, SONG, THIRD));
+
+        assertEquals(Arrays.asList(THIRD, SONG, THIRD), registry.sourceTracks("OLAK5uy_album"));
+        assertNull(registry.sourceTracks("PLunknown"));
+        assertNull(registry.sourceTracks(null));
+    }
+
+    @Test public void findsARememberedPlaylistThatIsAWholeStringOfTheCommand() throws Exception {
+        DownloadedRegistry registry = registryOf(SONG);
+        registry.putSource("OLAK5uy_album", Arrays.asList(SONG));
+        registry.putSource("PLother", Arrays.asList(SONG));
+
+        byte[] watch = message(1, "dQw4w9WgXcQ", 2, "OLAK5uy_album");
+        assertEquals("OLAK5uy_album", registry.findSource(message(7, watch)));
+        assertNull(registry.findSource(message(7, message(1, "dQw4w9WgXcQ", 2, "PLunrelated"))));
+    }
+
+    @Test public void aRadioOfAPlaylistIsNotThePlaylist() throws Exception {
+        DownloadedRegistry registry = registryOf(SONG);
+        registry.putSource("OLAK5uy_album", Arrays.asList(SONG));
+
+        assertNull(registry.findSource(message(2, "RDAMPLOLAK5uy_album")));
+    }
 }

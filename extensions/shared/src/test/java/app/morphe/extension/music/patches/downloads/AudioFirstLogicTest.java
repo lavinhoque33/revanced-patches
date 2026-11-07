@@ -43,11 +43,56 @@ public class AudioFirstLogicTest {
         assertFalse(AudioFirstLogic.isLive("id", 5_000, 4_999, TTL));
     }
 
-    @Test public void onlyAnEnabledSettingAndASongWithACopyArm() {
-        assertTrue(AudioFirstLogic.shouldArm(true, true, true));
-        assertFalse(AudioFirstLogic.shouldArm(false, true, true));
-        assertFalse(AudioFirstLogic.shouldArm(true, false, true));
-        assertFalse(AudioFirstLogic.shouldArm(true, true, false));
+    private static final java.util.List<String> ALBUM = java.util.List.of("atv0", "atv1", "atv2", "atv3");
+
+    private static java.util.function.Predicate<String> copies(String... ids) {
+        return java.util.Set.of(ids)::contains;
+    }
+
+    @Test public void aCommandIdWithACopyArmsByTheId() {
+        var arm = AudioFirstLogic.chooseArm(true, java.util.List.of("omv", "atv1"), null, -1, false, copies("atv1"));
+        assertEquals(new AudioFirstLogic.Arm("id", "atv1"), arm);
+    }
+
+    @Test public void anyIdOfTheCommandCounts() {
+        var arm = AudioFirstLogic.chooseArm(true, java.util.List.of("a", "b", "c"), null, -1, false, copies("c"));
+        assertEquals("c", arm.videoId());
+    }
+
+    @Test public void anOmvRowOfADownloadedAlbumArmsByTheTappedPosition() {
+        var arm = AudioFirstLogic.chooseArm(true, java.util.List.of("omv"), ALBUM, 2, false, copies("atv2"));
+        assertEquals(new AudioFirstLogic.Arm("playlist-index", "atv2"), arm);
+    }
+
+    @Test public void anAbsentIndexIsTheFirstRowUnlessTheCommandHasParams() {
+        assertEquals("atv0",
+                AudioFirstLogic.chooseArm(true, java.util.List.of("omv"), ALBUM, -1, false, copies("atv0")).videoId());
+        assertNull(AudioFirstLogic.chooseArm(true, java.util.List.of("omv"), ALBUM, -1, true, copies("atv0")));
+    }
+
+    @Test public void aRowWithoutACopyInAPartlyDownloadedAlbumDoesNotArm() {
+        assertNull(AudioFirstLogic.chooseArm(true, java.util.List.of("omv"), ALBUM, 3, false, copies("atv0", "atv1")));
+    }
+
+    @Test public void aFullyDownloadedAlbumArmsForAnyTapOfItsPlaylist() {
+        var all = copies("atv0", "atv1", "atv2", "atv3");
+        var arm = AudioFirstLogic.chooseArm(true, java.util.List.of("omv"), ALBUM, 99, false, all);
+        assertEquals(new AudioFirstLogic.Arm("playlist-source", "omv"), arm);
+        assertEquals("playlist-source",
+                AudioFirstLogic.chooseArm(true, java.util.List.of("omv"), ALBUM, -1, true, all).rule());
+        assertEquals("atv0", AudioFirstLogic.chooseArm(true, java.util.List.of(), ALBUM, -1, true, all).videoId());
+    }
+
+    @Test public void nothingTiedToACopyNeverArms() {
+        assertNull(AudioFirstLogic.chooseArm(true, java.util.List.of("omv"), null, -1, false, copies("atv0")));
+        assertNull(AudioFirstLogic.chooseArm(true, java.util.List.of("omv"), java.util.List.of(), 0, false,
+                copies("atv0")));
+        assertNull(AudioFirstLogic.chooseArm(true, java.util.List.of(), ALBUM, 0, false, copies()));
+    }
+
+    @Test public void aDisabledStartNeverArms() {
+        assertNull(AudioFirstLogic.chooseArm(false, java.util.List.of("atv1"), ALBUM, 1, false,
+                copies("atv0", "atv1", "atv2", "atv3")));
     }
 
     @Test public void theVideoModesDeclineTheSwap() {

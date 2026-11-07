@@ -27,6 +27,7 @@ import app.morphe.patches.music.utils.playservice.is_7_25_or_greater
 import app.morphe.patches.music.utils.settings.CategoryType
 import app.morphe.patches.music.utils.settings.ResourceUtils.addPreferenceCategory
 import app.morphe.patches.music.utils.settings.ResourceUtils.updatePatchStatus
+import app.morphe.patches.music.utils.settings.addCustomPreference
 import app.morphe.patches.music.utils.settings.addSwitchPreference
 import app.morphe.patches.music.utils.settings.settingsPatch
 import app.morphe.patches.shared.misc.fix.proto.fixProtoLibraryPatch
@@ -68,13 +69,20 @@ private val downloadsResourcePatch = resourcePatch {
             CategoryType.MISC,
             "morphe_music_play_downloads_locally",
             "false",
-            "morphe_music_in_app_downloads",
+            "revanced_external_downloader_action",
         )
         addSwitchPreference(
             CategoryType.MISC,
             "morphe_music_downloaded_checkmarks",
             "true",
-            "morphe_music_in_app_downloads",
+            "morphe_music_play_downloads_locally",
+        )
+        // The stream copies are invisible in Device files, so they are managed here. No dependency: they can be
+        // deleted after Play downloads locally was turned off.
+        addCustomPreference(
+            CategoryType.MISC,
+            "morphe_music_stream_downloads",
+            "app.morphe.extension.music.settings.preference.StreamDownloadsPreference",
         )
     }
 }

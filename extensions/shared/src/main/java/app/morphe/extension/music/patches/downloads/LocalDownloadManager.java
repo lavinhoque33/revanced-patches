@@ -26,7 +26,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.nio.channels.FileChannel;
-import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
@@ -658,16 +657,7 @@ public final class LocalDownloadManager {
 
         try {
             PlayerResponse response = PlayerResponse.parseFrom(stream.streamingData());
-            Format best = response.getStreamingData()
-                    .getAdaptiveFormatsList()
-                    .stream()
-                    .filter(format -> format.getMimeType().startsWith("audio/")
-                            && AudioTagger.canTag(format.getMimeType())
-                            && (!playableCopyOnly
-                            || StreamSwapLogic.supportedAudio(format.getItag(), format.getMimeType()))
-                            && !format.getUrl().isBlank())
-                    .max(Comparator.comparingInt(Format::getBitrate))
-                    .orElse(null);
+            Format best = DownloadFormats.bestAudio(response, playableCopyOnly);
             return best == null ? null : new ResolvedStream(best, response.getVideoDetails());
         } catch (Exception ex) {
             Logger.printException(() -> "Could not parse audio formats: " + videoId, ex);

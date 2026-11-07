@@ -238,9 +238,9 @@ public class CommandRewriteTest {
     @Test public void theVideoModeDoesNotDeclineTheRetargetedSongWhileItIsArmed() {
         long now = 1_000;
         assertFalse(AudioFirstLogic.declineForVideo(AudioFirstLogic.OMV_PREFERRED, ATV, ATV, now, now + 500,
-                AudioFirstLogic.ARM_TTL_MILLIS));
+                AudioFirstLogic.ARM_TTL_MILLIS, false));
         assertTrue(AudioFirstLogic.declineForVideo(AudioFirstLogic.OMV_PREFERRED, OMV, ATV, now, now + 500,
-                AudioFirstLogic.ARM_TTL_MILLIS));
+                AudioFirstLogic.ARM_TTL_MILLIS, false));
     }
 
     @Test public void theAudioHintIsInsertedInFieldOrderAndNothingElseMoves() {

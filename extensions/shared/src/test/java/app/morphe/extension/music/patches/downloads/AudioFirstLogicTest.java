@@ -10,6 +10,7 @@ import static org.junit.Assert.*;
 import org.junit.Test;
 
 public class AudioFirstLogicTest {
+    private static final String USER_VIDEO = "OMV_PREFERRED_USER_TRIGGERED";
     private static final long TTL = AudioFirstLogic.ARM_TTL_MILLIS;
 
     @Test public void anArmedVideoFallbackBecomesTheAudioMode() {
@@ -18,7 +19,7 @@ public class AudioFirstLogicTest {
 
     @Test public void theUserTriggeredModesAreNeverChanged() {
         assertEquals("OMV_PREFERRED_USER_TRIGGERED",
-                AudioFirstLogic.decide("OMV_PREFERRED_USER_TRIGGERED", "id", 1_000, 2_000, TTL));
+                AudioFirstLogic.decide(USER_VIDEO, "id", 1_000, 2_000, TTL));
         assertEquals("ATV_PREFERRED_USER_TRIGGERED",
                 AudioFirstLogic.decide("ATV_PREFERRED_USER_TRIGGERED", "id", 1_000, 2_000, TTL));
     }
@@ -96,46 +97,76 @@ public class AudioFirstLogicTest {
     }
 
     @Test public void theVideoModesDeclineTheSwap() {
-        assertTrue(AudioFirstLogic.declineForVideo("OMV_PREFERRED", "id", null, 0, 2_000, TTL));
-        assertTrue(AudioFirstLogic.declineForVideo("OMV_PREFERRED_USER_TRIGGERED", "id", "id", 1_000, 2_000, TTL));
+        assertTrue(AudioFirstLogic.declineForVideo("OMV_PREFERRED", "id", null, 0, 2_000, TTL, false));
+        assertTrue(AudioFirstLogic.declineForVideo(USER_VIDEO, "id", "id", 1_000, 2_000, TTL, false));
     }
 
     @Test public void theAudioModesAllowTheSwap() {
-        assertFalse(AudioFirstLogic.declineForVideo("ATV_PREFERRED", "id", null, 0, 2_000, TTL));
-        assertFalse(AudioFirstLogic.declineForVideo("ATV_PREFERRED_USER_TRIGGERED", "id", null, 0, 2_000, TTL));
-        assertFalse(AudioFirstLogic.declineForVideo("DONT_PLAY_VIDEO_OVERRIDE", "id", null, 0, 2_000, TTL));
+        assertFalse(AudioFirstLogic.declineForVideo("ATV_PREFERRED", "id", null, 0, 2_000, TTL, false));
+        assertFalse(AudioFirstLogic.declineForVideo("ATV_PREFERRED_USER_TRIGGERED", "id", null, 0, 2_000, TTL, false));
+        assertFalse(AudioFirstLogic.declineForVideo("DONT_PLAY_VIDEO_OVERRIDE", "id", null, 0, 2_000, TTL, false));
     }
 
     @Test public void anUnknownModeDeclinesTheSwap() {
-        assertTrue(AudioFirstLogic.declineForVideo(null, "id", "id", 1_000, 2_000, TTL));
+        assertTrue(AudioFirstLogic.declineForVideo(null, "id", "id", 1_000, 2_000, TTL, false));
     }
 
     @Test public void theSongAJustArmedTapIsSwitchingToAudioIsNotDeclined() {
-        assertFalse(AudioFirstLogic.declineForVideo("OMV_PREFERRED", "id", "id", 1_000, 2_000, TTL));
-        assertTrue(AudioFirstLogic.declineForVideo("OMV_PREFERRED", "id", "other", 1_000, 2_000, TTL));
-        assertTrue(AudioFirstLogic.declineForVideo("OMV_PREFERRED", "id", "id", 1_000, 11_001, TTL));
+        assertFalse(AudioFirstLogic.declineForVideo("OMV_PREFERRED", "id", "id", 1_000, 2_000, TTL, false));
+        assertTrue(AudioFirstLogic.declineForVideo("OMV_PREFERRED", "id", "other", 1_000, 2_000, TTL, false));
+        assertTrue(AudioFirstLogic.declineForVideo("OMV_PREFERRED", "id", "id", 1_000, 11_001, TTL, false));
     }
 
-    @Test public void onlyTheVideoFallbackIsTurnedIntoTheAudioMode() {
+    @Test public void aTapTurnsEitherVideoModeIntoTheAudioMode() {
         assertEquals("ATV_PREFERRED", AudioFirstLogic.modeToSet(true, true, "OMV_PREFERRED"));
+        assertEquals("ATV_PREFERRED", AudioFirstLogic.modeToSet(true, true, "OMV_PREFERRED_USER_TRIGGERED"));
     }
 
     @Test public void theModeIsLeftAloneInEveryOtherCase() {
-        assertNull(AudioFirstLogic.modeToSet(true, true, "OMV_PREFERRED_USER_TRIGGERED"));
         assertNull(AudioFirstLogic.modeToSet(true, true, "ATV_PREFERRED_USER_TRIGGERED"));
         assertNull(AudioFirstLogic.modeToSet(true, true, "DONT_PLAY_VIDEO_OVERRIDE"));
         assertNull(AudioFirstLogic.modeToSet(true, true, "ATV_PREFERRED"));
         assertNull(AudioFirstLogic.modeToSet(true, true, null));
         assertNull(AudioFirstLogic.modeToSet(true, false, "OMV_PREFERRED"));
+        assertNull(AudioFirstLogic.modeToSet(true, false, "OMV_PREFERRED_USER_TRIGGERED"));
         assertNull(AudioFirstLogic.modeToSet(false, true, "OMV_PREFERRED"));
+        assertNull(AudioFirstLogic.modeToSet(false, true, "OMV_PREFERRED_USER_TRIGGERED"));
     }
 
-    @Test public void aRowIsRetargetedInEveryModeButTheUsersVideoChoice() {
-        assertFalse(AudioFirstLogic.retargetsIn("OMV_PREFERRED_USER_TRIGGERED"));
-        assertTrue(AudioFirstLogic.retargetsIn("OMV_PREFERRED"));
-        assertTrue(AudioFirstLogic.retargetsIn("ATV_PREFERRED"));
-        assertTrue(AudioFirstLogic.retargetsIn("ATV_PREFERRED_USER_TRIGGERED"));
-        assertTrue(AudioFirstLogic.retargetsIn("DONT_PLAY_VIDEO_OVERRIDE"));
-        assertTrue(AudioFirstLogic.retargetsIn(null));
+    @Test public void theHintIsAskedForEveryModeButTheDataSavingOverride() {
+        assertTrue(AudioFirstLogic.hintsIn("OMV_PREFERRED"));
+        assertTrue(AudioFirstLogic.hintsIn("OMV_PREFERRED_USER_TRIGGERED"));
+        assertTrue(AudioFirstLogic.hintsIn("ATV_PREFERRED"));
+        assertTrue(AudioFirstLogic.hintsIn(null));
+        assertFalse(AudioFirstLogic.hintsIn("DONT_PLAY_VIDEO_OVERRIDE"));
+    }
+
+    @Test public void thePillsOwnValuesAreNeverChangedByTheModeForce() {
+        // The setter hook only forces the video fallback; the two user-triggered values pass through.
+        for (String user : new String[]{"OMV_PREFERRED_USER_TRIGGERED", "ATV_PREFERRED_USER_TRIGGERED"}) {
+            assertEquals(user, AudioFirstLogic.decide(user, "id", 1_000, 1_500, TTL));
+        }
+        assertEquals("ATV_PREFERRED", AudioFirstLogic.decide("OMV_PREFERRED", "id", 1_000, 1_500, TTL));
+        assertEquals("OMV_PREFERRED", AudioFirstLogic.decide("OMV_PREFERRED", null, 1_000, 1_500, TTL));
+    }
+
+    @Test public void theAudioModesAreTheOnesStockTreatsAsAudio() {
+        assertTrue(AudioFirstLogic.isAudioMode("ATV_PREFERRED"));
+        assertTrue(AudioFirstLogic.isAudioMode("ATV_PREFERRED_USER_TRIGGERED"));
+        assertTrue(AudioFirstLogic.isAudioMode("DONT_PLAY_VIDEO_OVERRIDE"));
+        assertFalse(AudioFirstLogic.isAudioMode("OMV_PREFERRED"));
+        assertFalse(AudioFirstLogic.isAudioMode("OMV_PREFERRED_USER_TRIGGERED"));
+        assertFalse(AudioFirstLogic.isAudioMode(null));
+    }
+
+    @Test public void theUsersVideoChoiceFoundByTheTapIsNotDeclinedUntilTheModeChanges() {
+        // Tap in the user's Video, the direct set has not run yet: the first player request of the armed song swaps.
+        assertFalse(AudioFirstLogic.declineForVideo(USER_VIDEO, "id", "id", 1_000, 1_500, TTL, true));
+        // The user presses the toggle after the tap: a mode was set, the choice is new and wins.
+        assertTrue(AudioFirstLogic.declineForVideo(USER_VIDEO, "id", "id", 1_000, 1_500, TTL, false));
+        // Another song, or an expired arm, never swaps in the video mode.
+        assertTrue(AudioFirstLogic.declineForVideo(USER_VIDEO, "id", "x", 1_000, 1_500, TTL, true));
+        assertTrue(AudioFirstLogic.declineForVideo(USER_VIDEO, "id", "id", 1_000, 11_001, TTL, true));
+        assertTrue(AudioFirstLogic.declineForVideo(USER_VIDEO, "id", null, 0, 1_500, TTL, true));
     }
 }

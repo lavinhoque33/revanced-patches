@@ -70,6 +70,12 @@ private val downloadsResourcePatch = resourcePatch {
             "false",
             "morphe_music_in_app_downloads",
         )
+        addSwitchPreference(
+            CategoryType.MISC,
+            "morphe_music_downloaded_checkmarks",
+            "true",
+            "morphe_music_in_app_downloads",
+        )
     }
 }
 
@@ -133,6 +139,7 @@ val downloadsPatch = bytecodePatch(
         val command = mutableClassDefBy(resolver.parameters[1].type)
 
         installStreamSwap()
+        installDownloadedMarkers()
         command.interfaces.add(NATIVE_COMMAND)
         val defaultCommand = command.fields.single { it.type == command.type && AccessFlags.STATIC.isSet(it.accessFlags) }
         val parserOwner = parseByteArrayMethodRef.get()!!.definingClass

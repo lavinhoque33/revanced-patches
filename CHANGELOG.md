@@ -5,6 +5,9 @@
 * **YouTube Music - Downloads:** Add Play downloads locally, off by default, to play saved audio while
   radio, lyrics and queue stay online. Tracks downloaded while enabled keep a second raw audio copy,
   roughly doubling their audio storage.
+* **YouTube Music - Downloads:** Add green downloaded checkmarks, on by default and a child of Download in app.
+  Songs saved by the app show a check in playlist, search and library lists, and a playlist or album page whose
+  every track is saved shows one on its Download button. Album track rows are not marked.
 
 ## [1.33.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.32.2...v1.33.0) (2026-11-06)
 

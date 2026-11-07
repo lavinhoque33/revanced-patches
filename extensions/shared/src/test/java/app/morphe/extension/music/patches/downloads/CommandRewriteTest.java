@@ -1,0 +1,229 @@
+/*
+ * Copyright (C) 2026 lavinhoque33
+ * Licensed under the GNU General Public License v3.0.
+ * Written by lavinhoque33, 2026-11-07.
+ */
+package app.morphe.extension.music.patches.downloads;
+
+import static org.junit.Assert.*;
+
+import com.google.protobuf.CodedInputStream;
+import com.google.protobuf.CodedOutputStream;
+
+import org.junit.Test;
+
+import java.io.ByteArrayOutputStream;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Set;
+
+public class CommandRewriteTest {
+    private static final String OMV = "dQw4w9WgXcQ";
+    private static final String ATV = "lYBUbBu4W08";
+    private static final String ALBUM = "OLAK5uy_nmDUsWOMoEcz0SsVqUwir0oxu-k1oUyXE";
+
+    private interface Fill {
+        void write(CodedOutputStream out) throws Exception;
+    }
+
+    private static byte[] build(Fill fill) {
+        try {
+            ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+            CodedOutputStream out = CodedOutputStream.newInstance(bytes);
+            fill.write(out);
+            out.flush();
+            return bytes.toByteArray();
+        } catch (Exception ex) {
+            throw new IllegalStateException(ex);
+        }
+    }
+
+    /** The music config: an unknown field 1, the type (field 2) and a trailing unknown field 3. */
+    private static byte[] musicConfig(int type) {
+        return build(out -> {
+            out.writeInt32(1, 0);
+            out.writeInt32(CommandRewrite.MUSIC_VIDEO_TYPE_FIELD, type);
+            out.writeString(3, "x");
+        });
+    }
+
+    private static byte[] supportedConfig(int type) {
+        byte[] music = musicConfig(type);
+        return build(out -> out.writeByteArray(CommandRewrite.MUSIC_CONFIG_FIELD, music));
+    }
+
+    /** Mirrors watch=[1:s11,2:s41,3:v0,9:s32,13:s16,26:s68,28:s4,79857908:sN,136656028:sN] of an album row. */
+    private static byte[] watch(String video, byte[] supported) {
+        return build(out -> {
+            out.writeString(1, video);
+            out.writeString(2, ALBUM);
+            out.writeInt32(3, 0);
+            out.writeString(9, "01234567890123456789012345678901");
+            out.writeString(13, "setVideoId123456");
+            out.writeByteArray(26, new byte[68]);
+            out.writeByteArray(28, new byte[]{1, 2, 3, 4});
+            out.writeByteArray(79_857_908, new byte[1107]);
+            if (supported != null) out.writeByteArray(CommandRewrite.SUPPORTED_CONFIG_FIELD, supported);
+        });
+    }
+
+    private static byte[] command(byte[] watch) {
+        return build(out -> {
+            out.writeString(2, "x".repeat(45));
+            out.writeByteArray(4, new byte[111]);
+            out.writeByteArray(CommandRewrite.WATCH_ENDPOINT_FIELD, watch);
+            out.writeByteArray(94_476_261, new byte[8]);
+            out.writeByteArray(144_224_893, new byte[8]);
+        });
+    }
+
+    private static byte[] omvRow() {
+        return command(watch(OMV, supportedConfig(CommandRewrite.TYPE_OMV)));
+    }
+
+    private static byte[] field(byte[] message, int number) throws Exception {
+        CodedInputStream in = CodedInputStream.newInstance(message);
+        while (!in.isAtEnd()) {
+            int tag = in.readTag();
+            if (tag >>> 3 == number) return in.readByteArray();
+            in.skipField(tag);
+        }
+        return null;
+    }
+
+    private static int type(byte[] command) throws Exception {
+        byte[] watch = field(command, CommandRewrite.WATCH_ENDPOINT_FIELD);
+        byte[] supported = field(watch, CommandRewrite.SUPPORTED_CONFIG_FIELD);
+        byte[] music = field(supported, CommandRewrite.MUSIC_CONFIG_FIELD);
+        CodedInputStream in = CodedInputStream.newInstance(music);
+        while (!in.isAtEnd()) {
+            int tag = in.readTag();
+            if (tag >>> 3 == CommandRewrite.MUSIC_VIDEO_TYPE_FIELD) return in.readInt32();
+            in.skipField(tag);
+        }
+        return -1;
+    }
+
+    @Test public void replacesTheVideoIdAndTheTypeOfAnOmvRow() throws Exception {
+        CommandRewrite.Result result = CommandRewrite.retarget(omvRow(), OMV, ATV);
+
+        assertNotNull(result);
+        assertEquals("2->1", result.type());
+        TapCommand tap = TapCommand.parse(result.command());
+        assertEquals(ATV, tap.videoId);
+        assertEquals(ALBUM, tap.playlistId);
+        assertEquals(0, tap.index);
+        assertEquals(CommandRewrite.TYPE_ATV, type(result.command()));
+    }
+
+    @Test public void onlyTheIdAndTheTypeChange() throws Exception {
+        byte[] original = omvRow();
+        byte[] rewritten = CommandRewrite.retarget(original, OMV, ATV).command();
+
+        // The same row built with the song id and type from the start is the rewritten row, byte for byte.
+        byte[] expected = command(watch(ATV, supportedConfig(CommandRewrite.TYPE_ATV)));
+        assertArrayEquals(expected, rewritten);
+
+        // The fields outside the watch endpoint and the unknown fields inside it are untouched.
+        byte[] before = field(original, CommandRewrite.WATCH_ENDPOINT_FIELD);
+        byte[] after = field(rewritten, CommandRewrite.WATCH_ENDPOINT_FIELD);
+        assertArrayEquals(field(before, 79_857_908), field(after, 79_857_908));
+        assertArrayEquals(field(before, 13), field(after, 13));
+        assertArrayEquals(field(original, 4), field(rewritten, 4));
+        assertArrayEquals(field(original, 144_224_893), field(rewritten, 144_224_893));
+    }
+
+    @Test public void theTypeIsSwitchedOnlyWhenItIsOmv() throws Exception {
+        byte[] ugc = command(watch(OMV, supportedConfig(3)));
+        CommandRewrite.Result result = CommandRewrite.retarget(ugc, OMV, ATV);
+
+        assertEquals("untouched", result.type());
+        assertEquals(ATV, TapCommand.parse(result.command()).videoId);
+        assertEquals(3, type(result.command()));
+    }
+
+    @Test public void aRowWithoutAConfigKeepsItsShape() {
+        byte[] row = command(watch(OMV, null));
+        CommandRewrite.Result result = CommandRewrite.retarget(row, OMV, ATV);
+
+        assertEquals("untouched", result.type());
+        assertArrayEquals(command(watch(ATV, null)), result.command());
+    }
+
+    @Test public void aConfigOfAnotherShapeIsLeftUntouched() {
+        // The supported config holds a string where a message is expected.
+        byte[] odd = build(out -> out.writeString(CommandRewrite.MUSIC_CONFIG_FIELD, "\u0001"));
+        CommandRewrite.Result result = CommandRewrite.retarget(command(watch(OMV, odd)), OMV, ATV);
+
+        assertNotNull(result);
+        assertEquals("untouched", result.type());
+        assertEquals(ATV, TapCommand.parse(result.command()).videoId);
+        assertArrayEquals(command(watch(ATV, odd)), result.command());
+    }
+
+    @Test public void aTypeThatIsNotAVarintIsLeftUntouched() {
+        byte[] music = build(out -> out.writeString(CommandRewrite.MUSIC_VIDEO_TYPE_FIELD, "omv"));
+        byte[] supported = build(out -> out.writeByteArray(CommandRewrite.MUSIC_CONFIG_FIELD, music));
+        CommandRewrite.Result result = CommandRewrite.retarget(command(watch(OMV, supported)), OMV, ATV);
+
+        assertEquals("untouched", result.type());
+    }
+
+    @Test public void nothingIsRewrittenWithoutThatWatchEndpoint() {
+        assertNull(CommandRewrite.retarget(omvRow(), ATV, OMV));
+        assertNull(CommandRewrite.retarget(build(out -> out.writeString(2, "no watch")), OMV, ATV));
+        assertNull(CommandRewrite.retarget(new byte[]{(byte) 0xFF}, OMV, ATV));
+        assertNull(CommandRewrite.retarget(omvRow(), OMV, "not-an-id"));
+        assertNull(CommandRewrite.retarget(omvRow(), "short", ATV));
+    }
+
+    @Test public void theRewrittenCommandReadsBackAsAnAlbumRowOfTheSong() {
+        DownloadedRegistry registry = new DownloadedRegistry();
+        registry.add(ATV);
+        registry.putSource(ALBUM, Arrays.asList(ATV, "other111111"));
+
+        byte[] bytes = omvRow();
+        TapCommand tap = TapCommand.parse(bytes);
+        AudioFirstLogic.Arm arm = AudioFirstLogic.chooseArm(true, tap.ids,
+                registry.sourceTracks(registry.findSource(bytes)), tap.index, tap.hasParams, registry::isDownloaded);
+        assertEquals(new AudioFirstLogic.Arm("playlist-index", ATV), arm);
+        assertTrue(AudioFirstLogic.namesTheRow(arm.rule(), arm.videoId(), tap.videoId, registry::isDownloaded));
+
+        TapCommand after = TapCommand.parse(CommandRewrite.retarget(bytes, tap.videoId, arm.videoId()).command());
+        assertEquals(ATV, after.videoId);
+        assertTrue(after.ids.contains(ATV));
+        assertFalse(after.ids.contains(OMV));
+        assertEquals(registry.findSource(bytes), registry.findSource(CommandRewrite.retarget(bytes, OMV, ATV).command()));
+    }
+
+    @Test public void theDescriptionShowsNumbersSizesTheTypeValueAndCutsLongStrings() {
+        String text = CommandRewrite.describeWatch(omvRow());
+
+        assertTrue(text, text.contains("3:v0"));
+        assertTrue(text, text.contains("136656028:{136657325:{1:v0,2:v2,3:\"x\"}}"));
+        assertTrue(text, text.contains("79857908:s1107"));
+        assertTrue(text, text.contains("OLAK5uy_nmDUsWOM"));
+        assertEquals("[no watch endpoint]", CommandRewrite.describeWatch(new byte[0]));
+        assertEquals("[unreadable]", CommandRewrite.describeWatch(new byte[]{(byte) 0xFF}));
+    }
+
+    @Test public void onlyAnExactRowIdIsRetargeted() {
+        Set<String> copies = Collections.singleton(ATV);
+        assertTrue(AudioFirstLogic.namesTheRow("playlist-index", ATV, OMV, copies::contains));
+        assertTrue(AudioFirstLogic.namesTheRow("id", ATV, OMV, copies::contains));
+        // The header rule cannot name the row's song.
+        assertFalse(AudioFirstLogic.namesTheRow("playlist-source", ATV, OMV, copies::contains));
+        // A row that already carries the song, or an id with a copy of its own, is as the app built it.
+        assertFalse(AudioFirstLogic.namesTheRow("playlist-index", ATV, ATV, copies::contains));
+        assertFalse(AudioFirstLogic.namesTheRow("id", ATV, OMV, Set.of(ATV, OMV)::contains));
+        assertFalse(AudioFirstLogic.namesTheRow("id", ATV, null, copies::contains));
+    }
+
+    @Test public void theVideoModeDoesNotDeclineTheRetargetedSongWhileItIsArmed() {
+        long now = 1_000;
+        assertFalse(AudioFirstLogic.declineForVideo(AudioFirstLogic.OMV_PREFERRED, ATV, ATV, now, now + 500,
+                AudioFirstLogic.ARM_TTL_MILLIS));
+        assertTrue(AudioFirstLogic.declineForVideo(AudioFirstLogic.OMV_PREFERRED, OMV, ATV, now, now + 500,
+                AudioFirstLogic.ARM_TTL_MILLIS));
+    }
+}

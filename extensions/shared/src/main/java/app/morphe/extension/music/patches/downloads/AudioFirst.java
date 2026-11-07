@@ -62,19 +62,9 @@ public final class AudioFirst {
         void rvxSetMode(Object mode);
     }
 
-    /**
-     * A queue item of the app, by the three methods the patch adds to it. An item holds the video renderer and the
-     * song renderer of a track and plays the one it has selected.
-     */
-    public interface QueueItem {
-        /** The mode holder the item reads. */
-        Object rvxHolder();
-
-        /** The command of the renderer the item would select in the mode, or null. */
-        Object rvxCommand(Object mode);
-
-        /** Selects the renderer of the mode, as the app does when the mode changes. */
-        void rvxSelect(Object mode);
+    /** A panel renderer of the app's queue, rebuilt from bytes by the one method the patch adds to its class. */
+    public interface QueueRenderer {
+        Object rvxWithBytes(byte[] bytes);
     }
 
     /** Every mode holder built, not kept alive by this list. */
@@ -189,95 +179,76 @@ public final class AudioFirst {
     }
 
     /**
-     * Injection point: the end of a queue item's construction. The item selects the renderer the server listed
-     * first, which is the music video for the rows of an album, and only the mode switch changes it, so in the audio
-     * mode Next reached the video ids that have no stream copy. An item whose song renderer is a downloaded song
-     * selects it when the app is in an audio mode. Nothing else changes: a track without a copy, a video mode (the
-     * user's choice included) and an item without a song renderer stay as the app made them.
+     * Injection point: the renderer a queue item is built with, or is given later. The next songs of an album are
+     * items that hold only the renderer of the music video, so in the audio mode Next requested the video's id, which
+     * has no stream copy. In an audio mode, a renderer whose album position names a song with a stream copy is rebuilt
+     * around that song's id, as the tap's command is, so the item plays the local copy. Everything else, a renderer
+     * of a song with a copy of its own, a video mode (the user's choice included) and a track without a copy, is
+     * returned as it came.
+     *
+     * @return The renderer to use: the argument, or its rebuilt copy.
      */
-    public static void onQueueItem(@Nullable Object item) {
+    public static Object retargetRenderer(@Nullable Object renderer) {
         try {
             if (!queueHookAlive) {
                 queueHookAlive = true;
                 Logger.printDebug(() -> "AudioFirst: queue item hook alive");
             }
-            if (!supported() || !(item instanceof QueueItem queueItem)) return;
-
-            QueueCall call = new QueueCall();
-            selectSong(queueItem, call);
-
-            if (queueLog.allow(SystemClock.elapsedRealtime())) {
-                Logger.printDebug(() -> "AudioFirst: queue item call song=" + call.song + " video=" + call.video
-                        + " counterpart=" + call.counterpart + " mode=" + call.mode + " hasCopy=" + call.hasCopy
-                        + " outcome=" + call.outcome);
+            if (!supported() || !Settings.START_DOWNLOADED_IN_AUDIO.get() || !StreamSwap.enabled()) return renderer;
+            if (!(renderer instanceof QueueRenderer rebuildable) || !(renderer instanceof MessageLite message)) {
+                return renderer;
             }
+
+            DownloadedMarkers.warmUp();
+            DownloadedRegistry registry = DownloadedMarkers.loadedRegistry();
+            if (registry == null) return renderer;
+
+            String mode = liveMode();
+            byte[] bytes = message.toByteArray();
+            TapCommand row = TapCommand.parse(bytes);
+            if (!row.isWatch() || row.videoId == null || row.videoId.isEmpty()) return renderer;
+            if (!AudioFirstLogic.isAudioMode(mode)) {
+                logQueueItem(row, "declined:mode=" + mode, null);
+                return renderer;
+            }
+
+            AudioFirstLogic.Arm arm = AudioFirstLogic.chooseArm(true, List.of(row.videoId),
+                    registry.sourceTracks(registry.findSource(bytes)), row.index, row.hasParams,
+                    registry::isDownloaded);
+            if (arm == null) {
+                logQueueItem(row, "declined:no-copy", null);
+                return renderer;
+            }
+            if (!AudioFirstLogic.namesTheRow(arm.rule(), arm.videoId(), row.videoId, registry::isDownloaded)) {
+                logQueueItem(row, "declined:not-the-row(" + arm.rule() + ")", arm.videoId());
+                return renderer;
+            }
+
+            CommandRewrite.RendererResult result = CommandRewrite.retargetRenderer(bytes, row.videoId, arm.videoId(),
+                    AudioFirstLogic.hintsIn(mode));
+            if (result == null || !result.complete()) {
+                logQueueItem(row, "declined:unreadable(" + (result == null ? "malformed" : result.describe()) + ")",
+                        arm.videoId());
+                return renderer;
+            }
+
+            Object rebuilt = rebuildable.rvxWithBytes(result.renderer());
+            logQueueItem(row, "retargeted(" + arm.rule() + "," + result.describe() + ")", arm.videoId());
+            return rebuilt != null ? rebuilt : renderer;
         } catch (Exception ex) {
             Logger.printException(() -> "AudioFirst: queue item failure", ex);
+            return renderer;
         }
     }
 
     private static final QueueLogBudget queueLog = new QueueLogBudget();
     private static volatile boolean queueHookAlive;
 
-    /** What one queue item showed, for the log. */
-    private static final class QueueCall {
-        @Nullable String song;
-        @Nullable String video;
-        String counterpart = "?";
-        String mode = "?";
-        boolean hasCopy;
-        String outcome = "declined:unsupported";
-    }
+    private static void logQueueItem(TapCommand row, String outcome, @Nullable String song) {
+        if (!queueLog.allow(SystemClock.elapsedRealtime())) return;
 
-    private static void selectSong(QueueItem item, QueueCall call) {
-        if (!Settings.START_DOWNLOADED_IN_AUDIO.get()) {
-            call.outcome = "declined:setting-off";
-            return;
-        }
-        if (!StreamSwap.enabled()) {
-            call.outcome = "declined:stream-swap-off";
-            return;
-        }
-
-        DownloadedMarkers.warmUp();
-        DownloadedRegistry registry = DownloadedMarkers.loadedRegistry();
-        if (registry == null) {
-            call.outcome = "declined:no-registry";
-            return;
-        }
-
-        Object holder = item.rvxHolder();
-        captureHolder(holder);
-        Enum<?> mode = holder instanceof ModeHolder modeHolder ? modeOf(modeHolder) : null;
-        if (mode == null) {
-            call.outcome = "declined:mode-unknown";
-            return;
-        }
-        call.mode = mode.name();
-
-        // The two renderers the item can select, by the mode that would pick each of them.
-        Enum<?> audio = constant(mode, AudioFirstLogic.ATV_PREFERRED);
-        Enum<?> video = constant(mode, AudioFirstLogic.OMV_PREFERRED);
-        call.song = watchIdOf(item.rvxCommand(audio));
-        call.video = watchIdOf(item.rvxCommand(video));
-        call.counterpart = call.song != null && !call.song.equals(call.video) ? "present" : "absent";
-        call.hasCopy = call.song != null && registry.isDownloaded(call.song);
-
-        if (!AudioFirstLogic.isAudioMode(call.mode)) {
-            call.outcome = "declined:video-mode";
-        } else if (call.song == null) {
-            call.outcome = "declined:no-song-id";
-        } else if (!call.hasCopy) {
-            call.outcome = "declined:no-copy";
-        } else {
-            item.rvxSelect(mode);
-            call.outcome = "selected";
-        }
-    }
-
-    @Nullable
-    private static String watchIdOf(@Nullable Object command) {
-        return command instanceof MessageLite lite ? TapCommand.parse(lite.toByteArray()).videoId : null;
+        Logger.printDebug(() -> "AudioFirst: queue item call video=" + row.videoId + " song=" + song + " playlist="
+                + row.playlistId + " index=" + row.index + " outcome=" + outcome);
     }
 
     /** Injection point where the app cannot rebuild a command: arms the start, never changes the command. */

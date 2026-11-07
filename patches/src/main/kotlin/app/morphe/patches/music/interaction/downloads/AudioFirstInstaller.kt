@@ -10,6 +10,7 @@ import app.morphe.patcher.extensions.InstructionExtensions.addInstructions
 import app.morphe.patcher.patch.BytecodePatchContext
 import app.morphe.patcher.util.getReference
 import app.morphe.patches.music.interaction.playlisttracktap.CommandResolverFingerprint
+import app.morphe.patches.shared.misc.fix.proto.parseByteArrayMethodRef
 import app.morphe.util.Utils.printInfo
 import app.morphe.util.Utils.printWarn
 import app.morphe.util.fingerprint.matchSingle
@@ -18,7 +19,6 @@ import app.morphe.util.returnEarly
 import com.android.tools.smali.dexlib2.AccessFlags
 import com.android.tools.smali.dexlib2.Opcode
 import com.android.tools.smali.dexlib2.iface.Method
-import com.android.tools.smali.dexlib2.iface.reference.FieldReference
 import com.android.tools.smali.dexlib2.iface.reference.MethodReference
 
 private const val AUDIO_FIRST_PATH = "Lapp/morphe/extension/music/patches/downloads/"
@@ -27,8 +27,9 @@ private const val OVERRIDE_MODE = "$AUDIO_FIRST->overrideMode(Ljava/lang/Enum;)L
 private const val ON_COMMAND = "$AUDIO_FIRST->onCommand(Ljava/lang/Object;)V"
 private const val OVERRIDE_COMMAND = "$AUDIO_FIRST->overrideCommand(Ljava/lang/Object;)Ljava/lang/Object;"
 private const val MODE_HOLDER = $$"$${AUDIO_FIRST_PATH}AudioFirst$ModeHolder;"
-private const val QUEUE_ITEM = $$"$${AUDIO_FIRST_PATH}AudioFirst$QueueItem;"
-private const val ON_QUEUE_ITEM = "$AUDIO_FIRST->onQueueItem(Ljava/lang/Object;)V"
+private const val QUEUE_RENDERER = $$"$${AUDIO_FIRST_PATH}AudioFirst$QueueRenderer;"
+private const val RETARGET_RENDERER = "$AUDIO_FIRST->retargetRenderer(Ljava/lang/Object;)Ljava/lang/Object;"
+private const val REGISTRY = "Lcom/google/protobuf/ExtensionRegistryLite;"
 private const val CAPTURE_HOLDER = "$AUDIO_FIRST->captureHolder(Ljava/lang/Object;)V"
 private const val OBJECT = "Ljava/lang/Object;"
 private const val MAX_SETTER_INSTRUCTIONS = 6
@@ -92,7 +93,7 @@ internal fun BytecodePatchContext.installAudioFirst() {
         supported.returnEarly(true)
         audioFirstResolved = true
         installModeHolderAccess(setter.classDef.type, setter.method, enumType)
-        installQueueItemSelection(setter.classDef.type, enumType, commandResolver.parameterTypes[0].toString())
+        installQueueItemRetarget()
         printInfo("AudioFirst: mode enum $enumType, holder ${setter.classDef.type}, setter ${setter.method.name}, " +
             "taps ${commandResolver.definingClass}->${commandResolver.name}")
     } catch (ex: Exception) {
@@ -142,70 +143,78 @@ private fun BytecodePatchContext.installModeHolderAccess(holderType: String, set
     }
 }
 
-/** The queue item class, found by the log string of its constructor's renderer set-up. */
-private val queueItemFingerprint = Fingerprint(
+/** The queue item built from a response wrapper, found by the log string of its set-up. Only used to name the renderer. */
+private val wrapperItemFingerprint = Fingerprint(
     strings = listOf("Counterpart renderer absent in response. "),
 )
 
 /**
- * A queue item holds the renderer of a track's video and of its song, selects the one the server listed first and only
- * changes it when the mode is switched. In an audio mode the next items of an album therefore kept their video ids,
- * which have no stream copy. The item gets three bridge methods (its holder, the command of a mode's renderer, and
- * selecting a mode's renderer: the app's own `w(mode)`), and its renderer set-up reports the finished item to the
- * extension, which selects the song renderer when that song is downloaded and the mode is an audio one.
- *
- * Resolved by shape on 9.40.51 / 9.15.51 / 8.30.54: item `Lhxq` / `Lnpa` / `Lnav`, set-up `z()` / `z()` / `v()`,
- * renderer picker `v(mode)` / `v(mode)` / `u(mode)`, selector `w(mode)`, renderer command field `l` / `l` / `k`.
- * Kept apart: if any part is missing only this selection is, with a warning.
+ * The queue item for a single panel renderer: a constructor of a long (or a Long), the renderer and a flag, a field of
+ * each, and nothing else.
  */
-private fun BytecodePatchContext.installQueueItemSelection(holderType: String, enumType: String, commandType: String) {
+private fun singleRendererItemFingerprint(rendererType: String) = Fingerprint(
+    name = "<init>",
+    custom = { method, owner ->
+        val types = method.parameterTypes.map(CharSequence::toString)
+        types.size == 3 && types[1] == rendererType && types[2] == "Z" &&
+            (types[0] == "J" || types[0] == "Ljava/lang/Long;") && owner.fields.count() == 3 &&
+            owner.fields.count { it.type == rendererType && !AccessFlags.STATIC.isSet(it.accessFlags) } == 1
+    },
+)
+
+/**
+ * The next songs of an album are queue items that hold only the music video's renderer, so in the audio mode Next
+ * requested the video's id, which has no stream copy. A queue item reads the renderer given to its constructor (and to
+ * `u(renderer)`, which replaces it), so the renderer is routed through the extension first: it is rebuilt around the
+ * song's id when the song has a copy and the mode is audio. The renderer class gets one bridge, `rvxWithBytes`, which
+ * parses a renderer from bytes the way the tap command's bridge does.
+ *
+ * Resolved by shape, 9.40.51 / 9.15.51 / 8.30.54: item `Lhxp` / `Lnox` / `Lnas`, renderer `Laopp` / `Lbxxg` / `Lbsez`, its
+ * replacing method `u`. Items built from a wrapper (`Lhxq` / `Lnpa` / `Lnav`) are never built for an album on the device
+ * (S8: its set-up was never reached) and are left alone. Kept apart: if any part is missing only this retarget is,
+ * with a warning.
+ */
+private fun BytecodePatchContext.installQueueItemRetarget() {
     try {
-        val match = queueItemFingerprint.matchSingle()
-        val itemType = match.classDef.type
-        val item = mutableClassDefBy(itemType)
-
-        fun Method.isInstance() = !AccessFlags.STATIC.isSet(accessFlags) && !AccessFlags.ABSTRACT.isSet(accessFlags)
-        fun Method.takes(vararg types: String) = parameterTypes.map(CharSequence::toString) == types.toList()
-
-        // The renderer is the type of the four fields the item keeps its renderers in (primary, current, song, video).
-        val rendererType = item.fields.filter { !AccessFlags.STATIC.isSet(it.accessFlags) }
+        val wrapperItem = wrapperItemFingerprint.matchSingle().classDef
+        // The renderer is the type of the four fields the wrapper item keeps its renderers in.
+        val rendererType = wrapperItem.fields.filter { !AccessFlags.STATIC.isSet(it.accessFlags) }
             .groupBy { it.type }.filter { it.value.size >= 4 }.keys.single()
-        val picker = item.methods.single { it.isInstance() && it.takes(enumType) && it.returnType == rendererType }
-        val selector = item.methods.single { it.isInstance() && it.takes(enumType) && it.returnType == "V" }
-        val holderField = item.fields.single { it.type == holderType && !AccessFlags.STATIC.isSet(it.accessFlags) }
-        val commandField = item.methods.filter { it.isInstance() && it.takes(rendererType) && it.returnType != "V" }
-            .flatMap { it.implementation?.instructions?.toList().orEmpty() }
-            .mapNotNull { it.getReference<FieldReference>() }
-            .filter { it.definingClass == rendererType && it.type == commandType }
-            .map { it.name }.distinct().single()
 
-        val builder = item.findMutableMethodOf(match.method)
-        val returns = builder.implementation!!.instructions.withIndex()
-            .filter { it.value.opcode == Opcode.RETURN_VOID }.map { it.index }
-        if (returns.isEmpty()) throw IllegalStateException("the renderer set-up has no return")
-
-        item.interfaces.add(QUEUE_ITEM)
-        item.addDownloadsBridge("rvxHolder", emptyList(), OBJECT, 2, """
-            iget-object v0, p0, $itemType->${holderField.name}:$holderType
-            return-object v0
-        """)
-        item.addDownloadsBridge("rvxCommand", listOf(OBJECT), OBJECT, 3, """
-            check-cast p1, $enumType
-            invoke-virtual {p0, p1}, $itemType->${picker.name}($enumType)$rendererType
-            move-result-object v0
-            iget-object v0, v0, $rendererType->$commandField:$commandType
-            return-object v0
-        """)
-        item.addDownloadsBridge("rvxSelect", listOf(OBJECT), "V", 2, """
-            check-cast p1, $enumType
-            invoke-virtual {p0, p1}, $itemType->${selector.name}($enumType)V
-            return-void
-        """)
-        for (index in returns.reversed()) {
-            builder.addInstructions(index, "invoke-static {p0}, $ON_QUEUE_ITEM")
+        val itemMatch = singleRendererItemFingerprint(rendererType).matchSingle()
+        val itemType = itemMatch.classDef.type
+        val item = mutableClassDefBy(itemType)
+        val replacer = item.methods.single {
+            !AccessFlags.STATIC.isSet(it.accessFlags) && it.returnType == "V" &&
+                it.parameterTypes.map(CharSequence::toString) == listOf(rendererType)
         }
-        printInfo("AudioFirst: queue item $itemType, set-up ${builder.name}, picker ${picker.name}, " +
-            "selector ${selector.name}, command field $commandField")
+
+        val renderer = mutableClassDefBy(rendererType)
+        val defaultRenderer = renderer.fields.single { it.type == rendererType && AccessFlags.STATIC.isSet(it.accessFlags) }
+        val parserOwner = parseByteArrayMethodRef.get()!!.definingClass
+        val parser = mutableClassDefBy(parserOwner).methods.single {
+            it.name == "parseFrom" && it.parameterTypes == listOf(parserOwner, "[B", REGISTRY)
+        }
+
+        renderer.interfaces.add(QUEUE_RENDERER)
+        renderer.addDownloadsBridge("rvxWithBytes", listOf("[B"), OBJECT, 4, """
+            sget-object v0, $defaultRenderer
+            invoke-static {}, $REGISTRY->getGeneratedRegistry()$REGISTRY
+            move-result-object v1
+            invoke-static {v0, p1, v1}, $parser
+            move-result-object v0
+            return-object v0
+        """)
+
+        val retarget = "invoke-static {%s}, $RETARGET_RENDERER\nmove-result-object %s\ncheck-cast %s, $rendererType"
+        val constructor = item.findMutableMethodOf(itemMatch.method)
+        // The renderer is the second parameter after the long (two registers), so p3; p2 for a boxed Long.
+        val rendererRegister = if (itemMatch.method.parameterTypes[0] == "J") "p3" else "p2"
+        val superCall = constructor.implementation!!.instructions.indexOfFirst { it.opcode == Opcode.INVOKE_DIRECT }
+        constructor.addInstructions(superCall + 1, retarget.format(rendererRegister, rendererRegister, rendererRegister))
+        item.findMutableMethodOf(replacer).addInstructions(0, retarget.format("p1", "p1", "p1"))
+
+        printInfo("AudioFirst: queue item retarget $itemType, renderer $rendererType, replacer ${replacer.name}")
     } catch (ex: Exception) {
         printWarn("Start downloaded songs in audio mode cannot keep the next songs of an album on their song " +
             "renderers on this Music version: ${ex.message}")

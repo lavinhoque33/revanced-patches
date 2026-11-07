@@ -10,6 +10,7 @@ import androidx.annotation.Nullable;
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -64,6 +65,73 @@ final class CommandRewrite {
      * cannot be read. A type other than official music video is left as it is, and a config of another shape is
      * left untouched (no type switch, no hint).
      */
+    /**
+     * What a renderer retarget did: how many id strings and commands it replaced.
+     *
+     * @param ids      Fields that held exactly the old id.
+     * @param commands Commands whose watch endpoint was retargeted.
+     */
+    record RendererResult(byte[] renderer, int ids, int commands, String type, String hint) {
+        /** Both the renderer's own id and its watch command name the new song. */
+        boolean complete() {
+            return ids > 0 && commands > 0;
+        }
+
+        String describe() {
+            return "ids=" + ids + ",commands=" + commands + ",type=" + type + ",hint=" + hint;
+        }
+    }
+
+    /**
+     * Retargets a panel renderer: its own video id field and its watch command(s), found among its top-level fields.
+     * Ids are 11 characters, so the replacement keeps every length except the command's, which is rebuilt by
+     * [#retarget]. Menus, thumbnails and the rest are copied unchanged.
+     *
+     * @return The result, or null when the renderer does not parse or the ids are not video ids.
+     */
+    @Nullable
+    static RendererResult retargetRenderer(byte[] renderer, String fromId, String toId, boolean setHint) {
+        if (fromId.length() != VIDEO_ID_LENGTH || !isVideoId(toId)) return null;
+        try {
+            byte[] from = fromId.getBytes(StandardCharsets.ISO_8859_1);
+            byte[] to = toId.getBytes(StandardCharsets.ISO_8859_1);
+            ByteArrayOutputStream out = new ByteArrayOutputStream(renderer.length + 16);
+            int copied = 0;
+            int ids = 0;
+            int commands = 0;
+            String type = "untouched";
+            String hint = "none";
+            for (Field field : parse(renderer)) {
+                if (field.wireType != 2) continue;
+
+                byte[] payload = payload(renderer, field);
+                byte[] replacement = null;
+                if (Arrays.equals(payload, from)) {
+                    replacement = to;
+                    ids++;
+                } else {
+                    Result retargeted = retarget(payload, fromId, toId, setHint);
+                    if (retargeted != null) {
+                        replacement = retargeted.command();
+                        commands++;
+                        type = retargeted.type();
+                        hint = retargeted.hint();
+                    }
+                }
+                if (replacement == null) continue;
+
+                out.write(renderer, copied, field.tagEnd - copied);
+                writeVarint(out, replacement.length);
+                out.write(replacement, 0, replacement.length);
+                copied = field.end;
+            }
+            out.write(renderer, copied, renderer.length - copied);
+            return new RendererResult(out.toByteArray(), ids, commands, type, hint);
+        } catch (IllegalArgumentException malformed) {
+            return null;
+        }
+    }
+
     @Nullable
     static Result retarget(byte[] command, String fromId, String toId, boolean setHint) {
         if (fromId.length() != VIDEO_ID_LENGTH || !isVideoId(toId)) return null;

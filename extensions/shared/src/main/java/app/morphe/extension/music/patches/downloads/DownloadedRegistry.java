@@ -18,9 +18,10 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * What the in-app downloader has saved, held in memory so that a row or a header can be checked
- * without any disk or MediaStore access: the downloaded video ids, and the track list of every
- * downloaded playlist or album. Thread safe; contains no Android code.
+ * The stream copies of Play downloads locally, held in memory so that a row or a header can be checked without any
+ * disk or MediaStore access: the video ids that have a valid stream copy (the only thing a check means; a song
+ * that is only a local file is not in it), and the track list of every playlist or album downloaded with stream
+ * copies. Thread safe; contains no Android code.
  */
 final class DownloadedRegistry {
     private static final int VIDEO_ID_LENGTH = 11;
@@ -46,6 +47,10 @@ final class DownloadedRegistry {
 
     void addAll(Collection<String> videoIds) {
         tracks.addAll(videoIds);
+    }
+
+    void clear() {
+        tracks.clear();
     }
 
     Set<String> snapshot() {
@@ -74,7 +79,7 @@ final class DownloadedRegistry {
         return sources.containsKey(sourceId);
     }
 
-    /** True when every track of a playlist or album downloaded by the app is still downloaded. */
+    /** True when every track of a remembered playlist or album still has a stream copy. */
     boolean isSourceDownloaded(@Nullable String sourceId) {
         List<String> videoIds = sourceId == null ? null : sources.get(sourceId);
         if (videoIds == null || videoIds.isEmpty()) return false;

@@ -30,10 +30,11 @@ import app.morphe.extension.shared.utils.ResourceUtils;
 import app.morphe.extension.shared.utils.Utils;
 
 /**
- * Green "downloaded" checks for what the in-app downloader saved: a small check next to every downloaded song
- * of a list, and one on the Download button of a playlist or album page whose every track is downloaded.
- * The checks are our own views, driven by an in-memory {@link DownloadedRegistry}: nothing is read from disk
- * or MediaStore while a row or header binds.
+ * Green "downloaded" checks for the stream copies of Play downloads locally: a small check next to every song of a
+ * list that has a stream copy, and one on the Download button of a playlist or album page whose every track has
+ * one. A song that was only saved as a local file has no stream copy and no check. The checks are our own views,
+ * driven by an in-memory {@link DownloadedRegistry} of the stream copies: nothing is read from disk or MediaStore
+ * while a row or header binds.
  */
 @SuppressWarnings("unused")
 public final class DownloadedMarkers {
@@ -78,7 +79,7 @@ public final class DownloadedMarkers {
     private DownloadedMarkers() {}
 
     static boolean enabled() {
-        return Settings.IN_APP_DOWNLOADS.get() && Settings.DOWNLOADED_CHECKMARKS.get();
+        return StreamSwap.enabled() && Settings.DOWNLOADED_CHECKMARKS.get();
     }
 
     static int registrySize() {
@@ -240,21 +241,30 @@ public final class DownloadedMarkers {
         return linear ? "added" : "container-parent-not-linear";
     }
 
-    /** Called when a download finished: the track is downloaded from now on. */
-    static void onTrackDownloaded(String videoId) {
+    /** Called when a stream copy was kept: the track has one from now on. */
+    static void onStreamCopyKept(String videoId) {
         registry.add(videoId);
         refreshLater();
     }
 
-    /** Called when the track's audio is confirmed to be gone. */
-    static void onTrackForgotten(String videoId) {
+    /** Called when a track's stream copy was deleted. */
+    static void onStreamCopyRemoved(String videoId) {
         registry.remove(videoId);
         refreshLater();
     }
 
-    /** Called when a whole playlist or album was downloaded and published as a native playlist. */
+    /** Called when every stream copy was deleted: no row or header keeps its check. */
+    static void onStreamCopiesCleared() {
+        registry.clear();
+        refreshLater();
+    }
+
+    /**
+     * Called when a whole playlist or album was downloaded with stream copies. Only the track list is remembered:
+     * its tracks count as downloaded through their own stream copies, so a playlist whose tracks have none (saved
+     * as local files only, or whose copies were deleted) never shows a check.
+     */
     static void onPlaylistSaved(String sourceId, List<String> videoIds) {
-        registry.addAll(videoIds);
         rememberSource(sourceId, videoIds);
         refreshLater();
     }
@@ -276,7 +286,7 @@ public final class DownloadedMarkers {
 
         Utils.submitOnBackgroundThread(() -> {
             try {
-                registry.addAll(NativeAudioStore.rememberedVideoIds());
+                registry.addAll(RawAudioStore.copyIds());
                 for (Map.Entry<String, ?> entry : trackPreferences().getAll().entrySet()) {
                     if (entry.getValue() instanceof String encoded) {
                         registry.putSource(entry.getKey(), DownloadedRegistry.decode(encoded));
@@ -286,7 +296,7 @@ public final class DownloadedMarkers {
                 refreshLater();
 
                 recoverEarlierPlaylists();
-                revalidate();
+                rescanStreamCopies();
             } catch (Exception ex) {
                 Logger.printException(() -> "Could not load the downloaded songs", ex);
             }
@@ -296,7 +306,8 @@ public final class DownloadedMarkers {
 
     /**
      * Playlists downloaded before the track lists were remembered: read their tracks back from the native
-     * playlist database. A playlist with a track the app did not download keeps no check.
+     * playlist database. A playlist with a track the app did not download keeps no check, and neither does one
+     * whose tracks have no stream copy: a remembered playlist is checked through the stream copies of its tracks.
      */
     private static void recoverEarlierPlaylists() {
         Map<Long, List<Long>> nativeTracks = null;
@@ -316,7 +327,7 @@ public final class DownloadedMarkers {
         refreshLater();
     }
 
-    /** Checks in the background that the remembered downloads still exist; at most once in a while. */
+    /** Checks in the background that the stream copies still exist; at most once in a while. */
     private static void revalidateLater() {
         long now = System.currentTimeMillis();
         if (!loaded || now - lastRevalidation < REVALIDATE_INTERVAL_MILLIS
@@ -325,7 +336,7 @@ public final class DownloadedMarkers {
         lastRevalidation = now;
         Utils.submitOnBackgroundThread(() -> {
             try {
-                revalidate();
+                rescanStreamCopies();
             } finally {
                 revalidating.set(false);
             }
@@ -333,12 +344,15 @@ public final class DownloadedMarkers {
         });
     }
 
-    private static void revalidate() {
+    /**
+     * Forgets the stream copies that vanished from the store (copies tied to a deleted local file, a cleanup).
+     * The known set is taken before the scan, so a copy kept while the scan runs is never forgotten.
+     */
+    static void rescanStreamCopies() {
         Set<String> knownBefore = registry.snapshot();
-        Set<String> existing = NativeAudioStore.existingVideoIds();
-        if (existing == null) return;
+        Set<String> present = RawAudioStore.copyIds();
 
-        registry.prune(knownBefore, existing);
+        registry.prune(knownBefore, present);
         refreshLater();
     }
 

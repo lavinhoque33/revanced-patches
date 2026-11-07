@@ -8,6 +8,9 @@ package app.morphe.extension.music.patches.downloads;
 import android.net.Uri;
 
 import java.io.FileNotFoundException;
+import java.util.ArrayDeque;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -20,14 +23,16 @@ final class StreamSwapSources {
         final RawAudioFiles.Entry raw;
         /** Original https URL of the swapped format, null for SABR formats that have none. */
         final String online;
+        final String key;
         final String token;
         final long fileModified;
         volatile boolean available = true;
 
-        Source(String videoId, RawAudioFiles.Entry raw, String online, String token) {
+        Source(String videoId, RawAudioFiles.Entry raw, String online, String key, String token) {
             this.videoId = videoId;
             this.raw = raw;
             this.online = online;
+            this.key = key;
             this.token = token;
             fileModified = raw.file().lastModified();
         }
@@ -44,22 +49,34 @@ final class StreamSwapSources {
     private static final AtomicLong sequence = new AtomicLong();
     private static final ConcurrentHashMap<String, Source> sources = new ConcurrentHashMap<>();
     private static final ConcurrentHashMap<String, Source> latest = new ConcurrentHashMap<>();
+    /** Tokens of one track stay valid for in-flight responses; older ones are dropped beyond this many. */
+    static final int TOKENS_PER_VIDEO = 4;
+    /** Issue order per track, guarded by the class monitor; the maps above stay readable without it. */
+    private static final Map<String, ArrayDeque<Source>> issued = new HashMap<>();
 
     private StreamSwapSources() {}
 
     /** The format's own URL may be empty (SABR): the source then has no online fallback. */
-    static Source issue(String videoId, RawAudioFiles.Entry raw, String formatUrl) {
+    static synchronized Source issue(String videoId, RawAudioFiles.Entry raw, String formatUrl) {
         String onlineUrl = StreamSwapLogic.onlineUrl(formatUrl);
         Source previous = latest.get(videoId);
         if (previous != null && previous.available && previous.raw.equals(raw)
                 && Objects.equals(previous.online, onlineUrl)) return previous;
 
-        String token = SESSION + "-" + sequence.incrementAndGet();
-        String uri = "http://127.0.0.1:1/rvx?v=" + videoId + "&i=" + raw.itag() + "&m=raw&t=" + token;
-        Source source = new Source(videoId, raw, onlineUrl, uri);
-        sources.put(token, source);
+        String key = SESSION + "-" + sequence.incrementAndGet();
+        String uri = "http://127.0.0.1:1/rvx?v=" + videoId + "&i=" + raw.itag() + "&m=raw&t=" + key;
+        Source source = new Source(videoId, raw, onlineUrl, key, uri);
+        sources.put(key, source);
         latest.put(videoId, source);
+        ArrayDeque<Source> history = issued.computeIfAbsent(videoId, id -> new ArrayDeque<>());
+        history.addLast(source);
+        while (history.size() > TOKENS_PER_VIDEO) sources.remove(history.removeFirst().key);
         return source;
+    }
+
+    /** The issued source for a token key, or null once it was replaced by newer ones for the same track. */
+    static Source lookup(String key) {
+        return sources.get(key);
     }
 
     static Source find(Uri uri) {
@@ -67,7 +84,7 @@ final class StreamSwapSources {
                 || uri.getPort() != 1 || !"/rvx".equals(uri.getPath())) return null;
         String token = uri.getQueryParameter("t");
         if (token == null) return null;
-        Source source = sources.get(token);
+        Source source = lookup(token);
         if (source == null || !source.videoId.equals(uri.getQueryParameter("v"))
                 || !Integer.toString(source.raw.itag()).equals(uri.getQueryParameter("i"))
                 || !"raw".equals(uri.getQueryParameter("m"))) return null;

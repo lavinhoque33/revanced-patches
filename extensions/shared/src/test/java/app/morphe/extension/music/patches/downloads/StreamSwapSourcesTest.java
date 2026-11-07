@@ -48,4 +48,21 @@ public class StreamSwapSourcesTest {
         source.available = false;
         assertEquals(online, source.fallback());
     }
+
+    @Test public void onlyTheLatestTokensOfATrackStayIssuedAndTheLatestStillResolves() throws Exception {
+        RawAudioFiles.Entry raw = raw();
+        StreamSwapSources.Source other = StreamSwapSources.issue("other_track", raw, null);
+        StreamSwapSources.Source[] issued = new StreamSwapSources.Source[StreamSwapSources.TOKENS_PER_VIDEO + 2];
+        for (int index = 0; index < issued.length; index++) {
+            issued[index] = StreamSwapSources.issue("busy", raw, "https://example.invalid/" + index);
+        }
+
+        for (int index = 0; index < issued.length; index++) {
+            boolean kept = index >= issued.length - StreamSwapSources.TOKENS_PER_VIDEO;
+            assertEquals("token " + index, kept, StreamSwapSources.lookup(issued[index].key) == issued[index]);
+        }
+        assertSame(other, StreamSwapSources.lookup(other.key));
+        assertSame(issued[issued.length - 1], StreamSwapSources.issue("busy", raw,
+                "https://example.invalid/" + (issued.length - 1)));
+    }
 }

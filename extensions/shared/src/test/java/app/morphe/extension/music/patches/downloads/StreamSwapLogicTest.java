@@ -49,6 +49,29 @@ public class StreamSwapLogicTest {
         assertNull(StreamSwapLogic.mismatch(raw(), audio().build(), online().build()));
     }
 
+    /** The 9.40.51 SABR shape from device round P1: empty Format.url, routing URL in StreamingData field 15. */
+    @Test public void sabrFormatWithoutUrlSwapsAndDropsTheSabrRoute() {
+        Format audio = audio().build();
+        PlayerResponse online = online().setStreamingData(StreamingData.newBuilder()
+                .setServerAbrStreamingUrl("https://example.invalid/sabr").addAdaptiveFormats(audio)).build();
+        assertEquals("", audio.getUrl());
+        assertNull(StreamSwapLogic.mismatch(raw(), audio, online));
+        PlayerResponse swapped = StreamSwapLogic.replaceAudio(online,
+                audio.toBuilder().setUrl("http://127.0.0.1:1/rvx").build());
+        assertFalse(swapped.getStreamingData().hasServerAbrStreamingUrl());
+        assertEquals("http://127.0.0.1:1/rvx", swapped.getStreamingData().getAdaptiveFormats(0).getUrl());
+    }
+
+    @Test public void onlyUsableHttpsUrlsAreKeptAsOptionalFallbacks() {
+        assertNull(StreamSwapLogic.onlineUrl(null));
+        assertNull(StreamSwapLogic.onlineUrl(""));
+        assertNull(StreamSwapLogic.onlineUrl("   "));
+        assertNull(StreamSwapLogic.onlineUrl("https://"));
+        assertNull(StreamSwapLogic.onlineUrl("not a URL"));
+        assertNull(StreamSwapLogic.onlineUrl("http://example.invalid/audio"));
+        assertEquals("https://example.invalid/audio", StreamSwapLogic.onlineUrl("https://example.invalid/audio"));
+    }
+
     @Test public void lengthAndLastModifiedMustBePresentAndExact() {
         assertNotNull(StreamSwapLogic.mismatch(raw(), audio().clearContentLength().build(), online().build()));
         assertNotNull(StreamSwapLogic.mismatch(raw(), audio().setContentLength(999).build(), online().build()));

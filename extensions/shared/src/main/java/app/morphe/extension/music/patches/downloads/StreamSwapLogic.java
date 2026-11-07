@@ -5,6 +5,9 @@
  */
 package app.morphe.extension.music.patches.downloads;
 
+import java.net.URI;
+import java.net.URISyntaxException;
+
 import app.morphe.extension.shared.innertube.PlayerResponseOuterClass.Format;
 import app.morphe.extension.shared.innertube.PlayerResponseOuterClass.PlayerResponse;
 
@@ -39,6 +42,20 @@ final class StreamSwapLogic {
 
     private static boolean validRange(boolean present, long start, long end, long length) {
         return present && start >= 0 && end >= start && end < length;
+    }
+
+    /**
+     * The online fallback of a swapped format, or null. SABR responses (Music 9.40.51) have an empty Format.url: their
+     * routing URL is StreamingData field 15, which the swap strips. Only a complete https URL can resume playback.
+     */
+    static String onlineUrl(String url) {
+        if (url == null || url.isEmpty()) return null;
+        try {
+            URI uri = new URI(url);
+            return "https".equals(uri.getScheme()) && uri.getHost() != null ? url : null;
+        } catch (URISyntaxException ex) {
+            return null;
+        }
     }
 
     /** Stock's exact host predicate, not a general loopback-address test. */

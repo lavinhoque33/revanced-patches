@@ -8,10 +8,11 @@ package app.morphe.extension.music.patches.downloads;
 import android.net.Uri;
 
 import java.io.File;
+import java.io.IOException;
 
 import app.morphe.extension.shared.utils.Logger;
 
-/** Entry hook for the stock cache reader. A vanished/disabled copy resumes the original online representation. */
+/** Entry hook for the stock cache reader; the format's online URL is only an optional fallback. */
 public final class StreamSwapDataSource {
     private StreamSwapDataSource() {}
 
@@ -19,24 +20,31 @@ public final class StreamSwapDataSource {
         return "file".equals(uri.getScheme());
     }
 
-    /** Null for unrelated sources; file URI for a current raw copy; otherwise its original online URI. */
-    public static Uri route(Uri uri, long position, long length) {
+    /**
+     * Null for unrelated sources, the raw copy's file URI while it is intact. Otherwise the format's online URL, or
+     * an IOException (a failed file open, like stock) when a SABR response never had one.
+     */
+    public static Uri route(Uri uri, long position, long length) throws IOException {
         StreamSwapSources.Source source = StreamSwapSources.find(uri);
         if (source == null) return null;
-        if (!StreamSwap.enabled() || StreamSwap.onMainThread() || !source.available) return source.online;
+        if (!StreamSwap.enabled() || StreamSwap.onMainThread() || !source.available) return fallback(source);
         try {
             File file = source.raw.file();
             long size = source.raw.length();
-            if (!file.isFile() || file.length() != size || file.lastModified() != source.fileModified
-                    || position < 0 || position >= size || length < -1 || length > size - position) {
+            if (!file.isFile() || file.length() != size || file.lastModified() != source.fileModified) {
                 source.available = false;
-                return source.online;
+                return fallback(source);
             }
             Logger.printDebug(() -> "StreamSwap: source=FILE v=" + source.videoId + " position=" + position
                     + " length=" + length + " thread=" + Thread.currentThread().getName());
             return Uri.fromFile(file);
-        } catch (Exception ex) {
-            return source.online;
+        } catch (SecurityException ex) {
+            source.available = false;
+            return fallback(source);
         }
+    }
+
+    private static Uri fallback(StreamSwapSources.Source source) throws IOException {
+        return Uri.parse(source.fallback());
     }
 }

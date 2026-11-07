@@ -72,14 +72,9 @@ public final class StreamSwap {
             if (selected == null) return unchanged(original, videoId, "stored itag missing online");
             String mismatch = StreamSwapLogic.mismatch(raw, selected, online);
             if (mismatch != null) return unchanged(original, videoId, mismatch);
-            // Only ordinary complete network representations can provide a safe online fallback.
-            Uri onlineUri = Uri.parse(selected.getUrl());
-            if (!"https".equals(onlineUri.getScheme()) || onlineUri.getHost() == null) {
-                return unchanged(original, videoId, "no online URL");
-            }
 
             StreamSwapSources.Source source = StreamSwapSources.issue(videoId, raw, selected.getUrl());
-            Format local = selected.toBuilder().setUrl(source.token.toString()).clearSignatureCipher().build();
+            Format local = selected.toBuilder().setUrl(source.token).clearSignatureCipher().build();
             PlayerResponse replacement = StreamSwapLogic.replaceAudio(online, local);
             Object result = adapter.rvxWithBytes(replacement.toByteArray(), true);
             if (result == null || result == original) return unchanged(original, videoId, "stock adapter declined");

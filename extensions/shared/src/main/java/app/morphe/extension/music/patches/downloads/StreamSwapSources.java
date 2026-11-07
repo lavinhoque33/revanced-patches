@@ -7,6 +7,8 @@ package app.morphe.extension.music.patches.downloads;
 
 import android.net.Uri;
 
+import java.io.FileNotFoundException;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
@@ -16,17 +18,25 @@ final class StreamSwapSources {
     static final class Source {
         final String videoId;
         final RawAudioFiles.Entry raw;
-        final Uri online;
-        final Uri token;
+        /** Original https URL of the swapped format, null for SABR formats that have none. */
+        final String online;
+        final String token;
         final long fileModified;
         volatile boolean available = true;
 
-        Source(String videoId, RawAudioFiles.Entry raw, Uri online, Uri token) {
+        Source(String videoId, RawAudioFiles.Entry raw, String online, String token) {
             this.videoId = videoId;
             this.raw = raw;
             this.online = online;
             this.token = token;
             fileModified = raw.file().lastModified();
+        }
+
+        String fallback() throws FileNotFoundException {
+            if (online == null) {
+                throw new FileNotFoundException("Local audio unavailable; reload player response: " + videoId);
+            }
+            return online;
         }
     }
 
@@ -37,16 +47,16 @@ final class StreamSwapSources {
 
     private StreamSwapSources() {}
 
-    static Source issue(String videoId, RawAudioFiles.Entry raw, String onlineUrl) {
+    /** The format's own URL may be empty (SABR): the source then has no online fallback. */
+    static Source issue(String videoId, RawAudioFiles.Entry raw, String formatUrl) {
+        String onlineUrl = StreamSwapLogic.onlineUrl(formatUrl);
         Source previous = latest.get(videoId);
         if (previous != null && previous.available && previous.raw.equals(raw)
-                && previous.online.toString().equals(onlineUrl)) return previous;
+                && Objects.equals(previous.online, onlineUrl)) return previous;
 
         String token = SESSION + "-" + sequence.incrementAndGet();
-        Uri uri = new Uri.Builder().scheme("http").encodedAuthority("127.0.0.1:1").path("/rvx")
-                .appendQueryParameter("v", videoId).appendQueryParameter("i", Integer.toString(raw.itag()))
-                .appendQueryParameter("m", "raw").appendQueryParameter("t", token).build();
-        Source source = new Source(videoId, raw, Uri.parse(onlineUrl), uri);
+        String uri = "http://127.0.0.1:1/rvx?v=" + videoId + "&i=" + raw.itag() + "&m=raw&t=" + token;
+        Source source = new Source(videoId, raw, onlineUrl, uri);
         sources.put(token, source);
         latest.put(videoId, source);
         return source;

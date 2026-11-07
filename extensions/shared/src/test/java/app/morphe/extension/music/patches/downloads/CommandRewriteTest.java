@@ -319,4 +319,56 @@ public class CommandRewriteTest {
         assertEquals("none", result.hint());
         assertArrayEquals(command(watch(ATV, null)), result.command());
     }
+
+    /** A panel renderer: a title, its video id, the watch command, a thumbnail url holding the id, and a menu. */
+    private static byte[] renderer(String video, byte[] command) {
+        return build(out -> {
+            out.writeByteArray(1, new byte[]{9, 9, 9});
+            out.writeString(7, video);
+            out.writeByteArray(6, command);
+            out.writeString(8, "https://i.ytimg.com/vi/" + video + "/hq.jpg");
+            out.writeByteArray(10, new byte[40]);
+        });
+    }
+
+    @Test public void aRendererIsRetargetedInItsIdAndItsCommandOnly() throws Exception {
+        byte[] original = renderer(OMV, omvRow());
+
+        CommandRewrite.RendererResult result = CommandRewrite.retargetRenderer(original, OMV, ATV, false);
+
+        assertNotNull(result);
+        assertTrue(result.complete());
+        assertEquals(1, result.ids());
+        assertEquals(1, result.commands());
+        assertEquals(ATV, new String(field(result.renderer(), 7), "ISO-8859-1"));
+        assertArrayEquals(field(original, 10), field(result.renderer(), 10));
+        assertEquals("https://i.ytimg.com/vi/" + OMV + "/hq.jpg",
+                new String(field(result.renderer(), 8), "ISO-8859-1"));
+        TapCommand row = TapCommand.parse(result.renderer());
+        assertEquals(ATV, row.videoId);
+        assertEquals(CommandRewrite.TYPE_ATV, type(field(result.renderer(), 6)));
+    }
+
+    @Test public void aRendererWithoutItsCommandIsNotComplete() {
+        byte[] noCommand = build(out -> out.writeString(7, OMV));
+
+        CommandRewrite.RendererResult result = CommandRewrite.retargetRenderer(noCommand, OMV, ATV, true);
+
+        assertNotNull(result);
+        assertFalse(result.complete());
+    }
+
+    @Test public void aRendererOfAnotherSongIsNotRetargeted() {
+        CommandRewrite.RendererResult result = CommandRewrite.retargetRenderer(
+                renderer(ATV, command(watch(ATV, supportedConfig(CommandRewrite.TYPE_ATV)))), OMV, ATV, true);
+
+        assertNotNull(result);
+        assertEquals(0, result.ids());
+        assertEquals(0, result.commands());
+    }
+
+    @Test public void aMalformedRendererOrAnIdThatIsNotOneIsRefused() {
+        assertNull(CommandRewrite.retargetRenderer(new byte[]{0x3A, 0x7F, 1}, OMV, ATV, true));
+        assertNull(CommandRewrite.retargetRenderer(renderer(OMV, omvRow()), OMV, "short", true));
+    }
 }

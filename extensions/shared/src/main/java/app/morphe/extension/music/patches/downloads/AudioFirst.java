@@ -197,28 +197,87 @@ public final class AudioFirst {
      */
     public static void onQueueItem(@Nullable Object item) {
         try {
+            if (!queueHookAlive) {
+                queueHookAlive = true;
+                Logger.printDebug(() -> "AudioFirst: queue item hook alive");
+            }
             if (!supported() || !(item instanceof QueueItem queueItem)) return;
-            if (!Settings.START_DOWNLOADED_IN_AUDIO.get() || !StreamSwap.enabled()) return;
 
-            DownloadedMarkers.warmUp();
-            DownloadedRegistry registry = DownloadedMarkers.loadedRegistry();
-            if (registry == null) return;
+            QueueCall call = new QueueCall();
+            selectSong(queueItem, call);
 
-            Object holder = queueItem.rvxHolder();
-            captureHolder(holder);
-            Enum<?> mode = holder instanceof ModeHolder modeHolder ? modeOf(modeHolder) : null;
-            if (mode == null || !AudioFirstLogic.isAudioMode(mode.name())) return;
-
-            if (!(queueItem.rvxCommand(mode) instanceof MessageLite command)) return;
-
-            String videoId = TapCommand.parse(command.toByteArray()).videoId;
-            if (videoId == null || !registry.isDownloaded(videoId)) return;
-
-            queueItem.rvxSelect(mode);
-            Logger.printDebug(() -> "AudioFirst: queue item v=" + videoId + " selects its song (" + mode.name() + ")");
+            if (queueLog.allow(SystemClock.elapsedRealtime())) {
+                Logger.printDebug(() -> "AudioFirst: queue item call song=" + call.song + " video=" + call.video
+                        + " counterpart=" + call.counterpart + " mode=" + call.mode + " hasCopy=" + call.hasCopy
+                        + " outcome=" + call.outcome);
+            }
         } catch (Exception ex) {
             Logger.printException(() -> "AudioFirst: queue item failure", ex);
         }
+    }
+
+    private static final QueueLogBudget queueLog = new QueueLogBudget();
+    private static volatile boolean queueHookAlive;
+
+    /** What one queue item showed, for the log. */
+    private static final class QueueCall {
+        @Nullable String song;
+        @Nullable String video;
+        String counterpart = "?";
+        String mode = "?";
+        boolean hasCopy;
+        String outcome = "declined:unsupported";
+    }
+
+    private static void selectSong(QueueItem item, QueueCall call) {
+        if (!Settings.START_DOWNLOADED_IN_AUDIO.get()) {
+            call.outcome = "declined:setting-off";
+            return;
+        }
+        if (!StreamSwap.enabled()) {
+            call.outcome = "declined:stream-swap-off";
+            return;
+        }
+
+        DownloadedMarkers.warmUp();
+        DownloadedRegistry registry = DownloadedMarkers.loadedRegistry();
+        if (registry == null) {
+            call.outcome = "declined:no-registry";
+            return;
+        }
+
+        Object holder = item.rvxHolder();
+        captureHolder(holder);
+        Enum<?> mode = holder instanceof ModeHolder modeHolder ? modeOf(modeHolder) : null;
+        if (mode == null) {
+            call.outcome = "declined:mode-unknown";
+            return;
+        }
+        call.mode = mode.name();
+
+        // The two renderers the item can select, by the mode that would pick each of them.
+        Enum<?> audio = constant(mode, AudioFirstLogic.ATV_PREFERRED);
+        Enum<?> video = constant(mode, AudioFirstLogic.OMV_PREFERRED);
+        call.song = watchIdOf(item.rvxCommand(audio));
+        call.video = watchIdOf(item.rvxCommand(video));
+        call.counterpart = call.song != null && !call.song.equals(call.video) ? "present" : "absent";
+        call.hasCopy = call.song != null && registry.isDownloaded(call.song);
+
+        if (!AudioFirstLogic.isAudioMode(call.mode)) {
+            call.outcome = "declined:video-mode";
+        } else if (call.song == null) {
+            call.outcome = "declined:no-song-id";
+        } else if (!call.hasCopy) {
+            call.outcome = "declined:no-copy";
+        } else {
+            item.rvxSelect(mode);
+            call.outcome = "selected";
+        }
+    }
+
+    @Nullable
+    private static String watchIdOf(@Nullable Object command) {
+        return command instanceof MessageLite lite ? TapCommand.parse(lite.toByteArray()).videoId : null;
     }
 
     /** Injection point where the app cannot rebuild a command: arms the start, never changes the command. */

@@ -11,8 +11,13 @@ import androidx.annotation.Nullable;
 
 import com.google.protobuf.MessageLite;
 
+import java.lang.ref.WeakReference;
+import java.util.ArrayList;
+import java.util.List;
+
 import app.morphe.extension.music.settings.Settings;
 import app.morphe.extension.shared.utils.Logger;
+import app.morphe.extension.shared.utils.Utils;
 
 /**
  * Starts a song with a stream copy in audio mode, so the local copy plays. Stock opens a tapped album row in video
@@ -44,7 +49,97 @@ public final class AudioFirst {
     @Nullable
     private static volatile String lastMode;
 
+    /** The app's mode holder, by the two methods the patch adds to it. */
+    public interface ModeHolder {
+        /** The mode the holder has now. */
+        Object rvxMode();
+
+        /** The app's own setter, so the subject, the queue and the pill all follow. */
+        void rvxSetMode(Object mode);
+    }
+
+    /** Every mode holder built, not kept alive by this list. */
+    private static final List<WeakReference<ModeHolder>> holders = new ArrayList<>();
+
     private AudioFirst() {}
+
+    /**
+     * Injection point: the app's mode setter (every instance that sets a mode is a mode holder) and, where the holder
+     * class has a single constructor, that constructor.
+     */
+    public static void captureHolder(@Nullable Object holder) {
+        if (!(holder instanceof ModeHolder modeHolder)) return;
+
+        synchronized (lock) {
+            for (WeakReference<ModeHolder> reference : holders) {
+                if (reference.get() == modeHolder) return;
+            }
+            holders.removeIf(reference -> reference.get() == null);
+            holders.add(new WeakReference<>(modeHolder));
+        }
+        Logger.printDebug(() -> "AudioFirst: mode holder captured");
+    }
+
+    /** The holder's mode, or null when it is not a mode holder or holds none. */
+    @Nullable
+    private static Enum<?> modeOf(ModeHolder holder) {
+        try {
+            return holder.rvxMode() instanceof Enum<?> mode ? mode : null;
+        } catch (RuntimeException notAModeHolder) {
+            return null;
+        }
+    }
+
+    private static List<ModeHolder> liveHolders() {
+        List<ModeHolder> live = new ArrayList<>();
+        synchronized (lock) {
+            for (WeakReference<ModeHolder> reference : holders) {
+                ModeHolder holder = reference.get();
+                if (holder != null) live.add(holder);
+            }
+        }
+        return live;
+    }
+
+    /** The mode the app holds, read from its holder; the last mode seen by the setter when none was captured. */
+    @Nullable
+    private static String liveMode() {
+        for (ModeHolder holder : liveHolders()) {
+            Enum<?> mode = modeOf(holder);
+            if (mode != null) return mode.name();
+        }
+        return currentMode();
+    }
+
+    /**
+     * Turns the mode the app holds into the audio mode, through the app's own setter, so the queue that the tap builds
+     * is in the audio mode and the next rows keep their song ids. On the thread of the app's mode changes when it is
+     * not this one, for every holder built (the app may have more than one). The arm stays live: the app may still set its video fallback, which the setter hook turns back.
+     *
+     * @return How it was set, or null when it was not (the mode is not the video fallback, or no holder is known).
+     */
+    @Nullable
+    private static String startAudioMode() {
+        String was = null;
+        for (ModeHolder holder : liveHolders()) {
+            Enum<?> mode = modeOf(holder);
+            if (mode == null) continue;
+
+            String target = AudioFirstLogic.modeToSet(true, true, mode.name());
+            if (target == null) continue;
+
+            Enum<?> audio = constant(mode, target);
+            Utils.runOnMainThreadNowOrLater(() -> {
+                try {
+                    holder.rvxSetMode(audio);
+                } catch (Exception ex) {
+                    Logger.printException(() -> "AudioFirst: could not set the mode", ex);
+                }
+            });
+            was = mode.name();
+        }
+        return was == null ? null : "direct, was " + was;
+    }
 
     /** Enabled by the patch only after the mode setter and the tap hook resolve. */
     public static boolean supported() {
@@ -89,7 +184,8 @@ public final class AudioFirst {
             if (tap.ids.isEmpty() && !tap.isWatch()) return null;
 
             String source = registry.findSource(bytes);
-            boolean logged = logCommand(tap, source);
+            String mode = liveMode();
+            boolean logged = logCommand(tap, source, mode);
 
             AudioFirstLogic.Arm arm = AudioFirstLogic.chooseArm(true, tap.ids, registry.sourceTracks(source),
                     tap.index, tap.hasParams, registry::isDownloaded);
@@ -105,19 +201,27 @@ public final class AudioFirst {
             Logger.printDebug(() -> "AudioFirst: armed by " + arm.rule() + " v=" + arm.videoId());
 
             if (logged) Logger.printDebug(() -> "AudioFirst: watch config fields=" + CommandRewrite.describeWatch(bytes));
+
+            // The mode the user chose keeps winning: nothing is retargeted or set in it.
+            if (!AudioFirstLogic.retargetsIn(mode)) return null;
+
+            String direct = startAudioMode();
+            if (direct != null) Logger.printDebug(() -> "AudioFirst: mode ATV_PREFERRED set (" + direct + ")");
+
             if (!mayRewrite || !(command instanceof NativeDownloads.Command rebuildable)) return null;
             if (!AudioFirstLogic.namesTheRow(arm.rule(), arm.videoId(), tap.videoId, registry::isDownloaded)) {
                 return null;
             }
 
-            CommandRewrite.Result result = CommandRewrite.retarget(bytes, tap.videoId, arm.videoId());
+            boolean hint = AudioFirstLogic.modeToSet(true, true, mode) != null;
+            CommandRewrite.Result result = CommandRewrite.retarget(bytes, tap.videoId, arm.videoId(), hint);
             if (result == null) {
                 Logger.printDebug(() -> "AudioFirst: command not rewritten v=" + tap.videoId + " (unreadable)");
                 return null;
             }
             Object rewritten = rebuildable.rvxWithBytes(result.command());
             Logger.printDebug(() -> "AudioFirst: rewrote command v=" + tap.videoId + " -> " + arm.videoId()
-                    + " type=" + result.type());
+                    + " type=" + result.type() + " hint=" + result.hint());
             return rewritten;
         } catch (Exception ex) {
             Logger.printException(() -> "AudioFirst: command failure", ex);
@@ -126,7 +230,7 @@ public final class AudioFirst {
     }
 
     /** What the tap carried, which decides how it ties to a copy; at most once every 300 ms. */
-    private static boolean logCommand(TapCommand tap, @Nullable String source) {
+    private static boolean logCommand(TapCommand tap, @Nullable String source, @Nullable String mode) {
         long now = SystemClock.elapsedRealtime();
         synchronized (lock) {
             if (now - lastCommandLogAt < COMMAND_LOG_INTERVAL_MILLIS) return false;
@@ -135,7 +239,7 @@ public final class AudioFirst {
         Logger.printDebug(() -> "AudioFirst: command ids=" + tap.ids + " video=" + tap.videoId
                 + " playlist=" + (tap.playlistId.isEmpty() ? "-" : tap.playlistId)
                 + " index=" + (tap.index < 0 ? "-" : tap.index) + " params=" + tap.hasParams
-                + " source=" + (source == null ? "-" : source) + " fields=" + tap.fields);
+                + " source=" + (source == null ? "-" : source) + " mode=" + mode + " fields=" + tap.fields);
         return true;
     }
 

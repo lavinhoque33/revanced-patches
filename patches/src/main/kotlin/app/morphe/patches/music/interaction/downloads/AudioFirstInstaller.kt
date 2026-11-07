@@ -20,10 +20,13 @@ import com.android.tools.smali.dexlib2.Opcode
 import com.android.tools.smali.dexlib2.iface.Method
 import com.android.tools.smali.dexlib2.iface.reference.MethodReference
 
-private const val AUDIO_FIRST = "Lapp/morphe/extension/music/patches/downloads/AudioFirst;"
+private const val AUDIO_FIRST_PATH = "Lapp/morphe/extension/music/patches/downloads/"
+private const val AUDIO_FIRST = "${AUDIO_FIRST_PATH}AudioFirst;"
 private const val OVERRIDE_MODE = "$AUDIO_FIRST->overrideMode(Ljava/lang/Enum;)Ljava/lang/Enum;"
 private const val ON_COMMAND = "$AUDIO_FIRST->onCommand(Ljava/lang/Object;)V"
 private const val OVERRIDE_COMMAND = "$AUDIO_FIRST->overrideCommand(Ljava/lang/Object;)Ljava/lang/Object;"
+private const val MODE_HOLDER = $$"$$AUDIO_FIRST_PATH$AudioFirst$ModeHolder;"
+private const val CAPTURE_HOLDER = "$AUDIO_FIRST->captureHolder(Ljava/lang/Object;)V"
 private const val OBJECT = "Ljava/lang/Object;"
 private const val MAX_SETTER_INSTRUCTIONS = 6
 
@@ -78,16 +81,60 @@ internal fun BytecodePatchContext.installAudioFirst() {
         val supported = mutableClassDefBy(AUDIO_FIRST).methods.single { it.name == "supported" }
 
         mutableClassDefBy(setter.classDef.type).findMutableMethodOf(setter.method).addInstructions(0, """
+            invoke-static {p0}, $CAPTURE_HOLDER
             invoke-static {p1}, $OVERRIDE_MODE
             move-result-object p1
             check-cast p1, $enumType
         """)
         supported.returnEarly(true)
         audioFirstResolved = true
+        installModeHolderAccess(setter.classDef.type, setter.method, enumType)
         printInfo("AudioFirst: mode enum $enumType, holder ${setter.classDef.type}, setter ${setter.method.name}, " +
             "taps ${commandResolver.definingClass}->${commandResolver.name}")
     } catch (ex: Exception) {
         printWarn("Start downloaded songs in audio mode is unavailable on this Music version: ${ex.message}")
+    }
+}
+
+/**
+ * Lets the extension read the mode and call the app's own setter, so a tap can start the audio mode and not only
+ * answer the video fallback later. The holder gets two bridge methods (the setter and its one getter) and every
+ * constructor reports the new instance. Kept apart: if the holder cannot be bridged, only this part is missing.
+ */
+private fun BytecodePatchContext.installModeHolderAccess(holderType: String, setter: Method, enumType: String) {
+    try {
+        val holder = mutableClassDefBy(holderType)
+        val getters = holder.methods.filter {
+            it.parameterTypes.isEmpty() && it.returnType == enumType && !AccessFlags.STATIC.isSet(it.accessFlags)
+        }
+        val getter = getters.singleOrNull() ?: throw IllegalStateException("${getters.size} mode getters")
+
+        holder.interfaces.add(MODE_HOLDER)
+        holder.addDownloadsBridge("rvxMode", emptyList(), OBJECT, 2, """
+            invoke-virtual {p0}, $holderType->${getter.name}()$enumType
+            move-result-object v0
+            return-object v0
+        """)
+        holder.addDownloadsBridge("rvxSetMode", listOf(OBJECT), "V", 2, """
+            check-cast p1, $enumType
+            invoke-virtual {p0, p1}, $holderType->${setter.name}($enumType)V
+            return-void
+        """)
+
+        // The setter reports the instances that set a mode. A single constructor is the holder itself and also reports
+        // it, so the first tap after a start finds it; a merged class with many constructors is not hooked there.
+        val constructors = holder.methods.filter { it.name == "<init>" }.takeIf { it.size == 1 }.orEmpty()
+        for (constructor in constructors) {
+            val returns = constructor.implementation!!.instructions.withIndex()
+                .filter { it.value.opcode == Opcode.RETURN_VOID }.map { it.index }
+            for (index in returns.reversed()) {
+                constructor.addInstructions(index, "invoke-static {p0}, $CAPTURE_HOLDER")
+            }
+        }
+        printInfo("AudioFirst: mode holder bridged, getter ${getter.name}, constructor hooks ${constructors.size}")
+    } catch (ex: Exception) {
+        printWarn("Start downloaded songs in audio mode cannot start the audio mode from the tap on this Music " +
+            "version, it only answers the app's video fallback: ${ex.message}")
     }
 }
 

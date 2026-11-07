@@ -81,6 +81,23 @@ final class AudioFirstLogic {
         return commandVideoId != null && !commandVideoId.equals(armedId) && !hasCopy.test(commandVideoId);
     }
 
+    /**
+     * @param enabled     The setting and the stream copies are on.
+     * @param armed       A tap just armed the start for a song with a copy.
+     * @param currentMode The mode the app holds now, or null when unknown.
+     * @return The mode to set now, or null for none. Only the video fallback the app picks without being told is
+     * turned into the audio mode: the two user-triggered modes, the audio modes and the data-saving override stay.
+     */
+    @Nullable
+    static String modeToSet(boolean enabled, boolean armed, @Nullable String currentMode) {
+        return enabled && armed && OMV_PREFERRED.equals(currentMode) ? ATV_PREFERRED : null;
+    }
+
+    /** A row is retargeted at its song unless the user chose the video mode: that choice keeps winning. */
+    static boolean retargetsIn(@Nullable String currentMode) {
+        return !OMV_PREFERRED_USER_TRIGGERED.equals(currentMode);
+    }
+
     static boolean isLive(@Nullable String armedId, long armedAt, long now, long ttl) {
         return armedId != null && now >= armedAt && now - armedAt <= ttl;
     }

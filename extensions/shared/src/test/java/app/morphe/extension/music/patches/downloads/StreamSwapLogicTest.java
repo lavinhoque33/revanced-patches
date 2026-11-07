@@ -35,14 +35,12 @@ public class StreamSwapLogicTest {
                 .setStreamingData(StreamingData.newBuilder().addAdaptiveFormats(audio()));
     }
 
-    @Test public void bothSettingsAndWorkerAreRequired() {
-        assertNull(StreamSwapLogic.gate(true, true, false));
-        for (boolean downloads : new boolean[]{false, true}) {
-            for (boolean local : new boolean[]{false, true}) {
-                assertNotNull(StreamSwapLogic.gate(downloads, local, true));
-                if (!downloads || !local) assertNotNull(StreamSwapLogic.gate(downloads, local, false));
-            }
-        }
+    @Test public void onlyPlayDownloadsLocallyAndAWorkerAreRequired() {
+        // Download in app is not part of the gate: a stream-only download is played without it.
+        assertNull(StreamSwapLogic.gate(true, false));
+        assertNotNull(StreamSwapLogic.gate(true, true));
+        assertNotNull(StreamSwapLogic.gate(false, false));
+        assertNotNull(StreamSwapLogic.gate(false, true));
     }
 
     @Test public void exactOriginalStreamCanSwap() {

@@ -220,4 +220,69 @@ public class DownloadedRegistryTest {
         assertEquals(tracks, DownloadedRegistry.decode(DownloadedRegistry.encode(tracks)));
         assertEquals(new HashSet<>(), new HashSet<>(DownloadedRegistry.decode("")));
     }
+
+    // The registry holds the ids that have a valid stream copy and nothing else: a song that exists only as a
+    // local file (Download in app without Play downloads locally) is never added to it.
+
+    @Test public void aRememberedPlaylistWhoseTracksHaveNoStreamCopyShowsNoCheck() {
+        DownloadedRegistry registry = new DownloadedRegistry();
+        // A playlist saved as local files (recorded by an earlier build or recovered from the native playlist
+        // database) has its track list but none of its tracks has a stream copy.
+        registry.putSource("PLlocal", Arrays.asList(SONG, OTHER));
+
+        assertFalse(registry.isSourceDownloaded("PLlocal"));
+        assertFalse(registry.isDownloaded(SONG));
+        assertNull(registry.findDownloaded(SONG.getBytes(StandardCharsets.ISO_8859_1)));
+    }
+
+    @Test public void aPlaylistIsCheckedOnlyWhenEveryTrackHasAStreamCopy() {
+        DownloadedRegistry registry = new DownloadedRegistry();
+        registry.putSource("PLmixed", Arrays.asList(SONG, OTHER, THIRD));
+        registry.add(SONG);
+        registry.add(OTHER);
+        assertFalse(registry.isSourceDownloaded("PLmixed"));
+
+        registry.add(THIRD);
+        assertTrue(registry.isSourceDownloaded("PLmixed"));
+    }
+
+    @Test public void aDeletedStreamCopyRemovesItsCheckAndItsPlaylistsCheck() {
+        DownloadedRegistry registry = registryOf(SONG, OTHER);
+        registry.putSource("PLpair", Arrays.asList(SONG, OTHER));
+        assertTrue(registry.isSourceDownloaded("PLpair"));
+
+        registry.remove(OTHER);
+
+        assertFalse(registry.isDownloaded(OTHER));
+        assertTrue(registry.isDownloaded(SONG));
+        assertFalse(registry.isSourceDownloaded("PLpair"));
+    }
+
+    @Test public void clearingAllStreamCopiesRemovesEveryCheckButKeepsTheRememberedPlaylists() {
+        DownloadedRegistry registry = registryOf(SONG, OTHER);
+        registry.putSource("PLpair", Arrays.asList(SONG, OTHER));
+
+        registry.clear();
+
+        assertFalse(registry.hasTracks());
+        assertFalse(registry.isDownloaded(SONG));
+        assertFalse(registry.isSourceDownloaded("PLpair"));
+        assertTrue(registry.hasSource("PLpair"));
+
+        // Downloading the playlist again brings the check back without remembering it twice.
+        registry.addAll(Arrays.asList(SONG, OTHER));
+        assertTrue(registry.isSourceDownloaded("PLpair"));
+    }
+
+    @Test public void aRescanForgetsCopiesThatVanishedAndNeverOnesKeptWhileItRan() {
+        DownloadedRegistry registry = registryOf(SONG, OTHER);
+        Set<String> knownBefore = registry.snapshot();
+        registry.add(THIRD);
+
+        registry.prune(knownBefore, Collections.singleton(SONG));
+
+        assertTrue(registry.isDownloaded(SONG));
+        assertFalse(registry.isDownloaded(OTHER));
+        assertTrue(registry.isDownloaded(THIRD));
+    }
 }

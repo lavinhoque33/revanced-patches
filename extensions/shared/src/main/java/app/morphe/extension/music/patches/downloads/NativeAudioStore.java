@@ -78,14 +78,23 @@ final class NativeAudioStore {
         String saved = preferences().getString(videoId, null);
         if (saved == null) return null;
         Uri uri = Uri.parse(saved);
-        try (ParcelFileDescriptor descriptor = Utils.getContext().getContentResolver().openFileDescriptor(uri, "r")) {
-            if (descriptor != null && descriptor.getStatSize() > 0) return uri;
-        } catch (Exception ignored) {
-            // Deleting a track from Music's native Library also invalidates the download lookup.
-        }
+        AudioLookup lookup = lookup(uri);
+        if (lookup == AudioLookup.PRESENT) return uri;
+        // A transient failure must neither forget the download nor delete its raw copy.
+        if (lookup == AudioLookup.UNKNOWN) return null;
+
+        // Deleting a track from Music's native Library also invalidates the download lookup.
         preferences().edit().remove(videoId).apply();
         RawAudioStore.delete(videoId);
         return null;
+    }
+
+    private static AudioLookup lookup(Uri uri) {
+        try (ParcelFileDescriptor descriptor = Utils.getContext().getContentResolver().openFileDescriptor(uri, "r")) {
+            return AudioLookup.of(descriptor != null, descriptor == null ? 0 : descriptor.getStatSize(), null);
+        } catch (Exception ex) {
+            return AudioLookup.of(false, 0, ex);
+        }
     }
 
     /**

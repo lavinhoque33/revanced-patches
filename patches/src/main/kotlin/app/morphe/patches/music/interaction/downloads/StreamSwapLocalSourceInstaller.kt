@@ -15,6 +15,7 @@ import app.morphe.util.Utils.printInfo
 import app.morphe.util.fingerprint.matchSingle
 import com.android.tools.smali.dexlib2.Opcode
 import com.android.tools.smali.dexlib2.builder.BuilderOffsetInstruction
+import com.android.tools.smali.dexlib2.iface.ClassDef
 import com.android.tools.smali.dexlib2.iface.Method
 import com.android.tools.smali.dexlib2.iface.instruction.FiveRegisterInstruction
 import com.android.tools.smali.dexlib2.iface.instruction.Instruction
@@ -41,7 +42,8 @@ private const val FILE_SOURCE_MARKER = "c.FileNotFound;src."
  * decrypting wrapper that would garble a plain file). So for a request the extension issued, the read is redirected
  * at the entry of `i`: a fresh plain file data source opens the raw download's `file://` URI at the requested position
  * and length, and execution continues at the code that follows the stock source selection. No socket, no cache lookup,
- * no guard, no decryption.
+ * no guard, no decryption. The hook skips `i(true)` (`read()` reopening mid-stream), so it is only correct while the
+ * public `open(DataSpec)` calls `i(false)`; [checkInitialOpenIsNotMidStream] verifies that on every version.
  */
 internal fun BytecodePatchContext.prepareStreamSwapLocalSource(): () -> Unit {
         val dataSpec = streamSwapDataSpec()
@@ -61,6 +63,7 @@ internal fun BytecodePatchContext.prepareStreamSwapLocalSource(): () -> Unit {
         val cache = open.classDef
         val method = open.method
         val instructions = method.implementation!!.instructions.toList()
+        checkInitialOpenIsNotMidStream(cache, method, dataSpec.type)
 
         // The stock miss branch: `new Builder(spec)`, then position and length copied from the cache's own fields.
         val builderInit = instructions.indexOfFirst {
@@ -166,6 +169,33 @@ internal fun BytecodePatchContext.prepareStreamSwapLocalSource(): () -> Unit {
             goto :stream_swap_merge
         """, stock, merge)
         printInfo("StreamSwap: local file route hooked ${cache.type}->${method.name}; reader ${fileReader.type}")
+    }
+}
+
+/**
+ * `open(DataSpec)` must reach the cache reader as `i(false)`: the flag it passes is the constant 0 loaded last before
+ * the call (identical on 9.40.51, 9.15.51 and 8.30.54). A version that opened with `i(true)` would bypass the hook
+ * and send the swapped token URL to the network, so such a version fails this check and the swap stays unsupported.
+ */
+private fun checkInitialOpenIsNotMidStream(cache: ClassDef, reader: Method, dataSpecType: String) {
+    val open = cache.methods.single {
+        it.returnType == "J" && it.parameterTypes.map(CharSequence::toString) == listOf(dataSpecType)
+    }
+    val instructions = open.implementation!!.instructions.toList()
+    val calls = instructions.withIndex().filter { (_, instruction) ->
+        instruction.opcode == Opcode.INVOKE_DIRECT && instruction.getReference<MethodReference>()?.let { reference ->
+            reference.definingClass == cache.type && reference.name == reader.name &&
+                reference.parameterTypes.map(CharSequence::toString) == listOf("Z")
+        } == true
+    }
+    check(calls.size == 1) { "open does not call the cache reader exactly once" }
+
+    val (callIndex, call) = calls.single()
+    val flag = (call as FiveRegisterInstruction).registerD
+    val loaded = instructions.subList(0, callIndex)
+        .lastOrNull { it is OneRegisterInstruction && it.registerA == flag }
+    check(loaded?.opcode == Opcode.CONST_4 && (loaded as WideLiteralInstruction).wideLiteral == 0L) {
+        "open does not start the cache reader with i(false)"
     }
 }
 

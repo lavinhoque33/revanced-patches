@@ -222,11 +222,11 @@ public class AudioFirstLogicTest {
     }
 
     private static final String OMV = "dQw4w9WgXcQ";
-    private static final String ALBUM = "OLAK5uy_nmDUsWOMoEcz0SsVqUwir0oxu-k1oUyXE";
+    private static final String PLAY_ALBUM = "OLAK5uy_nmDUsWOMoEcz0SsVqUwir0oxu-k1oUyXE";
 
     /** The queue of the album's play button, as the device log shows it: tracked first item, answered online. */
     private static AudioFirstLogic.QueueStart playQueue() {
-        return start("ATV_PREFERRED", OMV, 127, ALBUM, 0, 0);
+        return start("ATV_PREFERRED", OMV, 127, PLAY_ALBUM, 0, 0);
     }
 
     private static AudioFirstLogic.QueueStart start(String mode, String onlineId, long onlineAge, String playlist,
@@ -246,8 +246,8 @@ public class AudioFirstLogicTest {
     @Test
     public void thePlayQueueOfADownloadedAlbumIsRestartedOnItsSong() {
         assertNull(AudioFirstLogic.correctiveDecline(playQueue()));
-        assertNull(AudioFirstLogic.correctiveDecline(start("OMV_PREFERRED", OMV, 2_999, ALBUM, 0, 0)));
-        assertNull(AudioFirstLogic.correctiveDecline(start("ATV_PREFERRED_USER_TRIGGERED", OMV, 10, ALBUM, 0, 0)));
+        assertNull(AudioFirstLogic.correctiveDecline(start("OMV_PREFERRED", OMV, 2_999, PLAY_ALBUM, 0, 0)));
+        assertNull(AudioFirstLogic.correctiveDecline(start("ATV_PREFERRED_USER_TRIGGERED", OMV, 10, PLAY_ALBUM, 0, 0)));
     }
 
     @Test
@@ -261,19 +261,19 @@ public class AudioFirstLogicTest {
 
     @Test
     public void onlyAnOnlineAnswerForTheSameVideoJustNowCounts() {
-        assertEquals("no-online", AudioFirstLogic.correctiveDecline(start("ATV_PREFERRED", null, 0, ALBUM, 0, 0)));
+        assertEquals("no-online", AudioFirstLogic.correctiveDecline(start("ATV_PREFERRED", null, 0, PLAY_ALBUM, 0, 0)));
         assertEquals("no-online", AudioFirstLogic.correctiveDecline(
-                start("ATV_PREFERRED", "BeyEGebJ1l4", 100, ALBUM, 0, 0)));
+                start("ATV_PREFERRED", "BeyEGebJ1l4", 100, PLAY_ALBUM, 0, 0)));
         assertEquals("online-too-old", AudioFirstLogic.correctiveDecline(
-                start("ATV_PREFERRED", OMV, 3_001, ALBUM, 0, 0)));
+                start("ATV_PREFERRED", OMV, 3_001, PLAY_ALBUM, 0, 0)));
     }
 
     @Test
     public void aVideoTheUserChoseAndTheDataSavingModeAreNeverChanged() {
-        assertEquals("user-video", AudioFirstLogic.correctiveDecline(start(USER_VIDEO, OMV, 100, ALBUM, 0, 0)));
+        assertEquals("user-video", AudioFirstLogic.correctiveDecline(start(USER_VIDEO, OMV, 100, PLAY_ALBUM, 0, 0)));
         assertEquals("data-saving", AudioFirstLogic.correctiveDecline(
-                start("DONT_PLAY_VIDEO_OVERRIDE", OMV, 100, ALBUM, 0, 0)));
-        assertEquals("mode-unknown", AudioFirstLogic.correctiveDecline(start(null, OMV, 100, ALBUM, 0, 0)));
+                start("DONT_PLAY_VIDEO_OVERRIDE", OMV, 100, PLAY_ALBUM, 0, 0)));
+        assertEquals("mode-unknown", AudioFirstLogic.correctiveDecline(start(null, OMV, 100, PLAY_ALBUM, 0, 0)));
     }
 
     @Test
@@ -282,7 +282,7 @@ public class AudioFirstLogicTest {
                 start("ATV_PREFERRED", OMV, 100, "RDAMPLOLAK5uy_x", 0, 0)));
         assertEquals("radio", AudioFirstLogic.correctiveDecline(
                 start("ATV_PREFERRED", OMV, 100, "RDAMVM" + OMV, 0, 0)));
-        assertEquals("shuffled", AudioFirstLogic.correctiveDecline(start("ATV_PREFERRED", OMV, 100, ALBUM, 6, 0)));
+        assertEquals("shuffled", AudioFirstLogic.correctiveDecline(start("ATV_PREFERRED", OMV, 100, PLAY_ALBUM, 6, 0)));
     }
 
     @Test

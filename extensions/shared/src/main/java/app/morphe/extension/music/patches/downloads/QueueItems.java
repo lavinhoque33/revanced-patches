@@ -30,9 +30,9 @@ import app.morphe.extension.shared.utils.Logger;
  * otherwise. Every mode change goes through {@link #onMode}, so the Song/Video pill flips every item, as the app does
  * for the queue items that carry both renderers.
  *
- * <p>The pill is enabled by the item: the app enables it for an item with a counterpart, or when the player response
- * has video, which a song's does not. {@link #pillItem} tells it that a tracked item has its video as counterpart,
- * and {@link #onPillClick} takes the click itself, whatever the pill's gate says.
+ * <p>The app enables the pill for an item with a counterpart, or when the player response has video, which a song's
+ * does not, so the pill can look dimmed for a tracked song. {@link #onPillClick} takes the click itself, whatever the
+ * pill's gate says.
  */
 @SuppressWarnings("unused")
 public final class QueueItems {
@@ -86,8 +86,6 @@ public final class QueueItems {
 
     private static final List<Tracked> tracked = new ArrayList<>();
     private static final QueueLogBudget log = new QueueLogBudget();
-    private static final Object NOT_A_QUEUE_ITEM = new Object();
-    private static final QueueLogBudget pillGateLog = new QueueLogBudget();
     private static final QueueLogBudget pillClickLog = new QueueLogBudget();
     private static volatile boolean alive;
     /** The ids of the row the user chose, until the queue it starts is built; null when none is awaited. */
@@ -111,14 +109,19 @@ public final class QueueItems {
             if (!Settings.START_DOWNLOADED_IN_AUDIO.get() || !StreamSwap.enabled()) return;
 
             Object shown = queueItem.rvxRenderer();
+            Tracked known;
             synchronized (tracked) {
-                Tracked known = find(item);
-                // The renderer this class put there is not a new one.
-                if (known != null && shown == known.song) return;
-
-                if (known != null) tracked.remove(known);
+                known = find(item);
+                // A renderer this class put there is not a new one.
+                if (known != null && (shown == known.song || shown == known.video)) return;
             }
+            if (known != null && keepsSong(known, shown)) return;
 
+            if (known != null) {
+                synchronized (tracked) {
+                    tracked.remove(known);
+                }
+            }
             Tracked created = track(item, shown);
             if (created == null) return;
 
@@ -130,28 +133,32 @@ public final class QueueItems {
     }
 
     /**
-     * Injection point: the toggle's item listener tests whether the item has no counterpart, as a single-renderer item
-     * has not. An item tracked here has one, its video, so the listener gets an object that is not a queue item. This
-     * only changes how the pill looks: a click is taken by {@link #onPillClick}, whatever the pill looks like.
+     * The app copies the renderer an item shows (to set its click tracking) and gives the copy back to the item. For
+     * an item that shows its song that is a copy of the song, which names the downloaded song itself and so is no
+     * row to track anew: the tracked item keeps its video and takes the copy as its song.
+     *
+     * @return True when {@code shown} is such a copy and the entry was updated.
      */
-    public static Object pillItem(@Nullable Object item) {
-        try {
-            if (!AudioFirst.supported() || !Settings.START_DOWNLOADED_IN_AUDIO.get()) return item;
+    private static boolean keepsSong(Tracked known, Object shown) {
+        if (!(shown instanceof MessageLite message)) return false;
 
-            Tracked entry;
-            synchronized (tracked) {
-                entry = item == null ? null : find(item);
-            }
-            boolean isTracked = entry != null;
-            if (pillGateLog.allow(SystemClock.elapsedRealtime())) {
-                Logger.printDebug(() -> "AudioFirst: pill gate item=" + (isTracked ? entry.videoId : null)
-                        + " class=" + simpleName(item) + " tracked=" + isTracked + " result=" + isTracked);
-            }
-            return isTracked ? NOT_A_QUEUE_ITEM : item;
-        } catch (Exception ex) {
-            Logger.printException(() -> "AudioFirst: queue item pill failure", ex);
-            return item;
+        TapCommand copy = TapCommand.parse(message.toByteArray());
+        if (!AudioFirstLogic.RENDERS_SONG.equals(AudioFirstLogic.renderedAs(copy.videoId, known.songId,
+                known.videoId))) {
+            return false;
         }
+
+        Object item = known.get();
+        if (item == null) return false;
+
+        synchronized (tracked) {
+            int position = tracked.indexOf(known);
+            if (position < 0) return false;
+
+            tracked.set(position, new Tracked(item, known.video, shown, known.videoId, known.songId));
+        }
+        Logger.printDebug(() -> "AudioFirst: queue item kept song=" + known.songId + " (the app copied its renderer)");
+        return true;
     }
 
     /**
@@ -171,34 +178,39 @@ public final class QueueItems {
             }
 
             Object current = pill.rvxCurrentItem();
-            Tracked playing = findPlaying(VideoInformation.getVideoId(),
-                    VideoInformation.getPlayerResponseVideoId());
             Tracked entry;
+            Tracked playing;
             synchronized (tracked) {
-                entry = playing != null ? playing : current == null ? null : find(current);
+                entry = current == null ? null : find(current);
+                // The queue's current item can be missing while a queue is rebuilt: the song being played is the
+                // fallback.
+                playing = entry != null ? null : findPlaying(VideoInformation.getVideoId(),
+                        VideoInformation.getPlayerResponseVideoId());
+                if (entry == null) entry = playing;
             }
+            String via = AudioFirstLogic.lookupSource(entry != null && playing == null, playing != null);
             Object item = entry == null ? null : entry.get();
             Object owner = pill.rvxOwner();
             String was = AudioFirst.liveMode();
             if (item == null || !(owner instanceof PillOwner)) {
-                logClick(entry, current, pill, was, "stock");
+                logClick(entry, via, current, pill, was, "stock");
                 return false;
             }
 
             if (owner instanceof CrossfadeManager.VideoToggleAccess
                     && CrossfadeManager.shouldBlockVideoToggle(owner)) {
-                logClick(entry, current, pill, was, "blocked-by-crossfade");
+                logClick(entry, via, current, pill, was, "blocked-by-crossfade");
                 return true;
             }
 
             AudioFirst.leaveTapsAlone();
             String now = AudioFirst.togglePillMode();
             if (now == null) {
-                logClick(entry, current, pill, was, "stock:no-mode-holder");
+                logClick(entry, via, current, pill, was, "stock:no-mode-holder");
                 return false;
             }
 
-            logClick(entry, current, pill, was, "takeover mode=" + was + "->" + now);
+            logClick(entry, via, current, pill, was, "takeover mode=" + was + "->" + now);
             expectStart(entry.songId, entry.videoId);
             ((PillOwner) owner).rvxNavigate(item);
             return true;
@@ -208,13 +220,17 @@ public final class QueueItems {
         }
     }
 
-    private static void logClick(@Nullable Tracked entry, @Nullable Object current, PillView pill, String mode,
-                                 String outcome) {
+    private static void logClick(@Nullable Tracked entry, String via, @Nullable Object current, PillView pill,
+                                 String mode, String outcome) {
         if (!pillClickLog.allow(SystemClock.elapsedRealtime())) return;
 
+        int items;
+        synchronized (tracked) {
+            items = tracked.size();
+        }
         Logger.printDebug(() -> "AudioFirst: pill click item=" + (entry == null ? null : entry.videoId)
-                + " class=" + simpleName(current) + " tracked=" + (entry != null) + " gate=" + pill.rvxGate()
-                + " mode=" + mode + " outcome=" + outcome);
+                + " via=" + via + " class=" + simpleName(current) + " tracked=" + (entry != null)
+                + " known=" + items + " gate=" + pill.rvxGate() + " mode=" + mode + " outcome=" + outcome);
     }
 
     private static String simpleName(@Nullable Object object) {

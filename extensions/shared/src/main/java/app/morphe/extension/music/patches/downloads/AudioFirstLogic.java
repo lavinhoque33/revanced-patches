@@ -151,6 +151,14 @@ final class AudioFirstLogic {
         return enabled && hasSong && isAudioMode(mode);
     }
 
+    /**
+     * Whether a playlist-only watch endpoint is converted to the tap on a row: it is the play button (no params: the
+     * shuffle button carries params and is never touched), the track it starts has a stream copy and the mode is audio.
+     */
+    static boolean playsAsRow(boolean hasParams, boolean trackHasCopy, @Nullable String mode) {
+        return !hasParams && trackHasCopy && isAudioMode(mode);
+    }
+
     /** The user-triggered mode the pill sets from {@code mode}: the video from an audio mode, else the audio. */
     static String pillTarget(@Nullable String mode) {
         return isAudioMode(mode) ? "OMV_PREFERRED_USER_TRIGGERED" : "ATV_PREFERRED_USER_TRIGGERED";
@@ -172,5 +180,31 @@ final class AudioFirstLogic {
             }
         }
         return index;
+    }
+
+    static final String RENDERS_SONG = "song";
+    static final String RENDERS_VIDEO = "video";
+    static final String RENDERS_OTHER = "other";
+
+    /**
+     * What a renderer the app gives a tracked item names: its downloaded song, its music video or something else (a
+     * row that is no longer the one the item was tracked for).
+     */
+    static String renderedAs(@Nullable String renderedId, String songId, String videoId) {
+        if (songId.equals(renderedId)) return RENDERS_SONG;
+        return videoId.equals(renderedId) ? RENDERS_VIDEO : RENDERS_OTHER;
+    }
+
+    static final String VIA_QUEUE_CURRENT = "queue-current";
+    static final String VIA_PLAYED_ID = "played-id";
+    static final String VIA_NONE = "none";
+
+    /**
+     * Where the pill found the item it takes over: the queue's current item first, the song being played when the
+     * queue has no current item the extension tracks (the queue is being rebuilt).
+     */
+    static String lookupSource(boolean currentTracked, boolean playedTracked) {
+        if (currentTracked) return VIA_QUEUE_CURRENT;
+        return playedTracked ? VIA_PLAYED_ID : VIA_NONE;
     }
 }

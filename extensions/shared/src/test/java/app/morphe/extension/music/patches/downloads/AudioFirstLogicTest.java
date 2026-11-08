@@ -207,6 +207,31 @@ public class AudioFirstLogicTest {
     }
 
     @Test
+    public void thePlayButtonOfADownloadedTrackStartsItAsARowInAnAudioModeOnly() {
+        assertTrue(AudioFirstLogic.playsAsRow(false, true, "ATV_PREFERRED"));
+        assertTrue(AudioFirstLogic.playsAsRow(false, true, "DONT_PLAY_VIDEO_OVERRIDE"));
+        assertFalse(AudioFirstLogic.playsAsRow(true, true, "ATV_PREFERRED"));
+        assertFalse(AudioFirstLogic.playsAsRow(false, false, "ATV_PREFERRED"));
+        assertFalse(AudioFirstLogic.playsAsRow(false, true, "OMV_PREFERRED_USER_TRIGGERED"));
+        assertFalse(AudioFirstLogic.playsAsRow(false, true, null));
+    }
+
+    @Test
+    public void theAppsCopyOfAnItemsSongRendererIsStillTheSong() {
+        assertEquals("song", AudioFirstLogic.renderedAs("lYBUbBu4W08", "lYBUbBu4W08", "dQw4w9WgXcQ"));
+        assertEquals("video", AudioFirstLogic.renderedAs("dQw4w9WgXcQ", "lYBUbBu4W08", "dQw4w9WgXcQ"));
+        assertEquals("other", AudioFirstLogic.renderedAs("BeyEGebJ1l4", "lYBUbBu4W08", "dQw4w9WgXcQ"));
+        assertEquals("other", AudioFirstLogic.renderedAs(null, "lYBUbBu4W08", "dQw4w9WgXcQ"));
+    }
+
+    @Test
+    public void pillLooksTheQueuesCurrentItemUpBeforeThePlayedId() {
+        assertEquals("queue-current", AudioFirstLogic.lookupSource(true, false));
+        assertEquals("played-id", AudioFirstLogic.lookupSource(false, true));
+        assertEquals("none", AudioFirstLogic.lookupSource(false, false));
+    }
+
+    @Test
     public void pillGoesToTheVideoFromAnAudioModeAndToTheAudioOtherwise() {
         assertEquals("OMV_PREFERRED_USER_TRIGGERED", AudioFirstLogic.pillTarget("ATV_PREFERRED"));
         assertEquals("OMV_PREFERRED_USER_TRIGGERED", AudioFirstLogic.pillTarget("ATV_PREFERRED_USER_TRIGGERED"));

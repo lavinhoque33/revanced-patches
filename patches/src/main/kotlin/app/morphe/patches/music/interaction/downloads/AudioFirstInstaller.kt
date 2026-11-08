@@ -48,7 +48,6 @@ private const val PILL_OWNER = $$"$${AUDIO_FIRST_PATH}QueueItems$PillOwner;"
 private const val START_INDEX = "$QUEUE_ITEMS->startIndex(Ljava/util/List;I)I"
 private const val PILL_VIEW = $$"$${AUDIO_FIRST_PATH}QueueItems$PillView;"
 private const val ON_PILL_CLICK = "$QUEUE_ITEMS->onPillClick(Ljava/lang/Object;)Z"
-private const val PILL_ITEM = "$QUEUE_ITEMS->pillItem(Ljava/lang/Object;)Ljava/lang/Object;"
 private const val REGISTRY = "Lcom/google/protobuf/ExtensionRegistryLite;"
 private const val CAPTURE_HOLDER = "$AUDIO_FIRST->captureHolder(Ljava/lang/Object;)V"
 private const val OBJECT = "Ljava/lang/Object;"
@@ -184,7 +183,8 @@ private fun singleRendererItemFingerprint(rendererType: String) = Fingerprint(
 
 /**
  * The toggle's item listener: `instance-of <single item>`, negated and stored in a boolean (true for an item with a
- * counterpart), as its first three instructions.
+ * counterpart), as its first three instructions. It only names the toggle's view class and the listener's name, which
+ * the click hook resolves its view and the item reference by; nothing is injected into it.
  */
 private fun pillItemListenerFingerprint(itemType: String) = Fingerprint(
     returnType = "V",
@@ -203,12 +203,10 @@ private fun pillItemListenerFingerprint(itemType: String) = Fingerprint(
  * the extension when it is built or given another renderer, and the extension swaps the renderer (through the item's
  * two bridge methods, one reading its renderer field and one writing it, which is all its own replacing method does)
  * on every mode change. The renderer class gets one bridge, `rvxWithBytes`, which parses a renderer from bytes the way
- * the tap command's bridge does. The toggle enables itself for an item with a counterpart or a response with video,
- * and a song's response has neither, so its item listener is told the item has a counterpart, by handing the
- * `instance-of` test an object that is not the item.
+ * the tap command's bridge does.
  *
  * Resolved by shape, 9.40.51 / 9.15.51 / 8.30.54: item `Lhxp` / `Lnox` / `Lnas`, renderer `Laopp` / `Lbxxg` / `Lbsez`,
- * replacing method `u` / `u` / `t`, toggle listener `Lhvv.d` / `Lnkv.d` / `Lmxb.c`. Kept apart: if any part is missing
+ * replacing method `u` / `u` / `t`, toggle view `Lhvv` / `Lnkv` / `Lmxb`. Kept apart: if any part is missing
  * only this selection is, with a warning.
  */
 private fun BytecodePatchContext.installQueueItemRetarget() {
@@ -266,14 +264,8 @@ private fun BytecodePatchContext.installQueueItemRetarget() {
                 .forEach { builder.addInstructions(it, "invoke-static {p0}, $ON_QUEUE_ITEM") }
         }
 
-        val listener = mutableClassDefBy(pill.classDef.type).findMutableMethodOf(pill.method)
-        val tested = listener.implementation!!.instructions.first() as TwoRegisterInstruction
-        val firstParameter = listener.implementation!!.registerCount - listener.parameterTypes.size - 1
-        val register = "p${tested.registerB - firstParameter}"
-        listener.addInstructions(0, "invoke-static {$register}, $PILL_ITEM\nmove-result-object $register")
-
         printInfo("AudioFirst: queue item tracking $itemType, renderer $rendererType, replacer ${replacer.name}, " +
-            "toggle listener ${pill.classDef.type}->${pill.method.name}")
+            "toggle view ${pill.classDef.type}")
 
         installPillClick(item, pill.method.name, pill.classDef.type)
         installQueueStart()

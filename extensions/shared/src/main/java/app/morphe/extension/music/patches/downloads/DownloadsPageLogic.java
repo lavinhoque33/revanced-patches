@@ -12,7 +12,6 @@ import com.google.protobuf.WireFormat;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.function.IntFunction;
 
@@ -68,17 +67,6 @@ final class DownloadsPageLogic {
                   IntFunction<String> songCount) {}
 
     private static final String TOKEN_PREFIX = "CONTENT_RELOAD_CONTINUATION_TOKEN_";
-    private static final int CHIP_TAP_FIELD = 2;
-    private static final int CHIP_UNTAP_FIELD = 3;
-    private static final int CHIP_ICON_FIELD = 4;
-    private static final int CLEAR_FILTERS_ICON = 6;
-    private static final int COMMAND_FIELD = 169_495_254;
-    private static final int COMMAND_LIST_FIELD = 174_116_574;
-    private static final int COMMAND_LIST_ITEM = 1;
-    private static final int PERSIST_FIELD = 453_962_765;
-    private static final int PERSIST_COMMAND = 1;
-    private static final int MAX_DEPTH = 32;
-    private static final String LIBRARY_BROWSE_ID = "FEmusic_library_landing";
 
     private static final String SUBCHIP_SUFFIX = "_DOWNLOADED_SUBCHIP";
     private static final String ALBUM_PREFIX = "OLAK5uy_";
@@ -145,11 +133,6 @@ final class DownloadsPageLogic {
             case "ALBUMS" -> Layout.ALBUMS;
             default -> Layout.NONE;
         };
-    }
-
-    /** Whether the token names a page of the Downloads chips at all, the ones this leaves as they are included. */
-    static boolean isPageToken(@Nullable String token) {
-        return token != null && token.startsWith(TOKEN_PREFIX);
     }
 
     /** Whether a downloaded source is an album, which the Albums chip lists; every other one is a playlist. */
@@ -287,123 +270,6 @@ final class DownloadsPageLogic {
         } catch (IOException ex) {
             return null;
         }
-    }
-
-    /**
-     * The page with the way back to the Library repaired, or null when the page has nothing to repair. The page's
-     * chips are a message inside the page that this does not know the path to: a chip is found by what it holds,
-     * the app's own command to browse the Library page as the command of its deselected state (field 3). That
-     * command is replaced by one that browses the Library page and also makes the app remember it as the Library
-     * tab's start page, and a "Clear filters" chip (icon 6) that has no command for a tap gets the same one; the
-     * app's chip has only the first, so the tap on it did nothing on the device.
-     */
-    @Nullable
-    static byte[] repairChips(byte[] page) {
-        return rewriteChips(page, 0);
-    }
-
-    /** The command of the app's chips that goes back to the Library: browse the Library page, remember nothing. */
-    static byte[] plainLibraryCommand() {
-        return new ProtoWriter().message(COMMAND_FIELD, OfflineLibraryLogic.browseCommand(LIBRARY_BROWSE_ID))
-                .toByteArray();
-    }
-
-    /** The command that browses the Library page and makes the app remember it as the Library tab's start page. */
-    static byte[] rememberedLibraryCommand() {
-        byte[] browse = OfflineLibraryLogic.browseCommand(LIBRARY_BROWSE_ID);
-        byte[] remember = new ProtoWriter().message(PERSIST_FIELD,
-                new ProtoWriter().message(PERSIST_COMMAND, browse).toByteArray()).toByteArray();
-        byte[] list = new ProtoWriter().message(COMMAND_LIST_ITEM, browse).message(COMMAND_LIST_ITEM, remember)
-                .toByteArray();
-        byte[] command = new ProtoWriter().message(COMMAND_LIST_FIELD, list).toByteArray();
-        return new ProtoWriter().message(COMMAND_FIELD, command).toByteArray();
-    }
-
-    /** One field of a message as it was read, to write it again. */
-    private record Field(int number, int wireType, long value, byte[] bytes) {}
-
-    @Nullable
-    private static byte[] rewriteChips(byte[] message, int depth) {
-        if (depth > MAX_DEPTH) return null;
-
-        List<Field> fields = readFields(message);
-        if (fields == null) return null;
-
-        byte[] plain = plainLibraryCommand();
-        boolean chip = false;
-        boolean tappable = false;
-        boolean clears = false;
-        for (Field field : fields) {
-            boolean text = field.wireType() == WireFormat.WIRETYPE_LENGTH_DELIMITED;
-            chip |= text && field.number() == CHIP_UNTAP_FIELD && Arrays.equals(field.bytes(), plain);
-            tappable |= text && field.number() == CHIP_TAP_FIELD;
-            clears |= field.wireType() == WireFormat.WIRETYPE_VARINT && field.number() == CHIP_ICON_FIELD
-                    && field.value() == CLEAR_FILTERS_ICON;
-        }
-
-        ProtoWriter rewritten = new ProtoWriter();
-        boolean changed = false;
-        byte[] remembered = rememberedLibraryCommand();
-        for (Field field : fields) {
-            if (chip && field.number() == CHIP_UNTAP_FIELD
-                    && field.wireType() == WireFormat.WIRETYPE_LENGTH_DELIMITED
-                    && Arrays.equals(field.bytes(), plain)) {
-                if (clears && !tappable) rewritten.message(CHIP_TAP_FIELD, remembered);
-                rewritten.message(CHIP_UNTAP_FIELD, remembered);
-                changed = true;
-                continue;
-            }
-
-            byte[] inner = field.wireType() == WireFormat.WIRETYPE_LENGTH_DELIMITED
-                    ? rewriteChips(field.bytes(), depth + 1) : null;
-            if (inner != null) {
-                rewritten.message(field.number(), inner);
-                changed = true;
-            } else {
-                write(rewritten, field);
-            }
-        }
-        return changed ? rewritten.toByteArray() : null;
-    }
-
-    private static void write(ProtoWriter output, Field field) {
-        switch (field.wireType()) {
-            case WireFormat.WIRETYPE_VARINT -> output.int64(field.number(), field.value());
-            case WireFormat.WIRETYPE_FIXED64 -> output.fixed64(field.number(), field.value());
-            case WireFormat.WIRETYPE_FIXED32 -> output.fixed32(field.number(), (int) field.value());
-            default -> output.message(field.number(), field.bytes());
-        }
-    }
-
-    /** The fields of a message, or null when the bytes are not one. */
-    @Nullable
-    private static List<Field> readFields(byte[] message) {
-        List<Field> fields = new ArrayList<>();
-        try {
-            CodedInputStream input = CodedInputStream.newInstance(message);
-            while (!input.isAtEnd()) {
-                int tag = input.readTag();
-                int number = WireFormat.getTagFieldNumber(tag);
-                int wireType = WireFormat.getTagWireType(tag);
-                if (number == 0) return null;
-
-                switch (wireType) {
-                    case WireFormat.WIRETYPE_VARINT -> fields.add(new Field(number, wireType, input.readInt64(), null));
-                    case WireFormat.WIRETYPE_FIXED64 ->
-                            fields.add(new Field(number, wireType, input.readFixed64(), null));
-                    case WireFormat.WIRETYPE_FIXED32 ->
-                            fields.add(new Field(number, wireType, input.readFixed32(), null));
-                    case WireFormat.WIRETYPE_LENGTH_DELIMITED ->
-                            fields.add(new Field(number, wireType, 0, input.readByteArray()));
-                    default -> {
-                        return null;
-                    }
-                }
-            }
-        } catch (IOException ex) {
-            return null;
-        }
-        return fields;
     }
 
     /** The content item without the empty state of its shelf, the item itself when it has none, null when dropped. */

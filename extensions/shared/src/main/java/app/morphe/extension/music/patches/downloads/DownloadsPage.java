@@ -72,9 +72,9 @@ public final class DownloadsPage {
             String token = DownloadsPageLogic.tokenOf(page.rvxRequestBytes());
             Layout layout = DownloadsPageLogic.layoutOf(token);
             Logger.printDebug(() -> "DownloadsPage: page token=" + token + " layout=" + layout);
-            if (!DownloadsPageLogic.isPageToken(token)) return callback;
+            if (layout == Layout.NONE) return callback;
 
-            if (layout != Layout.NONE) OfflineCopyStore.warmUp();
+            OfflineCopyStore.warmUp();
             Class<?>[] interfaces = interfacesOf(callback.getClass()).toArray(new Class<?>[0]);
             return Proxy.newProxyInstance(callback.getClass().getClassLoader(), interfaces,
                     new Delivery(callback, layout));
@@ -156,13 +156,9 @@ public final class DownloadsPage {
         /** The response with the stream copies in it, or the app's own when they cannot be added. */
         private Object withCopies(PageResponse response) {
             try {
-                byte[] page = response.rvxPageBytes();
-                byte[] merged = layout == Layout.NONE ? null : DownloadsPageLogic.merge(page, copySections());
-                byte[] repaired = DownloadsPageLogic.repairChips(merged != null ? merged : page);
-                Logger.printDebug(() -> "DownloadsPage: layout=" + layout + " merged=" + (merged != null)
-                        + " chipsRepaired=" + (repaired != null));
-                byte[] answer = repaired != null ? repaired : merged;
-                return answer == null ? response : response.rvxWithPageBytes(answer);
+                byte[] merged = DownloadsPageLogic.merge(response.rvxPageBytes(), copySections());
+                Logger.printDebug(() -> "DownloadsPage: layout=" + layout + " merged=" + (merged != null));
+                return merged == null ? response : response.rvxWithPageBytes(merged);
             } catch (Exception ex) {
                 Logger.printException(() -> "DownloadsPage: could not add the stream copies", ex);
                 return response;

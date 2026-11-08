@@ -105,11 +105,16 @@ final class DownloadedRegistry {
         return sources.containsKey(sourceId);
     }
 
-    /** True when every track of a remembered playlist or album still has a stream copy. */
+    /**
+     * True when every available track of a remembered playlist or album still has a stream copy: an unavailable
+     * track has none to have.
+     */
     boolean isSourceDownloaded(@Nullable String sourceId) {
         List<String> videoIds = sourceId == null ? null : sources.get(sourceId);
-        if (videoIds == null || videoIds.isEmpty()) return false;
-        return tracks.containsAll(videoIds);
+        if (videoIds == null) return false;
+
+        List<String> available = PlaylistPage.available(videoIds);
+        return !available.isEmpty() && tracks.containsAll(available);
     }
 
     /**

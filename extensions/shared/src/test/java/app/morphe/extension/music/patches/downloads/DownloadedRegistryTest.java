@@ -115,6 +115,21 @@ public class DownloadedRegistryTest {
         assertTrue(registry.isSourceDownloaded("OLAK5uy_album"));
     }
 
+    @Test public void anUnavailableTrackNeedsNoCopyForTheSourceToBeDownloaded() {
+        DownloadedRegistry registry = registryOf(SONG, THIRD);
+        registry.putSource("PLghost", Arrays.asList(SONG, PlaylistPage.UNAVAILABLE, THIRD));
+        assertTrue(registry.isSourceDownloaded("PLghost"));
+
+        registry.remove(THIRD);
+        assertFalse(registry.isSourceDownloaded("PLghost"));
+    }
+
+    @Test public void aSourceOfUnavailableTracksOnlyIsNeverDownloaded() {
+        DownloadedRegistry registry = registryOf(SONG);
+        registry.putSource("PLghosts", Arrays.asList(PlaylistPage.UNAVAILABLE, PlaylistPage.UNAVAILABLE));
+        assertFalse(registry.isSourceDownloaded("PLghosts"));
+    }
+
     @Test public void aSourceWithoutRecordOrTracksIsNeverDownloaded() {
         DownloadedRegistry registry = registryOf(SONG);
         registry.putSource("empty", Collections.emptyList());

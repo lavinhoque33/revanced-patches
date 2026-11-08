@@ -103,6 +103,32 @@ public class AudioFirstLogicTest {
         assertNull(AudioFirstLogic.chooseArm(true, java.util.List.of("omv"), ALBUM, 3, false, copies("atv0", "atv1")));
     }
 
+    @Test public void anUnavailableTrackKeepsThePositionOfTheTracksAfterIt() {
+        var list = java.util.List.of("atv0", PlaylistPage.UNAVAILABLE, "atv2");
+        var arm = AudioFirstLogic.chooseArm(true, java.util.List.of("omv"), list, 2, false, copies("atv0", "atv2"));
+        assertEquals(new AudioFirstLogic.Arm("playlist-index", "atv2"), arm);
+    }
+
+    @Test public void aTapOnTheUnavailablePositionArmsNothingByIndexEvenWhenEveryCopyExists() {
+        var list = java.util.List.of("atv0", PlaylistPage.UNAVAILABLE, "atv2");
+        var arm = AudioFirstLogic.chooseArm(true, java.util.List.of("omv"), list, 1, false,
+                id -> !id.equals("omv"));
+        assertEquals("playlist-source", arm.rule());
+    }
+
+    @Test public void aPlaylistIsFullyDownloadedWhenEveryAvailableTrackHasACopy() {
+        var list = java.util.List.of("atv0", PlaylistPage.UNAVAILABLE, "atv2");
+        var arm = AudioFirstLogic.chooseArm(true, java.util.List.of("omv"), list, 99, false, copies("atv0", "atv2"));
+        assertEquals(new AudioFirstLogic.Arm("playlist-source", "omv"), arm);
+        assertNull(AudioFirstLogic.chooseArm(true, java.util.List.of("omv"), list, 99, false, copies("atv0")));
+    }
+
+    @Test public void aPlaylistOfUnavailableTracksOnlyArmsNothing() {
+        var list = java.util.List.of(PlaylistPage.UNAVAILABLE, PlaylistPage.UNAVAILABLE);
+        assertNull(AudioFirstLogic.chooseArm(true, java.util.List.of("omv"), list, 99, false,
+                id -> !id.equals("omv")));
+    }
+
     @Test public void aFullyDownloadedAlbumArmsForAnyTapOfItsPlaylist() {
         var all = copies("atv0", "atv1", "atv2", "atv3");
         var arm = AudioFirstLogic.chooseArm(true, java.util.List.of("omv"), ALBUM, 99, false, all);

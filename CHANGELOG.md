@@ -27,6 +27,10 @@
   handle, on playlist pages, on the track rows of an album page, in the Search songs filter and in the player queue,
   and a playlist or album page whose every track has a stream copy shows one on its Download button. Songs saved only
   as files by Download in app are not marked, and neither are the search All cards.
+* **YouTube Music - Downloads:** Download the rest of a playlist or album that has unavailable tracks (deleted,
+  private or blocked songs, shown greyed out) instead of failing the whole download. The finished message says how
+  many were skipped, the Download button's check turns on when every available track has a copy, and a failed
+  download now names the reason in a one-line message.
 
 ## [1.33.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.32.2...v1.33.0) (2026-11-06)
 

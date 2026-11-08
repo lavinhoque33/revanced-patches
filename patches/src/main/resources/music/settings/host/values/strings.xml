@@ -201,12 +201,12 @@ Downloads (in Library or the account menu) opens the native device-files library
 Audio files remain after uninstalling Music; playlist organization is app data. Turning this option off restores stock Downloads navigation. Premium downloads are never changed"</string>
     <string name="morphe_music_not_in_playlist">Not in a playlist</string>
     <string name="morphe_music_playlist_download_complete">Playlist saved: %s tracks</string>
-    <string name="morphe_music_playlist_download_failed">Playlist download failed. Completed songs remain in device files; tap Download to retry</string>
+    <string name="morphe_music_playlist_download_failed">Playlist download failed: %s</string>
     <string name="morphe_music_playlist_download_progress">Downloading track %1$s of %2$s</string>
     <string name="morphe_music_playlist_download_started">Playlist download started</string>
     <string name="morphe_music_playlist_stream_already_saved">Stream copies already saved: %s tracks</string>
     <string name="morphe_music_playlist_stream_complete">Stream copies saved: %s tracks</string>
-    <string name="morphe_music_playlist_stream_failed">Playlist download failed. Completed songs stay saved for local playback; tap Download to retry</string>
+    <string name="morphe_music_playlist_unavailable_skipped">%s unavailable skipped</string>
     <!-- Jam queue sharing, ported from Morphe -->
     <string name="morphe_music_jam_add_to_queue">Add to Jam queue</string>
     <string name="morphe_music_jam_added_to_jam">Added to Jam</string>

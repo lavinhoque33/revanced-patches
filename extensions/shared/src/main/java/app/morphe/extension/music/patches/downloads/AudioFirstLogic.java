@@ -39,14 +39,15 @@ final class AudioFirstLogic {
      *   <li>{@link #RULE_ID}: any video id of the command has a stream copy;</li>
      *   <li>{@link #RULE_PLAYLIST_INDEX}: the command names a downloaded playlist or album and the track at the tapped
      *   position has a copy (an endpoint with params, such as a play or shuffle button, names no position);</li>
-     *   <li>{@link #RULE_PLAYLIST_SOURCE}: the command names a playlist or album every track of which has a copy.
-     *   The start only sets the mode, never the song, so a row that is not downloaded simply plays online in song
-     *   mode.</li>
+     *   <li>{@link #RULE_PLAYLIST_SOURCE}: the command names a playlist or album every available track of which has
+     *   a copy. The start only sets the mode, never the song, so a row that is not downloaded simply plays online in
+     *   song mode.</li>
      * </ol>
      *
      * @param enabled      The setting is on and the stream copies are in effect; otherwise nothing is ever armed.
      * @param commandIds   The video ids found in the command.
-     * @param sourceTracks The ordered tracks of the downloaded playlist the command names, or null.
+     * @param sourceTracks The ordered tracks of the downloaded playlist the command names, or null; an unavailable
+     *                     track keeps its place as {@link PlaylistPage#UNAVAILABLE}.
      * @param index        The position the command names, or -1.
      * @param hasParams    The command carries params, so it is not a row tap.
      * @return The rule and the song to arm for, or null when no copy is tied to the tap.
@@ -74,13 +75,17 @@ final class AudioFirstLogic {
         if (sourceTracks == null || sourceTracks.isEmpty()) return null;
 
         int position = index >= 0 ? index : (hasParams ? -1 : 0);
-        if (position >= 0 && position < sourceTracks.size() && hasCopy.test(sourceTracks.get(position))) {
+        if (position >= 0 && position < sourceTracks.size() && PlaylistPage.isAvailable(sourceTracks.get(position))
+                && hasCopy.test(sourceTracks.get(position))) {
             return new Arm(RULE_PLAYLIST_INDEX, sourceTracks.get(position));
         }
-        for (String track : sourceTracks) {
+        List<String> available = PlaylistPage.available(sourceTracks);
+        if (available.isEmpty()) return null;
+
+        for (String track : available) {
             if (!hasCopy.test(track)) return null;
         }
-        return new Arm(RULE_PLAYLIST_SOURCE, commandIds.isEmpty() ? sourceTracks.get(0) : commandIds.get(0));
+        return new Arm(RULE_PLAYLIST_SOURCE, commandIds.isEmpty() ? available.get(0) : commandIds.get(0));
     }
 
     /**

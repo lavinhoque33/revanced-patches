@@ -81,6 +81,13 @@ final class OfflineCopyFiles {
         loaded = true;
     }
 
+    /** The file of the stored cover of a copy, or null when it has none. */
+    @Nullable
+    File thumbnailFile(String videoId) {
+        File file = file(videoId, THUMBNAIL);
+        return file.isFile() && file.length() > 0 ? file : null;
+    }
+
     /** Whether the copy has stored data. False until {@link #ensureLoaded} has finished. No disk access. */
     boolean has(String videoId) {
         return responseSources.containsKey(videoId);

@@ -5,10 +5,8 @@
  */
 package app.morphe.extension.music.patches.downloads;
 
-import static app.morphe.extension.music.patches.downloads.OfflineLibraryLogic.Decision;
 import static app.morphe.extension.music.patches.downloads.OfflineLibraryLogic.SongRow;
 import static app.morphe.extension.music.patches.downloads.OfflineLibraryLogic.SourceRow;
-import static app.morphe.extension.music.patches.downloads.OfflineLibraryLogic.Tap;
 import static org.junit.Assert.*;
 
 import com.google.protobuf.CodedInputStream;
@@ -21,8 +19,6 @@ import java.util.Map;
 import java.util.Set;
 
 public class OfflineLibraryLogicTest {
-    private static final String GENERIC = OfflineLibraryLogic.DOWNLOADS_BROWSE_ID;
-
     private static OfflineCopyMetadata metadata(String id, String title) {
         return new OfflineCopyMetadata(id, title, "Artist " + id, null, 185_000, null, 1, "online");
     }
@@ -35,68 +31,6 @@ public class OfflineLibraryLogicTest {
         return new OfflineSourceStore.Track(id, stored ? metadata(id, "Title " + id) : null);
     }
 
-    // region decide
-
-    @Test public void theDownloadsPageIsNeverRememberedAsTheLaunchPageWhileTheListHasSomethingToShow() {
-        assertTrue(OfflineLibraryLogic.keepsLaunchPage("FEmusic_offline", true));
-    }
-
-    @Test public void everyOtherLaunchPageIsRemembered() {
-        assertFalse(OfflineLibraryLogic.keepsLaunchPage("FEmusic_offline", false));
-        assertFalse(OfflineLibraryLogic.keepsLaunchPage("FEmusic_library_landing", true));
-        assertFalse(OfflineLibraryLogic.keepsLaunchPage("FEmusic_offline_playlists", true));
-        assertFalse(OfflineLibraryLogic.keepsLaunchPage(null, true));
-    }
-
-    @Test public void theLibraryTabOpensTheListOnlyWhileOffline() {
-        assertTrue(OfflineLibraryLogic.routeOpens(OfflineLibraryLogic.Route.TAB, false));
-        assertFalse(OfflineLibraryLogic.routeOpens(OfflineLibraryLogic.Route.TAB, true));
-    }
-
-    @Test public void theDeliberateRoutesOpenTheListOnlineAndOffline() {
-        for (OfflineLibraryLogic.Route route : new OfflineLibraryLogic.Route[] {
-                OfflineLibraryLogic.Route.COMMAND, OfflineLibraryLogic.Route.CHIP}) {
-            assertTrue(OfflineLibraryLogic.routeOpens(route, true));
-            assertTrue(OfflineLibraryLogic.routeOpens(route, false));
-        }
-    }
-
-    @Test public void opensForTheDownloadsPageWhenSomethingIsStored() {
-        assertEquals(Decision.OPEN, OfflineLibraryLogic.decide(GENERIC, true, true, false));
-        assertEquals(Decision.OPEN, OfflineLibraryLogic.decide("FEmusic_offline_songs", true, true, false));
-    }
-
-    @Test public void staysStockWithoutTheReplayOrWithNothingStored() {
-        assertEquals(Decision.STOCK, OfflineLibraryLogic.decide(GENERIC, false, true, false));
-        assertEquals(Decision.STOCK, OfflineLibraryLogic.decide(GENERIC, true, false, false));
-        assertEquals(Decision.STOCK, OfflineLibraryLogic.decide(GENERIC, false, false, true));
-    }
-
-    @Test public void staysStockForOtherPages() {
-        assertEquals(Decision.STOCK, OfflineLibraryLogic.decide("FEmusic_library_landing", true, true, false));
-        assertEquals(Decision.STOCK, OfflineLibraryLogic.decide("FEmusic_library_sideloaded_tracks", true, true, true));
-        assertEquals(Decision.STOCK, OfflineLibraryLogic.decide(null, true, true, false));
-    }
-
-    @Test public void withDeviceFilesTheGenericPageGetsTheFooter() {
-        assertEquals(Decision.OPEN_WITH_DEVICE_FILES, OfflineLibraryLogic.decide(GENERIC, true, true, true));
-    }
-
-    @Test public void withDeviceFilesTheSubPagesKeepTheDeviceFilesRedirect() {
-        assertEquals(Decision.STOCK, OfflineLibraryLogic.decide("FEmusic_offline_songs", true, true, true));
-        assertEquals(Decision.STOCK, OfflineLibraryLogic.decide("FEmusic_offline_albums", true, true, true));
-        assertEquals(Decision.STOCK, OfflineLibraryLogic.decide("FEmusic_offline_playlists", true, true, true));
-    }
-
-    @Test public void onlyTheDownloadsChipItselfOpensTheList() {
-        assertTrue(OfflineLibraryLogic.isDownloadsChip("FEmusic_offline"));
-        assertFalse(OfflineLibraryLogic.isDownloadsChip("FEmusic_offline_songs"));
-        assertFalse(OfflineLibraryLogic.isDownloadsChip("FEmusic_liked_playlists"));
-        assertFalse(OfflineLibraryLogic.isDownloadsChip(null));
-    }
-
-    // endregion
-
     // region rows
 
     @Test public void sourceRowsKeepTheOrderCountSongsAndTakeTheCoverOfTheFirstStoredSong() {
@@ -104,31 +38,28 @@ public class OfflineLibraryLogicTest {
                 List.of(source("PLb", "B", "x", "y"), source("OLAK5uy_a", "A", "p", "q", "r")),
                 Map.of("PLb", List.of(track("x", false), track("y", true)),
                         "OLAK5uy_a", List.of(track("p", true), track("q", true), track("r", false)))::get);
-        assertEquals(List.of(new SourceRow("PLb", "B", 2, 1, "y"), new SourceRow("OLAK5uy_a", "A", 3, 2, "p")), rows);
+        assertEquals(List.of(new SourceRow("PLb", "B", 2, 1, "y", null),
+                new SourceRow("OLAK5uy_a", "A", 3, 2, "p", null)), rows);
+    }
+
+    @Test public void aSourceKeepsItsRecordedCoverAndASongItsRecordedUrl() {
+        OfflineSourceStore.Source recorded =
+                new OfflineSourceStore.Source("PLa", "A", "", "https://img/a", List.of("x"), 1);
+        List<SourceRow> sources = OfflineLibraryLogic.sourceRows(List.of(recorded),
+                Map.of("PLa", List.of(track("x", true)))::get);
+        assertEquals("https://img/a", sources.get(0).thumbnailUrl());
+
+        OfflineCopyMetadata withCover =
+                new OfflineCopyMetadata("x", "X", "A", null, 1000, "https://img/x", 1, "online");
+        List<SongRow> songs = OfflineLibraryLogic.songRows(List.of(withCover), Set.of("x"), List.of("x"));
+        assertEquals("https://img/x", songs.get(0).thumbnailUrl());
     }
 
     @Test public void aSourceWithoutAnySongIsLeftOutAndOneWithoutStoredDataHasNoCover() {
         List<SourceRow> rows = OfflineLibraryLogic.sourceRows(
                 List.of(source("PLa", "A", "x"), source("PLb", "B", "y")),
                 Map.of("PLa", List.<OfflineSourceStore.Track>of(), "PLb", List.of(track("y", false)))::get);
-        assertEquals(List.of(new SourceRow("PLb", "B", 1, 0, null)), rows);
-    }
-
-    @Test public void trackRowsMapTheQueueIndexByVideoId() {
-        List<SongRow> rows = OfflineLibraryLogic.trackRows(
-                List.of(track("a", true), track("b", false), track("c", true)), List.of("c", "a"));
-        assertEquals(3, rows.size());
-        assertEquals(1, rows.get(0).queueIndex());
-        assertEquals(-1, rows.get(1).queueIndex());
-        assertFalse(rows.get(1).availableOffline());
-        assertEquals("", rows.get(1).title());
-        assertEquals(0, rows.get(2).queueIndex());
-        assertEquals("Title c", rows.get(2).title());
-    }
-
-    @Test public void aStoredTrackThatIsNotInTheQueueCannotPlayOffline() {
-        List<SongRow> rows = OfflineLibraryLogic.trackRows(List.of(track("a", true)), List.of());
-        assertFalse(rows.get(0).availableOffline());
+        assertEquals(List.of(new SourceRow("PLb", "B", 1, 0, null, null)), rows);
     }
 
     @Test public void songRowsSortStoredSongsByTitleThenListTheOnesWithoutData() {
@@ -154,22 +85,6 @@ public class OfflineLibraryLogicTest {
 
     // endregion
 
-    // region taps
-
-    @Test public void aStoredSongPlaysFromTheQueueOnlineAndOffline() {
-        SongRow row = new SongRow("a", "A", "X", 1000, 3);
-        assertEquals(Tap.PLAY_QUEUE, OfflineLibraryLogic.tapOn(row, true));
-        assertEquals(Tap.PLAY_QUEUE, OfflineLibraryLogic.tapOn(row, false));
-    }
-
-    @Test public void aSongWithoutStoredDataPlaysOnlineAndExplainsOffline() {
-        SongRow row = new SongRow("a", "", "", 0, -1);
-        assertEquals(Tap.PLAY_ONLINE, OfflineLibraryLogic.tapOn(row, true));
-        assertEquals(Tap.EXPLAIN, OfflineLibraryLogic.tapOn(row, false));
-    }
-
-    // endregion
-
     // region text and bytes
 
     @Test public void durationTextHasMinutesAndHours() {
@@ -187,22 +102,14 @@ public class OfflineLibraryLogicTest {
         assertEquals("", OfflineLibraryLogic.songSubtitle("", 0));
     }
 
-    @Test public void sampleSizeHalvesUntilTheLongerSideFits() {
-        assertEquals(1, OfflineLibraryLogic.sampleSize(120, 90, 192));
-        assertEquals(1, OfflineLibraryLogic.sampleSize(192, 192, 192));
-        assertEquals(2, OfflineLibraryLogic.sampleSize(380, 300, 192));
-        assertEquals(4, OfflineLibraryLogic.sampleSize(544, 544, 192));
-        assertEquals(64, OfflineLibraryLogic.sampleSize(Integer.MAX_VALUE, 1, 1));
-    }
-
     @Test public void browseCommandIsTheBrowseEndpointWithThePageInField2() throws Exception {
-        byte[] bytes = OfflineLibraryLogic.browseCommand(OfflineLibraryLogic.DEVICE_FILES_BROWSE_ID);
+        byte[] bytes = OfflineLibraryLogic.browseCommand(OfflineLibraryLogic.DOWNLOADS_BROWSE_ID);
         CodedInputStream command = CodedInputStream.newInstance(bytes);
         assertEquals(48_687_626 << 3 | 2, command.readTag());
         CodedInputStream endpoint = CodedInputStream.newInstance(command.readByteArray());
         assertTrue(command.isAtEnd());
         assertEquals(2 << 3 | 2, endpoint.readTag());
-        assertEquals("FEmusic_library_sideloaded_tracks",
+        assertEquals("FEmusic_offline",
                 new String(endpoint.readByteArray(), StandardCharsets.UTF_8));
         assertTrue(endpoint.isAtEnd());
     }

@@ -70,11 +70,11 @@ public final class NativeDownloads {
     }
 
     /**
-     * Injection point: every command the app dispatches. The offline replay sees it first (it can take the command
-     * for the Downloads list); then either kind of download takes over the download command.
+     * Injection point: every command the app dispatches. The offline replay sees it first (it only remembers how to
+     * dispatch one); then either kind of download takes over the download command.
      */
     public static Object rewriteCommand(Object dispatcher, Object original, java.util.Map<?, ?> context) {
-        if (OfflineReplayHooks.onCommand(dispatcher, original, context)) return null;
+        OfflineReplayHooks.onCommand(dispatcher, original, context);
         return rewriteDownloadCommand(original, context);
     }
 

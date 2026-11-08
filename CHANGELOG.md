@@ -12,18 +12,17 @@
   at the same position in either direction (it starts over only when the position is unknown or within 3 seconds of
   the end).
 * **YouTube Music - Downloads:** Play the stream copies with no network. Each copy keeps the details of its song,
-  and Library > Downloads opens a list of the downloaded albums, playlists and all songs; a tap starts the song, and
-  Next and the end of a song go on through the list, with no connection too. Lyrics, comments and related stay blank
-  offline. Songs downloaded before this version fill in by themselves in the background while you are online, and Open
-  downloaded songs shows how many are Offline ready. Albums and playlists downloaded earlier appear in the list too,
-  in their recorded order, and fetch their title while online. Android Auto lists
-  the copies in a Stream copies folder inside Downloaded playlists, with their covers, and Android Auto downloaded
-  playlists no longer needs Download in app. The list also opens from the offline banner's Go to downloads, the
-  Library tab and Open downloaded songs in the settings, and a song tapped while offline starts at once. The No
-  connection sheet no longer covers the player controls while a downloaded song plays offline. The Library tab
-  opens the list only with no network. Opening the list from the Library page's Downloads chip no longer makes the
-  app remember the stock Downloads page as the Library tab's start page, so the Library tab keeps opening the Library
-  while online.
+  and the Downloads chip of the Library lists the downloaded albums, playlists and all songs inside its own page, on
+  the Downloads, Playlists, Albums and Songs chips, online or offline. A tap on a song starts it, and Next and the
+  end of a song go on through the list, with no connection too. An album or playlist row opens its page while
+  online, where a song starts the playlist from that song, and plays the list from its first downloaded song while
+  offline. Lyrics, comments and related stay blank offline. Songs downloaded before this version fill in by
+  themselves in the background while you are online, and Open downloaded songs shows how many are Offline ready and
+  opens the Downloads chip. Albums and playlists downloaded earlier appear in the list too, in their recorded order,
+  and fetch their title while online. Android Auto lists the copies in a Stream copies folder inside Downloaded
+  playlists, with their covers, and Android Auto downloaded playlists no longer needs Download in app. A song tapped
+  while offline starts at once. The No connection sheet no longer covers the player controls while a downloaded song
+  plays offline. The Library tab keeps the app's own behavior and opens where you left it.
 * **YouTube Music - Downloads:** Add green downloaded checkmarks, on by default and a child of Play downloads locally.
   Songs and playlists saved for local playback show a check at the end of the song row, next to its menu or drag
   handle, on playlist pages, on the track rows of an album page, in the Search songs filter and in the player queue,

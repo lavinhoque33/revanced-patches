@@ -36,6 +36,14 @@ final class ProtoWriter {
         return write(() -> output.writeInt64(field, value));
     }
 
+    ProtoWriter fixed32(int field, int value) {
+        return write(() -> output.writeFixed32(field, value));
+    }
+
+    ProtoWriter fixed64(int field, long value) {
+        return write(() -> output.writeFixed64(field, value));
+    }
+
     ProtoWriter bool(int field, boolean value) {
         return write(() -> output.writeBool(field, value));
     }

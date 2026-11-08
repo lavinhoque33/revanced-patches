@@ -30,7 +30,6 @@ final class OfflineReplayLogic {
     private static final int OFFLINE_WATCH_ENDPOINT = OfflineWatchCommand.ENDPOINT_FIELD;
     private static final int BROWSE_ENDPOINT = 48687626;
     /** The extension of the command that asks the app to remember a page as the Library tab's launch page. */
-    private static final int LAUNCH_PERSIST_EXTENSION = 453_962_765;
     private static final int VIDEO_ID_FIELD = OfflineWatchCommand.VIDEO_ID_FIELD;
     private static final int PLAYLIST_ID_FIELD = OfflineWatchCommand.PLAYLIST_ID_FIELD;
     private static final int INDEX_FIELD = OfflineWatchCommand.INDEX_FIELD;
@@ -162,32 +161,6 @@ final class OfflineReplayLogic {
                     return new String(input.readByteArray(), StandardCharsets.UTF_8);
                 }
                 if (!input.skipField(tag)) break;
-            }
-        } catch (IOException ignored) {
-            // Not a message this decision knows: it is some other command.
-        }
-        return null;
-    }
-
-    /**
-     * The browse id of the page a launch page command asks the app to remember, or null when the command is any other
-     * command. The page is the command nested in the extension; its field number is not relied on.
-     */
-    @Nullable
-    static String persistedBrowseId(byte[] command) {
-        try {
-            byte[] persisted = lengthDelimitedField(command, LAUNCH_PERSIST_EXTENSION);
-            if (persisted == null) return null;
-
-            CodedInputStream input = CodedInputStream.newInstance(persisted);
-            while (!input.isAtEnd()) {
-                int tag = input.readTag();
-                if (WireFormat.getTagWireType(tag) == WireFormat.WIRETYPE_LENGTH_DELIMITED) {
-                    String browseId = browseIdOf(input.readByteArray());
-                    if (browseId != null) return browseId;
-                } else if (!input.skipField(tag)) {
-                    break;
-                }
             }
         } catch (IOException ignored) {
             // Not a message this decision knows: it is some other command.

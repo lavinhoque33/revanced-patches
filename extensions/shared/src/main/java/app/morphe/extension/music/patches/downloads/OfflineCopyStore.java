@@ -5,6 +5,8 @@
  */
 package app.morphe.extension.music.patches.downloads;
 
+import android.net.Uri;
+
 import androidx.annotation.Nullable;
 
 import java.io.File;
@@ -78,6 +80,16 @@ final class OfflineCopyStore {
     static OfflineCopyFiles.Stored find(String videoId) {
         Utils.verifyOffMainThread();
         return Storage.copies.read(videoId);
+    }
+
+    /**
+     * The url of the cover of a song for the app's image loader: the stored cover file when the copy has one, which
+     * loads with no network, else the url recorded for it. Null when neither is known. Touches the disk.
+     */
+    @Nullable
+    static String coverUrl(@Nullable String videoId, @Nullable String recordedUrl) {
+        File file = videoId == null ? null : Storage.copies.thumbnailFile(videoId);
+        return file == null ? recordedUrl : Uri.fromFile(file).toString();
     }
 
     /** The metadata of every copy that has stored data. */

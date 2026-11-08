@@ -60,15 +60,12 @@ public final class OfflineReplay {
     private record Captured(WeakReference<Dispatcher> dispatcher, Command template,
                             WeakReference<Map<?, ?>> context) {}
 
-    private static final String OFFLINE_BROWSE_PREFIX = "FEmusic_offline";
     private static final String HOOK_GATE = "gate";
     private static final String HOOK_PLAYER = "player";
     private static final String HOOK_NEXT = "next";
     private static final String HOOK_COMMAND = "command";
-    private static final String HOOK_TAB = "tab";
     private static final String HOOK_SEEK = "seek";
     private static final String HOOK_GATE_FLAG = "gate-flag";
-    private static final String HOOK_CHIP = "library-chip";
 
     private static final ConcurrentMap<String, Long> skipLoggedAt = new ConcurrentHashMap<>();
     private static final Set<String> aliveHooks = ConcurrentHashMap.newKeySet();
@@ -139,6 +136,18 @@ public final class OfflineReplay {
         if (index < 0 || index >= items.size()) return null;
 
         return OfflineWatchCommand.build(items.get(index).videoId(), playlistId(sourceId), index);
+    }
+
+    /**
+     * The command a song row of the Downloads page runs. Offline it is the offline watch command of the song's place
+     * in the all-songs queue, or null for a song with no stored data; online it is the normal watch command of the
+     * song, so the online response still owns radio, lyrics and the rest, and only the audio comes from the copy.
+     */
+    @Nullable
+    static byte[] songCommand(int queueIndex, String videoId) {
+        if (networkAvailable()) return OnlineWatchCommand.build(videoId, null, 0);
+
+        return queueIndex < 0 ? null : OfflineWatchCommand.build(videoId, playlistId(SONGS), queueIndex);
     }
 
     /**
@@ -255,19 +264,15 @@ public final class OfflineReplay {
 
     /**
      * Injection point: every command the app dispatches, on the main thread. Remembers how to dispatch a command
-     * while the setting is on, and hands a browse command of the Downloads page to the offline list: that page
-     * belongs to the list whether or not the setting is on, so it decides by itself whether it opens.
-     *
-     * @return true when the command was taken and must not be dispatched.
+     * while the setting is on. Nothing is taken: a browse command of the Downloads page is the app's own, and the
+     * page is built in place, with the stream copies in it.
      */
-    static boolean onCommand(Object dispatcher, Object command, Map<?, ?> context) {
+    static void onCommand(Object dispatcher, Object command, Map<?, ?> context) {
         try {
             noteAlive(HOOK_COMMAND);
-            if (!(dispatcher instanceof Dispatcher stockDispatcher) || !(command instanceof Command message)) {
-                return false;
-            }
+            if (!(dispatcher instanceof Dispatcher stockDispatcher) || !(command instanceof Command message)) return;
 
-            if (!enabled()) return false;
+            if (!enabled()) return;
 
             captured = new Captured(new WeakReference<>(stockDispatcher), message, new WeakReference<>(context));
             OfflineCopyStore.warmUp();
@@ -275,27 +280,14 @@ public final class OfflineReplay {
 
             String browseId = OfflineReplayLogic.browseIdOf(message.toByteArray());
             if (browseId != null) logDecision(HOOK_COMMAND, "browse=" + browseId);
-            return browseId != null && browseId.startsWith(OFFLINE_BROWSE_PREFIX)
-                    && OfflineLibrary.onDownloadsBrowse(browseId, OfflineLibraryLogic.Route.COMMAND);
         } catch (Exception ex) {
             Logger.printException(() -> "OfflineReplay: could not read the command", ex);
-            return false;
         }
     }
 
     /**
-     * Injection point: the Library page loads a chip, with the browse id the chip resolved to, on the main thread.
-     * The Downloads chip sends no command, so it is the only way to hand its page to the offline list.
-     */
-    static void onLibraryChip(String browseId) {
-        noteAlive(HOOK_CHIP);
-        logDecision(HOOK_CHIP, "browse=" + browseId + " enabled=" + enabled());
-        if (enabled()) OfflineLibrary.onLibraryChip(browseId);
-    }
-
-    /**
-     * Opens the list from the settings page, the entry that does not depend on any page of the app: it is there with
-     * no network and whatever the home of the app shows. Does nothing but say so while the replay is off.
+     * Opens the Downloads page from the settings page with the app's own browse command, and closes the settings so
+     * that the page is the one on screen. Says why it cannot while the replay is off or no command has run yet.
      */
     static void openList(Context context) {
         Activity activity = context instanceof Activity own ? own : Utils.getActivity();
@@ -304,37 +296,12 @@ public final class OfflineReplay {
             return;
         }
 
-        OfflineLibrary.openFromSettings(activity);
-    }
+        if (!dispatchCommand(OfflineLibraryLogic.browseCommand(OfflineLibraryLogic.DOWNLOADS_BROWSE_ID))) {
+            Utils.showToastShort(str("morphe_music_offline_library_not_ready"));
+            return;
+        }
 
-    /**
-     * Injection point: the bottom bar navigates to a tab's page, on the main thread. The Library tab while offline
-     * goes to the Downloads page, which the list replaces; the stock navigation goes on behind it. Online the tab
-     * is the app's.
-     */
-    static void onTabNavigation(Object command) {
-        noteAlive(HOOK_TAB);
-        if (!enabled() || !(command instanceof Command message)) return;
-
-        String browseId = OfflineReplayLogic.browseIdOf(message.toByteArray());
-        logDecision(HOOK_TAB, "browse=" + browseId);
-        if (browseId != null) OfflineLibrary.onTab(browseId);
-    }
-
-    /**
-     * Injection point: the app is asked to remember a page as the Library tab's launch page. A tap on the Library
-     * page's Downloads chip asks for the stock Downloads page, which the list replaces; remembered, the Library tab
-     * would restore that page later, empty for a user whose copies are ours, so the request is dropped.
-     *
-     * @return true when the page is not to be remembered.
-     */
-    static boolean skipLibraryPersist(Object command) {
-        if (!enabled() || !(command instanceof Command message)) return false;
-
-        String browseId = OfflineReplayLogic.persistedBrowseId(message.toByteArray());
-        boolean skip = OfflineLibraryLogic.keepsLaunchPage(browseId, OfflineCopyStore.hasAnything());
-        if (skip) Logger.printInfo(() -> "OfflineReplay: launch page " + browseId + " not remembered");
-        return skip;
+        activity.finish();
     }
 
     // endregion

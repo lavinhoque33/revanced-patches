@@ -49,15 +49,14 @@ public final class OfflineReplayHooks {
         }
     }
 
-    /** Injection point: every command the app dispatches. True when the command was taken and must not run. */
-    public static boolean onCommand(Object dispatcher, Object command, Map<?, ?> context) {
-        if (!usable()) return false;
+    /** Injection point: every command the app dispatches. */
+    public static void onCommand(Object dispatcher, Object command, Map<?, ?> context) {
+        if (!usable()) return;
 
         try {
-            return OfflineReplay.onCommand(dispatcher, command, context);
+            OfflineReplay.onCommand(dispatcher, command, context);
         } catch (Throwable failure) {
             disable("command", failure);
-            return false;
         }
     }
 
@@ -73,28 +72,6 @@ public final class OfflineReplayHooks {
         }
     }
 
-    /** Injection point: the Library page loads a chip; {@code browseId} is the page the chip resolved to. */
-    public static void onLibraryChip(String browseId) {
-        if (!usable()) return;
-
-        try {
-            OfflineReplay.onLibraryChip(browseId);
-        } catch (Throwable failure) {
-            disable("library chip", failure);
-        }
-    }
-
-    /** Injection point: the bottom bar navigates to a tab's page; {@code command} is the browse command of it. */
-    public static void onTabNavigation(Object command) {
-        if (!usable()) return;
-
-        try {
-            OfflineReplay.onTabNavigation(command);
-        } catch (Throwable failure) {
-            disable("tab navigation", failure);
-        }
-    }
-
     /** Entry of the settings row: opens the offline list, or says why it cannot. */
     public static void openList(Context context) {
         try {
@@ -107,6 +84,21 @@ public final class OfflineReplayHooks {
         }
 
         Utils.showToastShort(str("morphe_music_offline_library_not_enabled"));
+    }
+
+    /**
+     * Injection point: the callback of a request for a page of the Library's Downloads chips. The callback to ask
+     * with: the app's own, or one that adds the stream copies to the page.
+     */
+    public static Object wrapDownloadsPage(Object request, Object callback) {
+        if (!usable()) return callback;
+
+        try {
+            return DownloadsPage.wrap(request, callback);
+        } catch (Throwable failure) {
+            disable("downloads page", failure);
+            return callback;
+        }
     }
 
     /** Injection point: the flag the offline watch gate read. */
@@ -155,21 +147,6 @@ public final class OfflineReplayHooks {
         } catch (Throwable failure) {
             disable("player response", failure);
             return null;
-        }
-    }
-
-    /**
-     * Injection point: the app is asked to remember a page as the one its Library tab opens next, with the command
-     * that says so. True when that is not to be done: the page is the Downloads page the offline list replaces.
-     */
-    public static boolean skipLibraryPersist(Object command) {
-        if (!usable()) return false;
-
-        try {
-            return OfflineReplay.skipLibraryPersist(command);
-        } catch (Throwable failure) {
-            disable("library launch page", failure);
-            return false;
         }
     }
 

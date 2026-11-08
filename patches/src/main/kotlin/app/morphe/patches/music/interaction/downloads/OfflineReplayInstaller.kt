@@ -39,6 +39,8 @@ import com.android.tools.smali.dexlib2.iface.reference.StringReference
 import com.android.tools.smali.dexlib2.iface.reference.TypeReference
 
 private const val REPLAY = "Lapp/morphe/extension/music/patches/downloads/OfflineReplayHooks;"
+private const val PAGE_REQUEST = $$"Lapp/morphe/extension/music/patches/downloads/DownloadsPage$PageRequest;"
+private const val PAGE_RESPONSE = $$"Lapp/morphe/extension/music/patches/downloads/DownloadsPage$PageResponse;"
 private const val NEXT_REQUEST = $$"Lapp/morphe/extension/music/patches/downloads/OfflineReplay$NextRequest;"
 private const val STREAM_RESPONSE = $$"Lapp/morphe/extension/music/patches/downloads/StreamSwap$Response;"
 private const val SHEET_CONTROLLER = $$"Lapp/morphe/extension/music/patches/downloads/NoConnectionSheet$Controller;"
@@ -59,25 +61,20 @@ private val REPLAY_VERSIONS = setOf("9.40.51", "9.15.51", "8.30.54")
 /** The experiment flag the offline watch command gate reads in every supported version (the id is the same). */
 private const val GATE_EXPERIMENT = 0x02b88604L
 
+/** The string the Downloads page service logs under, which no other class holds in its static initializer. */
+private const val PAGE_SERVICE =
+    "com/google/android/apps/youtube/music/offline/service/OfflineBrowsePageGenerationService"
+
+/** The one string of the constructor of the request of that service: the name its log lines go under. */
+private const val PAGE_REQUEST_NAME = "OfflineBrowsePageGenerationService"
+
 /** Message of the failure the stock player lookup ends with when a song was not downloaded the stock way. */
 private const val UNPLAYABLE = "Unplayable Video"
-
-/** The two strings only the bottom bar's tab navigation uses together (`FEmusic_search` and its back action). */
-private const val TAB_SEARCH_PAGE = "FEmusic_search"
-private const val TAB_HIDE_SEARCH_BACK = "hide_search_back_action"
-
-/** What the Library launch page resolver logs for a persist command that has no nested command. */
-private const val PERSIST_WITHOUT_COMMAND = "Received MusicLibraryPersistLaunchNavigationCommand with no command"
-
-/** Message of the failure the Library chip loader ends with for a continuation it does not know. */
-private const val UNSUPPORTED_CONTINUATION = "Unsupported continuation: "
 
 /**
  * Offline playback of stream copies, in 9.40.51 / 9.15.51 / 8.30.54 order:
  * gate `Lgup.c` / `Lkch.c` / `Ljto.c`, player lookup `Laalc.c` / `Laxlp.c` / `Lauhp.c`,
- * watch-next entry `Lhyv.b` / `Lntb.b` / `Lnez.b`, watch-next request `Labjm` / `Lazmi` / `Lawgh`,
- * the Library chip loader (`Lhtd.a` in 9.40.51), the persisting of the Library launch page (`Lgtr.c` in 9.40.51)
- * and the tab navigation (`Lhis.c` in 9.40.51).
+ * watch-next entry `Lhyv.b` / `Lntb.b` / `Lnez.b`, watch-next request `Labjm` / `Lazmi` / `Lawgh`.
  * Every dependency of every hook is resolved before anything is changed, and the hooks go in together or not at all:
  * a version whose shape is unfamiliar only warns and plays as before. Needs [installStreamSwap]: the stored response
  * gets the same audio swap an online one does.
@@ -94,29 +91,256 @@ internal fun BytecodePatchContext.installOfflineReplay() {
         val installGate = prepareReplayGate(commandType)
         val (requestType, installTail) = prepareReplayTail()
         val installNext = prepareReplayNext(requestType, commandType)
-        val installChip = prepareLibraryChip()
-        val installPersist = prepareLibraryPersist()
-        val installTab = prepareTabNavigation()
 
+        val installPage = prepareDownloadsPage()
         val installSeek = prepareSeekSnap()
         val installSheet = prepareNoConnectionSheet()
 
         installGate()
         installTail()
         installNext()
-        installChip()
-        installPersist()
-        installTab()
+        installPage?.invoke()
         installSeek?.invoke()
         installSheet?.invoke()?.let(::printInfo)
         supported.returnEarly(true)
         printInfo(
-            "OfflineReplay: gate, player lookup, watch-next, library chip, launch page and tab navigation hooked; " +
+            "OfflineReplay: gate, player lookup and watch-next hooked; " +
                 "request $requestType",
         )
     } catch (ex: Exception) {
         printWarn("OfflineReplay: hooks unavailable; online playback unchanged: ${ex.message}")
     }
+}
+
+/**
+ * The Library's Downloads chip view: the app builds the page itself from its own downloads, in the service the
+ * string [PAGE_SERVICE] names (`Lhtd.c(request, options, callback)` in 9.40.51, `Lnck.c` in 9.15.51, `Lmpe.b` in
+ * 8.30.54: the one method of the class that returns nothing and takes three objects). The callback, the third
+ * argument, is replaced on entry by [REPLAY]'s wrapper, which adds the stream copies to the page the service
+ * delivers. Three bridges give the extension what it needs without a name of the app's: the request's message
+ * serialized (its continuation token says which chip it is), and the response's section list serialized and built
+ * again from other bytes. The response is the class whose instance the callback's consumer casts to before it calls
+ * the callback's one method that takes an object; it holds a wrapper which holds the section list. Optional: a
+ * version where the shape is not found shows the app's own Downloads view.
+ */
+private fun BytecodePatchContext.prepareDownloadsPage(): (() -> Unit)? {
+    try {
+        val serviceType = Fingerprint(name = "<clinit>", strings = listOf(PAGE_SERVICE)).matchSingle().classDef.type
+        val service = mutableClassDefBy(serviceType)
+        val method = service.methods.single { candidate ->
+            candidate.returnType == "V" && !AccessFlags.STATIC.isSet(candidate.accessFlags) &&
+                candidate.parameterTypes.size == 3 && candidate.parameterTypes.all { it.startsWith("L") }
+        }
+        val requestBase = method.parameterTypes[0].toString()
+        val callbackType = method.parameterTypes[2].toString()
+        val registers = method.implementation!!.registerCount
+        // The hook copies the request and the callback to two locals, which are free at the entry.
+        check(registers - 4 >= 2) { "page: no free registers" }
+
+        val request = pageRequestBridge(requestBase)
+        val response = pageResponseBridge(serviceType, callbackType)
+
+        return {
+            request()
+            response()
+            method.addInstructions(0, """
+                move-object/from16 v0, p1
+                move-object/from16 v1, p3
+                invoke-static {v0, v1}, $REPLAY->wrapDownloadsPage($OBJECT$OBJECT)$OBJECT
+                move-result-object v0
+                check-cast v0, $callbackType
+                move-object/from16 p3, v0
+            """)
+        }
+    } catch (ex: Exception) {
+        printWarn("OfflineReplay: downloads page not hooked; the Downloads view is the app's own: ${ex.message}")
+        return null
+    }
+}
+
+/** The request class of the page service, and its message field, with a bridge that serializes the message. */
+private fun BytecodePatchContext.pageRequestBridge(requestBase: String): () -> Unit {
+    val constructor = Fingerprint(
+        name = "<init>",
+        custom = { method, _ ->
+            method.implementation?.instructions?.any {
+                it.getReference<StringReference>()?.string == PAGE_REQUEST_NAME
+            } == true
+        },
+    ).matchSingle()
+    val requestClass = mutableClassDefBy(constructor.classDef.type)
+    check(requestClass.superclass == requestBase) { "page: the request is not the service's" }
+    check(constructor.method.parameterTypes.size == 2) { "page: request constructor" }
+
+    val message = constructor.method.parameterTypes[1].toString()
+    val field = requestClass.fields.single { it.type == message && !AccessFlags.STATIC.isSet(it.accessFlags) }
+    val serialize = serializerOf(message)
+
+    return {
+        requestClass.interfaces.add(PAGE_REQUEST)
+        requestClass.addDownloadsBridge("rvxRequestBytes", emptyList(), "[B", 2, """
+            iget-object v0, p0, ${requestClass.type}->${field.name}:${field.type}
+            invoke-virtual {v0}, $serialize
+            move-result-object v0
+            return-object v0
+        """)
+    }
+}
+
+/** The page response class, found from what the callback's consumer casts to, with its two bridges. */
+private fun BytecodePatchContext.pageResponseBridge(serviceType: String, callbackType: String): () -> Unit {
+    val interfaces = interfaceClosure(callbackType)
+    // The call names the interface it was made on, and the method may be declared in one of its parents.
+    val deliveries = interfaces.flatMap { type ->
+        val methods = classDefByOrNull(type)?.methods?.toList().orEmpty()
+        methods.filter { it.returnType == "V" && it.parameterTypes.map(CharSequence::toString) == listOf(OBJECT) }
+            .map { it.name }
+    }.toSet()
+    check(deliveries.isNotEmpty()) { "page: the callback takes no object" }
+
+    val casts = mutableSetOf<String>()
+    classDefForEach { owner ->
+        owner.methods.forEach { consumer ->
+            val steps = consumer.implementation?.instructions?.toList() ?: return@forEach
+            steps.forEachIndexed { index, step ->
+                val call = step.getReference<MethodReference>()
+                val delivers = step.opcode == Opcode.INVOKE_INTERFACE && step is FiveRegisterInstruction &&
+                    step.registerCount == 2 && call != null &&
+                    call.parameterTypes.map(CharSequence::toString) == listOf(OBJECT) &&
+                    call.definingClass in interfaces && call.name in deliveries
+                if (!delivers) return@forEachIndexed
+
+                val response = (step as FiveRegisterInstruction).registerD
+                val writer = steps.subList(0, index).lastOrNull {
+                    (it as? OneRegisterInstruction)?.registerA == response
+                }
+                if (writer?.opcode == Opcode.CHECK_CAST) casts.add(writer.getReference<TypeReference>()!!.type)
+            }
+        }
+    }
+
+    val built = builtNear(serviceType)
+    val candidates = casts.filter { it in built }.mapNotNull { type -> pageResponseShape(type) }
+    check(candidates.size == 1) {
+        "page: found ${candidates.map { it.response }} response classes among ${casts.size} types"
+    }
+    val shape = candidates.single()
+
+    val response = mutableClassDefBy(shape.response)
+    val serialize = serializerOf(shape.page)
+    val parserOwner = parseByteArrayMethodRef.get()!!.definingClass
+    val parser = mutableClassDefBy(parserOwner).methods.single {
+        it.name == "parseFrom" && it.parameterTypes == listOf(parserOwner, "[B", REGISTRY)
+    }
+    val default = classDefByOrNull(shape.page)!!.fields.single {
+        it.type == shape.page && AccessFlags.STATIC.isSet(it.accessFlags)
+    }
+    val extras = shape.extraFields.withIndex().joinToString("\n") { (index, field) ->
+        "iget v${2 + index}, p0, ${shape.response}->${field.name}:${field.type}"
+    }
+    val extraTypes = shape.extraFields.joinToString("") { it.type }
+    val extraRegisters = shape.extraFields.indices.joinToString("") { ", v${2 + it}" }
+
+    return {
+        response.interfaces.add(PAGE_RESPONSE)
+        response.addDownloadsBridge("rvxPageBytes", emptyList(), "[B", 2, """
+            iget-object v0, p0, ${shape.response}->${shape.holder.name}:${shape.holder.type}
+            iget-object v0, v0, ${shape.holder.type}->${shape.pageField.name}:${shape.pageField.type}
+            invoke-virtual {v0}, $serialize
+            move-result-object v0
+            return-object v0
+        """)
+        response.addDownloadsBridge("rvxWithPageBytes", listOf("[B"), OBJECT, 4 + shape.extraFields.size, """
+            sget-object v0, ${shape.page}->${default.name}:${default.type}
+            invoke-static {}, $REGISTRY->getGeneratedRegistry()$REGISTRY
+            move-result-object v1
+            invoke-static {v0, p1, v1}, $parser
+            move-result-object v0
+            check-cast v0, ${shape.page}
+            $extras
+            new-instance v1, ${shape.response}
+            invoke-direct {v1, v0$extraRegisters}, ${shape.response}-><init>(${shape.page}$extraTypes)V
+            return-object v1
+        """)
+    }
+}
+
+/**
+ * The types the code of [serviceType] creates, and the types the classes it creates create in turn: the page
+ * service hands the work to a task of its own, which builds the response. Other services of the app answer
+ * with pages of the same shape.
+ */
+private fun BytecodePatchContext.builtNear(serviceType: String): Set<String> {
+    fun createdBy(type: String): Set<String> {
+        val methods = classDefByOrNull(type)?.methods?.toList().orEmpty()
+        return methods.flatMap { it.implementation?.instructions?.toList().orEmpty() }
+            .filter { it.opcode == Opcode.NEW_INSTANCE }
+            .map { it.getReference<TypeReference>()!!.type }
+            .toSet()
+    }
+
+    val first = createdBy(serviceType)
+    return first + first.flatMap { createdBy(it) }
+}
+
+/** [type] and every interface it extends, however far up. */
+private fun BytecodePatchContext.interfaceClosure(type: String): Set<String> {
+    val found = linkedSetOf<String>()
+    fun add(current: String) {
+        if (found.add(current)) classDefByOrNull(current)?.interfaces?.forEach { add(it) }
+    }
+    add(type)
+    return found
+}
+
+/** What the extension needs of a page response class: the wrapper field, the section list field in it, the rest. */
+private class PageResponseShape(
+    val response: String,
+    val page: String,
+    val holder: FieldReference,
+    val pageField: FieldReference,
+    val extraFields: List<FieldReference>,
+)
+
+/**
+ * The shape of [type] when it is a page response: a class with a constructor of a section list followed by numbers
+ * only (the numbers are fields of the class, copied to a response built from other bytes), and a field of a wrapper
+ * class that holds a field of that section list's type.
+ */
+private fun BytecodePatchContext.pageResponseShape(type: String): PageResponseShape? {
+    val response = classDefByOrNull(type) ?: return null
+    val own = response.fields.filter { !AccessFlags.STATIC.isSet(it.accessFlags) }
+    for (constructor in response.methods.filter { it.name == "<init>" }) {
+        val parameters = constructor.parameterTypes.map(CharSequence::toString)
+        if (parameters.isEmpty() || !parameters.drop(1).all { it == "I" }) continue
+
+        val page = parameters[0]
+        val holders = own.mapNotNull { field ->
+            val pageField = classDefByOrNull(field.type)?.fields?.singleOrNull {
+                it.type == page && !AccessFlags.STATIC.isSet(it.accessFlags)
+            }
+            pageField?.let { field to it }
+        }
+        val extras = parameters.drop(1).map { primitive -> own.singleOrNull { it.type == primitive } ?: return null }
+        if (holders.size == 1) {
+            val (holder, pageField) = holders.single()
+            return PageResponseShape(type, page, holder, pageField, extras)
+        }
+    }
+    return null
+}
+
+/** The reference of the serializing method of a message class, which a base class of it may define. */
+private fun BytecodePatchContext.serializerOf(message: String): String {
+    var type: String? = message
+    while (type != null) {
+        val owner = classDefByOrNull(type) ?: break
+        owner.methods.firstOrNull {
+            it.name == "toByteArray" && it.parameterTypes.isEmpty() && it.returnType == "[B"
+        }?.let { return "${owner.type}->toByteArray()[B" }
+        type = owner.superclass
+    }
+    error("page: no serializer on $message")
 }
 
 /**
@@ -441,94 +665,6 @@ private fun BytecodePatchContext.prepareReplayTail(): Pair<String, () -> Unit> {
             :rvx_replay_player_stock
             nop
         """)
-    }
-}
-
-/**
- * The Library page's chip loader (`Lhtd.a` in 9.40.51): it maps the continuation of a chip to the browse id of the
- * page behind it and throws `Unsupported continuation` for one it does not know. The Downloads chip is such a
- * continuation, not a navigation command, so it never reaches the command dispatcher; right after the browse id is
- * known to be non-null it is handed to [REPLAY], which opens the offline list for the Downloads page. The stock
- * load goes on behind the list.
- */
-private fun BytecodePatchContext.prepareLibraryChip(): () -> Unit {
-    val method = Fingerprint(
-        returnType = "L",
-        parameters = listOf("L"),
-        strings = listOf(UNSUPPORTED_CONTINUATION),
-    ).matchSingle().method
-    val instructions = method.implementation!!.instructions.toList()
-
-    val failure = instructions.indexOfFirst { it.getReference<StringReference>()?.string == UNSUPPORTED_CONTINUATION }
-    val test = instructions.indices.single { index ->
-        val step = instructions[index]
-        step.opcode == Opcode.IF_EQZ &&
-            (step as BuilderOffsetInstruction).target.location.index in failure - 8 until failure
-    }
-    val cast = instructions[test - 1]
-    check(cast.opcode == Opcode.CHECK_CAST && cast.getReference<TypeReference>()!!.type == STRING) {
-        "chip: the browse id is not a checked string"
-    }
-    val browseId = (instructions[test] as OneRegisterInstruction).registerA
-    check((cast as OneRegisterInstruction).registerA == browseId && browseId <= 15) { "chip: browse id register" }
-    check(instructions.none { it is BuilderOffsetInstruction && it.target.location.index == test + 1 }) {
-        "chip: the insertion point is a jump target"
-    }
-
-    return {
-        method.addInstruction(test + 1, "invoke-static {v$browseId}, $REPLAY->onLibraryChip($STRING)V")
-    }
-}
-
-/**
- * The persisting of the Library launch page. Every chip of the Library page (Library, Downloads, ...) runs a command
- * that browses to its page and then asks the app to remember that page as the one the Library tab opens next (an
- * extension command, answered by the resolver `Lgtr.c(command, map)` in 9.40.51, which writes the
- * `MusicLibraryPrefsStore`). The Downloads chip opens the offline list in front of the stock page, so remembering
- * the stock Downloads page would make the Library tab restore it later, with the app's own empty Downloads. The
- * resolver is found by the one string it logs when it receives the command with no nested command; its first
- * parameter is the command. [REPLAY] gets the command first thing and the resolver returns when that wants no page
- * remembered.
- */
-private fun BytecodePatchContext.prepareLibraryPersist(): () -> Unit {
-    val method = Fingerprint(
-        returnType = "V",
-        parameters = listOf("L", MAP),
-        strings = listOf(PERSIST_WITHOUT_COMMAND),
-    ).matchSingle().method
-    check(!AccessFlags.STATIC.isSet(method.accessFlags)) { "library launch page: static method" }
-    // The registers are the locals, `this` and the parameters; the hook needs one local.
-    check(method.implementation!!.registerCount > method.parameterTypes.size + 1) {
-        "library launch page: no free register"
-    }
-
-    return {
-        val stock = ExternalLabel("rvx_persist_stock", method.getInstruction<Instruction>(0))
-        method.addInstructionsWithLabels(0, """
-            invoke-static {p1}, $REPLAY->skipLibraryPersist(Ljava/lang/Object;)Z
-            move-result v0
-            if-eqz v0, :rvx_persist_stock
-            return-void
-        """, stock)
-    }
-}
-
-/**
- * The bottom bar's tab navigation (`Lhis.c(String, command)` in 9.40.51). The Library tab goes offline to the
- * Downloads page, and that navigation is not guaranteed to pass the command dispatcher: it may only switch to a
- * tab's own page. The command is handed to [REPLAY] first thing, which opens the offline list for the Downloads
- * page and leaves the stock navigation to go on behind it.
- */
-private fun BytecodePatchContext.prepareTabNavigation(): () -> Unit {
-    val method = Fingerprint(
-        returnType = "V",
-        parameters = listOf(STRING, "L"),
-        strings = listOf(TAB_SEARCH_PAGE, TAB_HIDE_SEARCH_BACK),
-    ).matchSingle().method
-    check(!AccessFlags.STATIC.isSet(method.accessFlags)) { "tab navigation: static method" }
-
-    return {
-        method.addInstruction(0, "invoke-static {p2}, $REPLAY->onTabNavigation(Ljava/lang/Object;)V")
     }
 }
 

@@ -19,6 +19,24 @@ public class OfflineReplayLogicTest {
         return new OfflineCopyMetadata(id, title, "Artist", album, 185_000, "https://cover/" + id, 1, "online");
     }
 
+    // region no-connection sheet
+
+    @Test public void theSheetShownLaterIsDismissedOfflineWhileTheReplayedCopyPlays() {
+        assertTrue(OfflineReplayLogic.dismissesSheetShownLater("abc", "abc", false));
+    }
+
+    @Test public void theSheetShownLaterStaysWhenOnline() {
+        assertFalse(OfflineReplayLogic.dismissesSheetShownLater("abc", "abc", true));
+    }
+
+    @Test public void theSheetShownLaterStaysWhenNothingOfOursPlays() {
+        assertFalse(OfflineReplayLogic.dismissesSheetShownLater(null, "abc", false));
+        assertFalse(OfflineReplayLogic.dismissesSheetShownLater("abc", null, false));
+        assertFalse(OfflineReplayLogic.dismissesSheetShownLater("abc", "other", false));
+    }
+
+    // endregion
+
     // region playlist ids
 
     @Test public void playlistIdRoundTrips() {

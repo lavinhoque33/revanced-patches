@@ -158,6 +158,17 @@ public final class OfflineReplayHooks {
         }
     }
 
+    /** Injection point: the presenter of the "No connection" sheet has shown it through the given controller. */
+    public static void noConnectionSheetShown(Object controller) {
+        if (!usable()) return;
+
+        try {
+            NoConnectionSheet.onSheetShown(controller);
+        } catch (Throwable failure) {
+            disable("no-connection sheet", failure);
+        }
+    }
+
     /** Injection point: the watch-next future of a request; the stock future itself unless the request is ours. */
     public static ListenableFuture<?> wrapNext(Object request, ListenableFuture<?> stock) {
         if (!usable()) return stock;

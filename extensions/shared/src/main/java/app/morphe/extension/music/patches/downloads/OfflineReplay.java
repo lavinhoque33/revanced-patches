@@ -398,6 +398,7 @@ public final class OfflineReplay {
             boolean swap = swapped != response;
             Logger.printWarn(() -> "OfflineReplay: player v=" + videoId + " swap=" + (swap ? "SWAP" : "DECLINED")
                     + " " + describe(swapped));
+            if (swap) NoConnectionSheet.onCopyReplayed(videoId);
             return swap ? swapped : null;
         } catch (Exception ex) {
             Logger.printException(() -> "OfflineReplay: could not finish the response of v=" + videoId, ex);

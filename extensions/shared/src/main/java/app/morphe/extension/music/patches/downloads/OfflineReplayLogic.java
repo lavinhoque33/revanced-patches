@@ -44,6 +44,15 @@ final class OfflineReplayLogic {
     /** The video, playlist and index an offline watch command names. */
     record WatchTarget(String videoId, String playlistId, int index) {}
 
+    /**
+     * Whether the "No connection" sheet the app shows by itself is dismissed: only while offline, and only while the
+     * video that plays is the one whose copy was replayed offline.
+     */
+    static boolean dismissesSheetShownLater(@Nullable String replayedVideoId, @Nullable String playingVideoId,
+                                            boolean networkAvailable) {
+        return !networkAvailable && replayedVideoId != null && replayedVideoId.equals(playingVideoId);
+    }
+
     /** The synthetic playlist id the offline queue of a list carries. */
     static String playlistId(String sourceId) {
         return QUEUE_PLAYLIST_PREFIX + sourceId;

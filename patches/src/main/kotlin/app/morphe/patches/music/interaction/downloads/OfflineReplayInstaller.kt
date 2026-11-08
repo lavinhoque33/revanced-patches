@@ -18,6 +18,7 @@ import app.morphe.patches.shared.misc.fix.proto.parseByteArrayMethodRef
 import app.morphe.util.Utils.printInfo
 import app.morphe.util.Utils.printWarn
 import app.morphe.util.addInstructionsAtControlFlowLabel
+import app.morphe.util.findMutableMethodOf
 import app.morphe.util.fingerprint.matchSingle
 import app.morphe.util.returnEarly
 import com.android.tools.smali.dexlib2.AccessFlags
@@ -40,6 +41,8 @@ import com.android.tools.smali.dexlib2.iface.reference.TypeReference
 private const val REPLAY = "Lapp/morphe/extension/music/patches/downloads/OfflineReplayHooks;"
 private const val NEXT_REQUEST = $$"Lapp/morphe/extension/music/patches/downloads/OfflineReplay$NextRequest;"
 private const val STREAM_RESPONSE = $$"Lapp/morphe/extension/music/patches/downloads/StreamSwap$Response;"
+private const val SHEET_CONTROLLER = $$"Lapp/morphe/extension/music/patches/downloads/NoConnectionSheet$Controller;"
+private const val ON_SHEET_SHOWN = "$REPLAY->noConnectionSheetShown(Ljava/lang/Object;)V"
 private const val OBJECT = "Ljava/lang/Object;"
 private const val STRING = "Ljava/lang/String;"
 private const val MAP = "Ljava/util/Map;"
@@ -47,6 +50,9 @@ private const val LIST = "Ljava/util/List;"
 private const val FUTURE = "Lcom/google/common/util/concurrent/ListenableFuture;"
 private const val EXECUTOR = "Ljava/util/concurrent/ScheduledExecutorService;"
 private const val REGISTRY = "Lcom/google/protobuf/ExtensionRegistryLite;"
+
+/** The browse id the "No connection" sheet's "Go to downloads" button opens. */
+private const val SHEET_BROWSE = "FEmusic_offline"
 
 private val REPLAY_VERSIONS = setOf("9.40.51", "9.15.51", "8.30.54")
 
@@ -88,6 +94,7 @@ internal fun BytecodePatchContext.installOfflineReplay() {
         val installTab = prepareTabNavigation()
 
         val installSeek = prepareSeekSnap()
+        val installSheet = prepareNoConnectionSheet()
 
         installGate()
         installTail()
@@ -95,6 +102,7 @@ internal fun BytecodePatchContext.installOfflineReplay() {
         installChip()
         installTab()
         installSeek?.invoke()
+        installSheet?.invoke()?.let(::printInfo)
         supported.returnEarly(true)
         printInfo(
             "OfflineReplay: gate, player lookup, watch-next, library chip and tab navigation hooked; " +
@@ -147,6 +155,90 @@ private fun BytecodePatchContext.prepareSeekSnap(): (() -> Unit)? {
         printWarn("OfflineReplay: seek snap not hooked; a drag on the progress bar seeks as stock: ${ex.message}")
         return null
     }
+}
+
+/**
+ * The stock "No connection" bottom sheet covers the player controls offline. Its presenter (`Lhjm.a` in 9.40.51) builds
+ * the mealbar with the "Go to downloads" button (the [SHEET_BROWSE] endpoint) and shows it through its controller, the
+ * one call of a method of a class of its own fields' types that takes the mealbar and returns nothing. Right after that
+ * call [REPLAY] gets the controller, to dismiss the sheet when a copy plays offline. The controller's own dismiss is
+ * the method that reads the mealbar presenter's current mealbar and calls its dismiss: `iget-object`, `iget-object`
+ * (each possibly followed by a `check-cast`), `if-eqz`, `invoke-virtual`, `return-void` (`Ljlj.a()V` in 9.40.51,
+ * `Lrjd.a()V` in 9.15.51, `Lquv.a()V` in 8.30.54); the patch gives the
+ * controller class a bridge `rvxDismiss` that calls it. Optional: when the shape is not found the sheet stays as stock.
+ */
+private fun BytecodePatchContext.prepareNoConnectionSheet(): (() -> String)? {
+    try {
+        val presenter = Fingerprint(
+            returnType = "V",
+            parameters = emptyList(),
+            strings = listOf(SHEET_BROWSE),
+            custom = { method, _ -> method.looksLikeSheetPresenter() },
+        ).matchSingle()
+        val owner = presenter.classDef
+        val method = presenter.method
+        val instructions = method.implementation!!.instructions.toList()
+
+        val fieldTypes = owner.fields.filter { !AccessFlags.STATIC.isSet(it.accessFlags) }.map { it.type }.toSet()
+        val shows = instructions.indices.filter { index ->
+            instructions[index].opcode == Opcode.INVOKE_VIRTUAL &&
+                instructions[index].getReference<MethodReference>()?.let {
+                    it.definingClass in fieldTypes && it.returnType == "V" && it.parameterTypes.size == 1
+                } == true
+        }
+        check(shows.size == 1) { "sheet: found ${shows.size} calls that show the mealbar" }
+
+        val show = instructions[shows.single()]
+        val controllerType = show.getReference<MethodReference>()!!.definingClass
+        val controller = mutableClassDefBy(controllerType)
+        val dismisses = controller.methods.filter { it.isMealbarDismiss() }
+        check(dismisses.size == 1) { "sheet: found ${dismisses.size} dismiss methods in $controllerType" }
+
+        val register = (show as FiveRegisterInstruction).registerC
+        val dismiss = dismisses.single()
+
+        return {
+            controller.interfaces.add(SHEET_CONTROLLER)
+            controller.addDownloadsBridge("rvxDismiss", emptyList(), "V", 1, """
+                invoke-virtual {p0}, $controllerType->${dismiss.name}()V
+                return-void
+            """)
+            mutableClassDefBy(owner.type).findMutableMethodOf(method)
+                .addInstruction(shows.single() + 1, "invoke-static {v$register}, $ON_SHEET_SHOWN")
+
+            "OfflineReplay: no-connection sheet hooked ${owner.type}->${method.name}, controller $controllerType, " +
+                "dismiss ${dismiss.name}"
+        }
+    } catch (ex: Exception) {
+        printWarn("OfflineReplay: no-connection sheet not hooked; it stays as stock offline: ${ex.message}")
+        return null
+    }
+}
+
+/** The presenter's method: reads a clock (a no-argument interface call returning a long) and keeps long times. */
+private fun Method.looksLikeSheetPresenter(): Boolean {
+    val instructions = implementation?.instructions?.toList() ?: return false
+    val opcodes = instructions.map { it.opcode }.toSet()
+
+    return Opcode.SGET_WIDE in opcodes && Opcode.IPUT_WIDE in opcodes && Opcode.IPUT_BOOLEAN in opcodes &&
+        instructions.any {
+            it.opcode == Opcode.INVOKE_INTERFACE && it.getReference<MethodReference>()?.let { reference ->
+                reference.returnType == "J" && reference.parameterTypes.isEmpty()
+            } == true
+        }
+}
+
+/** The controller's dismiss: reads the mealbar presenter's current mealbar and calls its dismiss when there is one. */
+private fun Method.isMealbarDismiss(): Boolean {
+    if (AccessFlags.STATIC.isSet(accessFlags) || name == "<init>" || returnType != "V" || parameterTypes.isNotEmpty()) {
+        return false
+    }
+
+    val opcodes = implementation?.instructions?.map { it.opcode }?.filter { it != Opcode.CHECK_CAST } ?: return false
+
+    return opcodes == listOf(
+        Opcode.IGET_OBJECT, Opcode.IGET_OBJECT, Opcode.IF_EQZ, Opcode.INVOKE_VIRTUAL, Opcode.RETURN_VOID,
+    )
 }
 
 /**

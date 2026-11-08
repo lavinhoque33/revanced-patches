@@ -72,9 +72,9 @@ public final class DownloadsPage {
             String token = DownloadsPageLogic.tokenOf(page.rvxRequestBytes());
             Layout layout = DownloadsPageLogic.layoutOf(token);
             Logger.printDebug(() -> "DownloadsPage: page token=" + token + " layout=" + layout);
-            if (layout == Layout.NONE) return callback;
+            if (!DownloadsPageLogic.isPageToken(token)) return callback;
 
-            OfflineCopyStore.warmUp();
+            if (layout != Layout.NONE) OfflineCopyStore.warmUp();
             Class<?>[] interfaces = interfacesOf(callback.getClass()).toArray(new Class<?>[0]);
             return Proxy.newProxyInstance(callback.getClass().getClassLoader(), interfaces,
                     new Delivery(callback, layout));
@@ -156,17 +156,26 @@ public final class DownloadsPage {
         /** The response with the stream copies in it, or the app's own when they cannot be added. */
         private Object withCopies(PageResponse response) {
             try {
-                boolean online = OfflineReplay.networkAvailable();
-                List<byte[]> items = DownloadsPageLogic.sections(layout, online, sourceRows(), songRows(), labels(),
-                        TAPS, OfflineCopyStore::coverUrl);
-                byte[] merged = DownloadsPageLogic.merge(response.rvxPageBytes(), items);
-                Logger.printDebug(() -> "DownloadsPage: layout=" + layout + " online=" + online + " sections="
-                        + items.size() + " merged=" + (merged != null));
-                return merged == null ? response : response.rvxWithPageBytes(merged);
+                byte[] page = response.rvxPageBytes();
+                byte[] merged = layout == Layout.NONE ? null : DownloadsPageLogic.merge(page, copySections());
+                byte[] repaired = DownloadsPageLogic.repairChips(merged != null ? merged : page);
+                Logger.printDebug(() -> "DownloadsPage: layout=" + layout + " merged=" + (merged != null)
+                        + " chipsRepaired=" + (repaired != null));
+                byte[] answer = repaired != null ? repaired : merged;
+                return answer == null ? response : response.rvxWithPageBytes(answer);
             } catch (Exception ex) {
                 Logger.printException(() -> "DownloadsPage: could not add the stream copies", ex);
                 return response;
             }
+        }
+
+        /** The sections of the stream copies for the layout, by the network state when the page is built. */
+        private List<byte[]> copySections() {
+            boolean online = OfflineReplay.networkAvailable();
+            List<byte[]> items = DownloadsPageLogic.sections(layout, online, sourceRows(), songRows(), labels(),
+                    TAPS, OfflineCopyStore::coverUrl);
+            Logger.printDebug(() -> "DownloadsPage: online=" + online + " sections=" + items.size());
+            return items;
         }
     }
 

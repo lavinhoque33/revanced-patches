@@ -67,10 +67,17 @@ public class DownloadsPageLogicTest {
         assertEquals(Layout.ALBUMS, DownloadsPageLogic.layoutOf(prefix + "ALBUMS"));
     }
 
-    @Test public void podcastsTheAppsOwnTabsAndUnknownTokensAreLeftAlone() {
+    @Test public void theSubChipsOfTheDeviceFilterLikeTheirPlainTokens() {
         String prefix = "CONTENT_RELOAD_CONTINUATION_TOKEN_";
-        for (String name : new String[]{"EPISODE_CONTAINERS", "UNSPECIFIED", "TRACKS_DOWNLOADED_SUBCHIP",
-                "PLAYLISTS_DOWNLOADED_SUBCHIP", "ALBUMS_DOWNLOADED_SUBCHIP", "EPISODE_CONTAINERS_DOWNLOADED_SUBCHIP"}) {
+        assertEquals(Layout.SONGS, DownloadsPageLogic.layoutOf(prefix + "TRACKS_DOWNLOADED_SUBCHIP"));
+        assertEquals(Layout.PLAYLISTS, DownloadsPageLogic.layoutOf(prefix + "PLAYLISTS_DOWNLOADED_SUBCHIP"));
+        assertEquals(Layout.ALBUMS, DownloadsPageLogic.layoutOf(prefix + "ALBUMS_DOWNLOADED_SUBCHIP"));
+    }
+
+    @Test public void podcastsAndUnknownTokensAreLeftAlone() {
+        String prefix = "CONTENT_RELOAD_CONTINUATION_TOKEN_";
+        for (String name : new String[]{"EPISODE_CONTAINERS", "UNSPECIFIED", "EPISODE_CONTAINERS_DOWNLOADED_SUBCHIP",
+                "_DOWNLOADED_SUBCHIP"}) {
             assertEquals(name, Layout.NONE, DownloadsPageLogic.layoutOf(prefix + name));
         }
         assertEquals(Layout.NONE, DownloadsPageLogic.layoutOf("something else"));
@@ -221,6 +228,87 @@ public class DownloadsPageLogicTest {
         assertEquals(1, fields(merged, 1).size());
         assertArrayEquals("chips".getBytes(StandardCharsets.UTF_8), fields(merged, 6).get(0));
         assertTrue(merged.length > page.length);
+    }
+
+    // endregion
+
+    // region chips
+
+    private static byte[] chip(String title, byte[] tap, byte[] untap, int icon) {
+        ProtoWriter chip = new ProtoWriter().string(1, title);
+        if (tap != null) chip.message(2, tap);
+        if (untap != null) chip.message(3, untap);
+        if (icon != 0) chip.int32(4, icon);
+        return chip.string(7, "key").toByteArray();
+    }
+
+    private static byte[] pageWithChips(byte[]... chips) {
+        ProtoWriter row = new ProtoWriter();
+        for (byte[] chip : chips) row.message(1, chip);
+        byte[] blocks = new ProtoWriter().message(2, new ProtoWriter().message(1, row.toByteArray()).fixed32(5, 7)
+                .toByteArray()).toByteArray();
+        return new ProtoWriter().message(1, shelfOf(entry(ROW, "stock row"))).message(6, blocks).toByteArray();
+    }
+
+    private static List<byte[]> chipsOf(byte[] page) {
+        byte[] blocks = fields(page, 6).get(0);
+        return fields(fields(fields(blocks, 2).get(0), 1).get(0), 1);
+    }
+
+    @Test public void theClearFiltersChipGetsATapAndBothChipsRememberTheLibrary() {
+        byte[] plain = DownloadsPageLogic.plainLibraryCommand();
+        byte[] remembered = DownloadsPageLogic.rememberedLibraryCommand();
+        byte[] downloads = chip("Downloads", "reload".getBytes(StandardCharsets.UTF_8), plain, 0);
+        byte[] page = pageWithChips(chip("", null, plain, 6), downloads);
+
+        byte[] repaired = DownloadsPageLogic.repairChips(page);
+
+        List<byte[]> chips = chipsOf(repaired);
+        assertEquals(2, chips.size());
+        assertArrayEquals(remembered, fields(chips.get(0), 2).get(0));
+        assertArrayEquals(remembered, fields(chips.get(0), 3).get(0));
+        assertArrayEquals("reload".getBytes(StandardCharsets.UTF_8), fields(chips.get(1), 2).get(0));
+        assertArrayEquals(remembered, fields(chips.get(1), 3).get(0));
+        assertEquals(1, fields(repaired, 1).size());
+    }
+
+    @Test public void theRepairedCommandBrowsesTheLibraryThenRemembersIt() throws Exception {
+        byte[] command = fields(DownloadsPageLogic.rememberedLibraryCommand(), 169_495_254).get(0);
+        List<byte[]> steps = fields(fields(command, 174_116_574).get(0), 1);
+
+        assertEquals(2, steps.size());
+        assertArrayEquals(OfflineLibraryLogic.browseCommand("FEmusic_library_landing"), steps.get(0));
+        byte[] remembered = fields(fields(steps.get(1), 453_962_765).get(0), 1).get(0);
+        assertArrayEquals(OfflineLibraryLogic.browseCommand("FEmusic_library_landing"), remembered);
+    }
+
+    @Test public void aChipThatAlreadyHasATapKeepsIt() {
+        byte[] plain = DownloadsPageLogic.plainLibraryCommand();
+        byte[] tap = "tap".getBytes(StandardCharsets.UTF_8);
+
+        byte[] repaired = DownloadsPageLogic.repairChips(pageWithChips(chip("", tap, plain, 6)));
+
+        assertArrayEquals(tap, fields(chipsOf(repaired).get(0), 2).get(0));
+    }
+
+    @Test public void aPageWithoutTheLibraryCommandOrNotAMessageIsLeftAlone() {
+        byte[] other = DownloadsPageLogic.rememberedLibraryCommand();
+
+        assertNull(DownloadsPageLogic.repairChips(pageWithChips(chip("Songs", null, other, 0))));
+        assertNull(DownloadsPageLogic.repairChips(new byte[]{(byte) 0xff, (byte) 0xff}));
+        assertNull(DownloadsPageLogic.repairChips(new byte[0]));
+    }
+
+    @Test public void everyOtherFieldOfARepairedPageIsKept() {
+        byte[] plain = DownloadsPageLogic.plainLibraryCommand();
+        byte[] page = pageWithChips(chip("", null, plain, 6));
+
+        byte[] repaired = DownloadsPageLogic.repairChips(page);
+
+        assertArrayEquals(fields(page, 1).get(0), fields(repaired, 1).get(0));
+        byte[] blocks = fields(repaired, 6).get(0);
+        assertTrue(blocks.length > fields(page, 6).get(0).length);
+        assertEquals("key", new String(fields(chipsOf(repaired).get(0), 7).get(0), StandardCharsets.UTF_8));
     }
 
     // endregion

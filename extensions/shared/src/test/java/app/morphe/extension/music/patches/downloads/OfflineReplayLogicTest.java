@@ -52,6 +52,26 @@ public class OfflineReplayLogicTest {
 
     // endregion
 
+    // region seek snap
+
+    @Test public void aSnapOfZeroIsDroppedOfflineWhenTheReplayIsOn() {
+        assertTrue(OfflineReplayLogic.dropsSeekSnap(true, false, 0));
+    }
+
+    @Test public void aRealSnapOfflineIsKept() {
+        assertFalse(OfflineReplayLogic.dropsSeekSnap(true, false, 12_000));
+    }
+
+    @Test public void theSnapOnlineIsAlwaysLeftAlone() {
+        assertFalse(OfflineReplayLogic.dropsSeekSnap(true, true, 0));
+    }
+
+    @Test public void theSnapIsLeftAloneWhileTheSettingIsOff() {
+        assertFalse(OfflineReplayLogic.dropsSeekSnap(false, false, 0));
+    }
+
+    // endregion
+
     // region skip reasons
 
     @Test public void aSettingThatIsOffWinsOverEveryOtherReason() {

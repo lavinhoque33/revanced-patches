@@ -13,7 +13,8 @@
 * **YouTube Music - Downloads:** Play the stream copies with no network. Each copy keeps the details of its song,
   and Library > Downloads opens a list of the downloaded albums, playlists and all songs; a tap starts the song, and
   Next and the end of a song go on through the list, with no connection too. Lyrics, comments and related stay blank
-  offline. Songs downloaded before this version play offline after they have played online once. Android Auto lists
+  offline. Songs downloaded before this version fill in by themselves in the background while you are online, and Open
+  downloaded songs shows how many are Offline ready. Android Auto lists
   the copies in a Stream copies folder inside Downloaded playlists, with their covers, and Android Auto downloaded
   playlists no longer needs Download in app. The list also opens from the offline banner's Go to downloads, the
   Library tab and Open downloaded songs in the settings, and a song tapped while offline starts at once.

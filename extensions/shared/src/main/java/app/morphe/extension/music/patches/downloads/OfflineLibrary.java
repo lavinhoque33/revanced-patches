@@ -220,10 +220,13 @@ final class OfflineLibrary {
 
     private void onSongTap(String sourceId, SongRow song) {
         boolean online = OfflineReplay.networkAvailable();
-        switch (OfflineLibraryLogic.tapOn(song, online)) {
+        OfflineLibraryLogic.Tap tap = OfflineLibraryLogic.tapOn(song, online);
+        Logger.printDebug(() -> "OfflineLibrary: song tap v=" + song.videoId() + " source=" + sourceId
+                + " online=" + online + " -> " + tap);
+
+        switch (tap) {
             case PLAY_QUEUE -> finishStart(OfflineReplay.play(sourceId, song.queueIndex()));
-            case PLAY_ONLINE -> finishStart(
-                    OfflineReplay.dispatchCommand(OnlineWatchCommand.build(song.videoId(), null, 0)));
+            case PLAY_ONLINE -> finishStart(OfflineReplay.playOnline(sourceId, song.videoId()));
             case EXPLAIN -> Utils.showToastShort(str("morphe_music_offline_library_unavailable_toast"));
         }
     }

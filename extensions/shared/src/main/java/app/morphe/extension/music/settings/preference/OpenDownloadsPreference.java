@@ -6,11 +6,15 @@
 
 package app.morphe.extension.music.settings.preference;
 
+import static app.morphe.extension.shared.utils.StringRef.str;
+
 import android.content.Context;
 import android.preference.Preference;
 import android.util.AttributeSet;
 
 import app.morphe.extension.music.patches.downloads.OfflineReplayHooks;
+import app.morphe.extension.music.patches.downloads.StreamDownloads;
+import app.morphe.extension.shared.utils.Utils;
 
 /**
  * A row that opens the list of downloaded songs. The list is also reached from the app's own Downloads entries, but
@@ -43,6 +47,18 @@ public class OpenDownloadsPreference extends Preference {
         // Nothing is stored here, and the tap is the whole feature.
         setPersistent(false);
         setSelectable(true);
+        refreshSummary();
+    }
+
+    /** How many copies can play offline is counted off the main thread; with no copies the summary stays as is. */
+    private void refreshSummary() {
+        Utils.runOnBackgroundThread(() -> {
+            final StreamDownloads.Readiness readiness = StreamDownloads.readiness();
+            if (readiness.total() == 0) return;
+
+            final String summary = str("morphe_music_open_downloads_ready", readiness.ready(), readiness.total());
+            Utils.runOnMainThread(() -> setSummary(summary));
+        });
     }
 
     @Override

@@ -61,6 +61,18 @@ public final class OfflineReplayHooks {
         }
     }
 
+    /** Injection point: the seek snap of the player for a drag on the progress bar, in milliseconds. */
+    public static long seekSnap(long snappedMillis) {
+        if (!usable()) return snappedMillis;
+
+        try {
+            return OfflineReplay.seekSnap(snappedMillis);
+        } catch (Throwable failure) {
+            disable("seek", failure);
+            return snappedMillis;
+        }
+    }
+
     /** Injection point: the Library page loads a chip; {@code browseId} is the page the chip resolved to. */
     public static void onLibraryChip(String browseId) {
         if (!usable()) return;

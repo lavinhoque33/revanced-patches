@@ -69,6 +69,16 @@ final class OfflineReplayLogic {
     }
 
     /**
+     * Whether the seek snap of the player must be dropped. After a drag the player snaps the target to the start of
+     * the nearest span its stream cache holds; a copy played from a file has none, the lookup answers 0, and the
+     * seek would restart the song. A snap of 0 is dropped (the dragged position stands) with no network, while the
+     * offline replay is on; online the stock answer is left as it is.
+     */
+    static boolean dropsSeekSnap(boolean enabled, boolean online, long snappedMillis) {
+        return enabled && !online && snappedMillis == 0;
+    }
+
+    /**
      * Why a hook leaves the stock behavior alone, or null when it acts. The first reason that applies wins, so a log
      * line names the outermost one: a disabled setting before an online request before a request for something
      * else before a stock answer.

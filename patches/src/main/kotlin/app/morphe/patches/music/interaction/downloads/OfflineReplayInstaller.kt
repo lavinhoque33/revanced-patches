@@ -13,6 +13,7 @@ import app.morphe.patcher.extensions.InstructionExtensions.getInstruction
 import app.morphe.patcher.patch.BytecodePatchContext
 import app.morphe.patcher.util.getReference
 import app.morphe.patcher.util.smali.ExternalLabel
+import app.morphe.patches.music.video.information.ModernVideoEndFingerprint
 import app.morphe.patches.shared.misc.fix.proto.parseByteArrayMethodRef
 import app.morphe.util.Utils.printInfo
 import app.morphe.util.Utils.printWarn
@@ -86,11 +87,14 @@ internal fun BytecodePatchContext.installOfflineReplay() {
         val installChip = prepareLibraryChip()
         val installTab = prepareTabNavigation()
 
+        val installSeek = prepareSeekSnap()
+
         installGate()
         installTail()
         installNext()
         installChip()
         installTab()
+        installSeek?.invoke()
         supported.returnEarly(true)
         printInfo(
             "OfflineReplay: gate, player lookup, watch-next, library chip and tab navigation hooked; " +
@@ -98,6 +102,49 @@ internal fun BytecodePatchContext.installOfflineReplay() {
         )
     } catch (ex: Exception) {
         printWarn("OfflineReplay: hooks unavailable; online playback unchanged: ${ex.message}")
+    }
+}
+
+/**
+ * The seek of the player after a drag on the progress bar (`Lacbd.ap` in 9.40.51, found by the strings the video
+ * information patch also uses). It asks the app's stream cache for the start of the span nearest to the target and
+ * moves the target there; a copy played from a file has no span, the lookup answers -1 and its millisecond
+ * conversion 0, and the seek restarts the song. The answer goes through [REPLAY] on its way, which drops a 0 while
+ * there is no network. The lookup is the one call in the method that takes two objects, a long and a boolean and
+ * returns a long. Optional: a version where it is not found only keeps the stock seek, and the rest still installs.
+ */
+private fun BytecodePatchContext.prepareSeekSnap(): (() -> Unit)? {
+    try {
+        val method = ModernVideoEndFingerprint.matchSingle().method
+        val instructions = method.implementation!!.instructions.toList()
+        val lookups = instructions.indices.filter { index ->
+            val call = instructions[index]
+            call.opcode in setOf(
+                Opcode.INVOKE_VIRTUAL, Opcode.INVOKE_INTERFACE,
+                Opcode.INVOKE_VIRTUAL_RANGE, Opcode.INVOKE_INTERFACE_RANGE,
+            ) &&
+                call.getReference<MethodReference>()?.let { reference ->
+                    val parameters = reference.parameterTypes.map(CharSequence::toString)
+                    reference.returnType == "J" && parameters.size == 4 && parameters[0].startsWith("L") &&
+                        parameters[1].startsWith("L") && parameters[2] == "J" && parameters[3] == "Z"
+                } == true
+        }
+        check(lookups.size == 1) { "seek: found ${lookups.size} cache lookups" }
+
+        val result = instructions[lookups.single() + 1]
+        check(result.opcode == Opcode.MOVE_RESULT_WIDE) { "seek: lookup result is not used" }
+        val register = (result as OneRegisterInstruction).registerA
+        val insertion = lookups.single() + 1
+
+        return {
+            method.addInstructions(insertion + 1, """
+                invoke-static/range {v$register .. v${register + 1}}, $REPLAY->seekSnap(J)J
+                move-result-wide v$register
+            """)
+        }
+    } catch (ex: Exception) {
+        printWarn("OfflineReplay: seek snap not hooked; a drag on the progress bar seeks as stock: ${ex.message}")
+        return null
     }
 }
 

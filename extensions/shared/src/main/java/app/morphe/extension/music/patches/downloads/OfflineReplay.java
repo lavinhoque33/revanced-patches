@@ -66,6 +66,7 @@ public final class OfflineReplay {
     private static final String HOOK_NEXT = "next";
     private static final String HOOK_COMMAND = "command";
     private static final String HOOK_TAB = "tab";
+    private static final String HOOK_SEEK = "seek";
     private static final String HOOK_GATE_FLAG = "gate-flag";
     private static final String HOOK_CHIP = "library-chip";
 
@@ -169,6 +170,24 @@ public final class OfflineReplay {
         return true;
     }
 
+    /**
+     * Starts a song of a list that has no stored data, as a normal online song of that list. On the main thread.
+     *
+     * @return false when no command was seen yet to run one with: nothing was started.
+     */
+    static boolean playOnline(String sourceId, String videoId) {
+        if (!canDispatch()) return false;
+
+        Utils.runOnBackgroundThread(() -> {
+            try {
+                dispatchCommand(onlineCommand(sourceId, videoId));
+            } catch (Exception ex) {
+                Logger.printException(() -> "OfflineReplay: could not start online " + videoId + " of " + sourceId, ex);
+            }
+        });
+        return true;
+    }
+
     @Nullable
     private static byte[] playCommand(String sourceId, int index) {
         if (!networkAvailable()) return offlineCommand(sourceId, index);
@@ -176,7 +195,14 @@ public final class OfflineReplay {
         List<OfflineWatchNext.Item> items = queueOf(sourceId);
         if (index < 0 || index >= items.size()) return null;
 
-        String videoId = items.get(index).videoId();
+        return onlineCommand(sourceId, items.get(index).videoId());
+    }
+
+    /**
+     * The ordinary online watch command of a song tapped in a list: the playlist's id and the song's place in it
+     * for a playlist or album, the song alone for the all-songs list, where the app builds the song's own radio.
+     */
+    private static byte[] onlineCommand(String sourceId, String videoId) {
         return OnlineWatchCommand.build(videoId, OfflineReplayLogic.onlinePlaylistId(sourceId, SONGS),
                 indexInSource(sourceId, videoId));
     }
@@ -245,6 +271,7 @@ public final class OfflineReplay {
 
             captured = new Captured(new WeakReference<>(stockDispatcher), message, new WeakReference<>(context));
             OfflineCopyStore.warmUp();
+            OfflineBackfill.kick();
 
             String browseId = OfflineReplayLogic.browseIdOf(message.toByteArray());
             if (browseId != null) logDecision(HOOK_COMMAND, "browse=" + browseId);
@@ -495,6 +522,27 @@ public final class OfflineReplay {
     }
 
     /** A decision of a hook that only runs for an offline request or a stock failure: every one is said. */
+    /** The value the player's seek snap answers when the stream cache has no span for the song: no snap. */
+    private static final long NO_SNAP = -1;
+
+    /**
+     * Injection point: the seek snap the player computed for a drag on the progress bar, in milliseconds. A song
+     * played from a copy has no span in the stream cache, so with no network the snap is 0 and the seek restarts the
+     * song; there a negative answer makes the player keep the dragged position.
+     */
+    static long seekSnap(long snappedMillis) {
+        try {
+            noteAlive(HOOK_SEEK);
+            boolean drop = OfflineReplayLogic.dropsSeekSnap(enabled(), networkAvailable(), snappedMillis);
+            logDecision(HOOK_SEEK, "snap=" + snappedMillis + " online=" + networkAvailable()
+                    + (drop ? " dropped, the dragged position stands" : " kept"));
+            return drop ? NO_SNAP : snappedMillis;
+        } catch (Exception ex) {
+            Logger.printException(() -> "OfflineReplay: seek snap", ex);
+            return snappedMillis;
+        }
+    }
+
     private static void logDecision(String hook, String decision) {
         Logger.printDebug(() -> "OfflineReplay: " + hook + " " + decision);
     }

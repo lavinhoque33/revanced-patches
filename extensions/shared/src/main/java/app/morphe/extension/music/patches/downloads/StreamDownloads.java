@@ -14,11 +14,18 @@ public final class StreamDownloads {
     /** How many stream copies exist and how many bytes of audio they hold. */
     public record Summary(int count, long bytes) {}
 
+    /** How many of the stream copies have stored data, so can play with no network, out of all of them. */
+    public record Readiness(int ready, int total) {}
+
     private StreamDownloads() {}
 
     public static Summary summary() {
         RawAudioFiles.Stats stats = RawAudioStore.stats();
         return new Summary(stats.count(), stats.bytes());
+    }
+
+    public static Readiness readiness() {
+        return OfflineCopyStore.readiness();
     }
 
     /**

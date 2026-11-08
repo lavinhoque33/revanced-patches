@@ -137,7 +137,9 @@ final class OfflineCopyStore {
     static void storeOnline(String videoId, byte[] responseBytes, int itag) {
         Utils.runOnBackgroundThread(() -> {
             try {
-                storeOnlineNow(videoId, responseBytes, itag);
+                Outcome outcome = storeOnlineNow(videoId, responseBytes, itag);
+                if (outcome.reason() != null) Logger.printDebug(() -> "OfflineCopyStore: not stored v=" + videoId
+                        + " " + outcome.reason());
             } catch (Exception ex) {
                 Logger.printException(() -> "OfflineCopyStore: could not store the online response of v=" + videoId,
                         ex);
@@ -145,41 +147,78 @@ final class OfflineCopyStore {
         });
     }
 
-    private static void storeOnlineNow(String videoId, byte[] responseBytes, int itag) throws Exception {
+    /** What storing a response did: the sizes written, or why nothing was. */
+    record Outcome(@Nullable OfflineCopyFiles.Written written, @Nullable String reason) {
+        static Outcome stored(OfflineCopyFiles.Written written) {
+            return new Outcome(written, null);
+        }
+
+        static Outcome skipped(String reason) {
+            return new Outcome(null, reason);
+        }
+    }
+
+    /**
+     * Stores a response the backfill fetched for a copy that has no stored data, on the calling worker thread. The
+     * caller has verified the copy against this response, as the stream swap does for a played one.
+     */
+    static Outcome storeBackfilled(String videoId, byte[] responseBytes, int itag) throws Exception {
+        Utils.verifyOffMainThread();
+        return storeOnlineNow(videoId, responseBytes, itag);
+    }
+
+    /** The copies that have no stored data, in a fixed order. Reads the disk: a worker thread only. */
+    static List<String> idsWithoutData() {
+        Utils.verifyOffMainThread();
         Storage.copies.ensureLoaded();
-        if (Storage.copies.hasOnlineResponse(videoId)) return;
+        return OfflineBackfillLogic.pending(RawAudioStore.copyIds(), Storage.copies.ids());
+    }
+
+    /** How many of the copies have stored data, so can play with no network. Reads the disk: a worker thread only. */
+    static StreamDownloads.Readiness readiness() {
+        Utils.verifyOffMainThread();
+        Storage.copies.ensureLoaded();
+        Set<String> copyIds = RawAudioStore.copyIds();
+        int missing = OfflineBackfillLogic.pending(copyIds, Storage.copies.ids()).size();
+        return new StreamDownloads.Readiness(copyIds.size() - missing, copyIds.size());
+    }
+
+    private static Outcome storeOnlineNow(String videoId, byte[] responseBytes, int itag) throws Exception {
+        Storage.copies.ensureLoaded();
+        if (Storage.copies.hasOnlineResponse(videoId)) return Outcome.skipped("already stored");
         // The copy may have been deleted since the swap verified it.
-        if (RawAudioStore.find(videoId) == null) return;
+        if (RawAudioStore.find(videoId) == null) return Outcome.skipped("the copy is gone");
 
         byte[] trimmed = OfflineResponseTrim.trim(responseBytes, itag);
-        if (trimmed == null) {
-            Logger.printDebug(() -> "OfflineCopyStore: not stored v=" + videoId + " itag=" + itag + " missing");
-            return;
-        }
+        if (trimmed == null) return Outcome.skipped("itag=" + itag + " missing");
+
         VideoDetails details = PlayerResponse.parseFrom(trimmed).getVideoDetails();
-        if (!videoId.equals(details.getVideoId())) {
-            Logger.printDebug(() -> "OfflineCopyStore: not stored v=" + videoId + " details name another video");
-            return;
-        }
+        if (!videoId.equals(details.getVideoId())) return Outcome.skipped("details name another video");
+
         OfflineCopyFiles.Stored previous = Storage.copies.read(videoId);
         OfflineCopyMetadata metadata = OfflineCopyMetadata.online(previous == null ? null : previous.metadata(),
                 videoId, details, TrackMetadata.stripTopic(details.getOwnerChannelName()), System.currentTimeMillis());
         byte[] cover = previous == null ? null : previous.thumbnail();
         String coverUrl = metadata.thumbnailUrl();
         if (cover == null && coverUrl != null) cover = TrackMetadata.artwork(videoId, coverUrl);
-        write(metadata, trimmed, cover);
+
+        OfflineCopyFiles.Written written = write(metadata, trimmed, cover);
+        return written == null ? Outcome.skipped("rejected, response over the limit") : Outcome.stored(written);
     }
 
-    private static void write(OfflineCopyMetadata metadata, byte[] response, @Nullable byte[] cover) throws Exception {
+    @Nullable
+    private static OfflineCopyFiles.Written write(OfflineCopyMetadata metadata, byte[] response,
+                                                  @Nullable byte[] cover) throws Exception {
         OfflineCopyFiles.Written written = Storage.copies.write(metadata, response, cover);
         if (written == null) {
             Logger.printDebug(() -> "OfflineCopyStore: rejected v=" + metadata.videoId()
                     + " response=" + response.length + "B (limit " + OfflineCopyFiles.MAX_RESPONSE_BYTES + "B)");
-            return;
+            return null;
         }
         Logger.printDebug(() -> "OfflineCopyStore: stored v=" + metadata.videoId() + " response="
                 + written.responseBytes() + "B thumb=" + written.thumbnailBytes() + "B source="
                 + metadata.responseSource());
+        return written;
     }
 
     /**

@@ -7,10 +7,8 @@ package app.morphe.extension.music.patches.downloads;
 
 import android.content.SharedPreferences;
 import android.os.SystemClock;
-import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.LinearLayout;
 
 import androidx.annotation.Nullable;
 
@@ -27,12 +25,11 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import app.morphe.extension.music.settings.Settings;
 import app.morphe.extension.shared.utils.Logger;
-import app.morphe.extension.shared.utils.ResourceUtils;
 import app.morphe.extension.shared.utils.Utils;
 
 /**
- * Green "downloaded" checks for the stream copies of Play downloads locally: a small check next to every song of a
- * list that has a stream copy, and one on the Download button of a playlist or album page whose every track has
+ * Green "downloaded" checks for the stream copies of Play downloads locally: a small check at the end of every song
+ * row of a list (next to its menu) that has a stream copy, and one on the Download button of a playlist or album page whose every track has
  * one. A song that was only saved as a local file has no stream copy and no check. The checks are our own views,
  * driven by an in-memory {@link DownloadedRegistry} of the stream copies: nothing is read from disk or MediaStore
  * while a row or header binds.
@@ -41,8 +38,6 @@ import app.morphe.extension.shared.utils.Utils;
 public final class DownloadedMarkers {
     private static final String TRACKS_PREFERENCES = "rvx_native_playlist_tracks";
     private static final long REVALIDATE_INTERVAL_MILLIS = 5_000;
-    private static final int ROW_CHECK_DP = 16;
-    private static final int ROW_CHECK_MARGIN_DP = 4;
 
     private static final DownloadedRegistry registry = new DownloadedRegistry();
     private static final long LOAD_RETRY_MILLIS = 30_000;
@@ -54,30 +49,19 @@ public final class DownloadedMarkers {
     private static final AtomicBoolean revalidating = new AtomicBoolean();
     private static volatile boolean loaded;
     private static volatile long lastRevalidation;
-    static int badgesContainerId;
     private static final DownloadedRowLog rowLog = new DownloadedRowLog();
 
     // Main thread only. Values hold weak references: a value must never keep its key's view tree alive.
     private static final Map<View, RowState> rows = new WeakHashMap<>();
     private static final Map<ViewGroup, DownloadedHeaders.State> headers = new WeakHashMap<>();
 
-    /** What is known of a list row's view; the model is only weakly held, the view tree owns the check. */
+    /** What is known of a list row's view; the model is only weakly held, the row's view tree owns the check. */
     static final class RowState {
         static final RowState NOT_A_ROW = new RowState();
 
         WeakReference<Object> model = new WeakReference<>(null);
-        // One check per subtitle line of the row; a card row has one line per layout variant (see badgeLines).
-        final List<WeakReference<DownloadedCheck>> checks = new ArrayList<>();
+        final RowEndCheck end = new RowEndCheck();
         String lastOutcome = "";
-
-        List<DownloadedCheck> liveChecks() {
-            List<DownloadedCheck> live = new ArrayList<>(checks.size());
-            for (WeakReference<DownloadedCheck> reference : checks) {
-                DownloadedCheck check = reference.get();
-                if (check != null && check.getParent() != null) live.add(check);
-            }
-            return live;
-        }
     }
 
     private DownloadedMarkers() {}
@@ -106,10 +90,10 @@ public final class DownloadedMarkers {
         try {
             RowState state = rows.get(view);
             // Switched off: only a row that shows a check has anything to do (hide it).
-            if (!enabled() && (state == null || state.liveChecks().isEmpty())) return;
+            if (!enabled() && (state == null || !state.end.isShown())) return;
 
             if (state == null) {
-                state = hasBadgesContainer(view) ? new RowState() : RowState.NOT_A_ROW;
+                state = RowEndCheck.hasSlot(view) ? new RowState() : RowState.NOT_A_ROW;
                 rows.put(view, state);
             }
             if (state == RowState.NOT_A_ROW) return;
@@ -138,46 +122,11 @@ public final class DownloadedMarkers {
                 ensureLoaded();
                 revalidateLater();
             }
+            DownloadedAlbumRows.onBound(container, state.albumRows);
             DownloadedHeaders.apply(container, state);
         } catch (Exception ex) {
             Logger.printException(() -> "Could not mark a downloaded playlist", ex);
         }
-    }
-
-    private static boolean hasBadgesContainer(View row) {
-        int id = badgesContainerId();
-        return id != 0 && row.findViewById(id) != null;
-    }
-
-    private static int badgesContainerId() {
-        if (badgesContainerId == 0) badgesContainerId = ResourceUtils.getIdIdentifier("subtitle_badges_container");
-        return badgesContainerId;
-    }
-
-    /**
-     * The subtitle line of every subtitle badges container in the row: the parent LinearLayout that holds the
-     * container next to the subtitle text. A plain list row has one. A Search top-result card inflates all three of
-     * its layout variants (default, thumbnail above, thumbnail to the side) and shows one, and each variant has
-     * its own container with the same id, so findViewById alone could return the hidden variant's.
-     * Lines are in view order and never repeat.
-     */
-    private static List<ViewGroup> badgeLines(View row) {
-        List<ViewGroup> lines = new ArrayList<>(1);
-        int id = badgesContainerId();
-        if (id == 0) return lines;
-
-        List<View> pending = new ArrayList<>();
-        pending.add(row);
-        while (!pending.isEmpty()) {
-            View next = pending.remove(pending.size() - 1);
-            if (next.getId() == id && next.getParent() instanceof ViewGroup line && !lines.contains(line)) {
-                lines.add(line);
-            }
-            if (next instanceof ViewGroup group) {
-                for (int i = group.getChildCount() - 1; i >= 0; i--) pending.add(group.getChildAt(i));
-            }
-        }
-        return lines;
     }
 
     private static void applyRow(View view, RowState state) {
@@ -201,52 +150,12 @@ public final class DownloadedMarkers {
 
         String outcome;
         if (videoId == null) {
-            for (DownloadedCheck check : state.liveChecks()) check.setShown(false);
+            state.end.hide();
             outcome = "hidden";
         } else {
-            outcome = showRowChecks(view, state);
+            outcome = state.end.show(view);
         }
         rowLog.decided(state, reason, videoId, outcome);
-    }
-
-    /** Adds or shows the checks in the row's subtitle lines; returns what happened, for the log. */
-    private static String showRowChecks(View view, RowState state) {
-        List<DownloadedCheck> checks = state.liveChecks();
-        String outcome = "shown";
-        if (checks.isEmpty()) {
-            outcome = addRowChecks(view, state);
-            if (!outcome.equals("added")) return outcome;
-
-            checks = state.liveChecks();
-        }
-        for (DownloadedCheck check : checks) {
-            check.restyle();
-            check.setShown(true);
-        }
-        return outcome;
-    }
-
-    private static String addRowChecks(View view, RowState state) {
-        List<ViewGroup> lines = badgeLines(view);
-        if (lines.isEmpty()) return "no-container";
-
-        state.checks.clear();
-        boolean linear = false;
-        for (ViewGroup line : lines) {
-            if (!(line instanceof LinearLayout)) continue;
-
-            linear = true;
-            DownloadedCheck check = DownloadedCheck.create(view.getContext(), false);
-            if (check == null) return "no-icon";
-
-            int size = DownloadedCheck.dp(ROW_CHECK_DP);
-            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(size, size);
-            params.gravity = Gravity.CENTER_VERTICAL;
-            params.setMarginEnd(DownloadedCheck.dp(ROW_CHECK_MARGIN_DP));
-            line.addView(check, 0, params);
-            state.checks.add(new WeakReference<>(check));
-        }
-        return linear ? "added" : "container-parent-not-linear";
     }
 
     /** Called when a stream copy was kept: the track has one from now on. */

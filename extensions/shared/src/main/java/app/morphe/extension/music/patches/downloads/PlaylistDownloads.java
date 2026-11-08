@@ -40,6 +40,7 @@ public final class PlaylistDownloads {
         Utils.showToastShort(str("morphe_music_playlist_download_started"));
         Utils.submitOnBackgroundThread(() -> {
             String title = playlistId;
+            SourceHeader header = SourceHeader.EMPTY;
             try {
                 if (mode.localFiles()) NativeDownloads.migrateLegacy();
                 List<String> tracks = new ArrayList<>();
@@ -49,10 +50,9 @@ public final class PlaylistDownloads {
                     JSONObject response = MusicBrowseRequest.browse(Utils.getContext(), "VL" + playlistId,
                             continuation, null);
                     if (continuation == null) {
-                        String resolvedTitle = playlistTitle(response);
-                        if (resolvedTitle.isEmpty()) resolvedTitle = albumTitle(playlistId, response);
-                        if (resolvedTitle.isEmpty()) throw new IOException("Playlist title is unavailable");
-                        title = resolvedTitle;
+                        header = header(playlistId, response);
+                        if (!header.hasTitle()) throw new IOException("Playlist title is unavailable");
+                        title = header.title();
                     }
                     Page page = readPage(response);
                     tracks.addAll(page.videoIds());
@@ -79,7 +79,7 @@ public final class PlaylistDownloads {
                 // The playlist in Device files exists only for local files; a stream copy is invisible there.
                 if (mode.localFiles()) NativePlaylistStore.save(playlistId, title, mediaIds);
                 // The header check follows the stream copies: only a playlist that has them is remembered.
-                if (mode.streamCopy()) DownloadedMarkers.onPlaylistSaved(playlistId, tracks);
+                if (mode.streamCopy()) DownloadedMarkers.onPlaylistSaved(playlistId, tracks, header);
                 String done = completionText(mode, downloaded, tracks.size());
                 LocalDownloadManager.awaitNotificationSlot();
                 LocalDownloadManager.showDownloadNotification("playlist:" + playlistId, title, 100, false, done);
@@ -181,17 +181,27 @@ public final class PlaylistDownloads {
         }
     }
 
+    /** The header of a playlist or album, read off the network. For use on a worker thread. */
+    static SourceHeader fetchHeader(String playlistId) throws Exception {
+        return header(playlistId, MusicBrowseRequest.browse(Utils.getContext(), "VL" + playlistId, null, null));
+    }
+
+    private static SourceHeader header(String playlistId, JSONObject response) throws Exception {
+        SourceHeader header = SourceHeader.read(response);
+        return header.hasTitle() ? header : albumHeader(playlistId, response);
+    }
+
     /**
      * Album playlists (OLAK…) have no header in their playlist response. Every row links to
      * the album page instead; use that page's header only if all rows agree on one album and
      * the album page itself points back at this playlist.
      */
-    private static String albumTitle(String playlistId, JSONObject response) throws Exception {
+    private static SourceHeader albumHeader(String playlistId, JSONObject response) throws Exception {
         Set<String> albums = new HashSet<>();
         collectAlbums(response, albums);
-        if (albums.size() != 1) return "";
+        if (albums.size() != 1) return SourceHeader.EMPTY;
         JSONObject album = MusicBrowseRequest.browse(Utils.getContext(), albums.iterator().next(), null, null);
-        return album.toString().contains("\"" + playlistId + "\"") ? playlistTitle(album) : "";
+        return album.toString().contains("\"" + playlistId + "\"") ? SourceHeader.read(album) : SourceHeader.EMPTY;
     }
 
     private static void collectAlbums(Object node, Set<String> albums) {
@@ -204,41 +214,5 @@ public final class PlaylistDownloads {
         } else if (node instanceof JSONArray array) {
             for (int i = 0; i < array.length(); i++) collectAlbums(array.opt(i), albums);
         }
-    }
-
-    private static String playlistTitle(Object node) {
-        if (node instanceof JSONObject object) {
-            JSONObject metadata = object.optJSONObject("musicPlaylistMetadataRenderer");
-            if (metadata != null && !metadata.optString("title").isEmpty()) return metadata.optString("title");
-            for (String key : new String[]{"musicDetailHeaderRenderer", "musicResponsiveHeaderRenderer",
-                    "musicHeaderRenderer", "musicElementHeaderRenderer"}) {
-                JSONObject header = object.optJSONObject(key);
-                if (header != null) {
-                    JSONObject title = header.optJSONObject("title");
-                    if (title == null) continue;
-                    if (title.has("simpleText")) return title.optString("simpleText");
-                    JSONArray runs = title.optJSONArray("runs");
-                    if (runs != null) {
-                        StringBuilder text = new StringBuilder();
-                        for (int i = 0; i < runs.length(); i++) text.append(runs.optJSONObject(i).optString("text"));
-                        if (text.length() > 0) return text.toString();
-                    }
-                }
-            }
-            // Titles come from playlist metadata/headers, not from a song row or menu label.
-            Iterator<String> keys = object.keys();
-            while (keys.hasNext()) {
-                String key = keys.next();
-                if (key.endsWith("ItemRenderer") || key.equals("musicPlaylistShelfRenderer")) continue;
-                String title = playlistTitle(object.opt(key));
-                if (!title.isEmpty()) return title;
-            }
-        } else if (node instanceof JSONArray array) {
-            for (int i = 0; i < array.length(); i++) {
-                String title = playlistTitle(array.opt(i));
-                if (!title.isEmpty()) return title;
-            }
-        }
-        return "";
     }
 }

@@ -129,6 +129,7 @@ public final class DownloadedMarkers {
             if (enabled) {
                 ensureLoaded();
                 revalidateLater();
+                for (String sourceId : state.sourceIds) OfflineCopyStore.captureHeaderLater(sourceId);
             }
             DownloadedAlbumRows.onBound(container, state.albumRows);
             DownloadedHeaders.apply(container, state);
@@ -187,10 +188,11 @@ public final class DownloadedMarkers {
     /**
      * Called when a whole playlist or album was downloaded with stream copies. Only the track list is remembered:
      * its tracks count as downloaded through their own stream copies, so a playlist whose tracks have none (saved
-     * as local files only, or whose copies were deleted) never shows a check.
+     * as local files only, or whose copies were deleted) never shows a check. The offline store also keeps the
+     * header ({@code title}, subtitle, cover url) the download resolved, for the offline lists.
      */
-    static void onPlaylistSaved(String sourceId, List<String> videoIds) {
-        rememberSource(sourceId, videoIds);
+    static void onPlaylistSaved(String sourceId, List<String> videoIds, SourceHeader header) {
+        rememberSource(sourceId, videoIds, header);
         refreshLater();
     }
 
@@ -198,11 +200,12 @@ public final class DownloadedMarkers {
         return Utils.getContext().getSharedPreferences(TRACKS_PREFERENCES, 0);
     }
 
-    private static void rememberSource(String sourceId, List<String> videoIds) {
+    private static void rememberSource(String sourceId, List<String> videoIds, @Nullable SourceHeader header) {
         registry.putSource(sourceId, videoIds);
         if (!trackPreferences().edit().putString(sourceId, DownloadedRegistry.encode(videoIds)).commit()) {
             Logger.printException(() -> "Could not remember the tracks of a downloaded playlist");
         }
+        OfflineCopyStore.rememberSource(sourceId, header, videoIds);
     }
 
     /** Fills the registry once, in the background. Until then no check is shown. */
@@ -255,7 +258,7 @@ public final class DownloadedMarkers {
             List<Long> mediaIds = nativeTracks.get(saved.getValue());
             List<String> videoIds = mediaIds == null ? null
                     : DownloadedRegistry.resolveTracks(mediaIds, videoIdByMediaId);
-            if (videoIds != null) rememberSource(saved.getKey(), videoIds);
+            if (videoIds != null) rememberSource(saved.getKey(), videoIds, null);
         }
         refreshLater();
     }

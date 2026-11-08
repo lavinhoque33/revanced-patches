@@ -75,7 +75,8 @@ public final class StreamSwap {
             if (raw == null) return unchanged(original, videoId, "no current raw download");
             // A music video the user switched to must stay the online video; audio only would replace it.
             if (AudioFirst.declinesForVideo(videoId)) return unchanged(original, videoId, "video mode");
-            PlayerResponse online = PlayerResponse.parseFrom(adapter.rvxBytes());
+            byte[] onlineBytes = adapter.rvxBytes();
+            PlayerResponse online = PlayerResponse.parseFrom(onlineBytes);
             if (!online.hasStreamingData()) return unchanged(original, videoId, "no StreamingData");
             Format selected = null;
             for (Format format : online.getStreamingData().getAdaptiveFormatsList()) {
@@ -87,6 +88,7 @@ public final class StreamSwap {
             if (selected == null) return unchanged(original, videoId, "stored itag missing online");
             String mismatch = StreamSwapLogic.mismatch(raw, selected, online);
             if (mismatch != null) return unchanged(original, videoId, mismatch);
+            rememberOnlineResponse(videoId, onlineBytes, raw.itag());
 
             StreamSwapSources.Source source = StreamSwapSources.issue(videoId, raw, selected.getUrl());
             Format local = selected.toBuilder().setUrl(source.token).clearSignatureCipher().build();
@@ -100,6 +102,19 @@ public final class StreamSwap {
             return result;
         } catch (Exception ex) {
             return unchanged(original, videoId, "raw copy or response unavailable");
+        }
+    }
+
+    /**
+     * The copy has been verified against this response: keep the response for offline replay when the copy has none
+     * yet. Never changes the swap; the store works in the background and a failure here is only logged.
+     */
+    private static void rememberOnlineResponse(String videoId, byte[] onlineBytes, int itag) {
+        try {
+            OfflineCopyStore.storeOnline(videoId, onlineBytes, itag);
+        } catch (Exception ex) {
+            Logger.printException(() -> "StreamSwap: could not hand the online response to the store v=" + videoId,
+                    ex);
         }
     }
 

@@ -60,6 +60,9 @@ final class RawAudioStore {
         try {
             Utils.verifyOffMainThread();
             Storage.files.cleanup(RawAudioStore::nativeUri);
+            // Stored data published after the id list is read belongs to a copy kept meanwhile.
+            long copyIdsReadAt = System.currentTimeMillis();
+            OfflineCopyStore.retainOnly(Storage.files.committedIds(), copyIdsReadAt);
             StreamSwapSources.invalidateMissing();
             DownloadedMarkers.rescanStreamCopies();
         } catch (Exception ex) {
@@ -112,6 +115,7 @@ final class RawAudioStore {
         Utils.verifyOffMainThread();
         StreamSwapSources.invalidate(videoId);
         Storage.files.delete(videoId);
+        OfflineCopyStore.delete(videoId);
         DownloadedMarkers.onStreamCopyRemoved(videoId);
     }
 
@@ -122,7 +126,10 @@ final class RawAudioStore {
     static void deleteWithNativeTrack(String videoId) {
         Utils.verifyOffMainThread();
         StreamSwapSources.invalidate(videoId);
-        if (Storage.files.deleteUnlessStreamOnly(videoId)) DownloadedMarkers.onStreamCopyRemoved(videoId);
+        if (Storage.files.deleteUnlessStreamOnly(videoId)) {
+            OfflineCopyStore.delete(videoId);
+            DownloadedMarkers.onStreamCopyRemoved(videoId);
+        }
     }
 
     /** The ids of every committed stream copy. */
@@ -145,6 +152,7 @@ final class RawAudioStore {
         Utils.verifyOffMainThread();
         StreamSwapSources.invalidateAll();
         int count = Storage.files.clear();
+        OfflineCopyStore.clearAll();
         DownloadedMarkers.onStreamCopiesCleared();
         return count;
     }

@@ -263,6 +263,7 @@ public final class LocalDownloadManager {
 
             if (work.keepsStreamCopy()) {
                 boolean kept = RawAudioStore.retain(videoId, temporary, format, uri);
+                if (kept) OfflineCopyStore.storeDownloaded(videoId, format, resolved.details(), tags);
                 // The stream copy is the whole point of a stream-only download; beside a local file it is optional.
                 if (!kept && !mode.localFiles()) throw new IOException("Could not keep the stream copy");
             }

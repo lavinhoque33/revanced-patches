@@ -24,6 +24,8 @@ import java.util.function.Function;
 final class OfflineLibraryLogic {
     /** The Downloads page the Library tab, the account menu and the offline banner all navigate to. */
     static final String DOWNLOADS_BROWSE_ID = "FEmusic_offline";
+    /** The Library tab's own page, and the id of its tab. */
+    static final String LIBRARY_BROWSE_ID = "FEmusic_library_landing";
     /** The page the Device files library opens at, the one {@link #DOWNLOADS_BROWSE_ID} is rewritten to. */
     static final String DEVICE_FILES_BROWSE_ID = "FEmusic_library_sideloaded_tracks";
 
@@ -40,6 +42,16 @@ final class OfflineLibraryLogic {
         OPEN,
         /** The list opens with a Device files row at its end, which continues to the Device files library. */
         OPEN_WITH_DEVICE_FILES
+    }
+
+    /** The way a navigation reaches the Downloads page. */
+    enum Route {
+        /** The bottom bar's Library tab, which the app sends to the Downloads page when it thinks it is offline. */
+        TAB,
+        /** A browse command of the Downloads page: the offline banner, the account menu, the offline home. */
+        COMMAND,
+        /** The Downloads chip of the Library page, which is no navigation. */
+        CHIP
     }
 
     /** What a tap on a song row does. */
@@ -83,6 +95,22 @@ final class OfflineLibraryLogic {
         if (!deviceFilesOn) return Decision.OPEN;
 
         return DOWNLOADS_BROWSE_ID.equals(browseId) ? Decision.OPEN_WITH_DEVICE_FILES : Decision.STOCK;
+    }
+
+    /**
+     * Whether a route may open the list at all: the Library tab only while the device has no network, so that online
+     * it shows the Library of the app; every other route is a deliberate step to the Downloads page.
+     */
+    static boolean routeOpens(Route route, boolean networkAvailable) {
+        return route != Route.TAB || !networkAvailable;
+    }
+
+    /**
+     * Whether the Library tab's navigation to the Downloads page is replaced by one to the Library page: it is while
+     * the device has a network, which is what the user asked for with the tab; offline the tab goes to the list.
+     */
+    static boolean redirectsTabToLibrary(@Nullable String tabId, @Nullable String browseId, boolean networkAvailable) {
+        return networkAvailable && LIBRARY_BROWSE_ID.equals(tabId) && DOWNLOADS_BROWSE_ID.equals(browseId);
     }
 
     /**

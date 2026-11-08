@@ -15,6 +15,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import app.morphe.extension.music.patches.downloads.OfflineLibraryLogic.Decision;
+import app.morphe.extension.music.patches.downloads.OfflineLibraryLogic.Route;
 import app.morphe.extension.music.patches.downloads.OfflineLibraryLogic.SongRow;
 import app.morphe.extension.music.patches.downloads.OfflineLibraryLogic.SourceRow;
 import app.morphe.extension.music.patches.downloads.OfflineLibraryScreen.Item;
@@ -54,7 +55,16 @@ final class OfflineLibrary {
      * front of the page's own (empty) Downloads, which loads behind it.
      */
     static void onLibraryChip(String browseId) {
-        if (OfflineLibraryLogic.isDownloadsChip(browseId)) onDownloadsBrowse(browseId);
+        if (OfflineLibraryLogic.isDownloadsChip(browseId)) onDownloadsBrowse(browseId, Route.CHIP);
+    }
+
+    /**
+     * Called when the bottom bar navigates to a tab, with the browse id of its command, on the main thread. The Library
+     * tab is sent to the Downloads page when the app thinks it is offline; only a device that has no network opens the
+     * list from it, an online one gets the Library page.
+     */
+    static void onTab(String browseId) {
+        if (OfflineLibraryLogic.isDownloadsChip(browseId)) onDownloadsBrowse(browseId, Route.TAB);
     }
 
     /**
@@ -74,28 +84,29 @@ final class OfflineLibrary {
     }
 
     /**
-     * Called for a browse command to a Downloads page, on the main thread.
+     * Called for a navigation to a Downloads page, on the main thread.
      *
-     * @return true when the list was opened and the navigation is to be dropped; false leaves it as it is.
+     * @return true when the list was opened and the navigation is to be dropped; false leaves it as it is, also when
+     * the list is already on screen: the second navigation then neither opens another list nor takes the stock page.
      */
-    static boolean onDownloadsBrowse(String browseId) {
+    static boolean onDownloadsBrowse(String browseId, Route route) {
         try {
+            boolean online = OfflineReplay.networkAvailable();
             Decision decision = OfflineLibraryLogic.decide(browseId, OfflineReplay.enabled(),
                     OfflineCopyStore.hasAnything(), Settings.IN_APP_DOWNLOADS.get());
             Activity activity = Utils.getActivity();
-            if (decision == Decision.STOCK || activity == null || activity.isFinishing()) {
-                Logger.printDebug(() -> "OfflineLibrary: stock browse=" + browseId + " decision=" + decision
-                        + " activity=" + (activity != null));
-                return false;
-            }
+            boolean opens = OfflineLibraryLogic.routeOpens(route, online);
+            Logger.printDebug(() -> "OfflineLibrary: route=" + route + " browse=" + browseId + " network="
+                    + (online ? "online" : "offline") + " decision=" + decision + " routeOpens=" + opens);
+            if (decision == Decision.STOCK || !opens || activity == null || activity.isFinishing()) return false;
 
             OfflineLibraryScreen open = shown;
             if (open != null && open.isShowing()) {
-                Logger.printDebug(() -> "OfflineLibrary: already open, browse=" + browseId + " taken");
-                return true;
+                Logger.printDebug(() -> "OfflineLibrary: already open, route=" + route + " left to the app");
+                return false;
             }
 
-            Logger.printInfo(() -> "OfflineLibrary: open browse=" + browseId + " decision=" + decision);
+            Logger.printInfo(() -> "OfflineLibrary: open route=" + route + " browse=" + browseId);
             new OfflineLibrary(decision == Decision.OPEN_WITH_DEVICE_FILES, null).open(activity);
             return true;
         } catch (Exception ex) {

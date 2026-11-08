@@ -37,6 +37,31 @@ public class OfflineLibraryLogicTest {
 
     // region decide
 
+    @Test public void theLibraryTabSentToDownloadsOnlineGoesToTheLibrary() {
+        assertTrue(OfflineLibraryLogic.redirectsTabToLibrary("FEmusic_library_landing", "FEmusic_offline", true));
+    }
+
+    @Test public void theLibraryTabIsLeftAloneOfflineAndForOtherTabsAndPages() {
+        assertFalse(OfflineLibraryLogic.redirectsTabToLibrary("FEmusic_library_landing", "FEmusic_offline", false));
+        assertFalse(OfflineLibraryLogic.redirectsTabToLibrary("FEmusic_home", "FEmusic_offline", true));
+        assertFalse(OfflineLibraryLogic.redirectsTabToLibrary("FEmusic_library_landing", "FEmusic_liked", true));
+        assertFalse(OfflineLibraryLogic.redirectsTabToLibrary("FEmusic_library_landing", null, true));
+        assertFalse(OfflineLibraryLogic.redirectsTabToLibrary(null, "FEmusic_offline", true));
+    }
+
+    @Test public void theLibraryTabOpensTheListOnlyWhileOffline() {
+        assertTrue(OfflineLibraryLogic.routeOpens(OfflineLibraryLogic.Route.TAB, false));
+        assertFalse(OfflineLibraryLogic.routeOpens(OfflineLibraryLogic.Route.TAB, true));
+    }
+
+    @Test public void theDeliberateRoutesOpenTheListOnlineAndOffline() {
+        for (OfflineLibraryLogic.Route route : new OfflineLibraryLogic.Route[] {
+                OfflineLibraryLogic.Route.COMMAND, OfflineLibraryLogic.Route.CHIP}) {
+            assertTrue(OfflineLibraryLogic.routeOpens(route, true));
+            assertTrue(OfflineLibraryLogic.routeOpens(route, false));
+        }
+    }
+
     @Test public void opensForTheDownloadsPageWhenSomethingIsStored() {
         assertEquals(Decision.OPEN, OfflineLibraryLogic.decide(GENERIC, true, true, false));
         assertEquals(Decision.OPEN, OfflineLibraryLogic.decide("FEmusic_offline_songs", true, true, false));

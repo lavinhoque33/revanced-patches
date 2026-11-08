@@ -158,6 +158,21 @@ public final class OfflineReplayHooks {
         }
     }
 
+    /**
+     * Injection point: the bottom bar navigates to a tab, on the main thread. True when the Library tab was sent to the
+     * Downloads page while the device is online: the patch then navigates to the Library page instead.
+     */
+    public static boolean libraryTabRedirect(String tabId, Object command) {
+        if (!usable()) return false;
+
+        try {
+            return OfflineReplay.libraryTabRedirect(tabId, command);
+        } catch (Throwable failure) {
+            disable("library tab", failure);
+            return false;
+        }
+    }
+
     /** Injection point: the presenter of the "No connection" sheet has shown it through the given controller. */
     public static void noConnectionSheetShown(Object controller) {
         if (!usable()) return;

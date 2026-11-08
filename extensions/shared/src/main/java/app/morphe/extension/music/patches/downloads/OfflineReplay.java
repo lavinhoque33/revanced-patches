@@ -276,7 +276,7 @@ public final class OfflineReplay {
             String browseId = OfflineReplayLogic.browseIdOf(message.toByteArray());
             if (browseId != null) logDecision(HOOK_COMMAND, "browse=" + browseId);
             return browseId != null && browseId.startsWith(OFFLINE_BROWSE_PREFIX)
-                    && OfflineLibrary.onDownloadsBrowse(browseId);
+                    && OfflineLibrary.onDownloadsBrowse(browseId, OfflineLibraryLogic.Route.COMMAND);
         } catch (Exception ex) {
             Logger.printException(() -> "OfflineReplay: could not read the command", ex);
             return false;
@@ -309,7 +309,8 @@ public final class OfflineReplay {
 
     /**
      * Injection point: the bottom bar navigates to a tab's page, on the main thread. The Library tab while offline
-     * goes to the Downloads page, which the list replaces; the stock navigation goes on behind it.
+     * goes to the Downloads page, which the list replaces; the stock navigation goes on behind it. Online the tab
+     * is the app's.
      */
     static void onTabNavigation(Object command) {
         noteAlive(HOOK_TAB);
@@ -317,7 +318,26 @@ public final class OfflineReplay {
 
         String browseId = OfflineReplayLogic.browseIdOf(message.toByteArray());
         logDecision(HOOK_TAB, "browse=" + browseId);
-        if (browseId != null) OfflineLibrary.onLibraryChip(browseId);
+        if (browseId != null) OfflineLibrary.onTab(browseId);
+    }
+
+    /**
+     * Injection point: the bottom bar navigates to a tab. The app itself sends the Library tab to the Downloads page
+     * when it counts its Library empty or itself offline, and that page is empty for a user who has no downloads of
+     * the stock kind: while the device has a network the tab goes to the Library page, as it was asked for.
+     *
+     * @return true when the tab's command is to be replaced by the Library page's own.
+     */
+    static boolean libraryTabRedirect(String tabId, Object command) {
+        if (!enabled() || !(command instanceof Command message)) return false;
+
+        String browseId = OfflineReplayLogic.browseIdOf(message.toByteArray());
+        boolean redirect = OfflineLibraryLogic.redirectsTabToLibrary(tabId, browseId, networkAvailable());
+        if (redirect) {
+            Logger.printInfo(() -> "OfflineReplay: library tab asked for " + browseId + " while online, "
+                    + "loading " + OfflineLibraryLogic.LIBRARY_BROWSE_ID);
+        }
+        return redirect;
     }
 
     // endregion

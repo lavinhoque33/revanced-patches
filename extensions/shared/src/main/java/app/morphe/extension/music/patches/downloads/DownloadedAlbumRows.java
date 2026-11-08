@@ -7,6 +7,7 @@ package app.morphe.extension.music.patches.downloads;
 
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.ViewParent;
 import android.view.ViewTreeObserver;
 
 import androidx.annotation.Nullable;
@@ -17,12 +18,10 @@ import com.facebook.litho.TextContent;
 import java.lang.ref.WeakReference;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.WeakHashMap;
 
 import app.morphe.extension.shared.utils.Logger;
@@ -36,8 +35,10 @@ import app.morphe.extension.shared.utils.ResourceUtils;
  * check when that track has a stream copy. The numbers must make sense (see {@link AlbumTrackNumbers#problem}):
  * otherwise no row of the page is marked. A row whose number is unknown is never marked.
  *
- * <p>The page is looked at after every layout and scroll of the window while it is shown, and only when the album has
- * a recorded track list. Main thread only; the page holds only weak references to views.
+ * <p>The page is looked at after a layout or scroll of the window, one scan per frame at most, and only while the
+ * setting is on and the header names an album with a recorded track list; otherwise nothing is registered. A scan
+ * remembers per row view where its number cell and the host that draws the number are, so a row that did not change
+ * costs one text read and no allocation. Main thread only; the state holds only weak references to views.
  */
 final class DownloadedAlbumRows {
     private static final String[] PAGE_IDS = {"results_container", "content_container"};
@@ -50,23 +51,25 @@ final class DownloadedAlbumRows {
     private static final long RETRY_MILLIS = 300;
     private static final int MAX_RETRIES = 5;
     private static final int SLACK_PX = 1;
+    private static final WeakReference<ComponentHost> NO_HOST = new WeakReference<>(null);
 
     /** The number cell of a row, in the row's pixels. */
     record Cell(int left, int top, int width, int height) {}
 
-    /** A track row of the page. */
+    /** What is remembered of a track row view; the view itself is only weakly held. */
     static final class Row {
-        final View view;
-        final Cell cell;
-        final int top;
-        final List<String> insideCell = new ArrayList<>();
-        final List<String> inRow = new ArrayList<>();
+        final WeakReference<View> view;
+        final AlbumRowCheck check = new AlbumRowCheck();
+        Cell cell;
+        int width;
+        int height;
+        int top;
         int number = AlbumTrackNumbers.UNKNOWN;
+        WeakReference<ComponentHost> numberHost = NO_HOST;
+        boolean marked;
 
-        Row(View view, Cell cell, int top) {
-            this.view = view;
-            this.cell = cell;
-            this.top = top;
+        Row(View view) {
+            this.view = new WeakReference<>(view);
         }
     }
 
@@ -74,13 +77,98 @@ final class DownloadedAlbumRows {
     static final class State {
         @Nullable
         String sourceId;
+        @Nullable
+        Watcher watcher;
         WeakReference<ViewGroup> page = new WeakReference<>(null);
-        boolean observing;
         boolean scanQueued;
         int retries;
         int highestNumber;
-        final Map<View, AlbumRowCheck> checks = new WeakHashMap<>();
+        int lastHighest;
+        int lastRecorded;
+        int lastCount = -1;
+        int[] numbers = new int[0];
+        int[] lastNumbers = new int[0];
+        @Nullable
+        String lastProblem;
+        final Map<View, Row> rows = new WeakHashMap<>();
+        final List<Row> found = new ArrayList<>();
+        final ArrayDeque<ViewGroup> pending = new ArrayDeque<>();
+        final NumberReader reader = new NumberReader();
         final DownloadedAlbumLog.PageLog log = new DownloadedAlbumLog.PageLog();
+    }
+
+    /** The texts of one row's Litho hosts, collected to find its number. */
+    static final class NumberReader {
+        Cell cell;
+        final List<String> insideCell = new ArrayList<>();
+        final List<String> inRow = new ArrayList<>();
+        @Nullable
+        ComponentHost insideHost;
+        int insideHosts;
+
+        void start(Cell cell) {
+            this.cell = cell;
+            insideCell.clear();
+            inRow.clear();
+            insideHost = null;
+            insideHosts = 0;
+        }
+    }
+
+    /** Registers the layout, scroll and detach listeners of a header's page; removes them again on request. */
+    private static final class Watcher implements ViewTreeObserver.OnGlobalLayoutListener,
+            ViewTreeObserver.OnScrollChangedListener, View.OnAttachStateChangeListener {
+        private final WeakReference<ViewGroup> container;
+        private final State state;
+
+        Watcher(ViewGroup container, State state) {
+            this.container = new WeakReference<>(container);
+            this.state = state;
+            container.addOnAttachStateChangeListener(this);
+            if (container.isAttachedToWindow()) register(container.getViewTreeObserver());
+        }
+
+        void stop(ViewGroup view) {
+            view.removeOnAttachStateChangeListener(this);
+            unregister(view.getViewTreeObserver());
+        }
+
+        private void register(ViewTreeObserver observer) {
+            observer.addOnGlobalLayoutListener(this);
+            observer.addOnScrollChangedListener(this);
+        }
+
+        private void unregister(ViewTreeObserver observer) {
+            if (!observer.isAlive()) return;
+
+            observer.removeOnGlobalLayoutListener(this);
+            observer.removeOnScrollChangedListener(this);
+        }
+
+        @Override
+        public void onGlobalLayout() {
+            scanSoon();
+        }
+
+        @Override
+        public void onScrollChanged() {
+            scanSoon();
+        }
+
+        private void scanSoon() {
+            ViewGroup current = container.get();
+            if (current != null) scanLater(current, state);
+        }
+
+        @Override
+        public void onViewAttachedToWindow(View view) {
+            register(view.getViewTreeObserver());
+        }
+
+        @Override
+        public void onViewDetachedFromWindow(View view) {
+            unregister(view.getViewTreeObserver());
+        }
     }
 
     private DownloadedAlbumRows() {}
@@ -91,15 +179,16 @@ final class DownloadedAlbumRows {
         if (source == null || !source.equals(state.sourceId)) {
             state.highestNumber = 0;
             state.retries = 0;
+            state.lastCount = -1;
             state.log.reset();
         }
         state.sourceId = source;
         if (source == null) {
-            hideAll(state);
+            stop(container, state);
             return;
         }
 
-        observe(container, state);
+        if (state.watcher == null) state.watcher = new Watcher(container, state);
         scanLater(container, state);
     }
 
@@ -115,41 +204,16 @@ final class DownloadedAlbumRows {
         return tracks == null || tracks.isEmpty() ? null : sourceIds.get(0);
     }
 
-    private static void observe(ViewGroup container, State state) {
-        if (state.observing) return;
-
-        state.observing = true;
-        WeakReference<ViewGroup> weakContainer = new WeakReference<>(container);
-        ViewTreeObserver.OnGlobalLayoutListener onLayout = () -> {
-            ViewGroup current = weakContainer.get();
-            if (current != null) scanLater(current, state);
-        };
-        ViewTreeObserver.OnScrollChangedListener onScroll = () -> {
-            ViewGroup current = weakContainer.get();
-            if (current != null) scanLater(current, state);
-        };
-        container.addOnAttachStateChangeListener(new View.OnAttachStateChangeListener() {
-            @Override
-            public void onViewAttachedToWindow(View view) {
-                ViewTreeObserver observer = view.getViewTreeObserver();
-                observer.addOnGlobalLayoutListener(onLayout);
-                observer.addOnScrollChangedListener(onScroll);
-            }
-
-            @Override
-            public void onViewDetachedFromWindow(View view) {
-                ViewTreeObserver observer = view.getViewTreeObserver();
-                if (!observer.isAlive()) return;
-
-                observer.removeOnGlobalLayoutListener(onLayout);
-                observer.removeOnScrollChangedListener(onScroll);
-            }
-        });
-        if (container.isAttachedToWindow()) {
-            ViewTreeObserver observer = container.getViewTreeObserver();
-            observer.addOnGlobalLayoutListener(onLayout);
-            observer.addOnScrollChangedListener(onScroll);
+    /** Removes the listeners and every check of the page. */
+    private static void stop(ViewGroup container, State state) {
+        state.sourceId = null;
+        if (state.watcher != null) {
+            state.watcher.stop(container);
+            state.watcher = null;
         }
+        for (Map.Entry<View, Row> entry : state.rows.entrySet()) entry.getValue().check.hide(entry.getKey());
+        state.rows.clear();
+        state.found.clear();
     }
 
     private static void scanLater(ViewGroup container, State state) {
@@ -161,6 +225,8 @@ final class DownloadedAlbumRows {
 
     private static void scanQueued(ViewGroup container, State state) {
         state.scanQueued = false;
+        if (state.sourceId == null || !container.isAttachedToWindow()) return;
+
         try {
             scan(container, state);
         } catch (Exception ex) {
@@ -169,38 +235,41 @@ final class DownloadedAlbumRows {
     }
 
     private static void scan(ViewGroup container, State state) {
-        DownloadedRegistry registry = DownloadedMarkers.loadedRegistry();
-        List<String> tracks = registry == null || state.sourceId == null ? null
-                : registry.sourceTracks(state.sourceId);
-        ViewGroup page = findPage(container, state);
-        if (tracks == null || tracks.isEmpty() || page == null) {
-            hideAll(state);
-            state.log.note("no page or no recorded tracks", state.sourceId);
+        if (!DownloadedMarkers.enabled()) {
+            stop(container, state);
             return;
         }
 
-        List<Row> rows = findRows(page);
-        List<Integer> numbers = new ArrayList<>();
-        boolean unnumbered = false;
-        for (Row row : rows) {
-            collectTexts(row.view, 0, 0, row, 0);
-            row.number = AlbumTrackNumbers.pick(row.insideCell, row.inRow);
-            numbers.add(row.number);
-            unnumbered |= row.number == AlbumTrackNumbers.UNKNOWN;
-            state.highestNumber = Math.max(state.highestNumber, row.number);
+        DownloadedRegistry registry = DownloadedMarkers.loadedRegistry();
+        List<String> tracks = registry == null ? null : registry.sourceTracks(state.sourceId);
+        if (tracks == null || tracks.isEmpty()) {
+            stop(container, state);
+            return;
         }
 
-        String problem = AlbumTrackNumbers.problem(numbers, state.highestNumber, tracks.size());
-        Set<View> marked = new HashSet<>();
-        List<String> verdicts = new ArrayList<>();
+        ViewGroup page = findPage(container, state);
+        if (page == null || !page.isShown()) {
+            if (page == null && DownloadedAlbumLog.enabled()) {
+                state.log.declined(state.sourceId, tracks.size(), "no page");
+            }
+            return;
+        }
+
+        findRows(page, state);
+        List<Row> rows = state.found;
+        boolean unnumbered = readNumbers(rows, state);
+        String problem = problem(rows.size(), state, tracks.size());
+
+        for (Row known : state.rows.values()) known.marked = false;
         for (Row row : rows) {
-            String verdict = problem != null ? "unusable" : verdict(row, tracks, registry, state, marked);
-            verdicts.add(verdict);
+            View view = row.view.get();
+            row.marked = view != null && problem == null && isDownloaded(row, tracks, registry)
+                    && row.check.show(view, row.cell);
         }
-        for (Map.Entry<View, AlbumRowCheck> entry : new ArrayList<>(state.checks.entrySet())) {
-            if (!marked.contains(entry.getKey())) entry.getValue().hide(entry.getKey());
+        for (Map.Entry<View, Row> entry : state.rows.entrySet()) {
+            if (!entry.getValue().marked) entry.getValue().check.hide(entry.getKey());
         }
-        state.log.scanned(page, state.sourceId, tracks.size(), rows, verdicts, problem);
+        if (DownloadedAlbumLog.enabled()) logResult(state, rows, tracks.size(), problem);
 
         if (unnumbered && state.retries++ < MAX_RETRIES) {
             // A row that is not mounted yet has no text; look again once it is.
@@ -209,25 +278,57 @@ final class DownloadedAlbumRows {
         }
     }
 
-    /** Marks or unmarks one row; returns what happened, for the log. */
-    private static String verdict(Row row, List<String> tracks, DownloadedRegistry registry, State state,
-                                  Set<View> marked) {
-        if (row.number == AlbumTrackNumbers.UNKNOWN) return "no-number";
-
-        String videoId = tracks.get(row.number - 1);
-        if (!registry.isDownloaded(videoId)) return row.number + ":no-copy";
-
-        AlbumRowCheck check = state.checks.computeIfAbsent(row.view, view -> new AlbumRowCheck());
-        if (!check.show(row.view, row.cell)) return row.number + ":no-icon";
-
-        marked.add(row.view);
-        return row.number + ":check";
+    private static boolean isDownloaded(Row row, List<String> tracks, DownloadedRegistry registry) {
+        return row.number != AlbumTrackNumbers.UNKNOWN && row.number <= tracks.size()
+                && registry.isDownloaded(tracks.get(row.number - 1));
     }
 
-    private static void hideAll(State state) {
-        for (Map.Entry<View, AlbumRowCheck> entry : new ArrayList<>(state.checks.entrySet())) {
-            entry.getValue().hide(entry.getKey());
+    /** Reads the number of every row, top to bottom; true when a row has none yet. */
+    private static boolean readNumbers(List<Row> rows, State state) {
+        if (state.numbers.length < rows.size()) state.numbers = new int[rows.size() + 8];
+
+        boolean unnumbered = false;
+        for (int place = 0; place < rows.size(); place++) {
+            Row row = rows.get(place);
+            View view = row.view.get();
+            row.number = view == null ? AlbumTrackNumbers.UNKNOWN : readNumber(view, row, state.reader);
+            state.numbers[place] = row.number;
+            unnumbered |= row.number == AlbumTrackNumbers.UNKNOWN;
+            state.highestNumber = Math.max(state.highestNumber, row.number);
         }
+        return unnumbered;
+    }
+
+    /**
+     * Why the numbers of the rows cannot be used, or null. The numbers are only checked again when they differ from
+     * those of the previous scan, so a scan of an unchanged page does not allocate for it.
+     */
+    @Nullable
+    private static String problem(int count, State state, int recordedCount) {
+        boolean same = count == state.lastCount && state.highestNumber == state.lastHighest
+                && recordedCount == state.lastRecorded;
+        for (int place = 0; same && place < count; place++) same = state.numbers[place] == state.lastNumbers[place];
+        if (same) return state.lastProblem;
+
+        List<Integer> numbers = new ArrayList<>(count);
+        for (int place = 0; place < count; place++) numbers.add(state.numbers[place]);
+        state.lastProblem = AlbumTrackNumbers.problem(numbers, state.highestNumber, recordedCount);
+        state.lastCount = count;
+        state.lastHighest = state.highestNumber;
+        state.lastRecorded = recordedCount;
+        state.lastNumbers = Arrays.copyOf(state.numbers, Math.max(count, 1));
+        return state.lastProblem;
+    }
+
+    private static void logResult(State state, List<Row> rows, int recorded, @Nullable String problem) {
+        if (problem != null) {
+            state.log.declined(state.sourceId, recorded, problem);
+            return;
+        }
+
+        List<Integer> marked = new ArrayList<>();
+        for (Row row : rows) if (row.marked) marked.add(row.number);
+        state.log.marked(state.sourceId, recorded, marked);
     }
 
     /** The list part of the page: below the header, found by the id the page gives it. */
@@ -250,11 +351,13 @@ final class DownloadedAlbumRows {
         return null;
     }
 
-    /** Every track-shaped row of the page, top to bottom; a row's own views are not looked at for more rows. */
-    static List<Row> findRows(ViewGroup page) {
+    /** Puts every track-shaped row of the page into {@code state.found}, top to bottom. */
+    private static void findRows(ViewGroup page, State state) {
         float density = page.getResources().getDisplayMetrics().density;
-        List<Row> rows = new ArrayList<>();
-        ArrayDeque<ViewGroup> pending = new ArrayDeque<>();
+        ArrayDeque<ViewGroup> pending = state.pending;
+        List<Row> found = state.found;
+        found.clear();
+        pending.clear();
         pending.add(page);
         int visited = 0;
         int[] at = new int[2];
@@ -264,18 +367,45 @@ final class DownloadedAlbumRows {
                 View child = group.getChildAt(i);
                 if (child.getVisibility() != View.VISIBLE || !(child instanceof ViewGroup childGroup)) continue;
 
-                Cell cell = ElementRowLayout.isTrackRow(child.getWidth(), child.getHeight(), density)
-                        ? findNumberCell(childGroup) : null;
-                if (cell == null) {
+                Row row = ElementRowLayout.isTrackRow(child.getWidth(), child.getHeight(), density)
+                        ? rowOf(childGroup, state) : null;
+                if (row == null) {
                     pending.add(childGroup);
                     continue;
                 }
                 child.getLocationInWindow(at);
-                rows.add(new Row(child, cell, at[1]));
+                row.top = at[1];
+                insertByTop(found, row);
             }
         }
-        rows.sort(Comparator.comparingInt(row -> row.top));
-        return rows;
+    }
+
+    /** The remembered row of a track-shaped view, with its number cell, or null when it has no number cell. */
+    @Nullable
+    private static Row rowOf(ViewGroup view, State state) {
+        Row row = state.rows.get(view);
+        if (row != null && row.cell != null && row.width == view.getWidth() && row.height == view.getHeight()) {
+            return row;
+        }
+
+        Cell cell = findNumberCell(view);
+        if (cell == null) return null;
+
+        if (row == null) {
+            row = new Row(view);
+            state.rows.put(view, row);
+        }
+        row.cell = cell;
+        row.width = view.getWidth();
+        row.height = view.getHeight();
+        row.numberHost = NO_HOST;
+        return row;
+    }
+
+    private static void insertByTop(List<Row> rows, Row row) {
+        int place = rows.size();
+        while (place > 0 && rows.get(place - 1).top > row.top) place--;
+        rows.add(place, row);
     }
 
     /** The cell of the track number in a laid out row, or null when the row has none. */
@@ -310,18 +440,59 @@ final class DownloadedAlbumRows {
     }
 
     /**
-     * The texts the row's Litho hosts draw: those of the hosts that lie inside the number cell go to
-     * {@link Row#insideCell}, all of them to {@link Row#inRow}, in the order the hosts are mounted.
+     * The number a row shows. The host that drew it last time is read first (one text read); when it is gone, moved
+     * or has no single number, the texts of the whole row are collected again.
      */
-    static void collectTexts(View view, int left, int top, Row row, int depth) {
+    private static int readNumber(View view, Row row, NumberReader reader) {
+        ComponentHost known = row.numberHost.get();
+        if (known != null && isInsideCell(known, view, row.cell)) {
+            List<CharSequence> texts = hostTexts(known);
+            int number = texts.size() == 1 ? AlbumTrackNumbers.parse(texts.get(0)) : AlbumTrackNumbers.UNKNOWN;
+            if (number != AlbumTrackNumbers.UNKNOWN) return number;
+        }
+
+        reader.start(row.cell);
+        collectTexts(view, 0, 0, reader, 0);
+        int number = AlbumTrackNumbers.pick(reader.insideCell, reader.inRow);
+        boolean fromHost = !reader.insideCell.isEmpty() && reader.insideHosts == 1;
+        row.numberHost = fromHost && number != AlbumTrackNumbers.UNKNOWN && reader.insideHost != null
+                ? new WeakReference<>(reader.insideHost) : NO_HOST;
+        return number;
+    }
+
+    /** Whether the host still lies inside the number cell of the row (the row is a recycled view). */
+    private static boolean isInsideCell(ComponentHost host, View row, Cell cell) {
+        int left = host.getLeft();
+        int top = host.getTop();
+        ViewParent parent = host.getParent();
+        for (int level = 0; level < MAX_TEXT_DEPTH && parent != row; level++) {
+            if (!(parent instanceof View view)) return false;
+
+            left += view.getLeft();
+            top += view.getTop();
+            parent = view.getParent();
+        }
+        return parent == row && isInside(cell, left, top, host.getWidth(), host.getHeight());
+    }
+
+    /**
+     * The texts the row's Litho hosts draw: those of the hosts that lie inside the number cell go to
+     * {@link NumberReader#insideCell}, all of them to {@link NumberReader#inRow}, in the order the hosts are mounted.
+     */
+    private static void collectTexts(View view, int left, int top, NumberReader reader, int depth) {
         if (view instanceof ComponentHost host) {
-            boolean inside = isInside(row.cell, left, top, host.getWidth(), host.getHeight());
-            for (CharSequence item : hostTexts(host)) {
+            boolean inside = isInside(reader.cell, left, top, host.getWidth(), host.getHeight());
+            List<CharSequence> texts = hostTexts(host);
+            for (CharSequence item : texts) {
                 if (item == null) continue;
 
                 String text = item.toString().trim();
-                row.inRow.add(text);
-                if (inside) row.insideCell.add(text);
+                reader.inRow.add(text);
+                if (inside) reader.insideCell.add(text);
+            }
+            if (inside && !texts.isEmpty()) {
+                reader.insideHost = host;
+                reader.insideHosts++;
             }
         }
         if (!(view instanceof ViewGroup group) || depth >= MAX_TEXT_DEPTH) return;
@@ -329,13 +500,13 @@ final class DownloadedAlbumRows {
         for (int i = 0; i < group.getChildCount(); i++) {
             View child = group.getChildAt(i);
             if (child.getVisibility() == View.VISIBLE) {
-                collectTexts(child, left + child.getLeft(), top + child.getTop(), row, depth + 1);
+                collectTexts(child, left + child.getLeft(), top + child.getTop(), reader, depth + 1);
             }
         }
     }
 
     /** The texts a Litho host draws itself (not those of its child hosts); empty when it draws none. */
-    static List<CharSequence> hostTexts(ComponentHost host) {
+    private static List<CharSequence> hostTexts(ComponentHost host) {
         try {
             TextContent content = host.getTextContent();
             List<CharSequence> items = content == null ? null : content.getTextItems();

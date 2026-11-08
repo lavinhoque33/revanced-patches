@@ -23,21 +23,27 @@ final class AlbumRowCheck {
     private boolean attached;
     @Nullable
     private Boolean tintedForDarkTheme;
+    @Nullable
+    private DownloadedAlbumRows.Cell placedAt;
 
-    boolean isShown() {
-        return attached;
-    }
-
-    /** Shows the check under the number of the row; false when the check drawable is unavailable. */
+    /**
+     * Shows the check under the number of the row; false when the check drawable is unavailable. Does nothing when
+     * the check is already shown at that cell in the current theme.
+     */
     boolean show(View row, DownloadedAlbumRows.Cell cell) {
+        boolean darkTheme = BaseThemeUtils.isDarkModeEnabled();
+        if (attached && cell.equals(placedAt) && tintedForDarkTheme != null && tintedForDarkTheme == darkTheme) {
+            return true;
+        }
+
         if (check == null) check = DownloadedCheck.createDrawable(row.getContext());
         if (check == null) return false;
 
-        boolean darkTheme = BaseThemeUtils.isDarkModeEnabled();
         if (tintedForDarkTheme == null || tintedForDarkTheme != darkTheme) {
             DownloadedCheck.tint(check, darkTheme);
             tintedForDarkTheme = darkTheme;
         }
+        placedAt = cell;
 
         float density = row.getResources().getDisplayMetrics().density;
         int[] origin = ElementRowLayout.checkOrigin(cell.left(), cell.top(), cell.width(), cell.height(), density);

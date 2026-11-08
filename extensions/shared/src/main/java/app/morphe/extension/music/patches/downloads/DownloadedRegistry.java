@@ -25,14 +25,6 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 final class DownloadedRegistry {
     private static final int VIDEO_ID_LENGTH = 11;
-    private static final byte VIDEO_ID_TAG = 0x0A;
-    private static final byte PLAYLIST_ID_TAG = 0x12;
-    private static final byte INDEX_TAG = 0x18;
-    private static final int MIN_PLAYLIST_ID_LENGTH = 13;
-    private static final int MAX_PLAYLIST_ID_LENGTH = 64;
-    private static final String[] PLAYLIST_PREFIXES = {"PL", "OLAK5uy_", "RD", "VLPL", "VLOLAK5uy_", "LM"};
-    /** The first position a playlist id can start at after a video id field and its own tag and length. */
-    private static final int WATCH_PLAYLIST_START = 15;
 
     private final Set<String> tracks = ConcurrentHashMap.newKeySet();
     private final Map<String, List<String>> sources = new ConcurrentHashMap<>();
@@ -157,127 +149,6 @@ final class DownloadedRegistry {
         return null;
     }
 
-    /**
-     * The song whose stream copy a row of an Elements list shows, or null: the row names a song that has a copy
-     * ({@link #findDownloaded}), or its watch endpoint names a remembered playlist or album and the position of the
-     * row in it, and the track the playlist keeps at that position has a copy. An album row can carry the id of the
-     * music video while the copy is under the id of the song, so the position is what ties them. Only a watch
-     * endpoint with an explicit position counts, never the first track by default and never a whole playlist: a
-     * row that is not in the playlist must not get a check because the rest of it is downloaded.
-     */
-    @Nullable
-    String findRowCopy(byte[] message) {
-        if (tracks.isEmpty()) return null;
-
-        String named = findDownloaded(message);
-        return named != null ? named : findWatchedTrack(message);
-    }
-
-    /**
-     * The downloaded track a watch endpoint of the message names by playlist and position. The endpoint is the
-     * message that holds, in field order, the video id (field 1), the playlist id (field 2) and the position (field 3,
-     * a varint), so the playlist id is a string preceded by its length, the tag 0x12 and a video id field.
-     */
-    @Nullable
-    private String findWatchedTrack(byte[] message) {
-        for (Map.Entry<String, List<String>> source : sources.entrySet()) {
-            byte[] id = source.getKey().getBytes(StandardCharsets.ISO_8859_1);
-            if (id.length == 0 || id.length > 127) continue;
-
-            List<String> sourceTracks = source.getValue();
-            for (int start = WATCH_PLAYLIST_START; start + id.length < message.length; start++) {
-                if (message[start - 1] != id.length || message[start - 2] != PLAYLIST_ID_TAG
-                        || !matches(message, start, id) || !followsVideoIdField(message, start - 2)) continue;
-
-                int index = readIndex(message, start + id.length);
-                if (index >= 0 && index < sourceTracks.size() && tracks.contains(sourceTracks.get(index))) {
-                    return sourceTracks.get(index);
-                }
-            }
-        }
-        return null;
-    }
-
-    /** Whether the 11 characters before the playlist id tag are a video id field: tag 1, length 11, the id. */
-    private static boolean followsVideoIdField(byte[] message, int playlistTag) {
-        return message[playlistTag - 13] == VIDEO_ID_TAG && message[playlistTag - 12] == VIDEO_ID_LENGTH
-                && isVideoId(message, playlistTag - 11);
-    }
-
-    /** The position field right after the playlist id (tag 0x18 and a varint), or -1 when there is none. */
-    private static int readIndex(byte[] message, int position) {
-        if (position >= message.length || message[position] != INDEX_TAG) return -1;
-
-        long index = 0;
-        for (int shift = 0, at = position + 1; shift < 35 && at < message.length; shift += 7, at++) {
-            index |= (long) (message[at] & 0x7F) << shift;
-            if ((message[at] & 0x80) == 0) return index <= Integer.MAX_VALUE ? (int) index : -1;
-        }
-        return -1;
-    }
-
-    /** A playlist id string of a model and the position that directly follows it (-1 when there is none). */
-    static final class PlaylistPosition {
-        final String playlistId;
-        final int index;
-
-        PlaylistPosition(String playlistId, int index) {
-            this.playlistId = playlistId;
-            this.index = index;
-        }
-
-        @Override public String toString() {
-            return playlistId + "@" + (index < 0 ? "-" : index);
-        }
-    }
-
-    /**
-     * The playlist-id-shaped strings of a model with their positions, at most {@code limit}, in order: what a log
-     * line shows to tell whether a row names its playlist and where in it. It reads the strings of field 2 (tag
-     * 0x12, the playlist id of a watch endpoint) that are 13 to 64 id characters long and start like a playlist,
-     * album or radio id.
-     */
-    static List<PlaylistPosition> playlistPositions(byte[] message, int limit) {
-        List<PlaylistPosition> found = new ArrayList<>();
-        for (int tag = 0; tag + 2 < message.length && found.size() < limit; tag++) {
-            int length = message[tag + 1];
-            if (message[tag] != PLAYLIST_ID_TAG || length < MIN_PLAYLIST_ID_LENGTH || length > MAX_PLAYLIST_ID_LENGTH
-                    || tag + 2 + length > message.length || !areIdCharacters(message, tag + 2, length)
-                    || !hasPlaylistPrefix(message, tag + 2)) continue;
-
-            String playlistId = new String(message, tag + 2, length, StandardCharsets.ISO_8859_1);
-            PlaylistPosition position = new PlaylistPosition(playlistId, readIndex(message, tag + 2 + length));
-            if (!contains(found, position)) found.add(position);
-        }
-        return found;
-    }
-
-    /** Whether the string at [from] starts like a playlist, album or radio id, not like an icon name. */
-    private static boolean hasPlaylistPrefix(byte[] message, int from) {
-        for (String prefix : PLAYLIST_PREFIXES) {
-            boolean matches = true;
-            for (int index = 0; index < prefix.length() && matches; index++) {
-                matches = message[from + index] == prefix.charAt(index);
-            }
-            if (matches) return true;
-        }
-        return false;
-    }
-
-    private static boolean contains(List<PlaylistPosition> positions, PlaylistPosition position) {
-        for (PlaylistPosition known : positions) {
-            if (known.playlistId.equals(position.playlistId) && known.index == position.index) return true;
-        }
-        return false;
-    }
-
-    private static boolean areIdCharacters(byte[] message, int from, int length) {
-        for (int index = from; index < from + length; index++) {
-            if (!isIdCharacter(message[index])) return false;
-        }
-        return true;
-    }
-
     /** The video-id-shaped strings of a model, at most {@code limit}: what {@link #findDownloaded} looks at. */
     static List<String> candidateIds(byte[] message, int limit) {
         List<String> candidates = new ArrayList<>();
@@ -300,10 +171,6 @@ final class DownloadedRegistry {
     private static boolean isIdCharacter(byte character) {
         return (character >= 'a' && character <= 'z') || (character >= 'A' && character <= 'Z')
                 || (character >= '0' && character <= '9') || character == '-' || character == '_';
-    }
-
-    int trackCount() {
-        return tracks.size();
     }
 
     /**

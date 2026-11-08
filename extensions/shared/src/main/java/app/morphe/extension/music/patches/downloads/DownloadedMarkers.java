@@ -86,10 +86,6 @@ public final class DownloadedMarkers {
         return StreamSwap.enabled() && Settings.DOWNLOADED_CHECKMARKS.get();
     }
 
-    static int registrySize() {
-        return registry.trackCount();
-    }
-
     /** Starts the background load of the stream copy ids, if it has not started. */
     static void warmUp() {
         ensureLoaded();
@@ -99,10 +95,6 @@ public final class DownloadedMarkers {
     @Nullable
     static DownloadedRegistry loadedRegistry() {
         return loaded ? registry : null;
-    }
-
-    static boolean isLoaded() {
-        return loaded;
     }
 
     static boolean isSourceDownloaded(@Nullable String sourceId) {
@@ -120,12 +112,11 @@ public final class DownloadedMarkers {
                 state = hasBadgesContainer(view) ? new RowState() : RowState.NOT_A_ROW;
                 rows.put(view, state);
             }
-            rowLog.bound(view, model, state == RowState.NOT_A_ROW);
             if (state == RowState.NOT_A_ROW) return;
 
             state.model = new WeakReference<>(model);
             if (enabled()) ensureLoaded();
-            applyRow(view, state, true);
+            applyRow(view, state);
         } catch (Exception ex) {
             Logger.printException(() -> "Could not mark a downloaded song", ex);
         }
@@ -189,7 +180,7 @@ public final class DownloadedMarkers {
         return lines;
     }
 
-    private static void applyRow(View view, RowState state, boolean binding) {
+    private static void applyRow(View view, RowState state) {
         Object model = state.model.get();
         byte[] bytes = null;
         String videoId = null;
@@ -215,7 +206,7 @@ public final class DownloadedMarkers {
         } else {
             outcome = showRowChecks(view, state);
         }
-        rowLog.decided(view, state, model, bytes, registry, reason, videoId, outcome, binding);
+        rowLog.decided(state, reason, videoId, outcome);
     }
 
     /** Adds or shows the checks in the row's subtitle lines; returns what happened, for the log. */
@@ -232,7 +223,6 @@ public final class DownloadedMarkers {
             check.restyle();
             check.setShown(true);
         }
-        if (outcome.equals("added")) rowLog.afterLayout(checks);
         return outcome;
     }
 
@@ -393,7 +383,7 @@ public final class DownloadedMarkers {
             if (view == null || row.getValue() == RowState.NOT_A_ROW) continue;
 
             try {
-                applyRow(view, row.getValue(), false);
+                applyRow(view, row.getValue());
             } catch (Exception ex) {
                 Logger.printException(() -> "Could not refresh a downloaded song", ex);
             }

@@ -38,6 +38,7 @@ private const val AUDIO_FIRST_PATH = "Lapp/morphe/extension/music/patches/downlo
 private const val AUDIO_FIRST = "${AUDIO_FIRST_PATH}AudioFirst;"
 private const val OVERRIDE_MODE = "$AUDIO_FIRST->overrideMode(Ljava/lang/Enum;)Ljava/lang/Enum;"
 private const val ON_COMMAND = "$AUDIO_FIRST->onCommand(Ljava/lang/Object;)V"
+private const val OVERRIDE_PLAY = "$AUDIO_FIRST->overridePlay(Ljava/lang/Object;)Ljava/lang/Object;"
 private const val OVERRIDE_COMMAND = "$AUDIO_FIRST->overrideCommand(Ljava/lang/Object;)Ljava/lang/Object;"
 private const val MODE_HOLDER = $$"$${AUDIO_FIRST_PATH}AudioFirst$ModeHolder;"
 private const val QUEUE_ITEMS = "${AUDIO_FIRST_PATH}QueueItems;"
@@ -603,6 +604,8 @@ internal fun BytecodePatchContext.installAudioFirstCommandHook() {
                 "$commandType cannot be rebuilt from bytes")
         }
         printInfo("AudioFirst: tap hook ${if (rebuildable) "rewrites" else "arms"} $commandType")
+
+        if (rebuildable) installPlayButton(commandType)
     } catch (ex: Exception) {
         printWarn("Start downloaded songs in audio mode lost its tap hook on this Music version: ${ex.message}")
     }
@@ -610,3 +613,45 @@ internal fun BytecodePatchContext.installAudioFirstCommandHook() {
 
 private var audioFirstResolved = false
 
+/**
+ * What the header's play button runs: its command is a playlist-only watch endpoint, which no command resolver of the
+ * tap hook is bound to see (the app has several resolvers), so it is taken where every one of them ends, the watch
+ * controller that executes a watch command: an interface of exactly two methods, `(watch reference, options)` and
+ * `(command, options)`, which the controller implements (the other implementation only shows an error, so the one
+ * with the most instructions is the controller). The extension turns the command of the play button of a stream-downloaded
+ * album into the tap on the row of its first track, see `AudioFirst.overridePlay`.
+ *
+ * Resolved by shape: `Lifd.s` (9.40.51) / `Lonf.q` (9.15.51) / `Lnyh.y` (8.30.54). The command is read in `p1`, which can
+ * be a high register, so the call is a range one. Only this step is skipped, with a warning, when anything is missing.
+ */
+private fun BytecodePatchContext.installPlayButton(commandType: String) {
+    try {
+        val executors = Fingerprint(
+            returnType = "V",
+            custom = { method, owner ->
+                !AccessFlags.STATIC.isSet(method.accessFlags) && !AccessFlags.ABSTRACT.isSet(method.accessFlags) &&
+                    !AccessFlags.INTERFACE.isSet(owner.accessFlags) && method.parameterTypes.size == 2 &&
+                    method.parameterTypes[0] == commandType && owner.interfaces.any { type ->
+                        val executor = try { classDefBy(type) } catch (_: Exception) { null }
+                        executor != null && AccessFlags.INTERFACE.isSet(executor.accessFlags) &&
+                            executor.methods.count() == 2 && executor.methods.all {
+                                it.returnType == "V" && it.parameterTypes.size == 2 &&
+                                    it.parameterTypes[1] == method.parameterTypes[1]
+                            } && executor.methods.any { it.name == method.name }
+                    }
+            },
+        ).matchAll(1..4)
+        val executor = executors.maxByOrNull { it.method.implementation?.instructions?.count() ?: 0 }!!
+
+        mutableClassDefBy(executor.classDef.type).findMutableMethodOf(executor.method).addInstructions(0, """
+            invoke-static/range {p1 .. p1}, $OVERRIDE_PLAY
+            move-result-object p1
+            check-cast p1, $commandType
+        """)
+
+        printInfo("AudioFirst: play button hook ${executor.classDef.type}->${executor.method.name}")
+    } catch (ex: Exception) {
+        printWarn("Start downloaded songs in audio mode cannot start an album from its play button on this Music " +
+            "version: ${ex.message}")
+    }
+}

@@ -232,6 +232,22 @@ public class AudioFirstLogicTest {
     }
 
     @Test
+    public void queueItemsAreTrackedOnlyWithTheSettingAndTheStreamCopies() {
+        assertTrue(AudioFirstLogic.tracksItems(true, true));
+        assertFalse(AudioFirstLogic.tracksItems(false, true));
+        assertFalse(AudioFirstLogic.tracksItems(true, false));
+        assertFalse(AudioFirstLogic.tracksItems(false, false));
+    }
+
+    @Test
+    public void aSwitchedOffFeatureGivesTheOriginalRendererBackInAnyMode() {
+        for (String mode : new String[]{"ATV_PREFERRED", "ATV_PREFERRED_USER_TRIGGERED", "OMV_PREFERRED", null}) {
+            boolean enabled = AudioFirstLogic.tracksItems(false, true);
+            assertFalse(AudioFirstLogic.showsSong(enabled, mode, true));
+        }
+    }
+
+    @Test
     public void pillGoesToTheVideoFromAnAudioModeAndToTheAudioOtherwise() {
         assertEquals("OMV_PREFERRED_USER_TRIGGERED", AudioFirstLogic.pillTarget("ATV_PREFERRED"));
         assertEquals("OMV_PREFERRED_USER_TRIGGERED", AudioFirstLogic.pillTarget("ATV_PREFERRED_USER_TRIGGERED"));

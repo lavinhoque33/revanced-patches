@@ -239,9 +239,6 @@ public final class AudioFirst {
             if (registry == null) return null;
 
             byte[] bytes = message.toByteArray();
-            Object played = mayRewrite ? playAsRow(command, bytes, registry) : null;
-            if (played != null) return played;
-
             TapCommand tap = TapCommand.parse(bytes);
             if (tap.ids.isEmpty() && !tap.isWatch()) return null;
 
@@ -293,44 +290,59 @@ public final class AudioFirst {
     }
 
     /**
-     * The header's play button of a stream-downloaded album: a playlist-only watch endpoint, which the app answers with
-     * the music video of the first track (its first player request is built from the response to the playlist). It is
-     * the tap on the row of that track, so it becomes the command of that row, and the tap chain of a row (the
-     * audio hint, the queue start, the tracked items) runs as for a tap. The shuffle button names params and is
-     * never touched.
+     * Injection point: the start of the watch controller, the end of every command resolver. The header's play button
+     * of a stream-downloaded album is a playlist-only watch endpoint, which the app answers with the music video of
+     * the first track (its first player request is built from the response to the playlist). It is the tap on the row
+     * of that track, so it becomes the command of that row, and the tap chain of a row (the audio hint, the queue
+     * start, the tracked items) runs as for a tap. The shuffle button names params and is never touched.
      *
-     * @return The row's command, or null when this is not a play button of such an album or the track is not audio.
+     * @return The row's command, or the command as it is when this is not the play button of such an album, the
+     * track has no copy or the mode is not audio.
      */
-    @Nullable
-    private static Object playAsRow(Object command, byte[] bytes, DownloadedRegistry registry) {
-        if (!(command instanceof NativeDownloads.Command rebuildable)) return null;
+    public static Object overridePlay(@Nullable Object command) {
+        try {
+            if (!supported() || !(command instanceof MessageLite message)
+                    || !(command instanceof NativeDownloads.Command rebuildable)) {
+                return command;
+            }
+            if (!Settings.START_DOWNLOADED_IN_AUDIO.get() || !StreamSwap.enabled() || tapsLeftAlone()) return command;
 
-        CommandRewrite.Play play = CommandRewrite.readPlay(bytes);
-        if (play == null) return null;
+            byte[] bytes = message.toByteArray();
+            CommandRewrite.Play play = CommandRewrite.readPlay(bytes);
+            if (play == null) return command;
 
-        List<String> tracks = registry.sourceTracks(play.playlistId());
-        String mode = liveMode();
-        String song = tracks != null && play.index() >= 0 && play.index() < tracks.size()
-                ? tracks.get(play.index()) : null;
-        boolean convert = AudioFirstLogic.playsAsRow(play.hasParams(), song != null && registry.isDownloaded(song), mode);
-        Logger.printDebug(() -> "AudioFirst: play command playlist=" + play.playlistId() + " index=" + play.index()
-                + " params=" + play.hasParams() + " source=" + (tracks != null) + " song=" + song + " mode=" + mode
-                + " convert=" + convert + " fields=" + play.fields());
-        if (!convert) return null;
+            DownloadedMarkers.warmUp();
+            DownloadedRegistry registry = DownloadedMarkers.loadedRegistry();
+            if (registry == null) return command;
 
-        byte[] row = CommandRewrite.playAsRow(bytes, song, AudioFirstLogic.hintsIn(mode));
-        if (row == null) return null;
+            List<String> tracks = registry.sourceTracks(play.playlistId());
+            String mode = liveMode();
+            String song = tracks != null && play.index() >= 0 && play.index() < tracks.size()
+                    ? tracks.get(play.index()) : null;
+            boolean convert = AudioFirstLogic.playsAsRow(play.hasParams(),
+                    song != null && registry.isDownloaded(song), mode);
+            Logger.printDebug(() -> "AudioFirst: play command playlist=" + play.playlistId() + " index="
+                    + play.index() + " params=" + play.hasParams() + " source=" + (tracks != null) + " song=" + song
+                    + " mode=" + mode + " convert=" + convert + " fields=" + play.fields());
+            if (!convert) return command;
 
-        Object rewritten = rebuildable.rvxWithBytes(row);
-        synchronized (lock) {
-            armedId = song;
-            armedAt = SystemClock.elapsedRealtime();
-            armedEpoch = modeEpoch;
+            byte[] row = CommandRewrite.playAsRow(bytes, song, AudioFirstLogic.hintsIn(mode));
+            if (row == null) return command;
+
+            Object rewritten = rebuildable.rvxWithBytes(row);
+            synchronized (lock) {
+                armedId = song;
+                armedAt = SystemClock.elapsedRealtime();
+                armedEpoch = modeEpoch;
+            }
+            QueueItems.expectStart(song);
+            Logger.printDebug(() -> "AudioFirst: play button of " + play.playlistId() + " starts its track "
+                    + play.index() + " v=" + song + " as a row");
+            return rewritten;
+        } catch (Exception ex) {
+            Logger.printException(() -> "AudioFirst: play command failure", ex);
+            return command;
         }
-        QueueItems.expectStart(song);
-        Logger.printDebug(() -> "AudioFirst: play button of " + play.playlistId() + " starts its track " + play.index()
-                + " v=" + song + " as a row");
-        return rewritten;
     }
 
     /** What the tap carried, which decides how it ties to a copy; at most once every 300 ms. */

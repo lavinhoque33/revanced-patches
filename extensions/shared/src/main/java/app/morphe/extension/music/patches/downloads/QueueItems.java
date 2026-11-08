@@ -106,7 +106,7 @@ public final class QueueItems {
                 Logger.printDebug(() -> "AudioFirst: queue item hook alive");
             }
             if (!AudioFirst.supported() || !(item instanceof Item queueItem)) return;
-            if (!Settings.START_DOWNLOADED_IN_AUDIO.get() || !StreamSwap.enabled()) return;
+            if (!tracksItems()) return;
 
             Object shown = queueItem.rvxRenderer();
             Tracked known;
@@ -311,6 +311,7 @@ public final class QueueItems {
     /** Called when the app sets its mode: every tracked item shows the renderer the new mode asks for. */
     static void onMode(String mode) {
         try {
+            boolean enabled = tracksItems();
             List<Object> items = new ArrayList<>();
             List<Tracked> entries = new ArrayList<>();
             synchronized (tracked) {
@@ -324,8 +325,9 @@ public final class QueueItems {
                         entries.add(entry);
                     }
                 }
+                // Switched off: the items are given back as the app built them and are not tracked any longer.
+                if (!enabled) tracked.clear();
             }
-            boolean enabled = Settings.START_DOWNLOADED_IN_AUDIO.get() && StreamSwap.enabled();
             for (int i = 0; i < items.size(); i++) {
                 Item queueItem = (Item) items.get(i);
                 Tracked entry = entries.get(i);
@@ -333,11 +335,16 @@ public final class QueueItems {
                 if (queueItem.rvxRenderer() == wanted) continue;
 
                 queueItem.rvxReplace(wanted);
-                logView(entry, mode, wanted == entry.song ? "song" : "original");
+                if (enabled) logView(entry, mode, wanted == entry.song ? "song" : "original");
             }
         } catch (Exception ex) {
             Logger.printException(() -> "AudioFirst: queue item mode failure", ex);
         }
+    }
+
+    /** Whether new items are tracked and shown as songs: the setting is on and the stream copies are in effect. */
+    private static boolean tracksItems() {
+        return AudioFirstLogic.tracksItems(Settings.START_DOWNLOADED_IN_AUDIO.get(), StreamSwap.enabled());
     }
 
     @Nullable

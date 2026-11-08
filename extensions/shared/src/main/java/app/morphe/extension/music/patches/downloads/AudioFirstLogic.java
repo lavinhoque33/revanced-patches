@@ -159,6 +159,15 @@ final class AudioFirstLogic {
         return !hasParams && trackHasCopy && isAudioMode(mode);
     }
 
+    /**
+     * Whether the queue items are tracked and shown as their songs: the setting is on and the stream copies are in
+     * effect. Otherwise no new item is tracked, a mode change swaps nothing and the items tracked until now are given
+     * back as the app built them.
+     */
+    static boolean tracksItems(boolean audioStartSetting, boolean streamCopies) {
+        return audioStartSetting && streamCopies;
+    }
+
     /** The user-triggered mode the pill sets from {@code mode}: the video from an audio mode, else the audio. */
     static String pillTarget(@Nullable String mode) {
         return isAudioMode(mode) ? "OMV_PREFERRED_USER_TRIGGERED" : "ATV_PREFERRED_USER_TRIGGERED";

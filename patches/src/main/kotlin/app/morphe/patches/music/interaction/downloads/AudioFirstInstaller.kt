@@ -18,6 +18,7 @@ import app.morphe.util.findMutableMethodOf
 import app.morphe.util.returnEarly
 import com.android.tools.smali.dexlib2.AccessFlags
 import com.android.tools.smali.dexlib2.Opcode
+import com.android.tools.smali.dexlib2.iface.ClassDef
 import com.android.tools.smali.dexlib2.iface.Method
 import com.android.tools.smali.dexlib2.iface.instruction.TwoRegisterInstruction
 import com.android.tools.smali.dexlib2.iface.reference.MethodReference
@@ -33,6 +34,8 @@ private const val QUEUE_ITEMS = "${AUDIO_FIRST_PATH}QueueItems;"
 private const val QUEUE_ITEM = $$"$${AUDIO_FIRST_PATH}QueueItems$Item;"
 private const val QUEUE_RENDERER = $$"$${AUDIO_FIRST_PATH}QueueItems$Renderer;"
 private const val ON_QUEUE_ITEM = "$QUEUE_ITEMS->onQueueItem(Ljava/lang/Object;)V"
+private const val PILL = $$"$${AUDIO_FIRST_PATH}QueueItems$Pill;"
+private const val ON_PILL_PRESS = "$QUEUE_ITEMS->onPillPress(Ljava/lang/Object;)Z"
 private const val PILL_ITEM = "$QUEUE_ITEMS->pillItem(Ljava/lang/Object;)Ljava/lang/Object;"
 private const val REGISTRY = "Lcom/google/protobuf/ExtensionRegistryLite;"
 private const val CAPTURE_HOLDER = "$AUDIO_FIRST->captureHolder(Ljava/lang/Object;)V"
@@ -259,9 +262,111 @@ private fun BytecodePatchContext.installQueueItemRetarget() {
 
         printInfo("AudioFirst: queue item tracking $itemType, renderer $rendererType, replacer ${replacer.name}, " +
             "toggle listener ${pill.classDef.type}->${pill.method.name}")
+        installPillPress(item)
     } catch (ex: Exception) {
         printWarn("Start downloaded songs in audio mode cannot keep the next songs of an album on their song " +
             "renderers on this Music version: ${ex.message}")
+    }
+}
+
+/** The method of the toggle's owner that persists the user's choice: it is what a press of the pill runs. */
+private val pillPressFingerprint = Fingerprint(
+    returnType = "V",
+    strings = listOf("Failed to update user last selected audio"),
+)
+
+/**
+ * The pill's own press does nothing for an album item: the app changes the mode, and then reloads only a queue item
+ * that has a counterpart, or, when its flag for it is off, follows the switch endpoint of the player response, which an
+ * audio-only response of a song has not. So the press is taken over for a tracked item: the toggle's press method asks
+ * the extension first, which changes the mode (the items then show the renderer of that mode) and has the toggle's
+ * owner navigate to the item's own watch endpoint, as the app does for a tap on the row. The owner gets one bridge for
+ * the navigation, through the executor its press method already navigates with: an interface method of the endpoint
+ * alone (9.40.51, 9.15.51), or one of the endpoint, a context object and a null pair (8.30.54). The endpoint type is
+ * the one the owner's one-argument calls of that kind take; the item gives the endpoint in a field of its watch
+ * reference, the object its hash code is made of.
+ *
+ * Resolved by shape: toggle press method `Lhvr.d` (9.40.51) / `Lnjz.e` (9.15.51) / `Lmwg.d` (8.30.54). Only this step
+ * is skipped, with a warning, when anything is missing.
+ */
+private fun BytecodePatchContext.installPillPress(item: ClassDef) {
+    try {
+        val press = pillPressFingerprint.matchSingle()
+        val owner = mutableClassDefBy(press.classDef.type)
+
+        // The endpoint is what the owner's one-argument calls take. The item gives it by its watch reference: the
+        // object its hash code is made of, which holds the endpoint in a field of its own.
+        val endpointTypes = owner.methods.flatMap { it.implementation?.instructions.orEmpty() }
+            .filter { it.opcode == Opcode.INVOKE_INTERFACE }.mapNotNull { it.getReference<MethodReference>() }
+            .filter { it.returnType == "V" && it.parameterTypes.size == 1 }
+            .map { it.parameterTypes.single().toString() }.distinct()
+        val hashed = item.methods.single { it.name == "hashCode" && it.parameterTypes.isEmpty() }
+            .implementation!!.instructions.mapNotNull { it.getReference<MethodReference>() }
+            .filter { it.definingClass == item.type && it.parameterTypes.isEmpty() }.map { it.name }.toSet()
+        val holding = item.methods.filter { it.name in hashed }.mapNotNull { method ->
+            val result = runCatching { classDefBy(method.returnType) }.getOrNull() ?: return@mapNotNull null
+            val field = result.fields.singleOrNull {
+                !AccessFlags.STATIC.isSet(it.accessFlags) && it.type in endpointTypes
+            } ?: return@mapNotNull null
+            method to field
+        }.single()
+        val referenceMethod = holding.first
+        val endpointType = holding.second.type
+
+        val calls = press.method.implementation!!.instructions
+            .filter { it.opcode == Opcode.INVOKE_INTERFACE }.mapNotNull { it.getReference<MethodReference>() }
+            .filter { it.returnType == "V" }.distinct()
+        val single = calls.singleOrNull { it.parameterTypes.map(CharSequence::toString) == listOf(endpointType) }
+        val triple = calls.singleOrNull {
+            val types = it.parameterTypes.map(CharSequence::toString)
+            types.size == 3 && types[0] == OBJECT && types[2] == "Landroid/util/Pair;"
+        }
+        val navigation = single ?: triple ?: error("no navigation call")
+        val navigator = owner.fields.single {
+            !AccessFlags.STATIC.isSet(it.accessFlags) && it.type == navigation.definingClass
+        }
+
+        val endpoint = "iget-object v0, v0, ${referenceMethod.returnType}->${holding.second.name}:$endpointType"
+        val navigate = if (single != null) {
+            "invoke-interface {v1, v0}, ${navigation.definingClass}->${navigation.name}($endpointType)V"
+        } else {
+            val context = owner.fields.single {
+                !AccessFlags.STATIC.isSet(it.accessFlags) && it.type == navigation.parameterTypes[1].toString()
+            }
+            val signature = "$OBJECT${context.type}Landroid/util/Pair;"
+            """
+            iget-object v2, p0, ${owner.type}->${context.name}:${context.type}
+            const/4 v3, 0x0
+            invoke-interface {v1, v0, v2, v3}, ${navigation.definingClass}->${navigation.name}($signature)V
+            """
+        }
+
+        owner.interfaces.add(PILL)
+        owner.addDownloadsBridge("rvxNavigate", listOf(OBJECT), "V", 6, """
+            check-cast p1, ${item.type}
+            invoke-virtual {p1}, ${item.type}->${referenceMethod.name}()${referenceMethod.returnType}
+            move-result-object v0
+            if-eqz v0, :done
+            $endpoint
+            iget-object v1, p0, ${owner.type}->${navigator.name}:${navigator.type}
+            $navigate
+            :done
+            return-void
+        """)
+        mutableClassDefBy(press.classDef.type).findMutableMethodOf(press.method).addInstructions(0, """
+            invoke-static {p0}, $ON_PILL_PRESS
+            move-result v0
+            if-eqz v0, :rvx_stock
+            return-void
+            :rvx_stock
+            nop
+        """)
+
+        printInfo("AudioFirst: pill press ${press.classDef.type}->${press.method.name}, navigates with " +
+            "${navigation.definingClass}->${navigation.name}, item reference ${referenceMethod.name}")
+    } catch (ex: Exception) {
+        printWarn("Start downloaded songs in audio mode cannot take over the song/video pill for the next songs " +
+            "of an album on this Music version: ${ex.message}")
     }
 }
 

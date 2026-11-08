@@ -42,6 +42,11 @@ public final class QueueItems {
         void rvxReplace(Object renderer);
     }
 
+    /** The toggle's owner, by the one method the patch adds to it: navigates to an item's own watch endpoint. */
+    public interface Pill {
+        void rvxNavigate(Object item);
+    }
+
     /** A panel renderer, rebuilt from bytes by the one method the patch adds to its class. */
     public interface Renderer {
         Object rvxWithBytes(byte[] bytes);
@@ -66,6 +71,10 @@ public final class QueueItems {
     private static final List<Tracked> tracked = new ArrayList<>();
     private static final QueueLogBudget log = new QueueLogBudget();
     private static final Object NOT_A_QUEUE_ITEM = new Object();
+    private static final QueueLogBudget pillLog = new QueueLogBudget();
+    /** The item the pill was last told about: the current one. */
+    @Nullable
+    private static WeakReference<Object> pillItem;
     private static volatile boolean alive;
 
     private QueueItems() {}
@@ -108,14 +117,58 @@ public final class QueueItems {
      */
     public static Object pillItem(@Nullable Object item) {
         try {
-            if (item == null || !AudioFirst.supported() || !Settings.START_DOWNLOADED_IN_AUDIO.get()) return item;
+            if (!AudioFirst.supported() || !Settings.START_DOWNLOADED_IN_AUDIO.get()) return item;
 
+            Tracked entry;
             synchronized (tracked) {
-                return find(item) != null ? NOT_A_QUEUE_ITEM : item;
+                pillItem = item == null ? null : new WeakReference<>(item);
+                entry = item == null ? null : find(item);
             }
+            if (item != null) {
+                boolean isTracked = entry != null;
+                logPill(() -> "AudioFirst: pill gate item=" + (isTracked ? entry.videoId : "untracked")
+                        + " tracked=" + isTracked + " result=" + isTracked);
+            }
+            return entry != null ? NOT_A_QUEUE_ITEM : item;
         } catch (Exception ex) {
             Logger.printException(() -> "AudioFirst: queue item pill failure", ex);
             return item;
+        }
+    }
+
+    /**
+     * Injection point: the start of the pill's press. For the current item, when it is tracked, the press is this
+     * class's: the mode goes to the other kind (the items show its renderer) and the toggle's owner navigates to the
+     * item's own watch endpoint, which the app plays in that mode. Any other press is the app's.
+     *
+     * @return True if the press was taken, so the app's must not run.
+     */
+    public static boolean onPillPress(@Nullable Object toggle) {
+        try {
+            if (!AudioFirst.supported() || !Settings.START_DOWNLOADED_IN_AUDIO.get()) return false;
+
+            Object item;
+            Tracked entry;
+            synchronized (tracked) {
+                item = pillItem == null ? null : pillItem.get();
+                entry = item == null ? null : find(item);
+            }
+            boolean forced = entry != null && toggle instanceof Pill;
+            String was = AudioFirst.liveMode();
+            logPill(() -> "AudioFirst: pill press item=" + (entry == null ? null : entry.videoId) + " tracked="
+                    + (entry != null) + " forced=" + forced + " mode=" + was);
+            if (!forced) return false;
+
+            AudioFirst.leaveTapsAlone();
+            String now = AudioFirst.togglePillMode();
+            if (now == null) return false;
+
+            ((Pill) toggle).rvxNavigate(item);
+            logPill(() -> "AudioFirst: pill press mode " + was + " -> " + now + ", navigated");
+            return true;
+        } catch (Exception ex) {
+            Logger.printException(() -> "AudioFirst: pill press failure", ex);
+            return false;
         }
     }
 
@@ -221,6 +274,12 @@ public final class QueueItems {
         Logger.printDebug(() -> "AudioFirst: queue item view video=" + row.videoId + " -> song=" + songId
                 + " mode=" + AudioFirst.liveMode() + " playlist=" + row.playlistId + " index=" + row.index
                 + " outcome=" + outcome);
+    }
+
+    private static void logPill(java.util.function.Supplier<String> message) {
+        if (!pillLog.allow(SystemClock.elapsedRealtime())) return;
+
+        Logger.printDebug(message::get);
     }
 
     private static void logView(Tracked entry, String mode, String outcome) {

@@ -44,6 +44,8 @@ public final class AudioFirst {
 
     /** Counts the mode changes, so a tap can tell whether the mode it found is still the one held. */
     private static long modeEpoch;
+    private static long tapsLeftAloneUntil;
+    private static final long PILL_NAVIGATION_MILLIS = 3_000;
     private static long armedEpoch;
 
     private static final long COMMAND_LOG_INTERVAL_MILLIS = 300;
@@ -154,6 +156,42 @@ public final class AudioFirst {
         return status.length() == 0 ? "no holder answered" : status.toString();
     }
 
+    /**
+     * The song/video pill's own press, for a queue item the extension tracks: turns the app's mode to the other kind
+     * (a user-triggered value, as the pill's own) through its setter, which also makes the tracked items show the
+     * renderer of that mode. The command the navigation that follows carries is left as it is, see
+     * {@link #leaveTapsAlone}.
+     *
+     * @return The mode that was set, or null when the app's holder cannot be read or set.
+     */
+    @Nullable
+    static String togglePillMode() {
+        for (ModeHolder holder : liveHolders()) {
+            Enum<?> mode = modeOf(holder);
+            if (mode == null) continue;
+
+            String target = AudioFirstLogic.pillTarget(mode.name());
+            holder.rvxSetMode(constant(mode, target));
+            Enum<?> now = modeOf(holder);
+            return now == null ? target : now.name();
+        }
+        return null;
+    }
+
+    /** Commands the app navigates to for the pill are not taps on a row: they are not armed or rewritten. */
+    static void leaveTapsAlone() {
+        synchronized (lock) {
+            tapsLeftAloneUntil = SystemClock.elapsedRealtime() + PILL_NAVIGATION_MILLIS;
+            armedId = null;
+        }
+    }
+
+    private static boolean tapsLeftAlone() {
+        synchronized (lock) {
+            return SystemClock.elapsedRealtime() < tapsLeftAloneUntil;
+        }
+    }
+
     /** Whether a video mode still held now is the one found by the last tap: no mode was set since. */
     private static boolean modeUnchangedSinceTap() {
         synchronized (lock) {
@@ -193,6 +231,7 @@ public final class AudioFirst {
         try {
             if (!supported() || !(command instanceof MessageLite message)) return null;
             if (!Settings.START_DOWNLOADED_IN_AUDIO.get() || !StreamSwap.enabled()) return null;
+            if (tapsLeftAlone()) return null;
 
             DownloadedMarkers.warmUp();
             DownloadedRegistry registry = DownloadedMarkers.loadedRegistry();

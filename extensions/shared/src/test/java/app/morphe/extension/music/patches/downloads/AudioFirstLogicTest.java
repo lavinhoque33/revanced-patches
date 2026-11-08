@@ -185,4 +185,13 @@ public class AudioFirstLogicTest {
         assertFalse(AudioFirstLogic.showsSong(true, "ATV_PREFERRED", false));
         assertFalse(AudioFirstLogic.showsSong(false, "ATV_PREFERRED", true));
     }
+
+    @Test
+    public void pillGoesToTheVideoFromAnAudioModeAndToTheAudioOtherwise() {
+        assertEquals("OMV_PREFERRED_USER_TRIGGERED", AudioFirstLogic.pillTarget("ATV_PREFERRED"));
+        assertEquals("OMV_PREFERRED_USER_TRIGGERED", AudioFirstLogic.pillTarget("ATV_PREFERRED_USER_TRIGGERED"));
+        assertEquals("ATV_PREFERRED_USER_TRIGGERED", AudioFirstLogic.pillTarget("OMV_PREFERRED"));
+        assertEquals("ATV_PREFERRED_USER_TRIGGERED", AudioFirstLogic.pillTarget("OMV_PREFERRED_USER_TRIGGERED"));
+        assertEquals("ATV_PREFERRED_USER_TRIGGERED", AudioFirstLogic.pillTarget(null));
+    }
 }

@@ -150,4 +150,9 @@ final class AudioFirstLogic {
     static boolean showsSong(boolean enabled, @Nullable String mode, boolean hasSong) {
         return enabled && hasSong && isAudioMode(mode);
     }
+
+    /** The user-triggered mode the pill sets from {@code mode}: the video from an audio mode, else the audio. */
+    static String pillTarget(@Nullable String mode) {
+        return isAudioMode(mode) ? "OMV_PREFERRED_USER_TRIGGERED" : "ATV_PREFERRED_USER_TRIGGERED";
+    }
 }

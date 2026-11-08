@@ -31,6 +31,13 @@ public class ElementRowLayoutTest {
         assertFalse(ElementRowLayout.isNumberCell(40, 85, 120, 400, 160, DENSITY));
     }
 
+    @Test public void theActionBarOfTheAlbumHeaderIsNoTrackRow() {
+        // Measured on a device: 1080 x 120 px (48 dp), with a 97 x 120 px icon button cell that looked like a number.
+        assertFalse(ElementRowLayout.isTrackRow(1080, 120, DENSITY));
+        assertFalse(ElementRowLayout.isNumberCell(0, 97, 120, 1080, 120, DENSITY));
+        assertTrue(ElementRowLayout.isTrackRow(1080, 160, DENSITY));
+    }
+
     @Test public void theCheckSitsUnderTheNumberCenteredInTheCell() {
         int[] origin = ElementRowLayout.checkOrigin(40, 20, 85, 120, DENSITY);
 

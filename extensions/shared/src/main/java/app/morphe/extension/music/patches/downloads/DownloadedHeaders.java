@@ -49,12 +49,15 @@ final class DownloadedHeaders {
         boolean listening;
         boolean applyQueued;
         String lastLogged = "";
+        final DownloadedAlbumRows.State albumRows = new DownloadedAlbumRows.State();
     }
 
     private DownloadedHeaders() {}
 
     static void apply(ViewGroup container, State state) {
         listenForLayouts(container, state);
+        // The track rows of the page are looked at from its header: the header is what names the album.
+        DownloadedAlbumRows.apply(container, state.albumRows, state.sourceIds);
 
         DownloadedCheck badge = state.badge.get();
         boolean downloaded = false;

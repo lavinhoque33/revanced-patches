@@ -16,13 +16,21 @@ final class ElementRowLayout {
     /** Below the middle of the cell: clears the number (or the icon that replaces it on the playing row). */
     static final float CHECK_OFFSET_DP = 9;
 
-    private static final float MIN_ROW_DP = 48;
+    private static final float MIN_ROW_DP = 56;
     private static final float MAX_ROW_DP = 80;
     private static final float MIN_CELL_DP = 28;
     private static final float MAX_CELL_DP = 40;
     private static final float MAX_CELL_START_DP = 24;
 
     private ElementRowLayout() {}
+
+    /**
+     * Whether a view is as big as a track row: as wide as a list and 56 to 80 dp high (a track row is 64 dp). The
+     * 48 dp action bar of the album header, whose buttons are as narrow as the number cell, is not.
+     */
+    static boolean isTrackRow(int rowWidth, int rowHeight, float density) {
+        return rowWidth >= 280 * density && rowHeight >= MIN_ROW_DP * density && rowHeight <= MAX_ROW_DP * density;
+    }
 
     /**
      * Whether a view of a row is the cell of the track number: narrow, tall, at the start of the row, in a row of the
@@ -32,7 +40,7 @@ final class ElementRowLayout {
      */
     static boolean isNumberCell(int cellLeft, int cellWidth, int cellHeight, int rowWidth, int rowHeight,
                                 float density) {
-        return rowWidth >= 280 * density && rowHeight >= MIN_ROW_DP * density && rowHeight <= MAX_ROW_DP * density
+        return isTrackRow(rowWidth, rowHeight, density)
                 && cellWidth >= MIN_CELL_DP * density && cellWidth <= MAX_CELL_DP * density
                 && cellHeight >= rowHeight / 2 && cellLeft >= 0 && cellLeft <= MAX_CELL_START_DP * density;
     }

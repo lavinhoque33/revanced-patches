@@ -10,10 +10,10 @@
   audio mode (a sub-setting, on by default) so the local copy plays, also from an album's track list, its Play button
   and Next; the Song/Video switch still reaches the online video and starts the song over.
 * **YouTube Music - Downloads:** Add green downloaded checkmarks, on by default and a child of Play downloads locally.
-  Songs and playlists saved for local playback show a check on playlist pages, in the Search songs filter and in the
-  player queue, and a playlist or album page whose every track has a stream copy shows one on its Download button.
-  Songs saved only as files by Download in app are not marked. Album track rows and the search All cards are not
-  marked.
+  Songs and playlists saved for local playback show a check on playlist pages, on the track rows of an album page
+  (under the track number), in the Search songs filter and in the player queue, and a playlist or album page whose
+  every track has a stream copy shows one on its Download button. Songs saved only as files by Download in app are
+  not marked, and neither are the search All cards.
 
 ## [1.33.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.32.2...v1.33.0) (2026-11-06)
 

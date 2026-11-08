@@ -265,5 +265,6 @@ val downloadsPatch = bytecodePatch(
     // After the playlist track tap patch, which hooks the same method: this hook has to run first.
     finalize {
         installAudioFirstCommandHook()
+        installPillPress()
     }
 }

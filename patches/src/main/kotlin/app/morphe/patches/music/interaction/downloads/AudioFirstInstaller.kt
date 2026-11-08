@@ -18,7 +18,6 @@ import app.morphe.util.findMutableMethodOf
 import app.morphe.util.returnEarly
 import com.android.tools.smali.dexlib2.AccessFlags
 import com.android.tools.smali.dexlib2.Opcode
-import com.android.tools.smali.dexlib2.iface.ClassDef
 import com.android.tools.smali.dexlib2.iface.Method
 import com.android.tools.smali.dexlib2.iface.instruction.TwoRegisterInstruction
 import com.android.tools.smali.dexlib2.iface.reference.MethodReference
@@ -74,6 +73,7 @@ private fun Method.callsOneObjectSubject(): Boolean {
  */
 internal fun BytecodePatchContext.installAudioFirst() {
     audioFirstResolved = false
+    trackedItemType = null
     try {
         val enumType = audioVideoModeEnumFingerprint.matchSingle().classDef.type
         val setter = Fingerprint(
@@ -262,7 +262,7 @@ private fun BytecodePatchContext.installQueueItemRetarget() {
 
         printInfo("AudioFirst: queue item tracking $itemType, renderer $rendererType, replacer ${replacer.name}, " +
             "toggle listener ${pill.classDef.type}->${pill.method.name}")
-        installPillPress(item)
+        trackedItemType = itemType
     } catch (ex: Exception) {
         printWarn("Start downloaded songs in audio mode cannot keep the next songs of an album on their song " +
             "renderers on this Music version: ${ex.message}")
@@ -287,10 +287,14 @@ private val pillPressFingerprint = Fingerprint(
  * reference, the object its hash code is made of.
  *
  * Resolved by shape: toggle press method `Lhvr.d` (9.40.51) / `Lnjz.e` (9.15.51) / `Lmwg.d` (8.30.54). Only this step
- * is skipped, with a warning, when anything is missing.
+ * is skipped, with a warning, when anything is missing. It is installed once every patch has run, like the tap hook:
+ * another patch (crossfade) hooks the same method at its start, and a hook added before it lost its branch target.
  */
-private fun BytecodePatchContext.installPillPress(item: ClassDef) {
+internal fun BytecodePatchContext.installPillPress() {
+    val itemType = trackedItemType ?: return
+
     try {
+        val item = classDefBy(itemType)
         val press = pillPressFingerprint.matchSingle()
         val owner = mutableClassDefBy(press.classDef.type)
 
@@ -404,3 +408,6 @@ internal fun BytecodePatchContext.installAudioFirstCommandHook() {
 }
 
 private var audioFirstResolved = false
+
+/** The queue item class [installQueueItemRetarget] tracks, for [installPillPress]; null when it could not. */
+private var trackedItemType: String? = null

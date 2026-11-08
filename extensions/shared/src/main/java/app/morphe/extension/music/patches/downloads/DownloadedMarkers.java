@@ -57,11 +57,17 @@ public final class DownloadedMarkers {
 
     /** What is known of a list row's view; the model is only weakly held, the row's view tree owns the check. */
     static final class RowState {
-        static final RowState NOT_A_ROW = new RowState();
+        static final RowState NOT_A_ROW = new RowState("none");
 
+        /** The end slot of the row's layout, see {@link RowEndCheck#slotKind}. */
+        final String kind;
         WeakReference<Object> model = new WeakReference<>(null);
         final RowEndCheck end = new RowEndCheck();
         String lastOutcome = "";
+
+        RowState(String kind) {
+            this.kind = kind;
+        }
     }
 
     private DownloadedMarkers() {}
@@ -93,8 +99,10 @@ public final class DownloadedMarkers {
             if (!enabled() && (state == null || !state.end.isShown())) return;
 
             if (state == null) {
-                state = RowEndCheck.hasSlot(view) ? new RowState() : RowState.NOT_A_ROW;
+                String kind = RowEndCheck.slotKind(view);
+                state = kind == null ? RowState.NOT_A_ROW : new RowState(kind);
                 rows.put(view, state);
+                if (kind == null) rowLog.notASongRow(view.getClass().getSimpleName());
             }
             if (state == RowState.NOT_A_ROW) return;
 

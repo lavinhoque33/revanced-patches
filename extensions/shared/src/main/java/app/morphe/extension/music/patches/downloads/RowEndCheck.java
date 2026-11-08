@@ -24,8 +24,6 @@ import app.morphe.extension.shared.utils.ResourceUtils;
  * trace of it. The rules are relative to the layout direction, so a right-to-left row mirrors. Main thread only.
  */
 final class RowEndCheck {
-    private static final String[] MENU_CONTAINERS = {"contextual_menu_container", "menu_anchor_container"};
-    private static final String CONTRIBUTORS = "contributor_avatars_container";
     private static final int CHECK_DP = 16;
     private static final int MARGIN_DP = 4;
     private static final WeakReference<View> NO_VIEW = new WeakReference<>(null);
@@ -39,7 +37,7 @@ final class RowEndCheck {
     /** The menu container of a row and the layout it sits in, or null when the row is not of these layouts. */
     @Nullable
     private static View findMenu(View row) {
-        for (String name : MENU_CONTAINERS) {
+        for (String name : RowEndSlots.MENU_CONTAINERS) {
             int id = ResourceUtils.getIdIdentifier(name);
             View found = id == 0 ? null : row.findViewById(id);
             if (found != null && found.getParent() instanceof RelativeLayout) return found;
@@ -47,9 +45,15 @@ final class RowEndCheck {
         return null;
     }
 
-    /** Whether the row has an end slot for the check. */
-    static boolean hasSlot(View row) {
-        return findMenu(row) != null;
+    /** The kind of an end slot (the name of the menu container: a list row or a queue row), or null when none. */
+    @Nullable
+    static String slotKind(View row) {
+        for (String name : RowEndSlots.MENU_CONTAINERS) {
+            int id = ResourceUtils.getIdIdentifier(name);
+            View found = id == 0 ? null : row.findViewById(id);
+            if (found != null && found.getParent() instanceof RelativeLayout) return name;
+        }
+        return null;
     }
 
     /** Whether a check of this row is visible. */
@@ -106,24 +110,33 @@ final class RowEndCheck {
         params.setMarginEnd(DownloadedCheck.dp(MARGIN_DP));
         layout.addView(created, params);
 
-        int contributorsId = ResourceUtils.getIdIdentifier(CONTRIBUTORS);
+        int contributorsId = ResourceUtils.getIdIdentifier(RowEndSlots.CONTRIBUTORS);
         check = new WeakReference<>(created);
         menu = new WeakReference<>(menuContainer);
         contributors = new WeakReference<>(contributorsId == 0 ? null : layout.findViewById(contributorsId));
         text = new WeakReference<>(column);
-        textTarget = ((RelativeLayout.LayoutParams) column.getLayoutParams()).getRule(RelativeLayout.START_OF);
+        textTarget = textTarget(column);
         return "added";
     }
 
-    /** The child of the layout that ends at the menu container (or at the container next to it). */
+    /** The id the child is placed at the start of, whichever verb the laid out layout reports it with. */
+    private static int textTarget(View child) {
+        if (!(child.getLayoutParams() instanceof RelativeLayout.LayoutParams params)) return 0;
+
+        boolean rightToLeft = child.getLayoutDirection() == View.LAYOUT_DIRECTION_RTL;
+        return RowEndSlots.startOfTarget(params.getRule(RelativeLayout.START_OF),
+                params.getRule(RelativeLayout.LEFT_OF), params.getRule(RelativeLayout.RIGHT_OF), rightToLeft);
+    }
+
+    /** The child of the layout that ends at the avatars or the menu container: the title and subtitle column. */
     @Nullable
     private static View findTextColumn(RelativeLayout layout, View menuContainer) {
+        int avatarsId = ResourceUtils.getIdIdentifier(RowEndSlots.CONTRIBUTORS);
         for (int i = 0; i < layout.getChildCount(); i++) {
             View child = layout.getChildAt(i);
-            if (child == menuContainer || !(child.getLayoutParams() instanceof RelativeLayout.LayoutParams params)) {
-                continue;
+            if (RowEndSlots.isTextColumn(child.getId(), textTarget(child), menuContainer.getId(), avatarsId)) {
+                return child;
             }
-            if (params.getRule(RelativeLayout.START_OF) != 0) return child;
         }
         return null;
     }
@@ -135,11 +148,12 @@ final class RowEndCheck {
     private void placeBeforeAnchor(DownloadedCheck shown) {
         View menuContainer = menu.get();
         View avatars = contributors.get();
-        View anchor = avatars instanceof ViewGroup group && group.getChildCount() > 0 ? avatars : menuContainer;
-        if (anchor == null || !(shown.getLayoutParams() instanceof RelativeLayout.LayoutParams params)) return;
+        if (menuContainer == null || !(shown.getLayoutParams() instanceof RelativeLayout.LayoutParams params)) return;
 
-        if (params.getRule(RelativeLayout.START_OF) != anchor.getId()) {
-            params.addRule(RelativeLayout.START_OF, anchor.getId());
+        boolean hasAvatars = avatars instanceof ViewGroup group && group.getChildCount() > 0;
+        int anchor = RowEndSlots.anchor(menuContainer.getId(), avatars == null ? 0 : avatars.getId(), hasAvatars);
+        if (textTarget(shown) != anchor) {
+            params.addRule(RelativeLayout.START_OF, anchor);
             shown.setLayoutParams(params);
         }
         View column = text.get();
@@ -147,8 +161,7 @@ final class RowEndCheck {
     }
 
     private static void setTextEnd(View column, int target) {
-        if (!(column.getLayoutParams() instanceof RelativeLayout.LayoutParams params)
-                || params.getRule(RelativeLayout.START_OF) == target) {
+        if (!(column.getLayoutParams() instanceof RelativeLayout.LayoutParams params) || textTarget(column) == target) {
             return;
         }
 

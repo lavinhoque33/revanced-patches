@@ -16,6 +16,7 @@ import app.morphe.patcher.util.smali.ExternalLabel
 import app.morphe.patches.shared.misc.fix.proto.parseByteArrayMethodRef
 import app.morphe.util.Utils.printInfo
 import app.morphe.util.Utils.printWarn
+import app.morphe.util.addInstructionsAtControlFlowLabel
 import app.morphe.util.fingerprint.matchSingle
 import app.morphe.util.returnEarly
 import com.android.tools.smali.dexlib2.AccessFlags
@@ -54,10 +55,14 @@ private const val GATE_EXPERIMENT = 0x02b88604L
 /** Message of the failure the stock player lookup ends with when a song was not downloaded the stock way. */
 private const val UNPLAYABLE = "Unplayable Video"
 
+/** Message of the failure the Library chip loader ends with for a continuation it does not know. */
+private const val UNSUPPORTED_CONTINUATION = "Unsupported continuation: "
+
 /**
  * Offline playback of stream copies, in 9.40.51 / 9.15.51 / 8.30.54 order:
  * gate `Lgup.c` / `Lkch.c` / `Ljto.c`, player lookup `Laalc.c` / `Laxlp.c` / `Lauhp.c`,
- * watch-next entry `Lhyv.b` / `Lntb.b` / `Lnez.b`, watch-next request `Labjm` / `Lazmi` / `Lawgh`.
+ * watch-next entry `Lhyv.b` / `Lntb.b` / `Lnez.b`, watch-next request `Labjm` / `Lazmi` / `Lawgh`,
+ * and the Library chip loader (`Lhtd.a` in 9.40.51).
  * Every dependency of every hook is resolved before anything is changed, and the hooks go in together or not at all:
  * a version whose shape is unfamiliar only warns and plays as before. Needs [installStreamSwap]: the stored response
  * gets the same audio swap an online one does.
@@ -74,12 +79,14 @@ internal fun BytecodePatchContext.installOfflineReplay() {
         val installGate = prepareReplayGate(commandType)
         val (requestType, installTail) = prepareReplayTail()
         val installNext = prepareReplayNext(requestType, commandType)
+        val installChip = prepareLibraryChip()
 
         installGate()
         installTail()
         installNext()
+        installChip()
         supported.returnEarly(true)
-        printInfo("OfflineReplay: gate, player lookup and watch-next hooked; request $requestType")
+        printInfo("OfflineReplay: gate, player lookup, watch-next and library chip hooked; request $requestType")
     } catch (ex: Exception) {
         printWarn("OfflineReplay: hooks unavailable; online playback unchanged: ${ex.message}")
     }
@@ -242,7 +249,8 @@ private fun BytecodePatchContext.prepareReplayTail(): Pair<String, () -> Unit> {
     // The small one only wraps the bytes; the large one is the variant for a feature flag.
     val factory = factories.minBy { it.implementation?.instructions?.count() ?: Int.MAX_VALUE }
 
-    val stock = ExternalLabel("rvx_replay_player_stock", method.getInstruction<Instruction>(guard))
+    // Every failure of the lookup (an id the offline store lacks ends in a different catch block than a stale entry)
+    // jumps to the guard: the hook takes over that jump target, so no failure path can skip it.
     return requestType to {
         owner.addDownloadsBridge("rvxTail", listOf(requestType, callbackType), "Z", 8, """
             invoke-virtual {p1}, ${offlineOnly.definingClass}->${offlineOnly.name}()Z
@@ -270,12 +278,50 @@ private fun BytecodePatchContext.prepareReplayTail(): Pair<String, () -> Unit> {
             const/4 v0, 0x1
             return v0
         """)
-        method.addInstructionsWithLabels(guard, """
+        method.addInstructionsAtControlFlowLabel(guard, """
             invoke-virtual/range {p0 .. p2}, ${owner.type}->rvxTail($requestType$callbackType)Z
             move-result v$scratch
             if-eqz v$scratch, :rvx_replay_player_stock
             return-void
-        """, stock)
+            :rvx_replay_player_stock
+            nop
+        """)
+    }
+}
+
+/**
+ * The Library page's chip loader (`Lhtd.a` in 9.40.51): it maps the continuation of a chip to the browse id of the
+ * page behind it and throws `Unsupported continuation` for one it does not know. The Downloads chip is such a
+ * continuation, not a navigation command, so it never reaches the command dispatcher; right after the browse id is
+ * known to be non-null it is handed to [REPLAY], which opens the offline list for the Downloads page. The stock
+ * load goes on behind the list.
+ */
+private fun BytecodePatchContext.prepareLibraryChip(): () -> Unit {
+    val method = Fingerprint(
+        returnType = "L",
+        parameters = listOf("L"),
+        strings = listOf(UNSUPPORTED_CONTINUATION),
+    ).matchSingle().method
+    val instructions = method.implementation!!.instructions.toList()
+
+    val failure = instructions.indexOfFirst { it.getReference<StringReference>()?.string == UNSUPPORTED_CONTINUATION }
+    val test = instructions.indices.single { index ->
+        val step = instructions[index]
+        step.opcode == Opcode.IF_EQZ &&
+            (step as BuilderOffsetInstruction).target.location.index in failure - 8 until failure
+    }
+    val cast = instructions[test - 1]
+    check(cast.opcode == Opcode.CHECK_CAST && cast.getReference<TypeReference>()!!.type == STRING) {
+        "chip: the browse id is not a checked string"
+    }
+    val browseId = (instructions[test] as OneRegisterInstruction).registerA
+    check((cast as OneRegisterInstruction).registerA == browseId && browseId <= 15) { "chip: browse id register" }
+    check(instructions.none { it is BuilderOffsetInstruction && it.target.location.index == test + 1 }) {
+        "chip: the insertion point is a jump target"
+    }
+
+    return {
+        method.addInstruction(test + 1, "invoke-static {v$browseId}, $REPLAY->onLibraryChip($STRING)V")
     }
 }
 

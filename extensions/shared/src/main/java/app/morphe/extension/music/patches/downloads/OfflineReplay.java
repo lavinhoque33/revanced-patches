@@ -19,6 +19,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
@@ -60,8 +61,12 @@ public final class OfflineReplay {
     private static final String HOOK_GATE = "gate";
     private static final String HOOK_PLAYER = "player";
     private static final String HOOK_NEXT = "next";
+    private static final String HOOK_COMMAND = "command";
+    private static final String HOOK_GATE_FLAG = "gate-flag";
+    private static final String HOOK_CHIP = "library-chip";
 
     private static final ConcurrentMap<String, Long> skipLoggedAt = new ConcurrentHashMap<>();
+    private static final Set<String> aliveHooks = ConcurrentHashMap.newKeySet();
     private static volatile Captured captured;
     private static volatile boolean lastGateFlag;
 
@@ -223,6 +228,7 @@ public final class OfflineReplay {
      */
     static boolean onCommand(Object dispatcher, Object command, Map<?, ?> context) {
         try {
+            noteAlive(HOOK_COMMAND);
             if (!(dispatcher instanceof Dispatcher stockDispatcher) || !(command instanceof Command message)) {
                 return false;
             }
@@ -241,12 +247,23 @@ public final class OfflineReplay {
         }
     }
 
+    /**
+     * Injection point: the Library page loads a chip, with the browse id the chip resolved to, on the main thread.
+     * The Downloads chip sends no command, so it is the only way to hand its page to the offline list.
+     */
+    static void onLibraryChip(String browseId) {
+        noteAlive(HOOK_CHIP);
+        logDecision(HOOK_CHIP, "browse=" + browseId + " enabled=" + enabled());
+        if (enabled()) OfflineLibrary.onLibraryChip(browseId);
+    }
+
     // endregion
 
     // region hooks
 
     /** Injection point: the flag the gate read, to tell in the log which of its two paths a version takes. */
     static void noteGateFlag(boolean flag) {
+        noteAlive(HOOK_GATE_FLAG);
         lastGateFlag = flag;
     }
 
@@ -256,12 +273,13 @@ public final class OfflineReplay {
      */
     static boolean holdsForGate(String videoId) {
         try {
+            noteAlive(HOOK_GATE);
             boolean ours = videoId != null && holds(videoId);
             boolean enabled = enabled();
             boolean offline = enabled && !networkAvailable();
             String reason = OfflineReplayLogic.skipReason(enabled, offline, ours, true);
             if (reason != null) {
-                logSkip(HOOK_GATE, reason);
+                logDecision(HOOK_GATE, "declined:" + reason + " v=" + videoId + " ours=" + ours);
                 return false;
             }
 
@@ -281,18 +299,22 @@ public final class OfflineReplay {
     @Nullable
     static byte[] storedForPlayer(String videoId, boolean offlineRequest) {
         try {
+            noteAlive(HOOK_PLAYER);
+            logDecision(HOOK_PLAYER, "lookup entered v=" + videoId + " offlineRequest=" + offlineRequest);
+
             OfflineCopyFiles.Stored stored = null;
             if (enabled() && offlineRequest && videoId != null) stored = OfflineCopyStore.find(videoId);
 
             String reason = OfflineReplayLogic.skipReason(enabled(), offlineRequest, stored != null, true);
             if (reason != null) {
-                logSkip(HOOK_PLAYER, reason);
+                logDecision(HOOK_PLAYER, "lookup declined:" + reason + " v=" + videoId);
                 return null;
             }
 
             byte[] prepared = OfflineReplayResponse.prepare(stored.response());
             Logger.printWarn(() -> "OfflineReplay: player v=" + videoId + " stock failed, answering from the copy"
                     + " stored=" + prepared.length + "B");
+            logDecision(HOOK_PLAYER, "lookup answered v=" + videoId);
             return prepared;
         } catch (Exception ex) {
             Logger.printException(() -> "OfflineReplay: no stored response for v=" + videoId, ex);
@@ -335,6 +357,7 @@ public final class OfflineReplay {
      */
     static ListenableFuture<?> wrapNext(Object request, ListenableFuture<?> stock) {
         try {
+            noteAlive(HOOK_NEXT);
             OfflineReplayLogic.WatchTarget target = watchTargetOf(request);
             boolean ours = target != null
                     && (sourceOf(target.playlistId()) != null || holds(target.videoId()));
@@ -435,5 +458,18 @@ public final class OfflineReplay {
         if (OfflineReplayLogic.shouldLogSkip(skipLoggedAt, hook + ":" + reason, now)) {
             Logger.printDebug(() -> "OfflineReplay: " + hook + " skipped reason=" + reason);
         }
+    }
+
+    /** A decision of a hook that only runs for an offline request or a stock failure: every one is said. */
+    private static void logDecision(String hook, String decision) {
+        Logger.printDebug(() -> "OfflineReplay: " + hook + " " + decision);
+    }
+
+    /** Says once per process that a hook was reached: proof, online or offline, that its injection is alive. */
+    private static void noteAlive(String hook) {
+        if (!aliveHooks.add(hook)) return;
+
+        Logger.printDebug(() -> "OfflineReplay: hook alive hook=" + hook + " enabled=" + enabled()
+                + " network=" + (networkAvailable() ? "online" : "offline"));
     }
 }

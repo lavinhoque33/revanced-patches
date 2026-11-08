@@ -56,6 +56,17 @@ public final class OfflineReplayHooks {
         }
     }
 
+    /** Injection point: the Library page loads a chip; {@code browseId} is the page the chip resolved to. */
+    public static void onLibraryChip(String browseId) {
+        if (!usable()) return;
+
+        try {
+            OfflineReplay.onLibraryChip(browseId);
+        } catch (Throwable failure) {
+            disable("library chip", failure);
+        }
+    }
+
     /** Injection point: the flag the offline watch gate read. */
     public static void noteGateFlag(boolean flag) {
         if (!usable()) return;

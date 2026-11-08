@@ -115,6 +115,10 @@ final class OfflineLibraryScreen {
         dialog.show();
     }
 
+    boolean isShowing() {
+        return dialog.isShowing();
+    }
+
     void dismiss() {
         dialog.dismiss();
     }

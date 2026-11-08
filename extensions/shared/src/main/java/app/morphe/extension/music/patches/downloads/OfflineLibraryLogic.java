@@ -85,6 +85,14 @@ final class OfflineLibraryLogic {
         return DOWNLOADS_BROWSE_ID.equals(browseId) ? Decision.OPEN_WITH_DEVICE_FILES : Decision.STOCK;
     }
 
+    /**
+     * Whether a Library chip that resolved to {@code browseId} is the Downloads chip itself: its sub chips (songs,
+     * albums, playlists) resolve to ids of their own and stay with the stock page.
+     */
+    static boolean isDownloadsChip(String browseId) {
+        return DOWNLOADS_BROWSE_ID.equals(browseId);
+    }
+
     /** The tap on a song row: from the queue, as a normal online song, or an explanation. */
     static Tap tapOn(SongRow row, boolean online) {
         if (row.availableOffline()) return Tap.PLAY_QUEUE;

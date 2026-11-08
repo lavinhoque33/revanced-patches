@@ -64,6 +64,13 @@ public class OfflineLibraryLogicTest {
         assertEquals(Decision.STOCK, OfflineLibraryLogic.decide("FEmusic_offline_playlists", true, true, true));
     }
 
+    @Test public void onlyTheDownloadsChipItselfOpensTheList() {
+        assertTrue(OfflineLibraryLogic.isDownloadsChip("FEmusic_offline"));
+        assertFalse(OfflineLibraryLogic.isDownloadsChip("FEmusic_offline_songs"));
+        assertFalse(OfflineLibraryLogic.isDownloadsChip("FEmusic_liked_playlists"));
+        assertFalse(OfflineLibraryLogic.isDownloadsChip(null));
+    }
+
     // endregion
 
     // region rows

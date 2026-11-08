@@ -28,6 +28,8 @@ import app.morphe.extension.shared.utils.Utils;
  * All store reads and cover decoding run in the background.
  */
 final class OfflineLibrary {
+    /** The list on screen, if any: a second navigation to the Downloads page must not open another. */
+    private static volatile OfflineLibraryScreen shown;
     private final boolean deviceFilesRow;
     private OfflineLibraryScreen screen;
     /** The home view of the last load, shown again when a source view goes back. */
@@ -38,6 +40,15 @@ final class OfflineLibrary {
 
     private OfflineLibrary(boolean deviceFilesRow) {
         this.deviceFilesRow = deviceFilesRow;
+    }
+
+    /**
+     * Called when the Library page loads one of its chips, with the browse id the chip resolved to, on the main
+     * thread. The Downloads chip is no navigation, so {@link #onDownloadsBrowse} never sees it: the list opens in
+     * front of the page's own (empty) Downloads, which loads behind it.
+     */
+    static void onLibraryChip(String browseId) {
+        if (OfflineLibraryLogic.isDownloadsChip(browseId)) onDownloadsBrowse(browseId);
     }
 
     /**
@@ -56,6 +67,12 @@ final class OfflineLibrary {
                 return false;
             }
 
+            OfflineLibraryScreen open = shown;
+            if (open != null && open.isShowing()) {
+                Logger.printDebug(() -> "OfflineLibrary: already open, browse=" + browseId + " taken");
+                return true;
+            }
+
             Logger.printInfo(() -> "OfflineLibrary: open browse=" + browseId + " decision=" + decision);
             new OfflineLibrary(decision == Decision.OPEN_WITH_DEVICE_FILES).open(activity);
             return true;
@@ -67,6 +84,7 @@ final class OfflineLibrary {
 
     private void open(Activity activity) {
         screen = new OfflineLibraryScreen(activity, this::onBack);
+        shown = screen;
         screen.setContent(str("morphe_music_offline_library_title"), List.of());
         screen.show();
         loadHome();

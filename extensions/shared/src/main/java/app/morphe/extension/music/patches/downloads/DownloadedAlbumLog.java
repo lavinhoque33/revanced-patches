@@ -12,7 +12,6 @@ import android.view.ViewGroup;
 import androidx.annotation.Nullable;
 
 import com.facebook.litho.ComponentHost;
-import com.facebook.litho.TextContent;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
@@ -217,9 +216,8 @@ final class DownloadedAlbumLog {
 
     private static void appendHostTexts(View view, int left, int top, StringBuilder out, int depth) {
         if (view instanceof ComponentHost host) {
-            TextContent content = host.getTextContent();
-            List<CharSequence> items = content == null ? null : content.getTextItems();
-            if (items != null && !items.isEmpty()) {
+            List<CharSequence> items = DownloadedAlbumRows.hostTexts(host);
+            if (!items.isEmpty()) {
                 out.append(host.getClass().getSimpleName()).append(host.getWidth()).append('x').append(host.getHeight())
                         .append('@').append(left).append(',').append(top).append(" depth=").append(depth).append('=');
                 out.append(items.subList(0, Math.min(items.size(), TEXTS_PER_HOST))).append("; ");

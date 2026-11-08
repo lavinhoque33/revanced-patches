@@ -17,6 +17,7 @@ import com.facebook.litho.TextContent;
 import java.lang.ref.WeakReference;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
@@ -314,17 +315,13 @@ final class DownloadedAlbumRows {
      */
     static void collectTexts(View view, int left, int top, Row row, int depth) {
         if (view instanceof ComponentHost host) {
-            TextContent content = host.getTextContent();
-            List<CharSequence> items = content == null ? null : content.getTextItems();
             boolean inside = isInside(row.cell, left, top, host.getWidth(), host.getHeight());
-            if (items != null) {
-                for (CharSequence item : items) {
-                    if (item == null) continue;
+            for (CharSequence item : hostTexts(host)) {
+                if (item == null) continue;
 
-                    String text = item.toString().trim();
-                    row.inRow.add(text);
-                    if (inside) row.insideCell.add(text);
-                }
+                String text = item.toString().trim();
+                row.inRow.add(text);
+                if (inside) row.insideCell.add(text);
             }
         }
         if (!(view instanceof ViewGroup group) || depth >= MAX_TEXT_DEPTH) return;
@@ -334,6 +331,17 @@ final class DownloadedAlbumRows {
             if (child.getVisibility() == View.VISIBLE) {
                 collectTexts(child, left + child.getLeft(), top + child.getTop(), row, depth + 1);
             }
+        }
+    }
+
+    /** The texts a Litho host draws itself (not those of its child hosts); empty when it draws none. */
+    static List<CharSequence> hostTexts(ComponentHost host) {
+        try {
+            TextContent content = host.getTextContent();
+            List<CharSequence> items = content == null ? null : content.getTextItems();
+            return items == null ? Collections.emptyList() : items;
+        } catch (RuntimeException unavailable) {
+            return Collections.emptyList();
         }
     }
 

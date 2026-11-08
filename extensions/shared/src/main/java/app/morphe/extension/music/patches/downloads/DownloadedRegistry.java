@@ -30,6 +30,7 @@ final class DownloadedRegistry {
     private static final byte INDEX_TAG = 0x18;
     private static final int MIN_PLAYLIST_ID_LENGTH = 13;
     private static final int MAX_PLAYLIST_ID_LENGTH = 64;
+    private static final String[] PLAYLIST_PREFIXES = {"PL", "OLAK5uy_", "RD", "VLPL", "VLOLAK5uy_", "LM"};
     /** The first position a playlist id can start at after a video id field and its own tag and length. */
     private static final int WATCH_PLAYLIST_START = 15;
 
@@ -232,21 +233,35 @@ final class DownloadedRegistry {
 
     /**
      * The playlist-id-shaped strings of a model with their positions, at most {@code limit}, in order: what a log
-     * line shows to tell whether a row names its playlist and where in it. It reads the string of field 2 (tag 0x12,
-     * the playlist id of a watch endpoint) that is 13 to 64 id characters long.
+     * line shows to tell whether a row names its playlist and where in it. It reads the strings of field 2 (tag
+     * 0x12, the playlist id of a watch endpoint) that are 13 to 64 id characters long and start like a playlist,
+     * album or radio id.
      */
     static List<PlaylistPosition> playlistPositions(byte[] message, int limit) {
         List<PlaylistPosition> found = new ArrayList<>();
         for (int tag = 0; tag + 2 < message.length && found.size() < limit; tag++) {
             int length = message[tag + 1];
             if (message[tag] != PLAYLIST_ID_TAG || length < MIN_PLAYLIST_ID_LENGTH || length > MAX_PLAYLIST_ID_LENGTH
-                    || tag + 2 + length > message.length || !areIdCharacters(message, tag + 2, length)) continue;
+                    || tag + 2 + length > message.length || !areIdCharacters(message, tag + 2, length)
+                    || !hasPlaylistPrefix(message, tag + 2)) continue;
 
             String playlistId = new String(message, tag + 2, length, StandardCharsets.ISO_8859_1);
             PlaylistPosition position = new PlaylistPosition(playlistId, readIndex(message, tag + 2 + length));
             if (!contains(found, position)) found.add(position);
         }
         return found;
+    }
+
+    /** Whether the string at [from] starts like a playlist, album or radio id, not like an icon name. */
+    private static boolean hasPlaylistPrefix(byte[] message, int from) {
+        for (String prefix : PLAYLIST_PREFIXES) {
+            boolean matches = true;
+            for (int index = 0; index < prefix.length() && matches; index++) {
+                matches = message[from + index] == prefix.charAt(index);
+            }
+            if (matches) return true;
+        }
+        return false;
     }
 
     private static boolean contains(List<PlaylistPosition> positions, PlaylistPosition position) {

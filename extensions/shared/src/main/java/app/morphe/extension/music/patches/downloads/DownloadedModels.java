@@ -49,6 +49,46 @@ final class DownloadedModels {
         return bytes == null ? null : bytes.toByteArray();
     }
 
+    /**
+     * The serialized protobuf of every part of a row model: the model itself, or each protobuf and each byte array
+     * held by a wrapper. For the debug log, which has to say in which part of a model a song lives.
+     */
+    static List<byte[]> parts(@Nullable Object model) {
+        List<byte[]> parts = new ArrayList<>();
+        if (model instanceof MessageLite message) {
+            parts.add(message.toByteArray());
+        } else if (model != null) {
+            for (Class<?> current = model.getClass(); current != null && current != Object.class;
+                 current = current.getSuperclass()) {
+                for (Field field : current.getDeclaredFields()) {
+                    if (Modifier.isStatic(field.getModifiers())) continue;
+
+                    try {
+                        field.setAccessible(true);
+                        Object value = field.get(model);
+                        if (value instanceof MessageLite message) parts.add(message.toByteArray());
+                        else if (value instanceof byte[] bytes) parts.add(bytes);
+                    } catch (IllegalAccessException | RuntimeException ignored) {
+                        // A field that cannot be read is not part of the model.
+                    }
+                }
+            }
+        }
+        return parts;
+    }
+
+    /** The parts of [model] (see {@link #parts}) as one byte array, or null when it has none. */
+    @Nullable
+    static byte[] serializeParts(@Nullable Object model) {
+        List<byte[]> parts = parts(model);
+        if (parts.isEmpty()) return null;
+        if (parts.size() == 1) return parts.get(0);
+
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        for (byte[] part : parts) bytes.write(part, 0, part.length);
+        return bytes.toByteArray();
+    }
+
     private static Field[] findProtoFields(Class<?> type) {
         List<Field> found = new ArrayList<>();
         for (Class<?> current = type; current != null && current != Object.class; current = current.getSuperclass()) {

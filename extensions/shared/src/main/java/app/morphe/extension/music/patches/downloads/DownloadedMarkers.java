@@ -60,6 +60,7 @@ public final class DownloadedMarkers {
     // Main thread only. Values hold weak references: a value must never keep its key's view tree alive.
     private static final Map<View, RowState> rows = new WeakHashMap<>();
     private static final Map<ViewGroup, DownloadedHeaders.State> headers = new WeakHashMap<>();
+    private static final Map<View, DownloadedElementRows.State> elementRows = new WeakHashMap<>();
 
     /** What is known of a list row's view; the model is only weakly held, the view tree owns the check. */
     static final class RowState {
@@ -128,6 +129,29 @@ public final class DownloadedMarkers {
             applyRow(view, state, true);
         } catch (Exception ex) {
             Logger.printException(() -> "Could not mark a downloaded song", ex);
+        }
+    }
+
+    /**
+     * Injection point: every Elements (Litho) view after it was given its content, with the model it was bound with.
+     * Most are not song rows; they cost nothing while the setting is off, and while there is no stream copy they only
+     * remember the view, so that the copies, once loaded, reach rows that were bound before.
+     */
+    public static void onElementsBound(View view, Object model) {
+        try {
+            DownloadedElementRows.State state = elementRows.get(view);
+            boolean enabled = enabled();
+            if (!enabled && (state == null || !state.isShown())) return;
+
+            if (state == null) {
+                state = new DownloadedElementRows.State();
+                elementRows.put(view, state);
+            }
+            state.model = new WeakReference<>(model);
+            if (enabled) ensureLoaded();
+            DownloadedElementRows.apply(view, state, enabled, registry);
+        } catch (Exception ex) {
+            Logger.printException(() -> "Could not mark a downloaded song of an album page", ex);
         }
     }
 
@@ -203,10 +227,9 @@ public final class DownloadedMarkers {
         } else if ((bytes = DownloadedModels.serialize(model)) == null) {
             reason = "model-has-no-proto";
         } else {
-            videoId = registry.findRowCopy(bytes);
+            videoId = registry.findDownloaded(bytes);
             if (videoId == null) videoId = registry.findDownloadedLoose(bytes);
             reason = videoId == null ? "id-not-downloaded" : "downloaded";
-            if (videoId == null) rowLog.dumpUnresolved(view, bytes, reason);
         }
 
         String outcome;
@@ -397,6 +420,16 @@ public final class DownloadedMarkers {
                 applyRow(view, row.getValue(), false);
             } catch (Exception ex) {
                 Logger.printException(() -> "Could not refresh a downloaded song", ex);
+            }
+        }
+        for (Map.Entry<View, DownloadedElementRows.State> row : new ArrayList<>(elementRows.entrySet())) {
+            View view = row.getKey();
+            if (view == null) continue;
+
+            try {
+                DownloadedElementRows.apply(view, row.getValue(), enabled(), registry);
+            } catch (Exception ex) {
+                Logger.printException(() -> "Could not refresh a downloaded song of an album page", ex);
             }
         }
         for (Map.Entry<ViewGroup, DownloadedHeaders.State> header : new ArrayList<>(headers.entrySet())) {

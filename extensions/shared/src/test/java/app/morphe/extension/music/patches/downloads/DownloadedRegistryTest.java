@@ -455,4 +455,16 @@ public class DownloadedRegistryTest {
             DownloadedRegistry.playlistPositions(Arrays.copyOf(endpoint, cut), 3);
         }
     }
+
+    @Test public void aResourceNameIsNoPlaylist() throws Exception {
+        byte[] model = message(2, "yt_outline_experimental_thumb_up_vd_theme_24", 2, "MPREb_dcYZhAh5urI");
+
+        assertTrue(DownloadedRegistry.playlistPositions(model, 3).isEmpty());
+    }
+
+    @Test public void aModelWithoutPartsHasNone() throws Exception {
+        assertEquals(0, DownloadedModels.parts(null).size());
+        assertEquals(0, DownloadedModels.parts(new Object()).size());
+        assertEquals(null, DownloadedModels.serializeParts(new Object()));
+    }
 }

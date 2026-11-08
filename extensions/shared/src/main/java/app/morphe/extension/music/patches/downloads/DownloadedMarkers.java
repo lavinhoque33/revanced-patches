@@ -29,10 +29,10 @@ import app.morphe.extension.shared.utils.Utils;
 
 /**
  * Green "downloaded" checks for the stream copies of Play downloads locally: a small check at the end of every song
- * row of a list (next to its menu) that has a stream copy, and one on the Download button of a playlist or album page whose every track has
- * one. A song that was only saved as a local file has no stream copy and no check. The checks are our own views,
- * driven by an in-memory {@link DownloadedRegistry} of the stream copies: nothing is read from disk or MediaStore
- * while a row or header binds.
+ * row of a list (next to its menu) that has a stream copy, and one on the Download button of a playlist or album
+ * page whose every track has one. A song that was only saved as a local file has no stream copy and no check. The
+ * checks are our own views, driven by an in-memory {@link DownloadedRegistry} of the stream copies: nothing is read
+ * from disk or MediaStore while a row or header binds.
  */
 @SuppressWarnings("unused")
 public final class DownloadedMarkers {

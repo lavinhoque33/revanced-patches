@@ -467,7 +467,7 @@ private fun BytecodePatchContext.prepareQueueStart(): () -> String {
  * The smali name of [register] in this method: the parameter registers (the receiver first, a long or a double taking
  * two) are the last of its registers and are named p0, p1, ...; every other is v<number>.
  */
-internal fun Method.registerName(register: Int): String {
+private fun Method.registerName(register: Int): String {
     val receiver = if (AccessFlags.STATIC.isSet(accessFlags)) 0 else 1
     val parameters = receiver + parameterTypes.sumOf { type ->
         if (type.toString() == "J" || type.toString() == "D") 2 else 1

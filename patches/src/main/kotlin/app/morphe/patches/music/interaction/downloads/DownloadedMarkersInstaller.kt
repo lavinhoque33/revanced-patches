@@ -7,7 +7,6 @@ package app.morphe.patches.music.interaction.downloads
 
 import app.morphe.patcher.Fingerprint
 import app.morphe.patcher.extensions.InstructionExtensions.addInstructions
-import com.android.tools.smali.dexlib2.iface.Method
 import app.morphe.patcher.patch.BytecodePatchContext
 import app.morphe.patcher.util.getReference
 import app.morphe.patches.music.layout.theme.ElementsContainerFingerprint
@@ -19,15 +18,12 @@ import com.android.tools.smali.dexlib2.AccessFlags
 import com.android.tools.smali.dexlib2.Opcode
 import com.android.tools.smali.dexlib2.iface.ClassDef
 import com.android.tools.smali.dexlib2.iface.instruction.FiveRegisterInstruction
-import com.android.tools.smali.dexlib2.iface.instruction.OneRegisterInstruction
 import com.android.tools.smali.dexlib2.iface.instruction.Instruction
 import com.android.tools.smali.dexlib2.iface.reference.MethodReference
 
 private const val MARKERS = "Lapp/morphe/extension/music/patches/downloads/DownloadedMarkers;"
 private const val ROW_BOUND = "$MARKERS->onRowBound(Landroid/view/View;Ljava/lang/Object;)V"
 private const val HEADER_BOUND = "$MARKERS->onHeaderBound(Landroid/view/ViewGroup;Ljava/lang/Object;)V"
-private const val ELEMENTS_BOUND = "$MARKERS->onElementsBound(Landroid/view/View;Ljava/lang/Object;)V"
-private const val COMPONENT_TREE = "Lcom/facebook/litho/ComponentTree;"
 private const val OBJECT = "Ljava/lang/Object;"
 private const val VIEW = "Landroid/view/View;"
 private const val VIEW_GROUP = "Landroid/view/ViewGroup;"
@@ -63,21 +59,6 @@ internal val rowPresenterBindFingerprint = Fingerprint(
 )
 
 /**
- * The presenter of the Elements (Litho) views, in 9.40.51 / 9.15.51 / 8.30.54 order `Lactk` / `Lbclc` / `Layyf`: the
- * class that implements the presenter interface of the list rows, holds the Litho `ComponentTree` of its view and
- * has the synthetic bridge `(L, Object)V` that the interface's bind goes through (`ho` / `fT` / `fu`).
- */
-internal val elementsPresenterFingerprint = Fingerprint(
-    returnType = "V",
-    parameters = listOf("L", OBJECT),
-    custom = { method, owner ->
-        AccessFlags.SYNTHETIC.isSet(method.accessFlags) && AccessFlags.FINAL.isSet(method.accessFlags) &&
-            !AccessFlags.ABSTRACT.isSet(owner.accessFlags) && owner.interfaces.size == 1 &&
-            owner.fields.any { it.type == COMPONENT_TREE }
-    },
-)
-
-/**
  * Shows the green downloaded checks. Rows: every list-row presenter bind reports its root view and model.
  * Header: the playlist/album header presenter (the class of [ElementsContainerFingerprint], `Ljbl` / `Lqmm` / `Lpxa`)
  * reports its elements container after adding the Elements view in `i` / `j` / `j` (`Lmbf.K` / `Lqhj.c` / `Lprn.c`).
@@ -88,11 +69,6 @@ internal fun BytecodePatchContext.installDownloadedMarkers() {
         installRowMarkers()
     } catch (ex: Exception) {
         printWarn("Downloaded checkmarks on song rows are unavailable on this Music version: ${ex.message}")
-    }
-    try {
-        installElementRowMarkers()
-    } catch (ex: Exception) {
-        printWarn("Downloaded checkmarks on album track rows are unavailable on this Music version: ${ex.message}")
     }
     try {
         installHeaderMarker()
@@ -123,83 +99,6 @@ private fun BytecodePatchContext.installRowMarkers() {
         invoke-static {v0, v$model}, $ROW_BOUND
     """)
     printInfo("Downloaded checkmarks: rows via ${owner.type}->${bind.name}")
-}
-
-/** A call that gives a Litho view its tree: a void instance method of another class with the tree and maybe a flag. */
-private fun Instruction.isSetTreeCall(owner: String): Boolean {
-    val call = getReference<MethodReference>() ?: return false
-    val parameters = call.parameterTypes.names()
-    return opcode == Opcode.INVOKE_VIRTUAL && call.returnType == "V" && call.definingClass != owner &&
-        parameters.isNotEmpty() && parameters.size <= 2 && parameters.first() == COMPONENT_TREE &&
-        parameters.drop(1).all { it == "Z" }
-}
-
-/**
- * The index of the `return-void` that follows the call giving the view its tree, in a bind of the Elements presenter:
- * `(context, model, flag...)V`. The presenter has two or three of them (`h` and `f`, `g` and `h`, `e` and `h`), each
- * used by other Elements users; some end with an unreachable `throw` after that return. Null for any other method.
- */
-private fun Method.elementsBindReturn(owner: String, contextType: String): Int? {
-    val parameters = parameterTypes.names()
-    val instructions = implementation?.instructions?.toList() ?: return null
-    val shape = AccessFlags.PUBLIC.isSet(accessFlags) && AccessFlags.FINAL.isSet(accessFlags) &&
-        !AccessFlags.STATIC.isSet(accessFlags) && returnType == "V" && parameters.size >= 3 &&
-        parameters[0] == contextType && parameters[1].startsWith("L") && parameters[1] != OBJECT &&
-        parameters.drop(2).all { it == "Z" }
-    if (!shape) return null
-
-    val calls = instructions.indices.filter { index ->
-        index + 1 < instructions.size && instructions[index].isSetTreeCall(owner) &&
-            instructions[index + 1].opcode == Opcode.RETURN_VOID
-    }
-    return calls.singleOrNull()?.plus(1)
-}
-
-private fun Instruction.writesRegister(register: Int): Boolean =
-    opcode.setsRegister() && (this as? OneRegisterInstruction)?.registerA == register
-
-/** Whether [type] is, through the app's own classes, a subclass of the framework's View. */
-private fun BytecodePatchContext.isView(type: String): Boolean {
-    var current = type
-    repeat(8) {
-        if (current == VIEW) return true
-        if (current.startsWith("Landroid/")) return current == VIEW_GROUP || current.startsWith("Landroid/view/")
-        current = mutableClassDefBy(current).superclass ?: return false
-    }
-    return false
-}
-
-/**
- * Album track rows: every bind of the Elements presenter reports the view it gave its tree and the model it bound.
- * Resolved for every bind first and applied to all or none, so a version where one differs gets no half hook.
- */
-private fun BytecodePatchContext.installElementRowMarkers() {
-    val match = elementsPresenterFingerprint.matchSingle()
-    val owner = match.classDef
-    val contextType = match.method.parameterTypes.first().toString()
-
-    val hooks = owner.methods.mapNotNull { bind ->
-        val returnIndex = bind.elementsBindReturn(owner.type, contextType) ?: return@mapNotNull null
-        val call = bind.implementation!!.instructions.toList()[returnIndex - 1] as? FiveRegisterInstruction
-            ?: error("${bind.name} sets the tree through a register range")
-        check(isView(call.getReference<MethodReference>()!!.definingClass)) { "${bind.name} sets the tree of no view" }
-        // p0 = this, p1 = the bind context, p2 = the model: the registers after the locals.
-        val model = bind.implementation!!.registerCount - bind.parameterTypes.size + 1
-        check(call.registerC <= 15 && model <= 15) { "${bind.name} has a register above 15" }
-        check(bind.implementation!!.instructions.take(returnIndex).none { it.writesRegister(model) }) {
-            "${bind.name} overwrites its model before it gives the view its tree"
-        }
-        Triple(bind, returnIndex, bind.registerName(call.registerC))
-    }
-    check(hooks.isNotEmpty()) { "${owner.type} has no bind that gives its view a tree" }
-
-    for ((bind, returnIndex, view) in hooks) {
-        // p0 = this, p1 = the bind context, p2 = the model.
-        mutableClassDefBy(owner.type).findMutableMethodOf(bind).addInstructions(
-            returnIndex, "invoke-static {$view, p2}, $ELEMENTS_BOUND"
-        )
-    }
-    printInfo("Downloaded checkmarks: album rows via ${owner.type}->${hooks.joinToString("/") { it.first.name }}")
 }
 
 private fun isViewAddCall(instruction: Instruction): Boolean {

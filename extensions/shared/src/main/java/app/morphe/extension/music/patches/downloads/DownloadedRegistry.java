@@ -28,6 +28,8 @@ final class DownloadedRegistry {
     private static final byte VIDEO_ID_TAG = 0x0A;
     private static final byte PLAYLIST_ID_TAG = 0x12;
     private static final byte INDEX_TAG = 0x18;
+    private static final int MIN_PLAYLIST_ID_LENGTH = 13;
+    private static final int MAX_PLAYLIST_ID_LENGTH = 64;
     /** The first position a playlist id can start at after a video id field and its own tag and length. */
     private static final int WATCH_PLAYLIST_START = 15;
 
@@ -211,6 +213,54 @@ final class DownloadedRegistry {
             if ((message[at] & 0x80) == 0) return index <= Integer.MAX_VALUE ? (int) index : -1;
         }
         return -1;
+    }
+
+    /** A playlist id string of a model and the position that directly follows it (-1 when there is none). */
+    static final class PlaylistPosition {
+        final String playlistId;
+        final int index;
+
+        PlaylistPosition(String playlistId, int index) {
+            this.playlistId = playlistId;
+            this.index = index;
+        }
+
+        @Override public String toString() {
+            return playlistId + "@" + (index < 0 ? "-" : index);
+        }
+    }
+
+    /**
+     * The playlist-id-shaped strings of a model with their positions, at most {@code limit}, in order: what a log
+     * line shows to tell whether a row names its playlist and where in it. It reads the string of field 2 (tag 0x12,
+     * the playlist id of a watch endpoint) that is 13 to 64 id characters long.
+     */
+    static List<PlaylistPosition> playlistPositions(byte[] message, int limit) {
+        List<PlaylistPosition> found = new ArrayList<>();
+        for (int tag = 0; tag + 2 < message.length && found.size() < limit; tag++) {
+            int length = message[tag + 1];
+            if (message[tag] != PLAYLIST_ID_TAG || length < MIN_PLAYLIST_ID_LENGTH || length > MAX_PLAYLIST_ID_LENGTH
+                    || tag + 2 + length > message.length || !areIdCharacters(message, tag + 2, length)) continue;
+
+            String playlistId = new String(message, tag + 2, length, StandardCharsets.ISO_8859_1);
+            PlaylistPosition position = new PlaylistPosition(playlistId, readIndex(message, tag + 2 + length));
+            if (!contains(found, position)) found.add(position);
+        }
+        return found;
+    }
+
+    private static boolean contains(List<PlaylistPosition> positions, PlaylistPosition position) {
+        for (PlaylistPosition known : positions) {
+            if (known.playlistId.equals(position.playlistId) && known.index == position.index) return true;
+        }
+        return false;
+    }
+
+    private static boolean areIdCharacters(byte[] message, int from, int length) {
+        for (int index = from; index < from + length; index++) {
+            if (!isIdCharacter(message[index])) return false;
+        }
+        return true;
     }
 
     /** The video-id-shaped strings of a model, at most {@code limit}: what {@link #findDownloaded} looks at. */

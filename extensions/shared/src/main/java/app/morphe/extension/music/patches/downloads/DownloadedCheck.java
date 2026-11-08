@@ -7,7 +7,6 @@ package app.morphe.extension.music.patches.downloads;
 
 import android.content.Context;
 import android.graphics.PorterDuff;
-import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
 import android.view.View;
 import android.widget.ImageView;
@@ -55,24 +54,6 @@ final class DownloadedCheck extends ImageView {
         check.setImageResource(icon);
         check.restyle();
         return check;
-    }
-
-    /**
-     * The check as a plain drawable, for a view that cannot take a child of ours (a row of Litho views); tint it
-     * with {@link #tint}.
-     *
-     * @return the drawable, or null when this version of the app has no such icon
-     */
-    @Nullable
-    static Drawable createDrawable(Context context) {
-        int icon = ResourceUtils.getDrawableIdentifier(ICON);
-        Drawable drawable = icon == 0 ? null : context.getDrawable(icon);
-        return drawable == null ? null : drawable.mutate();
-    }
-
-    /** Colors a drawable of {@link #createDrawable} for the theme. */
-    static void tint(Drawable drawable, boolean darkTheme) {
-        drawable.setColorFilter(color(darkTheme), PorterDuff.Mode.SRC_IN);
     }
 
     /** Re-applies the colors when the theme changed since the check was styled; otherwise does nothing. */

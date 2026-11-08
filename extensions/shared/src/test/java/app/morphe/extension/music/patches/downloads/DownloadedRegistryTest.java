@@ -418,4 +418,41 @@ public class DownloadedRegistryTest {
         byte[] open = Arrays.copyOf(endpoint, endpoint.length - 1);
         assertNull(registry.findRowCopy(open));
     }
+
+    @Test public void aModelShowsItsPlaylistAndPosition() throws Exception {
+        byte[] model = row(watch(OMV_ONE, ALBUM, 3, null));
+
+        List<DownloadedRegistry.PlaylistPosition> positions = DownloadedRegistry.playlistPositions(model, 3);
+
+        assertEquals(1, positions.size());
+        assertEquals(ALBUM, positions.get(0).playlistId);
+        assertEquals(3, positions.get(0).index);
+    }
+
+    @Test public void aPlaylistWithoutAPositionShowsNone() throws Exception {
+        List<DownloadedRegistry.PlaylistPosition> positions =
+                DownloadedRegistry.playlistPositions(row(watch(OMV_ONE, ALBUM, null, "wAEB")), 3);
+
+        assertEquals(1, positions.size());
+        assertEquals(-1, positions.get(0).index);
+        assertTrue(DownloadedRegistry.playlistPositions(row(watch(OMV_ONE, "PLshort", 1, null)), 3).isEmpty());
+    }
+
+    @Test public void thePositionsOfAModelAreDistinctAndLimited() throws Exception {
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        for (int index = 0; index < 5; index++) {
+            bytes.write(watch(OMV_ONE, ALBUM, index, null));
+            bytes.write(watch(OMV_TWO, ALBUM, index, null));
+        }
+
+        assertEquals(5, DownloadedRegistry.playlistPositions(bytes.toByteArray(), 5).size());
+        assertEquals(2, DownloadedRegistry.playlistPositions(bytes.toByteArray(), 2).size());
+    }
+
+    @Test public void thePositionScanNeverRunsOffTheEndOfTheModel() throws Exception {
+        byte[] endpoint = watch(OMV_ONE, ALBUM, 0, null);
+        for (int cut = 0; cut < endpoint.length; cut++) {
+            DownloadedRegistry.playlistPositions(Arrays.copyOf(endpoint, cut), 3);
+        }
+    }
 }

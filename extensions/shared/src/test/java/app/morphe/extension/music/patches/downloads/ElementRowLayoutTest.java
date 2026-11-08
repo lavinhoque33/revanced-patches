@@ -38,13 +38,39 @@ public class ElementRowLayoutTest {
         assertTrue(ElementRowLayout.isTrackRow(1080, 160, DENSITY));
     }
 
-    @Test public void theCheckSitsUnderTheNumberCenteredInTheCell() {
-        int[] origin = ElementRowLayout.checkOrigin(40, 20, 85, 120, DENSITY);
+    @Test public void theCellOfTheActionMenuIsRecognised() {
+        // Measured: 92 x 120 px at 978 of a 1080 px row, so its end is 10 px from the end of the row.
+        assertTrue(ElementRowLayout.isMenuCell(10, 92, 120, 1080, 160, DENSITY));
+    }
 
-        // 16 dp = 40 px: centered in 85 px, and 9 dp (23 px) under the middle of the cell (20 + 60).
-        assertEquals(40 + (85 - 40) / 2, origin[0]);
-        assertEquals(20 + 60 + 23, origin[1]);
-        // It stays inside the row.
-        assertTrue(origin[1] + 40 <= 160);
+    @Test public void theTitleOrTheNumberIsNotTheActionMenu() {
+        // The 1030 px wide title host and the number cell at the start (its end is far from the end of the row).
+        assertFalse(ElementRowLayout.isMenuCell(10, 1030, 160, 1080, 160, DENSITY));
+        assertFalse(ElementRowLayout.isMenuCell(955, 85, 120, 1080, 160, DENSITY));
+        assertFalse(ElementRowLayout.isMenuCell(10, 92, 30, 1080, 160, DENSITY));
+        assertFalse(ElementRowLayout.isMenuCell(10, 92, 120, 1080, 120, DENSITY));
+    }
+
+    @Test public void theCheckSitsLeftOfTheMenuInALeftToRightRow() {
+        int left = ElementRowLayout.checkLeft(978, 92, false, DENSITY);
+
+        // 16 dp = 40 px with a 4 dp (10 px) gap: it ends 10 px before the menu cell, so it never overlaps it.
+        assertEquals(978 - 10 - 40, left);
+        assertTrue(left + 40 + 10 <= 978);
+    }
+
+    @Test public void theCheckMirrorsToTheRightOfTheMenuInARightToLeftRow() {
+        // The menu cell of a mirrored row sits at the left end: 10 px from it, 92 px wide.
+        int left = ElementRowLayout.checkLeft(10, 92, true, DENSITY);
+
+        assertEquals(10 + 92 + 10, left);
+        assertTrue(left >= 10 + 92);
+    }
+
+    @Test public void theCheckIsCenteredVerticallyInTheRow() {
+        int top = ElementRowLayout.checkTop(160, DENSITY);
+
+        assertEquals(60, top);
+        assertEquals(160 - (top + 40), top);
     }
 }

@@ -7,20 +7,24 @@ package app.morphe.extension.music.patches.downloads;
 
 /**
  * Where the check goes in the row of a numbered track list (an album page). Those rows are Litho views whose text is
- * drawn, not made of views, so the one thing a check can be placed by is the cell that holds the track number: the
- * check goes under the number, centered in the cell. Pure arithmetic in pixels and the screen density, so it can be
- * tested without Android.
+ * drawn, not made of views, so the check is placed by the two cells that are views: the cell of the track number
+ * (which names the track) and the cell of the three-dot action menu at the end of the row, which the check sits
+ * next to, on its start side, centered vertically in the row. Pure arithmetic in pixels and the screen density, so
+ * it can be tested without Android.
  */
 final class ElementRowLayout {
     static final float CHECK_DP = 16;
-    /** Below the middle of the cell: clears the number (or the icon that replaces it on the playing row). */
-    static final float CHECK_OFFSET_DP = 9;
+    /** The room between the check and the menu cell. */
+    static final float CHECK_GAP_DP = 4;
 
     private static final float MIN_ROW_DP = 56;
     private static final float MAX_ROW_DP = 80;
     private static final float MIN_CELL_DP = 28;
     private static final float MAX_CELL_DP = 40;
     private static final float MAX_CELL_START_DP = 24;
+    private static final float MIN_MENU_DP = 28;
+    private static final float MAX_MENU_DP = 48;
+    private static final float MAX_MENU_END_DP = 24;
 
     private ElementRowLayout() {}
 
@@ -45,11 +49,30 @@ final class ElementRowLayout {
                 && cellHeight >= rowHeight / 2 && cellLeft >= 0 && cellLeft <= MAX_CELL_START_DP * density;
     }
 
-    /** The left and top of the check, centered in the cell horizontally and under the middle of it. */
-    static int[] checkOrigin(int cellLeft, int cellTop, int cellWidth, int cellHeight, float density) {
+    /**
+     * Whether a view of a row is the cell of the action menu: narrow, tall and at the end of the row.
+     *
+     * @param cellEnd Distance of the end edge of the view from the end of the row.
+     */
+    static boolean isMenuCell(int cellEnd, int cellWidth, int cellHeight, int rowWidth, int rowHeight,
+                              float density) {
+        return isTrackRow(rowWidth, rowHeight, density)
+                && cellWidth >= MIN_MENU_DP * density && cellWidth <= MAX_MENU_DP * density
+                && cellHeight >= rowHeight / 2 && cellEnd >= 0 && cellEnd <= MAX_MENU_END_DP * density;
+    }
+
+    /**
+     * The left of the check: on the start side of the menu cell, so right to its left in a left-to-right row and
+     * right to its right in a right-to-left row.
+     */
+    static int checkLeft(int menuLeft, int menuWidth, boolean rightToLeft, float density) {
+        int gap = Math.round(CHECK_GAP_DP * density);
         int size = Math.round(CHECK_DP * density);
-        int left = cellLeft + (cellWidth - size) / 2;
-        int top = cellTop + cellHeight / 2 + Math.round(CHECK_OFFSET_DP * density);
-        return new int[]{left, top};
+        return rightToLeft ? menuLeft + menuWidth + gap : menuLeft - gap - size;
+    }
+
+    /** The top of the check: centered vertically in the row. */
+    static int checkTop(int rowHeight, float density) {
+        return (rowHeight - Math.round(CHECK_DP * density)) / 2;
     }
 }

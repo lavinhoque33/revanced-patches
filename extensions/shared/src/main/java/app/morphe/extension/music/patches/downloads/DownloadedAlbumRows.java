@@ -32,8 +32,9 @@ import app.morphe.extension.shared.utils.ResourceUtils;
  * without a bind that reports a model, so a row cannot tell which song it shows. What a row does show is its track
  * number, drawn in a cell at its start. When the page is the album whose track list was recorded (the header names
  * it, see {@link DownloadedHeaders}), the row that shows the number n is the n-th track of that list, and it gets a
- * check when that track has a stream copy. The numbers must make sense (see {@link AlbumTrackNumbers#problem}):
- * otherwise no row of the page is marked. A row whose number is unknown is never marked.
+ * check when that track has a stream copy, drawn at the end of the row, next to its action menu (a row without a
+ * menu cell gets none). The numbers must make sense (see {@link AlbumTrackNumbers#problem}): otherwise no row of the
+ * page is marked. A row whose number is unknown is never marked.
  *
  * <p>The page is looked at after a layout or scroll of the window, one scan per frame at most, and only while the
  * setting is on and the header names an album with a recorded track list; otherwise nothing is registered. A scan
@@ -53,14 +54,19 @@ final class DownloadedAlbumRows {
     private static final int SLACK_PX = 1;
     private static final WeakReference<ComponentHost> NO_HOST = new WeakReference<>(null);
 
-    /** The number cell of a row, in the row's pixels. */
+    /** A cell of a row (its number or its action menu), in the row's pixels. */
     record Cell(int left, int top, int width, int height) {}
+
+    /** The cells of a laid out row: the number is required, the menu is null when the row has none. */
+    record Cells(Cell number, @Nullable Cell menu) {}
 
     /** What is remembered of a track row view; the view itself is only weakly held. */
     static final class Row {
         final WeakReference<View> view;
         final AlbumRowCheck check = new AlbumRowCheck();
         Cell cell;
+        @Nullable
+        Cell menu;
         int width;
         int height;
         int top;
@@ -264,7 +270,7 @@ final class DownloadedAlbumRows {
         for (Row row : rows) {
             View view = row.view.get();
             row.marked = view != null && problem == null && isDownloaded(row, tracks, registry)
-                    && row.check.show(view, row.cell);
+                    && row.menu != null && row.check.show(view, row.menu);
         }
         for (Map.Entry<View, Row> entry : state.rows.entrySet()) {
             if (!entry.getValue().marked) entry.getValue().check.hide(entry.getKey());
@@ -388,14 +394,15 @@ final class DownloadedAlbumRows {
             return row;
         }
 
-        Cell cell = findNumberCell(view);
-        if (cell == null) return null;
+        Cells cells = findCells(view);
+        if (cells == null) return null;
 
         if (row == null) {
             row = new Row(view);
             state.rows.put(view, row);
         }
-        row.cell = cell;
+        row.cell = cells.number();
+        row.menu = cells.menu();
         row.width = view.getWidth();
         row.height = view.getHeight();
         row.numberHost = NO_HOST;
@@ -408,35 +415,44 @@ final class DownloadedAlbumRows {
         rows.add(place, row);
     }
 
-    /** The cell of the track number in a laid out row, or null when the row has none. */
+    /** The cells of the track number and of the action menu of a laid out row; null when it has no number cell. */
     @Nullable
-    static Cell findNumberCell(ViewGroup row) {
+    static Cells findCells(ViewGroup row) {
         float density = row.getResources().getDisplayMetrics().density;
         boolean rightToLeft = row.getLayoutDirection() == View.LAYOUT_DIRECTION_RTL;
         ArrayDeque<ViewGroup> pending = new ArrayDeque<>();
         ArrayDeque<int[]> origins = new ArrayDeque<>();
         pending.add(row);
         origins.add(new int[]{0, 0});
+        Cell number = null;
+        Cell menu = null;
         int visited = 0;
-        while (!pending.isEmpty() && visited < MAX_CELL_VIEWS) {
+        while (!pending.isEmpty() && visited < MAX_CELL_VIEWS && (number == null || menu == null)) {
             ViewGroup group = pending.poll();
             int[] origin = origins.poll();
             for (int i = 0; i < group.getChildCount() && visited++ < MAX_CELL_VIEWS; i++) {
                 View child = group.getChildAt(i);
                 int left = origin[0] + child.getLeft();
                 int top = origin[1] + child.getTop();
-                int start = rightToLeft ? row.getWidth() - (left + child.getWidth()) : left;
-                if (ElementRowLayout.isNumberCell(start, child.getWidth(), child.getHeight(), row.getWidth(),
+                int width = child.getWidth();
+                int height = child.getHeight();
+                int toLeft = left;
+                int toRight = row.getWidth() - (left + width);
+                int start = rightToLeft ? toRight : toLeft;
+                int end = rightToLeft ? toLeft : toRight;
+                if (number == null && ElementRowLayout.isNumberCell(start, width, height, row.getWidth(),
                         row.getHeight(), density)) {
-                    return new Cell(left, top, child.getWidth(), child.getHeight());
-                }
-                if (child instanceof ViewGroup childGroup) {
+                    number = new Cell(left, top, width, height);
+                } else if (menu == null && ElementRowLayout.isMenuCell(end, width, height, row.getWidth(),
+                        row.getHeight(), density)) {
+                    menu = new Cell(left, top, width, height);
+                } else if (child instanceof ViewGroup childGroup) {
                     pending.add(childGroup);
                     origins.add(new int[]{left, top});
                 }
             }
         }
-        return null;
+        return number == null ? null : new Cells(number, menu);
     }
 
     /**

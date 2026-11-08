@@ -14,8 +14,9 @@ import app.morphe.extension.shared.utils.BaseThemeUtils;
 
 /**
  * The green check of one track row of an album page. The row is a Litho view with no child we could add to, so the
- * check is a drawable on the row's overlay, placed under the track number (see {@link ElementRowLayout}). Main thread
- * only; the drawable belongs to the row's overlay, this object is only held weakly by the page.
+ * check is a drawable on the row's overlay, placed next to the row's action menu at its end (see
+ * {@link ElementRowLayout}). Main thread only; the drawable belongs to the row's overlay, this object is only held
+ * weakly by the page.
  */
 final class AlbumRowCheck {
     @Nullable
@@ -23,16 +24,21 @@ final class AlbumRowCheck {
     private boolean attached;
     @Nullable
     private Boolean tintedForDarkTheme;
-    @Nullable
-    private DownloadedAlbumRows.Cell placedAt;
+    private int placedLeft = Integer.MIN_VALUE;
+    private int placedTop = Integer.MIN_VALUE;
 
     /**
-     * Shows the check under the number of the row; false when the check drawable is unavailable. Does nothing when
-     * the check is already shown at that cell in the current theme.
+     * Shows the check next to the action menu cell of the row, on its start side; false when the check drawable is
+     * unavailable. Does nothing when the check is already shown there in the current theme.
      */
-    boolean show(View row, DownloadedAlbumRows.Cell cell) {
+    boolean show(View row, DownloadedAlbumRows.Cell menu) {
+        float density = row.getResources().getDisplayMetrics().density;
+        boolean rightToLeft = row.getLayoutDirection() == View.LAYOUT_DIRECTION_RTL;
+        int left = ElementRowLayout.checkLeft(menu.left(), menu.width(), rightToLeft, density);
+        int top = ElementRowLayout.checkTop(row.getHeight(), density);
         boolean darkTheme = BaseThemeUtils.isDarkModeEnabled();
-        if (attached && cell.equals(placedAt) && tintedForDarkTheme != null && tintedForDarkTheme == darkTheme) {
+        if (attached && left == placedLeft && top == placedTop && tintedForDarkTheme != null
+                && tintedForDarkTheme == darkTheme) {
             return true;
         }
 
@@ -43,12 +49,10 @@ final class AlbumRowCheck {
             DownloadedCheck.tint(check, darkTheme);
             tintedForDarkTheme = darkTheme;
         }
-        placedAt = cell;
-
-        float density = row.getResources().getDisplayMetrics().density;
-        int[] origin = ElementRowLayout.checkOrigin(cell.left(), cell.top(), cell.width(), cell.height(), density);
         int size = Math.round(ElementRowLayout.CHECK_DP * density);
-        check.setBounds(origin[0], origin[1], origin[0] + size, origin[1] + size);
+        check.setBounds(left, top, left + size, top + size);
+        placedLeft = left;
+        placedTop = top;
         if (!attached) {
             row.getOverlay().add(check);
             attached = true;

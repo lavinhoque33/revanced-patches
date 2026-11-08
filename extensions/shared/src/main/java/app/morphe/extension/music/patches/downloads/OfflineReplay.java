@@ -13,7 +13,6 @@ import android.net.NetworkCapabilities;
 import androidx.annotation.Nullable;
 
 import com.google.common.util.concurrent.ListenableFuture;
-import com.google.common.util.concurrent.SettableFuture;
 
 import java.lang.ref.WeakReference;
 import java.util.Collections;
@@ -68,13 +67,8 @@ public final class OfflineReplay {
 
     private OfflineReplay() {}
 
-    /** Enabled by the patch only after every hook of the version is in place. */
-    public static boolean supported() {
-        return false;
-    }
-
     static boolean enabled() {
-        return supported() && Settings.PLAY_DOWNLOADS_LOCALLY.get();
+        return OfflineReplayHooks.usable() && Settings.PLAY_DOWNLOADS_LOCALLY.get();
     }
 
     /**
@@ -227,9 +221,7 @@ public final class OfflineReplay {
      *
      * @return true when the command was taken and must not be dispatched.
      */
-    public static boolean onCommand(Object dispatcher, Object command, Map<?, ?> context) {
-        if (!supported()) return false;
-
+    static boolean onCommand(Object dispatcher, Object command, Map<?, ?> context) {
         try {
             if (!(dispatcher instanceof Dispatcher stockDispatcher) || !(command instanceof Command message)) {
                 return false;
@@ -254,7 +246,7 @@ public final class OfflineReplay {
     // region hooks
 
     /** Injection point: the flag the gate read, to tell in the log which of its two paths a version takes. */
-    public static void noteGateFlag(boolean flag) {
+    static void noteGateFlag(boolean flag) {
         lastGateFlag = flag;
     }
 
@@ -262,7 +254,7 @@ public final class OfflineReplay {
      * Injection point: the gate that drops a watch command while the app believes it is offline. True only when
      * there is no network and the song has stored data: the command then goes on to the stock playback.
      */
-    public static boolean holdsForGate(String videoId) {
+    static boolean holdsForGate(String videoId) {
         try {
             boolean ours = videoId != null && holds(videoId);
             boolean enabled = enabled();
@@ -287,7 +279,7 @@ public final class OfflineReplay {
      * for the app's parser, or null to let the stock failure stand. Off the main thread.
      */
     @Nullable
-    public static byte[] storedForPlayer(String videoId, boolean offlineRequest) {
+    static byte[] storedForPlayer(String videoId, boolean offlineRequest) {
         try {
             OfflineCopyFiles.Stored stored = null;
             if (enabled() && offlineRequest && videoId != null) stored = OfflineCopyStore.find(videoId);
@@ -315,7 +307,7 @@ public final class OfflineReplay {
      * @return the response to answer with, or null when the swap declined and the stock failure must stand.
      */
     @Nullable
-    public static Object finishPlayer(Object response, String videoId) {
+    static Object finishPlayer(Object response, String videoId) {
         try {
             Object swapped = StreamSwap.swapStored(response);
             boolean swap = swapped != response;
@@ -341,7 +333,7 @@ public final class OfflineReplay {
      * that is not an offline watch of ours the stock future is returned as it is. For ours, a stock failure is
      * answered with the queue of the list.
      */
-    public static ListenableFuture<?> wrapNext(Object request, ListenableFuture<?> stock) {
+    static ListenableFuture<?> wrapNext(Object request, ListenableFuture<?> stock) {
         try {
             OfflineReplayLogic.WatchTarget target = watchTargetOf(request);
             boolean ours = target != null
@@ -368,7 +360,7 @@ public final class OfflineReplay {
 
     private static ListenableFuture<?> answerNextFailure(NextRequest request, OfflineReplayLogic.WatchTarget target,
                                                          ListenableFuture<?> stock) {
-        SettableFuture<Object> result = SettableFuture.create();
+        ReplayFuture result = new ReplayFuture();
         stock.addListener(() -> {
             try {
                 result.set(stock.get());
@@ -385,7 +377,7 @@ public final class OfflineReplay {
     }
 
     private static void answerFromStore(NextRequest request, OfflineReplayLogic.WatchTarget target,
-                                        Exception failure, SettableFuture<Object> result) {
+                                        Exception failure, ReplayFuture result) {
         try {
             byte[] bytes = nextBytes(target.playlistId(), target.videoId(), target.index(), true);
             if (bytes == null) {

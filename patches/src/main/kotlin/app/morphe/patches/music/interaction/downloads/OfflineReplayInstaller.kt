@@ -35,7 +35,7 @@ import com.android.tools.smali.dexlib2.iface.reference.MethodReference
 import com.android.tools.smali.dexlib2.iface.reference.StringReference
 import com.android.tools.smali.dexlib2.iface.reference.TypeReference
 
-private const val REPLAY = "Lapp/morphe/extension/music/patches/downloads/OfflineReplay;"
+private const val REPLAY = "Lapp/morphe/extension/music/patches/downloads/OfflineReplayHooks;"
 private const val NEXT_REQUEST = $$"Lapp/morphe/extension/music/patches/downloads/OfflineReplay$NextRequest;"
 private const val STREAM_RESPONSE = $$"Lapp/morphe/extension/music/patches/downloads/StreamSwap$Response;"
 private const val OBJECT = "Ljava/lang/Object;"

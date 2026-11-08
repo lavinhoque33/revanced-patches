@@ -29,7 +29,7 @@ public final class OfflineStreamBrowse {
 
     /** Whether stream copies play offline at all: the replay is installed and its setting is on. No disk access. */
     public static boolean enabled() {
-        return OfflineReplay.enabled();
+        return OfflineReplayHooks.enabled();
     }
 
     /** Whether the song still has stored data. In memory. */

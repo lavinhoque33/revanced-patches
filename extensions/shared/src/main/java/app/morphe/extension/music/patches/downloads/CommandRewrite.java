@@ -28,9 +28,6 @@ import java.util.List;
 final class CommandRewrite {
     static final int WATCH_ENDPOINT_FIELD = 48_687_757;
     static final int VIDEO_ID_FIELD = 1;
-    /** The watch endpoint's start time, a float of seconds (wire type 5): the app starts the video there. */
-    static final int START_TIME_FIELD = 7;
-    private static final int FIXED32_WIRE_TYPE = 5;
     static final int SUPPORTED_CONFIG_FIELD = 136_656_028;
     static final int MUSIC_CONFIG_FIELD = 136_657_325;
     static final int MUSIC_VIDEO_TYPE_FIELD = 2;
@@ -51,46 +48,6 @@ final class CommandRewrite {
 
     /** One field of a serialized message: where its tag, value and end are. */
     private record Field(int number, int wireType, int start, int tagEnd, int valueStart, int end) {}
-
-    /**
-     * Gives a watch command a start time: the watch endpoint's start time field (a float of seconds) is set, and
-     * replaces the one the endpoint has. Everything else is copied byte for byte.
-     *
-     * @return The command, or null when it has no watch endpoint or cannot be read.
-     */
-    @Nullable
-    static byte[] withStartTime(byte[] command, float seconds) {
-        try {
-            Field watchField = first(parse(command), WATCH_ENDPOINT_FIELD, 2);
-            if (watchField == null) return null;
-
-            byte[] watch = payload(command, watchField);
-            ByteArrayOutputStream out = new ByteArrayOutputStream(watch.length + 5);
-            boolean written = false;
-            for (Field field : parse(watch)) {
-                if (field.number == START_TIME_FIELD) continue;
-
-                if (!written && field.number > START_TIME_FIELD) {
-                    writeStartTime(out, seconds);
-                    written = true;
-                }
-                out.write(watch, field.start, field.end - field.start);
-            }
-            if (!written) writeStartTime(out, seconds);
-
-            return replacePayload(command, watchField, out.toByteArray());
-        } catch (IllegalArgumentException malformed) {
-            return null;
-        }
-    }
-
-    private static void writeStartTime(ByteArrayOutputStream out, float seconds) {
-        writeVarint(out, ((long) START_TIME_FIELD << 3) | FIXED32_WIRE_TYPE);
-        int bits = Float.floatToIntBits(seconds);
-        for (int shift = 0; shift < 32; shift += 8) {
-            out.write((bits >>> shift) & 0xFF);
-        }
-    }
 
     /** The music config with its edits and what they were. */
     private record ConfigEdit(byte[] watch, String type, String hint) {}

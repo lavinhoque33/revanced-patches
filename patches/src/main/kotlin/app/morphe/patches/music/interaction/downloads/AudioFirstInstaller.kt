@@ -48,7 +48,7 @@ private const val PILL_OWNER = $$"$${AUDIO_FIRST_PATH}QueueItems$PillOwner;"
 private const val START_INDEX = "$QUEUE_ITEMS->startIndex(Ljava/util/List;I)I"
 private const val PILL_VIEW = $$"$${AUDIO_FIRST_PATH}QueueItems$PillView;"
 private const val ON_PILL_OWNER = "$QUEUE_ITEMS->onPillOwner(Ljava/lang/Object;)V"
-private const val WITH_PILL_START = "$QUEUE_ITEMS->withPillStart(Ljava/lang/Object;)Ljava/lang/Object;"
+private const val START_POSITION = "$QUEUE_ITEMS->startPosition(Ljava/lang/Object;J)J"
 private const val ON_PILL_CLICK = "$QUEUE_ITEMS->onPillClick(Ljava/lang/Object;)Z"
 private const val REGISTRY = "Lcom/google/protobuf/ExtensionRegistryLite;"
 private const val CAPTURE_HOLDER = "$AUDIO_FIRST->captureHolder(Ljava/lang/Object;)V"
@@ -233,6 +233,7 @@ private fun BytecodePatchContext.installQueueItemRetarget() {
         // resolved before anything is changed.
         val installPill = preparePillClick(item, pill.method.name, pill.classDef.type)
         val installStart = prepareQueueStart()
+        val installPosition = preparePillStartPosition()
 
         val renderer = mutableClassDefBy(rendererType)
         val defaultRenderer = renderer.fields.single {
@@ -277,10 +278,80 @@ private fun BytecodePatchContext.installQueueItemRetarget() {
 
         printInfo(installPill())
         printInfo(installStart())
+        installPosition?.let { printInfo(it()) }
     } catch (ex: Exception) {
         printWarn("Start downloaded songs in audio mode cannot keep the next songs of an album on their song " +
             "renderers on this Music version, so the queue items, the song/video pill and the start at the " +
             "tapped row are all skipped: ${ex.message}")
+    }
+}
+
+/**
+ * A string only the app's own audio/video switch uses: its navigation hands the player the position to continue at,
+ * under this key, and the consumers copy it into the playback start descriptor builder.
+ */
+private val avSwitchStartTimeFingerprint = Fingerprint(strings = listOf("avSwitchPlaybackStartTime"))
+
+/** The registers the start position hook needs: the command, and the position (a pair). */
+private const val START_POSITION_LOCALS = 3
+
+/**
+ * The Song/Video pill continues at the position the player had: the start descriptor of a playback (`Labjl` builder,
+ * `Labjm` product) has a start position in milliseconds (`k`, -1 when none), which the app's own audio/video switch
+ * fills from its navigation's `avSwitchPlaybackStartTime`. The pill's click navigates with the item's own command
+ * instead, so its descriptor has none and the load starts at 0:00 (the command's own start time field is not read for a
+ * new video). The builder is found by the field the switch's consumers store that time in (the one `iput-wide` that
+ * follows a `Long.longValue()` in a method with that string); at the start of its build method the extension is asked
+ * for the position of the command the descriptor holds, and answers the position the pill's click noted for it, else
+ * the descriptor's own. Optional: a version where it is not found keeps the stock start (0:00), and the rest installs.
+ */
+private fun BytecodePatchContext.preparePillStartPosition(): (() -> String)? {
+    try {
+        val stores = avSwitchStartTimeFingerprint.matchAll(1..Int.MAX_VALUE).flatMap { match ->
+            val instructions = match.method.implementation!!.instructions.toList()
+            instructions.indices.filter { index ->
+                index >= 2 && instructions[index].opcode == Opcode.IPUT_WIDE &&
+                    instructions[index - 1].opcode == Opcode.MOVE_RESULT_WIDE &&
+                    instructions[index - 2].getReference<MethodReference>()?.let {
+                        it.definingClass == "Ljava/lang/Long;" && it.name == "longValue"
+                    } == true
+            }.mapNotNull { instructions[it].getReference<FieldReference>() }
+        }.distinctBy { "${it.definingClass}->${it.name}" }
+        val startField = stores.singleOrNull()
+            ?: error("start position: ${stores.size} start position fields in the switch's consumers")
+
+        val builder = mutableClassDefBy(startField.definingClass)
+        val commandType = nativeDownloadsCommandResolverFingerprint.method.parameterTypes[1].toString()
+        val commandField = builder.fields.singleOrNull {
+            !AccessFlags.STATIC.isSet(it.accessFlags) && it.type == commandType
+        } ?: error("start position: the builder has no single field of the command type $commandType")
+
+        val builds = builder.methods.filter {
+            !AccessFlags.STATIC.isSet(it.accessFlags) && it.parameterTypes.isEmpty() &&
+                it.returnType.startsWith("L") && !it.returnType.startsWith("Ljava/")
+        }
+        val build = builds.singleOrNull() ?: error("start position: ${builds.size} build methods")
+        val implementation = build.implementation!!
+        check(implementation.registerCount - 1 >= START_POSITION_LOCALS) {
+            "start position: the build method has no free registers"
+        }
+
+        return {
+            builder.findMutableMethodOf(build).addInstructions(0, """
+                iget-object v0, p0, ${builder.type}->${commandField.name}:$commandType
+                iget-wide v1, p0, ${builder.type}->${startField.name}:J
+                invoke-static {v0, v1, v2}, $START_POSITION
+                move-result-wide v1
+                iput-wide v1, p0, ${builder.type}->${startField.name}:J
+            """)
+
+            "AudioFirst: pill start position ${builder.type}->${build.name}, start ${startField.name}, " +
+                "command ${commandField.name}"
+        }
+    } catch (ex: Exception) {
+        printWarn("The Song/Video switch of the Music player cannot keep the playback position on this Music " +
+            "version, so it starts at 0:00: ${ex.message}")
+        return null
     }
 }
 
@@ -350,25 +421,7 @@ private fun BytecodePatchContext.preparePillClick(
         !AccessFlags.STATIC.isSet(it.accessFlags) && it.type == navigation.definingClass
     }
 
-    // The pill's switch continues at the position the player had: the endpoint is the command the app rebuilds from
-    // bytes, so the extension can give it a start time. A version whose endpoint is another type switches from 0:00.
-    val commandType = nativeDownloadsCommandResolverFingerprint.method.parameterTypes[1].toString()
-    val keepsPosition = endpointType == commandType
-    if (!keepsPosition) {
-        printWarn("The Song/Video switch of the Music player cannot keep the playback position on this Music " +
-            "version: its endpoint $endpointType is not the rebuildable command $commandType")
-    }
-    val endpointLoad = "iget-object v0, v0, ${referenceMethod.returnType}->${holding.second.name}:$endpointType"
-    val endpoint = if (keepsPosition) {
-        """
-        $endpointLoad
-        invoke-static {v0}, $WITH_PILL_START
-        move-result-object v0
-        check-cast v0, $endpointType
-        """
-    } else {
-        endpointLoad
-    }
+    val endpoint = "iget-object v0, v0, ${referenceMethod.returnType}->${holding.second.name}:$endpointType"
     val navigate = if (single != null) {
         "invoke-interface {v1, v0}, ${navigation.definingClass}->${navigation.name}($endpointType)V"
     } else {
@@ -435,8 +488,8 @@ private fun BytecodePatchContext.preparePillClick(
 
         "AudioFirst: pill click ${click.classType}->${click.method.name}, owner press " +
             "${press.classDef.type}->${press.method.name}, navigates with ${navigation.definingClass}->" +
-            "${navigation.name}, item reference ${referenceMethod.name}, keeps position=$keepsPosition, " +
-            "owner reported by ${ownerConstructors.size} constructor"
+            "${navigation.name}, item reference ${referenceMethod.name}, owner reported by " +
+            "${ownerConstructors.size} constructor"
     }
 }
 

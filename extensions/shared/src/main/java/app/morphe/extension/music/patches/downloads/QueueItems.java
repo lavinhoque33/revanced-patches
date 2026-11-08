@@ -210,6 +210,7 @@ public final class QueueItems {
             synchronized (tracked) {
                 pillPressedAt = SystemClock.elapsedRealtime();
                 pending = null;
+                pillStart = null;
             }
             AudioFirst.leaveTapsAlone();
             String now = AudioFirst.togglePillMode();
@@ -220,7 +221,7 @@ public final class QueueItems {
 
             logClick(entry, via, current, was, "takeover mode=" + was + "->" + now);
             expectStart(entry.songId, entry.videoId);
-            navigateKeepingPosition((PillOwner) owner, item);
+            navigateKeepingPosition((PillOwner) owner, item, entry);
             return true;
         } catch (Exception ex) {
             Logger.printException(() -> "AudioFirst: pill click failure", ex);
@@ -229,57 +230,52 @@ public final class QueueItems {
     }
 
     /**
-     * Navigates to the other item of the switch, which starts where the player is now: the owner hands the item's
-     * command to {@link #withPillStart} on its way, which gives it the start time. A position that cannot be used
-     * starts the item at its beginning, as the app does.
+     * Navigates to the other item of the switch, which starts where the player is now: the click notes the position
+     * for the item's videos, and the start descriptor the navigation builds asks for it ({@link #startPosition}). A
+     * position that cannot be used starts the item at its beginning, as the app does.
      */
-    private static void navigateKeepingPosition(PillOwner owner, Object item) {
+    private static void navigateKeepingPosition(PillOwner owner, Object item, Tracked entry) {
         PillPosition.Start start = PillPosition.choose(VideoInformation.getVideoTime(),
                 VideoInformation.getVideoLength());
         Logger.printDebug(() -> "AudioFirst: pill start " + start.reason());
         synchronized (tracked) {
-            pillStartMillis = start.millis();
+            pillStart = start.continues() ? new PillStart(entry.videoId, entry.songId, start.millis(),
+                    SystemClock.elapsedRealtime()) : null;
         }
-        try {
-            owner.rvxNavigate(item);
-        } finally {
-            synchronized (tracked) {
-                pillStartMillis = 0;
-            }
-        }
+        owner.rvxNavigate(item);
     }
 
     /**
-     * Injection point: the command the pill's owner is about to navigate with. While the pill's click navigates, it
-     * is given the start time of the click (see {@link #navigateKeepingPosition}); any other command, and any it
-     * cannot rebuild, is returned as it is.
+     * Injection point: the start of the build of a playback start descriptor, which holds the command it starts and
+     * the position to start at (-1 when it has none). The descriptor of the pill's navigation, which names a video of
+     * the clicked item, starts at the position noted by the click.
+     *
+     * @param command  The command the descriptor starts.
+     * @param position The descriptor's start position in milliseconds, -1 when it has none.
+     * @return The start position the descriptor is to have.
      */
-    public static Object withPillStart(@Nullable Object command) {
+    public static long startPosition(@Nullable Object command, long position) {
         try {
-            long millis;
+            PillStart noted;
             synchronized (tracked) {
-                millis = pillStartMillis;
+                noted = pillStart;
             }
-            if (millis <= 0 || command == null) return command;
+            if (noted == null || position >= 0) return position;
 
-            if (!(command instanceof NativeDownloads.Command rebuildable)
-                    || !(command instanceof MessageLite message)) {
-                Logger.printDebug(() -> "AudioFirst: pill start not set (command cannot be rebuilt)");
-                return command;
-            }
+            if (SystemClock.elapsedRealtime() - noted.madeAt > PILL_START_TTL_MILLIS) return position;
 
-            byte[] started = CommandRewrite.withStartTime(message.toByteArray(), millis / 1000f);
-            if (started == null) {
-                Logger.printDebug(() -> "AudioFirst: pill start not set (no watch endpoint)");
-                return command;
+            String videoId = command instanceof MessageLite message ? TapCommand.parse(message.toByteArray()).videoId
+                    : null;
+            if (videoId == null || !noted.names(videoId)) {
+                Logger.printDebug(() -> "AudioFirst: pill start not for descriptor of " + videoId);
+                return position;
             }
 
-            Object rebuilt = rebuildable.rvxWithBytes(started);
-            Logger.printDebug(() -> "AudioFirst: pill start set to " + millis + "ms");
-            return rebuilt;
+            Logger.printDebug(() -> "AudioFirst: pill start set to " + noted.millis + "ms for " + videoId);
+            return noted.millis;
         } catch (Exception ex) {
             Logger.printException(() -> "AudioFirst: pill start failure", ex);
-            return command;
+            return position;
         }
     }
 
@@ -310,8 +306,16 @@ public final class QueueItems {
     private static String correctedVideoId;
     private static long correctedAt;
     private static long pillPressedAt;
-    /** The start time, in milliseconds, of the navigation the pill's click is making; 0 outside of it. */
-    private static long pillStartMillis;
+    /** The position the pill's click noted for the navigation it makes, until it is too old to be that one's. */
+    @Nullable
+    private static PillStart pillStart;
+    private static final long PILL_START_TTL_MILLIS = 5_000;
+
+    private record PillStart(String videoId, String songId, long millis, long madeAt) {
+        boolean names(String id) {
+            return id.equals(videoId) || id.equals(songId);
+        }
+    }
     /** A corrective start that waits for the pill's owner to be built; its request is only so old. */
     @Nullable
     private static Pending pending;

@@ -84,6 +84,14 @@ private val downloadsResourcePatch = resourcePatch {
             "true",
             "morphe_music_play_downloads_locally",
         )
+        // The one way into the list that no page of the app has a say in: the offline home, the banner and the
+        // Library tab differ by what was cached, this row does not.
+        addCustomPreference(
+            CategoryType.MISC,
+            "morphe_music_open_downloads",
+            "app.morphe.extension.music.settings.preference.OpenDownloadsPreference",
+            "morphe_music_play_downloads_locally",
+        )
         // The stream copies are invisible in Device files, so they are managed here. No dependency: they can be
         // deleted after Play downloads locally was turned off.
         addCustomPreference(

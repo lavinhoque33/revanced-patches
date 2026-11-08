@@ -9,6 +9,8 @@ import static app.morphe.extension.shared.utils.StringRef.str;
 
 import android.app.Activity;
 
+import androidx.annotation.Nullable;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -31,6 +33,9 @@ final class OfflineLibrary {
     /** The list on screen, if any: a second navigation to the Downloads page must not open another. */
     private static volatile OfflineLibraryScreen shown;
     private final boolean deviceFilesRow;
+    /** The settings page the list was opened from; it is left with the list, so playback lands in the app. */
+    @Nullable
+    private final Activity settingsHost;
     private OfflineLibraryScreen screen;
     /** The home view of the last load, shown again when a source view goes back. */
     private List<Item> home = List.of();
@@ -38,8 +43,9 @@ final class OfflineLibrary {
     /** Changes with every view; a load that finishes for an older one is dropped. */
     private int view;
 
-    private OfflineLibrary(boolean deviceFilesRow) {
+    private OfflineLibrary(boolean deviceFilesRow, @Nullable Activity settingsHost) {
         this.deviceFilesRow = deviceFilesRow;
+        this.settingsHost = settingsHost;
     }
 
     /**
@@ -49,6 +55,22 @@ final class OfflineLibrary {
      */
     static void onLibraryChip(String browseId) {
         if (OfflineLibraryLogic.isDownloadsChip(browseId)) onDownloadsBrowse(browseId);
+    }
+
+    /**
+     * The list opened from the settings page, in front of it. It has no Device files row: that one continues to a
+     * page of the app, which the settings page is not.
+     */
+    static void openFromSettings(Activity activity) {
+        try {
+            OfflineLibraryScreen open = shown;
+            if (open != null && open.isShowing()) return;
+
+            Logger.printInfo(() -> "OfflineLibrary: open from the settings");
+            new OfflineLibrary(false, activity).open(activity);
+        } catch (Exception ex) {
+            Logger.printException(() -> "OfflineLibrary: could not open the Downloads list", ex);
+        }
     }
 
     /**
@@ -74,7 +96,7 @@ final class OfflineLibrary {
             }
 
             Logger.printInfo(() -> "OfflineLibrary: open browse=" + browseId + " decision=" + decision);
-            new OfflineLibrary(decision == Decision.OPEN_WITH_DEVICE_FILES).open(activity);
+            new OfflineLibrary(decision == Decision.OPEN_WITH_DEVICE_FILES, null).open(activity);
             return true;
         } catch (Exception ex) {
             Logger.printException(() -> "OfflineLibrary: could not open the Downloads list", ex);
@@ -215,6 +237,7 @@ final class OfflineLibrary {
     private void finishStart(boolean handedOver) {
         if (handedOver) {
             close();
+            if (settingsHost != null) settingsHost.finish();
         } else {
             Utils.showToastShort(str("morphe_music_offline_library_not_ready"));
         }

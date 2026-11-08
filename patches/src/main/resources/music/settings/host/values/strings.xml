@@ -171,6 +171,8 @@ YouTube Music 8.x - crossfade only runs on 9.x and newer"</string>
     <string name="morphe_music_downloaded_checkmarks_summary">Shows a green check on songs and playlists saved for local playback. Requires Play downloads locally</string>
     <string name="morphe_music_start_downloaded_in_audio_title">Start downloaded songs in audio mode</string>
     <string name="morphe_music_start_downloaded_in_audio_summary">Songs with a stream copy start in audio mode, so the local copy is used. The Song/Video switch still works and plays the online video. Requires Play downloads locally</string>
+    <string name="morphe_music_open_downloads_title">Open downloaded songs</string>
+    <string name="morphe_music_open_downloads_summary">The songs saved for local playback, with or without a connection</string>
     <string name="morphe_music_stream_downloads_title">Stream downloads</string>
     <string name="morphe_music_stream_downloads_summary">%1$s songs saved for local playback, %2$s MB. Tap to delete them</string>
     <string name="morphe_music_stream_downloads_none">No stream downloads saved</string>
@@ -189,6 +191,7 @@ YouTube Music 8.x - crossfade only runs on 9.x and newer"</string>
     <string name="morphe_music_offline_library_unavailable_title">Downloaded song</string>
     <string name="morphe_music_offline_library_unavailable">Plays offline after it has played online once</string>
     <string name="morphe_music_offline_library_unavailable_toast">Not available offline yet. Play it once online first</string>
+    <string name="morphe_music_offline_library_not_enabled">Turn on Play downloads locally first</string>
     <string name="morphe_music_offline_library_not_ready">Could not start playback yet. Play any song first</string>
     <string name="morphe_music_in_app_downloads_user_dialog_message">"Songs and playlists are saved to Music/RVX and played by YouTube Music’s native local-file player. Allow audio access when Music asks
 

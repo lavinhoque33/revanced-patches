@@ -5,6 +5,9 @@
  */
 package app.morphe.extension.music.patches.downloads;
 
+import static app.morphe.extension.shared.utils.StringRef.str;
+
+import android.app.Activity;
 import android.content.Context;
 import android.net.ConnectivityManager;
 import android.net.Network;
@@ -62,6 +65,7 @@ public final class OfflineReplay {
     private static final String HOOK_PLAYER = "player";
     private static final String HOOK_NEXT = "next";
     private static final String HOOK_COMMAND = "command";
+    private static final String HOOK_TAB = "tab";
     private static final String HOOK_GATE_FLAG = "gate-flag";
     private static final String HOOK_CHIP = "library-chip";
 
@@ -145,6 +149,10 @@ public final class OfflineReplay {
      */
     static boolean play(String sourceId, int index) {
         if (!canDispatch()) return false;
+
+        // A tap is a fresh selection, so a video mode the last song left behind does not hold for it. The stream
+        // copy is audio only: offline, the video mode would ask for the video stream and the swap would decline.
+        if (!networkAvailable()) logDecision(HOOK_COMMAND, "audio mode: " + AudioFirst.startAudioMode());
 
         Utils.runOnBackgroundThread(() -> {
             try {
@@ -239,6 +247,7 @@ public final class OfflineReplay {
             OfflineCopyStore.warmUp();
 
             String browseId = OfflineReplayLogic.browseIdOf(message.toByteArray());
+            if (browseId != null) logDecision(HOOK_COMMAND, "browse=" + browseId);
             return browseId != null && browseId.startsWith(OFFLINE_BROWSE_PREFIX)
                     && OfflineLibrary.onDownloadsBrowse(browseId);
         } catch (Exception ex) {
@@ -255,6 +264,33 @@ public final class OfflineReplay {
         noteAlive(HOOK_CHIP);
         logDecision(HOOK_CHIP, "browse=" + browseId + " enabled=" + enabled());
         if (enabled()) OfflineLibrary.onLibraryChip(browseId);
+    }
+
+    /**
+     * Opens the list from the settings page, the entry that does not depend on any page of the app: it is there with
+     * no network and whatever the home of the app shows. Does nothing but say so while the replay is off.
+     */
+    static void openList(Context context) {
+        Activity activity = context instanceof Activity own ? own : Utils.getActivity();
+        if (activity == null || !enabled()) {
+            Utils.showToastShort(str("morphe_music_offline_library_not_enabled"));
+            return;
+        }
+
+        OfflineLibrary.openFromSettings(activity);
+    }
+
+    /**
+     * Injection point: the bottom bar navigates to a tab's page, on the main thread. The Library tab while offline
+     * goes to the Downloads page, which the list replaces; the stock navigation goes on behind it.
+     */
+    static void onTabNavigation(Object command) {
+        noteAlive(HOOK_TAB);
+        if (!enabled() || !(command instanceof Command message)) return;
+
+        String browseId = OfflineReplayLogic.browseIdOf(message.toByteArray());
+        logDecision(HOOK_TAB, "browse=" + browseId);
+        if (browseId != null) OfflineLibrary.onLibraryChip(browseId);
     }
 
     // endregion
@@ -345,9 +381,7 @@ public final class OfflineReplay {
     private static String describe(Object response) {
         boolean marker = response instanceof StreamSwap.Response adapter
                 && OfflineReplayLogic.hasOfflineMarker(adapter.rvxBytes());
-        String text = String.valueOf(response);
-        return "flagR=" + marker + " canStartUsingOfflineStream="
-                + OfflineReplayLogic.valueOf(text, "canStartUsingOfflineStream");
+        return "flagR=" + marker;
     }
 
     /**

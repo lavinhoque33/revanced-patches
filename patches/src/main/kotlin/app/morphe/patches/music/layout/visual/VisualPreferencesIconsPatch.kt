@@ -1699,6 +1699,7 @@ private val rvxPreferenceKey = mapOf(
     "morphe_music_play_downloads_locally" to "morphe_music_jam_download",
     "morphe_music_downloaded_checkmarks" to "morphe_music_jam_download",
     "morphe_music_start_downloaded_in_audio" to "morphe_music_jam_download",
+    "morphe_music_open_downloads" to "morphe_music_jam_download",
     // Stream downloads: the trash icon of Delete playlist, as for Clear stored lyrics.
     "morphe_music_stream_downloads" to "revanced_hide_flyout_menu_delete_playlist",
     "morphe_music_android_auto_downloaded_playlists" to "morphe_music_jam_download",

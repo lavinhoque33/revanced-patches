@@ -55,6 +55,10 @@ private const val GATE_EXPERIMENT = 0x02b88604L
 /** Message of the failure the stock player lookup ends with when a song was not downloaded the stock way. */
 private const val UNPLAYABLE = "Unplayable Video"
 
+/** The two strings only the bottom bar's tab navigation uses together (`FEmusic_search` and its back action). */
+private const val TAB_SEARCH_PAGE = "FEmusic_search"
+private const val TAB_HIDE_SEARCH_BACK = "hide_search_back_action"
+
 /** Message of the failure the Library chip loader ends with for a continuation it does not know. */
 private const val UNSUPPORTED_CONTINUATION = "Unsupported continuation: "
 
@@ -62,7 +66,7 @@ private const val UNSUPPORTED_CONTINUATION = "Unsupported continuation: "
  * Offline playback of stream copies, in 9.40.51 / 9.15.51 / 8.30.54 order:
  * gate `Lgup.c` / `Lkch.c` / `Ljto.c`, player lookup `Laalc.c` / `Laxlp.c` / `Lauhp.c`,
  * watch-next entry `Lhyv.b` / `Lntb.b` / `Lnez.b`, watch-next request `Labjm` / `Lazmi` / `Lawgh`,
- * and the Library chip loader (`Lhtd.a` in 9.40.51).
+ * the Library chip loader (`Lhtd.a` in 9.40.51) and the tab navigation (`Lhis.c` in 9.40.51).
  * Every dependency of every hook is resolved before anything is changed, and the hooks go in together or not at all:
  * a version whose shape is unfamiliar only warns and plays as before. Needs [installStreamSwap]: the stored response
  * gets the same audio swap an online one does.
@@ -80,13 +84,18 @@ internal fun BytecodePatchContext.installOfflineReplay() {
         val (requestType, installTail) = prepareReplayTail()
         val installNext = prepareReplayNext(requestType, commandType)
         val installChip = prepareLibraryChip()
+        val installTab = prepareTabNavigation()
 
         installGate()
         installTail()
         installNext()
         installChip()
+        installTab()
         supported.returnEarly(true)
-        printInfo("OfflineReplay: gate, player lookup, watch-next and library chip hooked; request $requestType")
+        printInfo(
+            "OfflineReplay: gate, player lookup, watch-next, library chip and tab navigation hooked; " +
+                "request $requestType",
+        )
     } catch (ex: Exception) {
         printWarn("OfflineReplay: hooks unavailable; online playback unchanged: ${ex.message}")
     }
@@ -322,6 +331,25 @@ private fun BytecodePatchContext.prepareLibraryChip(): () -> Unit {
 
     return {
         method.addInstruction(test + 1, "invoke-static {v$browseId}, $REPLAY->onLibraryChip($STRING)V")
+    }
+}
+
+/**
+ * The bottom bar's tab navigation (`Lhis.c(String, command)` in 9.40.51). The Library tab goes offline to the
+ * Downloads page, and that navigation is not guaranteed to pass the command dispatcher: it may only switch to a
+ * tab's own page. The command is handed to [REPLAY] first thing, which opens the offline list for the Downloads
+ * page and leaves the stock navigation to go on behind it.
+ */
+private fun BytecodePatchContext.prepareTabNavigation(): () -> Unit {
+    val method = Fingerprint(
+        returnType = "V",
+        parameters = listOf(STRING, "L"),
+        strings = listOf(TAB_SEARCH_PAGE, TAB_HIDE_SEARCH_BACK),
+    ).matchSingle().method
+    check(!AccessFlags.STATIC.isSet(method.accessFlags)) { "tab navigation: static method" }
+
+    return {
+        method.addInstruction(0, "invoke-static {p2}, $REPLAY->onTabNavigation(Ljava/lang/Object;)V")
     }
 }
 

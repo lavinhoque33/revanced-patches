@@ -5,6 +5,10 @@
  */
 package app.morphe.extension.music.patches.downloads;
 
+import static app.morphe.extension.shared.utils.StringRef.str;
+
+import android.content.Context;
+
 import androidx.annotation.Nullable;
 
 import com.google.common.util.concurrent.ListenableFuture;
@@ -12,6 +16,7 @@ import com.google.common.util.concurrent.ListenableFuture;
 import java.util.Map;
 
 import app.morphe.extension.shared.utils.Logger;
+import app.morphe.extension.shared.utils.Utils;
 
 /**
  * The entry points the Downloads patch calls from the app's own code. Each one hands over to {@link OfflineReplay}
@@ -65,6 +70,31 @@ public final class OfflineReplayHooks {
         } catch (Throwable failure) {
             disable("library chip", failure);
         }
+    }
+
+    /** Injection point: the bottom bar navigates to a tab's page; {@code command} is the browse command of it. */
+    public static void onTabNavigation(Object command) {
+        if (!usable()) return;
+
+        try {
+            OfflineReplay.onTabNavigation(command);
+        } catch (Throwable failure) {
+            disable("tab navigation", failure);
+        }
+    }
+
+    /** Entry of the settings row: opens the offline list, or says why it cannot. */
+    public static void openList(Context context) {
+        try {
+            if (usable()) {
+                OfflineReplay.openList(context);
+                return;
+            }
+        } catch (Throwable failure) {
+            disable("settings list", failure);
+        }
+
+        Utils.showToastShort(str("morphe_music_offline_library_not_enabled"));
     }
 
     /** Injection point: the flag the offline watch gate read. */

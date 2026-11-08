@@ -16,8 +16,6 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.ConcurrentMap;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /**
  * The decisions of {@link OfflineReplay} that need no Android: which playlist id stands for a list, whether a hook
@@ -168,14 +166,6 @@ final class OfflineReplayLogic {
     /** Whether a player response carries the marker the app sets on a response it read from its offline store. */
     static boolean hasOfflineMarker(byte[] response) {
         return hasField(response, OFFLINE_RESPONSE_FIELD);
-    }
-
-    /** The value after {@code name=} in a description such as a response's text, or "?" when it is not there. */
-    static String valueOf(@Nullable String description, String name) {
-        if (description == null) return "?";
-
-        Matcher matcher = Pattern.compile("\\b" + Pattern.quote(name) + "=([^,\\s\\]})]+)").matcher(description);
-        return matcher.find() ? matcher.group(1) : "?";
     }
 
     /** The queue items of a list's tracks that have stored data, in the list's order. */

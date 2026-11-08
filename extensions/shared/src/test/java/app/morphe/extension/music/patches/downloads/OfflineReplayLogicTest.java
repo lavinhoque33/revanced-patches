@@ -146,15 +146,6 @@ public class OfflineReplayLogicTest {
         assertFalse(OfflineReplayLogic.hasOfflineMarker(new byte[]{0x08, 0x01}));
     }
 
-    @Test public void aNamedValueIsReadFromADescription() {
-        String text = "PlayerResponse{canStartUsingOfflineStream=true, other=1}";
-
-        assertEquals("true", OfflineReplayLogic.valueOf(text, "canStartUsingOfflineStream"));
-        assertEquals("1", OfflineReplayLogic.valueOf(text, "other"));
-        assertEquals("?", OfflineReplayLogic.valueOf(text, "missing"));
-        assertEquals("?", OfflineReplayLogic.valueOf(null, "other"));
-    }
-
     // endregion
 
     // region queue items

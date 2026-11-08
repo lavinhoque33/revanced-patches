@@ -152,20 +152,88 @@ final class AudioFirstLogic {
     }
 
     /**
-     * Whether a playlist-only watch endpoint is converted to the tap on a row: it is the play button (no params: the
-     * shuffle button carries params and is never touched), the track it starts has a stream copy and the mode is audio.
-     */
-    static boolean playsAsRow(boolean hasParams, boolean trackHasCopy, @Nullable String mode) {
-        return !hasParams && trackHasCopy && isAudioMode(mode);
-    }
-
-    /**
      * Whether the queue items are tracked and shown as their songs: the setting is on and the stream copies are in
      * effect. Otherwise no new item is tracked, a mode change swaps nothing and the items tracked until now are given
      * back as the app built them.
      */
     static boolean tracksItems(boolean audioStartSetting, boolean streamCopies) {
         return audioStartSetting && streamCopies;
+    }
+
+    static final long CORRECTIVE_ONLINE_MILLIS = 3_000;
+    static final long CORRECTIVE_REPEAT_MILLIS = 10_000;
+    static final String RADIO_PREFIX = "RDAMPL";
+    static final String VIDEO_RADIO_PREFIX = "RDAMVM";
+
+    /**
+     * What a queue that was just built tells about the song it starts at and the player request made for it.
+     *
+     * @param trackedCurrent The queue's current item is tracked, so it has a song with a stream copy.
+     * @param enabled        The setting and the stream copies are on.
+     * @param mode           The mode the app holds, or null when unknown.
+     * @param onlineVideoId  The id of the player request answered online last, or null.
+     * @param onlineAgeMillis How long ago that was.
+     * @param videoId        The music video id of the current item.
+     * @param playlistId     The playlist the current item belongs to.
+     * @param playlistIndex  The position of the item in that playlist, -1 when unknown.
+     * @param position       The position of the item in the queue.
+     * @param queueHandled   This very queue was looked at already.
+     * @param tapStart       The queue is the one a tap on a row just asked for (its own path starts it).
+     * @param leftAlone      The navigation of a user's pill press is still running.
+     * @param sincePillMillis How long ago the user pressed the pill, or Long.MAX_VALUE.
+     * @param sinceCorrectedMillis How long ago the last corrective start was made, or Long.MAX_VALUE.
+     * @param correctedVideoId The video id of that start, or null.
+     */
+    record QueueStart(boolean trackedCurrent, boolean enabled, @Nullable String mode,
+                      @Nullable String onlineVideoId, long onlineAgeMillis, @Nullable String videoId,
+                      @Nullable String playlistId, int playlistIndex, int position, boolean queueHandled,
+                      boolean tapStart, boolean leftAlone, long sincePillMillis, long sinceCorrectedMillis,
+                      @Nullable String correctedVideoId) {}
+
+    static final String DECLINE_NOT_TRACKED = "not-tracked";
+    static final String DECLINE_DISABLED = "disabled";
+    static final String DECLINE_TAP = "tap-start";
+    static final String DECLINE_NO_ONLINE = "no-online";
+    static final String DECLINE_PILL = "pill-press";
+
+    /**
+     * A queue of downloaded songs starts on the music video of its first song when the app answered the player
+     * request of its play command online (the header's play button gives the video's id). The same song's copy plays
+     * when the queue is started again on the item's own watch endpoint, as the pill does.
+     *
+     * @return Null when the queue is to be restarted, else why not. The first four reasons are the common case of a
+     * queue that is not of this kind (nothing to say), see {@link #isQuietDecline}.
+     */
+    @Nullable
+    static String correctiveDecline(QueueStart queue) {
+        if (!queue.trackedCurrent) return DECLINE_NOT_TRACKED;
+        if (!queue.enabled) return DECLINE_DISABLED;
+        if (queue.tapStart) return DECLINE_TAP;
+        if (queue.onlineVideoId == null || !queue.onlineVideoId.equals(queue.videoId)) return DECLINE_NO_ONLINE;
+
+        if (queue.onlineAgeMillis < 0 || queue.onlineAgeMillis > CORRECTIVE_ONLINE_MILLIS) return "online-too-old";
+        if (queue.queueHandled) return "queue-handled";
+        if (queue.mode == null) return "mode-unknown";
+        if (OMV_PREFERRED_USER_TRIGGERED.equals(queue.mode)) return "user-video";
+        if ("DONT_PLAY_VIDEO_OVERRIDE".equals(queue.mode)) return "data-saving";
+        if (queue.leftAlone) return "navigation-running";
+        if (queue.sincePillMillis < CORRECTIVE_REPEAT_MILLIS) return DECLINE_PILL;
+        if (queue.playlistId != null && (queue.playlistId.startsWith(RADIO_PREFIX)
+                || queue.playlistId.startsWith(VIDEO_RADIO_PREFIX))) {
+            return "radio";
+        }
+        // A play command starts at the first track; a queue that starts elsewhere in its playlist is shuffled.
+        if (queue.playlistIndex >= 0 && queue.playlistIndex != queue.position) return "shuffled";
+        if (queue.videoId.equals(queue.correctedVideoId) && queue.sinceCorrectedMillis < CORRECTIVE_REPEAT_MILLIS) {
+            return "repeated";
+        }
+        return null;
+    }
+
+    /** Whether the decline is the common case of a queue that is not of this kind, which is not logged. */
+    static boolean isQuietDecline(@Nullable String reason) {
+        return DECLINE_NOT_TRACKED.equals(reason) || DECLINE_DISABLED.equals(reason) || DECLINE_TAP.equals(reason)
+                || DECLINE_NO_ONLINE.equals(reason);
     }
 
     /** The user-triggered mode the pill sets from {@code mode}: the video from an audio mode, else the audio. */

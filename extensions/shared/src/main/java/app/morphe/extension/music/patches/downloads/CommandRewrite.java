@@ -36,15 +36,6 @@ final class CommandRewrite {
     /** The playlist content type of the music config: 0 unknown, 1 audio preferred, 2 video preferred. */
     static final int HINT_FIELD = 3;
     static final int HINT_ATV_PREFERRED = 1;
-    /** The command extension of a playlist-only watch endpoint (the play and shuffle buttons of a header). */
-    static final int PLAY_ENDPOINT_FIELD = 52_731_722;
-    private static final int WATCH_PLAYLIST_FIELD = 2;
-    private static final int WATCH_INDEX_FIELD = 3;
-    private static final int PLAY_PLAYLIST_FIELD = 1;
-    private static final int PLAY_INDEX_FIELD = 2;
-    private static final int PLAY_PARAMS_FIELD = 4;
-    private static final int MUSIC_CONFIG_CONTENT_TYPE_FIELD = 4;
-    private static final int MUSIC_CONFIG_CONTENT_TYPE_VALUE = 2;
     private static final int VIDEO_ID_LENGTH = 11;
     private static final int DUMP_DEPTH = 3;
     private static final int DUMP_MAX_FIELDS = 24;
@@ -58,13 +49,6 @@ final class CommandRewrite {
      * the audio preference hint ({@code added}, {@code replaced}, {@code present} or {@code none}).
      */
     record Result(byte[] command, String type, String hint) {}
-
-    /**
-     * A playlist-only watch endpoint: the header's play button, or its shuffle button when it has params.
-     *
-     * @param index The position it names (the endpoint's field 2, 0 when absent).
-     */
-    record Play(String playlistId, int index, boolean hasParams, String fields) {}
 
     /** One field of a serialized message: where its tag, value and end are. */
     private record Field(int number, int wireType, int start, int tagEnd, int valueStart, int end) {}
@@ -146,98 +130,6 @@ final class CommandRewrite {
         } catch (IllegalArgumentException malformed) {
             return null;
         }
-    }
-
-    /**
-     * Reads a command that is a playlist-only watch endpoint (a header's play or shuffle button) at its top level.
-     *
-     * @return The endpoint, or null when the command is not one or does not parse.
-     */
-    @Nullable
-    static Play readPlay(byte[] command) {
-        try {
-            Field playField = first(parse(command), PLAY_ENDPOINT_FIELD, 2);
-            if (playField == null) return null;
-
-            byte[] play = payload(command, playField);
-            String playlistId = null;
-            int index = 0;
-            boolean hasParams = false;
-            for (Field field : parse(play)) {
-                if (field.number == PLAY_PLAYLIST_FIELD && field.wireType == 2) {
-                    playlistId = new String(payload(play, field), StandardCharsets.ISO_8859_1);
-                } else if (field.number == PLAY_INDEX_FIELD && field.wireType == 0) {
-                    index = (int) readVarint(play, new int[]{field.valueStart});
-                } else if (field.number == PLAY_PARAMS_FIELD && field.wireType == 2) {
-                    hasParams = field.end > field.valueStart;
-                }
-            }
-            if (playlistId == null || playlistId.isEmpty()) return null;
-            return new Play(playlistId, index, hasParams, "[" + describe(play, 1) + "]");
-        } catch (IllegalArgumentException malformed) {
-            return null;
-        }
-    }
-
-    /**
-     * The command a tap on the row of a song in a playlist is: the same command with its playlist-only endpoint
-     * replaced by a watch endpoint of the song, in the playlist, at its position, as an audio music video type with
-     * the audio preference hint when asked. The rest of the command is copied unchanged.
-     *
-     * @return The command, or null when it has no playlist-only endpoint or does not parse.
-     */
-    @Nullable
-    static byte[] playAsRow(byte[] command, String songId, boolean setHint) {
-        if (!isVideoId(songId)) return null;
-        try {
-            Play play = readPlay(command);
-            Field playField = first(parse(command), PLAY_ENDPOINT_FIELD, 2);
-            if (play == null || playField == null) return null;
-
-            byte[] watch = build(out -> {
-                writeString(out, VIDEO_ID_FIELD, songId);
-                writeString(out, WATCH_PLAYLIST_FIELD, play.playlistId());
-                writeVarintField(out, WATCH_INDEX_FIELD, play.index());
-                writeMessage(out, SUPPORTED_CONFIG_FIELD, build(supported -> writeMessage(supported, MUSIC_CONFIG_FIELD,
-                        build(music -> {
-                            writeVarintField(music, MUSIC_VIDEO_TYPE_FIELD, TYPE_ATV);
-                            if (setHint) writeVarintField(music, HINT_FIELD, HINT_ATV_PREFERRED);
-                            writeVarintField(music, MUSIC_CONFIG_CONTENT_TYPE_FIELD, MUSIC_CONFIG_CONTENT_TYPE_VALUE);
-                        }))));
-            });
-            ByteArrayOutputStream rewritten = new ByteArrayOutputStream(command.length + watch.length);
-            rewritten.write(command, 0, playField.start);
-            rewritten.write(command, playField.end, command.length - playField.end);
-            writeMessage(rewritten, WATCH_ENDPOINT_FIELD, watch);
-            return rewritten.toByteArray();
-        } catch (IllegalArgumentException malformed) {
-            return null;
-        }
-    }
-
-    private interface Writer {
-        void write(ByteArrayOutputStream out);
-    }
-
-    private static byte[] build(Writer writer) {
-        ByteArrayOutputStream out = new ByteArrayOutputStream();
-        writer.write(out);
-        return out.toByteArray();
-    }
-
-    private static void writeString(ByteArrayOutputStream out, int number, String value) {
-        writeMessage(out, number, value.getBytes(StandardCharsets.ISO_8859_1));
-    }
-
-    private static void writeMessage(ByteArrayOutputStream out, int number, byte[] payload) {
-        writeVarint(out, ((long) number << 3) | 2);
-        writeVarint(out, payload.length);
-        out.write(payload, 0, payload.length);
-    }
-
-    private static void writeVarintField(ByteArrayOutputStream out, int number, long value) {
-        writeVarint(out, (long) number << 3);
-        writeVarint(out, value);
     }
 
     @Nullable

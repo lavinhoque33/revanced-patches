@@ -207,16 +207,6 @@ public class AudioFirstLogicTest {
     }
 
     @Test
-    public void thePlayButtonOfADownloadedTrackStartsItAsARowInAnAudioModeOnly() {
-        assertTrue(AudioFirstLogic.playsAsRow(false, true, "ATV_PREFERRED"));
-        assertTrue(AudioFirstLogic.playsAsRow(false, true, "DONT_PLAY_VIDEO_OVERRIDE"));
-        assertFalse(AudioFirstLogic.playsAsRow(true, true, "ATV_PREFERRED"));
-        assertFalse(AudioFirstLogic.playsAsRow(false, false, "ATV_PREFERRED"));
-        assertFalse(AudioFirstLogic.playsAsRow(false, true, "OMV_PREFERRED_USER_TRIGGERED"));
-        assertFalse(AudioFirstLogic.playsAsRow(false, true, null));
-    }
-
-    @Test
     public void theAppsCopyOfAnItemsSongRendererIsStillTheSong() {
         assertEquals("song", AudioFirstLogic.renderedAs("lYBUbBu4W08", "lYBUbBu4W08", "dQw4w9WgXcQ"));
         assertEquals("video", AudioFirstLogic.renderedAs("dQw4w9WgXcQ", "lYBUbBu4W08", "dQw4w9WgXcQ"));
@@ -229,6 +219,105 @@ public class AudioFirstLogicTest {
         assertEquals("queue-current", AudioFirstLogic.lookupSource(true, false));
         assertEquals("played-id", AudioFirstLogic.lookupSource(false, true));
         assertEquals("none", AudioFirstLogic.lookupSource(false, false));
+    }
+
+    private static final String OMV = "dQw4w9WgXcQ";
+    private static final String ALBUM = "OLAK5uy_nmDUsWOMoEcz0SsVqUwir0oxu-k1oUyXE";
+
+    /** The queue of the album's play button, as the device log shows it: tracked first item, answered online. */
+    private static AudioFirstLogic.QueueStart playQueue() {
+        return start("ATV_PREFERRED", OMV, 127, ALBUM, 0, 0);
+    }
+
+    private static AudioFirstLogic.QueueStart start(String mode, String onlineId, long onlineAge, String playlist,
+                                                    int playlistIndex, int position) {
+        return new AudioFirstLogic.QueueStart(true, true, mode, onlineId, onlineAge, OMV, playlist, playlistIndex,
+                position, false, false, false, Long.MAX_VALUE, Long.MAX_VALUE, null);
+    }
+
+    private static AudioFirstLogic.QueueStart with(AudioFirstLogic.QueueStart q, boolean tracked, boolean enabled,
+                                                   boolean handled, boolean tap, boolean aloneNow, long sincePill,
+                                                   long sinceCorrected, String corrected) {
+        return new AudioFirstLogic.QueueStart(tracked, enabled, q.mode(), q.onlineVideoId(), q.onlineAgeMillis(),
+                q.videoId(), q.playlistId(), q.playlistIndex(), q.position(), handled, tap, aloneNow, sincePill,
+                sinceCorrected, corrected);
+    }
+
+    @Test
+    public void thePlayQueueOfADownloadedAlbumIsRestartedOnItsSong() {
+        assertNull(AudioFirstLogic.correctiveDecline(playQueue()));
+        assertNull(AudioFirstLogic.correctiveDecline(start("OMV_PREFERRED", OMV, 2_999, ALBUM, 0, 0)));
+        assertNull(AudioFirstLogic.correctiveDecline(start("ATV_PREFERRED_USER_TRIGGERED", OMV, 10, ALBUM, 0, 0)));
+    }
+
+    @Test
+    public void aQueueWithoutATrackedCurrentItemOrTheFeatureIsLeftAlone() {
+        AudioFirstLogic.QueueStart q = playQueue();
+        assertEquals("not-tracked", AudioFirstLogic.correctiveDecline(
+                with(q, false, true, false, false, false, Long.MAX_VALUE, Long.MAX_VALUE, null)));
+        assertEquals("disabled", AudioFirstLogic.correctiveDecline(
+                with(q, true, false, false, false, false, Long.MAX_VALUE, Long.MAX_VALUE, null)));
+    }
+
+    @Test
+    public void onlyAnOnlineAnswerForTheSameVideoJustNowCounts() {
+        assertEquals("no-online", AudioFirstLogic.correctiveDecline(start("ATV_PREFERRED", null, 0, ALBUM, 0, 0)));
+        assertEquals("no-online", AudioFirstLogic.correctiveDecline(
+                start("ATV_PREFERRED", "BeyEGebJ1l4", 100, ALBUM, 0, 0)));
+        assertEquals("online-too-old", AudioFirstLogic.correctiveDecline(
+                start("ATV_PREFERRED", OMV, 3_001, ALBUM, 0, 0)));
+    }
+
+    @Test
+    public void aVideoTheUserChoseAndTheDataSavingModeAreNeverChanged() {
+        assertEquals("user-video", AudioFirstLogic.correctiveDecline(start(USER_VIDEO, OMV, 100, ALBUM, 0, 0)));
+        assertEquals("data-saving", AudioFirstLogic.correctiveDecline(
+                start("DONT_PLAY_VIDEO_OVERRIDE", OMV, 100, ALBUM, 0, 0)));
+        assertEquals("mode-unknown", AudioFirstLogic.correctiveDecline(start(null, OMV, 100, ALBUM, 0, 0)));
+    }
+
+    @Test
+    public void radioAndShuffledQueuesAreNeverRestarted() {
+        assertEquals("radio", AudioFirstLogic.correctiveDecline(
+                start("ATV_PREFERRED", OMV, 100, "RDAMPLOLAK5uy_x", 0, 0)));
+        assertEquals("radio", AudioFirstLogic.correctiveDecline(
+                start("ATV_PREFERRED", OMV, 100, "RDAMVM" + OMV, 0, 0)));
+        assertEquals("shuffled", AudioFirstLogic.correctiveDecline(start("ATV_PREFERRED", OMV, 100, ALBUM, 6, 0)));
+    }
+
+    @Test
+    public void aQueueIsRestartedOnceAndNeverAfterATapOrThePill() {
+        AudioFirstLogic.QueueStart q = playQueue();
+        assertEquals("queue-handled", AudioFirstLogic.correctiveDecline(
+                with(q, true, true, true, false, false, Long.MAX_VALUE, Long.MAX_VALUE, null)));
+        assertEquals("tap-start", AudioFirstLogic.correctiveDecline(
+                with(q, true, true, false, true, false, Long.MAX_VALUE, Long.MAX_VALUE, null)));
+        assertEquals("navigation-running", AudioFirstLogic.correctiveDecline(
+                with(q, true, true, false, false, true, Long.MAX_VALUE, Long.MAX_VALUE, null)));
+        assertEquals("pill-press", AudioFirstLogic.correctiveDecline(
+                with(q, true, true, false, false, false, 9_999, Long.MAX_VALUE, null)));
+        assertNull(AudioFirstLogic.correctiveDecline(
+                with(q, true, true, false, false, false, 10_000, Long.MAX_VALUE, null)));
+    }
+
+    @Test
+    public void theSameVideoIsNotRestartedTwiceWithinTenSeconds() {
+        AudioFirstLogic.QueueStart q = playQueue();
+        assertEquals("repeated", AudioFirstLogic.correctiveDecline(
+                with(q, true, true, false, false, false, Long.MAX_VALUE, 9_999, OMV)));
+        assertNull(AudioFirstLogic.correctiveDecline(
+                with(q, true, true, false, false, false, Long.MAX_VALUE, 10_000, OMV)));
+        assertNull(AudioFirstLogic.correctiveDecline(
+                with(q, true, true, false, false, false, Long.MAX_VALUE, 100, "BeyEGebJ1l4")));
+    }
+
+    @Test
+    public void onlyTheCommonDeclinesAreQuiet() {
+        for (String quiet : new String[]{"not-tracked", "disabled", "tap-start", "no-online"}) {
+            assertTrue(AudioFirstLogic.isQuietDecline(quiet));
+        }
+        assertFalse(AudioFirstLogic.isQuietDecline("online-too-old"));
+        assertFalse(AudioFirstLogic.isQuietDecline("shuffled"));
     }
 
     @Test

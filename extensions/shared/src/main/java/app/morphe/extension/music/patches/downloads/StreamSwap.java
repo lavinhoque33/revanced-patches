@@ -7,6 +7,9 @@ package app.morphe.extension.music.patches.downloads;
 
 import android.net.Uri;
 import android.os.Looper;
+import android.os.SystemClock;
+
+import androidx.annotation.Nullable;
 
 import java.util.Collections;
 import java.util.Map;
@@ -30,7 +33,18 @@ public final class StreamSwap {
     private record Replacement(Object online, StreamSwapSources.Source source) {}
     private static final Map<Object, Replacement> replacements = Collections.synchronizedMap(new WeakHashMap<>());
 
+    /** The player request that was answered online last: its video id and when. */
+    record OnlineDecision(String videoId, long at) {}
+
+    private static volatile OnlineDecision lastOnline;
+
     private StreamSwap() {}
+
+    /** The last online answer, null when none is held or the last request was answered from a copy. */
+    @Nullable
+    static OnlineDecision lastOnline() {
+        return lastOnline;
+    }
 
     /** Enabled by the patch only after every required hook resolves. */
     public static boolean supported() {
@@ -80,6 +94,7 @@ public final class StreamSwap {
             Object result = adapter.rvxWithBytes(replacement.toByteArray(), true);
             if (result == null || result == original) return unchanged(original, videoId, "stock adapter declined");
             replacements.put(result, new Replacement(original, source));
+            lastOnline = null;
             String id = videoId;
             Logger.printDebug(() -> "StreamSwap: decision=SWAP v=" + id + " itag=" + raw.itag());
             return result;
@@ -93,6 +108,9 @@ public final class StreamSwap {
     }
 
     private static Object unchanged(Object original, String videoId, String reason) {
+        // "?" is the answer of a thread that cannot know the id.
+        if (!"?".equals(videoId)) lastOnline = new OnlineDecision(videoId, SystemClock.elapsedRealtime());
+
         Logger.printDebug(() -> "StreamSwap: decision=ONLINE v=" + videoId + " reason=" + reason);
         return original;
     }

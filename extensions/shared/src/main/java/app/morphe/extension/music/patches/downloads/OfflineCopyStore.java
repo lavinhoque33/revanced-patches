@@ -56,6 +56,15 @@ final class OfflineCopyStore {
         });
     }
 
+    /**
+     * Whether anything is stored: a copy with stored data or a remembered source. In memory, so the main thread
+     * may ask; false until loaded.
+     */
+    static boolean hasAnything() {
+        warmUp();
+        return !Storage.copies.ids().isEmpty() || !Storage.sources.isEmpty();
+    }
+
     /** Whether the copy has stored data. In memory, so the main thread may ask. */
     static boolean has(String videoId) {
         warmUp();

@@ -1,0 +1,79 @@
+/*
+ * Copyright (C) 2026 lavinhoque33
+ * Licensed under the GNU General Public License v3.0.
+ * Written by lavinhoque33, 2026-11-08.
+ */
+package app.morphe.extension.music.patches.downloads;
+
+import androidx.annotation.Nullable;
+
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * What Android Auto may see of the stream copies: the albums and playlists that have songs with stored data, those
+ * songs in the order of their offline queue, and the command that starts one of them offline. The stores and the
+ * replay are package-private, so this is the one public door; it holds no state.
+ */
+public final class OfflineStreamBrowse {
+    /** The id of the list of every song with stored data, next to the ids of the downloaded sources. */
+    public static final String SONGS = OfflineReplay.SONGS;
+
+    /** A downloaded list. {@code title} is empty for {@link #SONGS} and while the title is not known. */
+    public record Source(String id, String title, int trackCount, @Nullable String coverVideoId) {}
+
+    /** A song with stored data; {@code subtitle} is its artist and duration. */
+    public record Track(String videoId, String title, String subtitle) {}
+
+    private OfflineStreamBrowse() {}
+
+    /** Whether stream copies play offline at all: the replay is installed and its setting is on. No disk access. */
+    public static boolean enabled() {
+        return OfflineReplay.enabled();
+    }
+
+    /** Whether the song still has stored data. In memory. */
+    public static boolean holds(String videoId) {
+        return OfflineCopyStore.has(videoId);
+    }
+
+    /**
+     * The lists that have at least one song with stored data: every song first, then each downloaded album and
+     * playlist, the latest first. Reads the disk: for a worker thread.
+     */
+    public static List<Source> sources() {
+        List<Source> sources = new ArrayList<>();
+        List<OfflineWatchNext.Item> songs = OfflineReplay.queueOf(SONGS);
+        if (!songs.isEmpty()) sources.add(new Source(SONGS, "", songs.size(), songs.get(0).videoId()));
+
+        for (OfflineLibraryLogic.SourceRow row : OfflineLibraryLogic.sourceRows(
+                OfflineCopyStore.sources(), OfflineCopyStore::tracksOf)) {
+            if (row.availableCount() > 0) {
+                sources.add(new Source(row.sourceId(), row.title(), row.availableCount(), row.coverVideoId()));
+            }
+        }
+        return sources;
+    }
+
+    /** The songs of a list that have stored data, in the order of its offline queue. A worker thread. */
+    public static List<Track> tracksOf(String sourceId) {
+        List<Track> tracks = new ArrayList<>();
+        for (OfflineWatchNext.Item item : OfflineReplay.queueOf(sourceId)) {
+            tracks.add(new Track(item.videoId(), item.title(),
+                    OfflineLibraryLogic.songSubtitle(item.artist(), item.durationMs())));
+        }
+        return tracks;
+    }
+
+    /** The command that starts the song at {@code index} of the list's offline queue. Pure: any thread. */
+    public static byte[] offlineCommand(String sourceId, int index) {
+        return OfflineReplay.offlineCommand(sourceId, index);
+    }
+
+    /** The cover stored with a song, or null. A worker thread. */
+    @Nullable
+    public static byte[] thumbnail(String videoId) {
+        OfflineCopyFiles.Stored stored = OfflineCopyStore.find(videoId);
+        return stored == null ? null : stored.thumbnail();
+    }
+}

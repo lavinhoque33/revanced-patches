@@ -158,11 +158,11 @@ val androidAutoPatch = bytecodePatch(
             return@execute
         }
 
+        // No XML dependency: it needs Download in app or Play downloads locally, which Settings.java decides.
         addSwitchPreference(
             CategoryType.MISC,
             "morphe_music_android_auto_downloaded_playlists",
             "true",
-            "morphe_music_in_app_downloads",
         )
 
         // region Bypass certificate checks

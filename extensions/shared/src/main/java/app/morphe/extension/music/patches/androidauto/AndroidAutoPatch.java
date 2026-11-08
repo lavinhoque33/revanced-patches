@@ -57,6 +57,7 @@ import java.util.function.Consumer;
 
 import app.morphe.extension.music.patches.androidauto.AndroidAutoSearchResponseParser.ResultCategory;
 import app.morphe.extension.music.patches.androidauto.AndroidAutoSearchResponseParser.SearchResult;
+import app.morphe.extension.music.patches.downloads.OfflineStreamBrowse;
 import app.morphe.extension.shared.utils.Logger;
 import app.morphe.extension.shared.utils.ResourceUtils;
 import app.morphe.extension.shared.utils.Utils;
@@ -456,7 +457,7 @@ public final class AndroidAutoPatch {
                     boolean showDownloads = false;
                     try {
                         showDownloads = AndroidAutoDownloadsFolder.enabled()
-                                && !AndroidAutoDownloadsFolder.readPlaylists().isEmpty();
+                                && AndroidAutoDownloadsFolder.hasEntries();
                     } catch (RuntimeException ex) {
                         Logger.printException(() -> "Could not read downloaded playlists for Android Auto Library", ex);
                     }
@@ -508,7 +509,7 @@ public final class AndroidAutoPatch {
         BACKGROUND_EXECUTOR.execute(() -> {
             PreparedItems items = new PreparedItems();
             try {
-                if (!AndroidAutoDownloadsFolder.readPlaylists().isEmpty()) {
+                if (AndroidAutoDownloadsFolder.hasEntries()) {
                     items.add(AndroidAutoDownloadsFolder.library());
                 }
             } catch (RuntimeException ex) {
@@ -701,8 +702,11 @@ public final class AndroidAutoPatch {
     /** Injection point before stock's media-session callback decodes the requested command. No disk or network IO. */
     public static String onPlayFromMediaId(String mediaId) {
         if (mediaId == null || !mediaId.startsWith(AndroidAutoDownloadsData.PREFIX)) return mediaId;
+        var streamPlay = AndroidAutoStreamIds.parsePlay(mediaId);
+        if (streamPlay != null) return onPlayStreamCopy(mediaId, streamPlay);
+
         var play = AndroidAutoDownloadsData.parsePlayId(mediaId);
-        if (play == null || !AndroidAutoDownloadsFolder.enabled()) {
+        if (play == null || !AndroidAutoDownloadsFolder.deviceFilesEnabled()) {
             Logger.printDebug(() -> "AA downloads play id=" + mediaId + " count=0 route=rejected");
             return mediaId;
         }
@@ -712,6 +716,21 @@ public final class AndroidAutoPatch {
         return stockBuilder
                 ? createDownloadedPlaylistMediaId(AndroidAutoDownloadsData.playlistUri(play.playlistId()), play.index())
                 : encodeCommand(AndroidAutoDownloadsData.playCommand(play));
+    }
+
+    /**
+     * A stream copy always starts through the offline watch command, whether or not the car has a connection: the
+     * song and the rest of its list play from their stored copies, and what needs a network is simply blank.
+     */
+    private static String onPlayStreamCopy(String mediaId, AndroidAutoStreamIds.PlayRequest play) {
+        if (!AndroidAutoDownloadsFolder.streamEnabled()) {
+            Logger.printDebug(() -> "AA downloads play id=" + mediaId + " count=0 route=rejected");
+            return mediaId;
+        }
+
+        Logger.printDebug(() -> "AA downloads play id=" + mediaId + " count=" + play.count()
+                + " index=" + play.index() + " route=offline-watch-command");
+        return encodeCommand(OfflineStreamBrowse.offlineCommand(play.sourceId(), play.index()));
     }
 
     /** Enabled only after the media-session callback fingerprint matches on this app version. */

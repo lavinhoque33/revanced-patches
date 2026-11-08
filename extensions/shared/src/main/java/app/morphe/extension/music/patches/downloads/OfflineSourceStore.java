@@ -104,6 +104,11 @@ final class OfflineSourceStore {
         publish(next);
     }
 
+    /** Whether no source is remembered. False until loaded. No disk access. */
+    boolean isEmpty() {
+        return sources.isEmpty();
+    }
+
     /** Fills in the header of a remembered source. Nothing happens for an unknown source or a header without title. */
     synchronized void updateHeader(String sourceId, SourceHeader header, long now) throws IOException, JSONException {
         ensureLoaded();

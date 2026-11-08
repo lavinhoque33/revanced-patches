@@ -56,6 +56,7 @@ private const val NATIVE_DOWNLOADS = "$DOWNLOADS_PATH/NativeDownloads;"
 internal const val NATIVE_COMMAND = $$"$$DOWNLOADS_PATH/NativeDownloads$Command;"
 private const val PLAYLIST_STORE = "$DOWNLOADS_PATH/NativePlaylistStore;"
 private const val PLAYLIST_DATABASE = $$"$$DOWNLOADS_PATH/NativePlaylistStore$Database;"
+private const val OFFLINE_DISPATCHER = $$"$$DOWNLOADS_PATH/OfflineReplay$Dispatcher;"
 private const val FUTURE = "Ljava/util/concurrent/Future;"
 private const val NATIVE_FUTURE = "Lcom/google/common/util/concurrent/ListenableFuture;"
 private const val REGISTRY = "Lcom/google/protobuf/ExtensionRegistryLite;"
@@ -186,8 +187,10 @@ val downloadsPatch = bytecodePatch(
                 } == true
         }
 
+        val rewriteCommand = "$NATIVE_DOWNLOADS->rewriteCommand(Ljava/lang/Object;Ljava/lang/Object;Ljava/util/Map;)" +
+            "Ljava/lang/Object;"
         dispatcher.addInstructionsWithLabels(0, """
-            invoke-static/range {p1 .. p2}, $NATIVE_DOWNLOADS->rewriteCommand(Ljava/lang/Object;Ljava/util/Map;)Ljava/lang/Object;
+            invoke-static/range {p0 .. p2}, $rewriteCommand
             move-result-object v0
             if-nez v0, :native_music_navigation
             return-void
@@ -195,6 +198,17 @@ val downloadsPatch = bytecodePatch(
             check-cast v0, ${command.type}
             move-object p1, v0
         """)
+
+        // The offline replay runs a command of its own through this same dispatcher.
+        val dispatcherClass = mutableClassDefBy(dispatcher.definingClass)
+        val dispatchCall = if (AccessFlags.PRIVATE.isSet(dispatcher.accessFlags)) "invoke-direct" else "invoke-virtual"
+        dispatcherClass.interfaces.add(OFFLINE_DISPATCHER)
+        dispatcherClass.addDownloadsBridge("rvxDispatch", listOf("Ljava/lang/Object;", "Ljava/util/Map;"), "V", 3, """
+            check-cast p1, ${command.type}
+            $dispatchCall {p0, p1, p2}, ${dispatcher.definingClass}->${dispatcher.name}(${command.type}Ljava/util/Map;)V
+            return-void
+        """)
+        installOfflineReplay()
 
         // Wrap the existing async repository instead of opening Music's SQLite file independently.
         val constructor = nativePlaylistDatabaseFingerprint.method

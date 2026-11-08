@@ -69,7 +69,16 @@ public final class NativeDownloads {
         });
     }
 
-    public static Object rewriteCommand(Object original, java.util.Map<?, ?> context) {
+    /**
+     * Injection point: every command the app dispatches. The offline replay sees it first (it can take the command
+     * for the Downloads list); then either kind of download takes over the download command.
+     */
+    public static Object rewriteCommand(Object dispatcher, Object original, java.util.Map<?, ?> context) {
+        if (OfflineReplay.onCommand(dispatcher, original, context)) return null;
+        return rewriteDownloadCommand(original, context);
+    }
+
+    private static Object rewriteDownloadCommand(Object original, java.util.Map<?, ?> context) {
         // Either kind of download takes over the download command; neither leaves the stock command alone.
         if (!LocalDownloadManager.interceptsDownloads() || !(original instanceof Command command)) return original;
         try {

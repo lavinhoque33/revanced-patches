@@ -56,6 +56,19 @@ public final class StreamSwap {
     }
 
     public static Object swap(Object original) {
+        return swap(original, false);
+    }
+
+    /**
+     * Swaps the audio of a response the offline replay read from the store, not one the server answered. The same
+     * decision as {@link #swap}, except that the stored response is no online answer: it is not handed back to the
+     * store and a declined swap does not count as an online request. The original itself is returned on a decline.
+     */
+    static Object swapStored(Object stored) {
+        return swap(stored, true);
+    }
+
+    private static Object swap(Object original, boolean stored) {
         if (!supported()) return original;
         Replacement cached = replacements.get(original);
         if (cached != null) {
@@ -65,19 +78,19 @@ public final class StreamSwap {
             original = cached.online();
         }
         String gate = StreamSwapLogic.gate(Settings.PLAY_DOWNLOADS_LOCALLY.get(), onMainThread());
-        if (gate != null) return unchanged(original, "?", gate);
+        if (gate != null) return unchanged(original, "?", gate, stored);
         if (!(original instanceof Response adapter)) return original;
 
         String videoId = "?";
         try {
             videoId = adapter.rvxVideoId();
             RawAudioFiles.Entry raw = RawAudioStore.find(videoId);
-            if (raw == null) return unchanged(original, videoId, "no current raw download");
+            if (raw == null) return unchanged(original, videoId, "no current raw download", stored);
             // A music video the user switched to must stay the online video; audio only would replace it.
-            if (AudioFirst.declinesForVideo(videoId)) return unchanged(original, videoId, "video mode");
+            if (AudioFirst.declinesForVideo(videoId)) return unchanged(original, videoId, "video mode", stored);
             byte[] onlineBytes = adapter.rvxBytes();
             PlayerResponse online = PlayerResponse.parseFrom(onlineBytes);
-            if (!online.hasStreamingData()) return unchanged(original, videoId, "no StreamingData");
+            if (!online.hasStreamingData()) return unchanged(original, videoId, "no StreamingData", stored);
             Format selected = null;
             for (Format format : online.getStreamingData().getAdaptiveFormatsList()) {
                 if (format.getItag() == raw.itag()) {
@@ -85,23 +98,25 @@ public final class StreamSwap {
                     break;
                 }
             }
-            if (selected == null) return unchanged(original, videoId, "stored itag missing online");
+            if (selected == null) return unchanged(original, videoId, "stored itag missing online", stored);
             String mismatch = StreamSwapLogic.mismatch(raw, selected, online);
-            if (mismatch != null) return unchanged(original, videoId, mismatch);
-            rememberOnlineResponse(videoId, onlineBytes, raw.itag());
+            if (mismatch != null) return unchanged(original, videoId, mismatch, stored);
+            if (!stored) rememberOnlineResponse(videoId, onlineBytes, raw.itag());
 
             StreamSwapSources.Source source = StreamSwapSources.issue(videoId, raw, selected.getUrl());
             Format local = selected.toBuilder().setUrl(source.token).clearSignatureCipher().build();
             PlayerResponse replacement = StreamSwapLogic.replaceAudio(online, local);
             Object result = adapter.rvxWithBytes(replacement.toByteArray(), true);
-            if (result == null || result == original) return unchanged(original, videoId, "stock adapter declined");
+            if (result == null || result == original) {
+                return unchanged(original, videoId, "stock adapter declined", stored);
+            }
             replacements.put(result, new Replacement(original, source));
             lastOnline = null;
             String id = videoId;
             Logger.printDebug(() -> "StreamSwap: decision=SWAP v=" + id + " itag=" + raw.itag());
             return result;
         } catch (Exception ex) {
-            return unchanged(original, videoId, "raw copy or response unavailable");
+            return unchanged(original, videoId, "raw copy or response unavailable", stored);
         }
     }
 
@@ -122,9 +137,9 @@ public final class StreamSwap {
         return Looper.myLooper() == Looper.getMainLooper();
     }
 
-    private static Object unchanged(Object original, String videoId, String reason) {
-        // "?" is the answer of a thread that cannot know the id.
-        if (!"?".equals(videoId)) lastOnline = new OnlineDecision(videoId, SystemClock.elapsedRealtime());
+    private static Object unchanged(Object original, String videoId, String reason, boolean stored) {
+        // "?" is the answer of a thread that cannot know the id; a stored response is no online decision.
+        if (!stored && !"?".equals(videoId)) lastOnline = new OnlineDecision(videoId, SystemClock.elapsedRealtime());
 
         Logger.printDebug(() -> "StreamSwap: decision=ONLINE v=" + videoId + " reason=" + reason);
         return original;

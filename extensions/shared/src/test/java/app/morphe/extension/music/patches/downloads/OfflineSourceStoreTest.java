@@ -144,4 +144,21 @@ public class OfflineSourceStoreTest {
         assertEquals(1, new JSONObject(new String(Files.readAllBytes(
                 new File(temporary.getRoot(), "sources.json").toPath()), StandardCharsets.UTF_8)).length());
     }
+
+    @Test public void earlierSavedListsAreAdoptedInIdOrderWithTheirTrackOrder() {
+        Map<String, List<String>> saved = Map.of(
+                "PLb", List.of("v3", "v1"),
+                "PLa", List.of("v2"),
+                "PLempty", List.of(),
+                "PLknown", List.of("v9"));
+
+        Map<String, List<String>> adopted = OfflineSourceStore.adoptable(saved, java.util.Set.of("PLknown"));
+
+        assertEquals(List.of("PLa", "PLb"), List.copyOf(adopted.keySet()));
+        assertEquals(List.of("v3", "v1"), adopted.get("PLb"));
+    }
+
+    @Test public void nothingIsAdoptedWhenEverySavedListIsKnown() {
+        assertTrue(OfflineSourceStore.adoptable(Map.of("PLa", List.of("v1")), java.util.Set.of("PLa")).isEmpty());
+    }
 }

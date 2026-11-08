@@ -48,6 +48,7 @@ public class OpenDownloadsPreference extends Preference {
         setPersistent(false);
         setSelectable(true);
         refreshSummary();
+        StreamDownloads.setReadinessListener(this::refreshSummary);
     }
 
     /** How many copies can play offline is counted off the main thread; with no copies the summary stays as is. */
@@ -59,6 +60,12 @@ public class OpenDownloadsPreference extends Preference {
             final String summary = str("morphe_music_open_downloads_ready", readiness.ready(), readiness.total());
             Utils.runOnMainThread(() -> setSummary(summary));
         });
+    }
+
+    @Override
+    protected void onPrepareForRemoval() {
+        StreamDownloads.setReadinessListener(null);
+        super.onPrepareForRemoval();
     }
 
     @Override

@@ -145,6 +145,8 @@ final class OfflineLibrary {
 
             List<SourceRow> loadedSources = sources;
             List<SongRow> loadedSongs = songs;
+            Logger.printDebug(() -> "OfflineLibrary: home sources=" + loadedSources.size()
+                    + " songs=" + loadedSongs.size());
             Utils.runOnMainThread(() -> {
                 if (requested == view) showHome(loadedSources, loadedSongs);
             });

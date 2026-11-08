@@ -14,7 +14,8 @@
   and Library > Downloads opens a list of the downloaded albums, playlists and all songs; a tap starts the song, and
   Next and the end of a song go on through the list, with no connection too. Lyrics, comments and related stay blank
   offline. Songs downloaded before this version fill in by themselves in the background while you are online, and Open
-  downloaded songs shows how many are Offline ready. Android Auto lists
+  downloaded songs shows how many are Offline ready. Albums and playlists downloaded earlier appear in the list too,
+  in their recorded order, and fetch their title while online. Android Auto lists
   the copies in a Stream copies folder inside Downloaded playlists, with their covers, and Android Auto downloaded
   playlists no longer needs Download in app. The list also opens from the offline banner's Go to downloads, the
   Library tab and Open downloaded songs in the settings, and a song tapped while offline starts at once.

@@ -17,6 +17,7 @@ import com.google.protobuf.MessageLite;
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -198,6 +199,20 @@ public final class DownloadedMarkers {
 
     private static SharedPreferences trackPreferences() {
         return Utils.getContext().getSharedPreferences(TRACKS_PREFERENCES, 0);
+    }
+
+    /**
+     * The track lists of every playlist and album remembered as downloaded, in track order, including those saved
+     * before the offline store existed. Reads the preferences: a worker thread only.
+     */
+    static Map<String, List<String>> savedTrackLists() {
+        Map<String, List<String>> saved = new HashMap<>();
+        for (Map.Entry<String, ?> entry : trackPreferences().getAll().entrySet()) {
+            if (entry.getValue() instanceof String encoded) {
+                saved.put(entry.getKey(), DownloadedRegistry.decode(encoded));
+            }
+        }
+        return saved;
     }
 
     private static void rememberSource(String sourceId, List<String> videoIds, @Nullable SourceHeader header) {

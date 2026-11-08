@@ -5,6 +5,8 @@
  */
 package app.morphe.extension.music.patches.downloads;
 
+import app.morphe.extension.shared.utils.Utils;
+
 /**
  * Management of the private stream copies of Play downloads locally. They are invisible in Device files and the
  * library, so the settings page needs its own way to see what they take and to delete them. Both calls do disk
@@ -26,6 +28,19 @@ public final class StreamDownloads {
 
     public static Readiness readiness() {
         return OfflineCopyStore.readiness();
+    }
+
+    private static volatile Runnable readinessListener;
+
+    /** The settings row that shows {@link #readiness()} asks to be told when it changes; null stops the calls. */
+    public static void setReadinessListener(Runnable listener) {
+        readinessListener = listener;
+    }
+
+    /** Tells the listener, on the main thread, that a copy got its stored data. */
+    static void readinessChanged() {
+        Runnable listener = readinessListener;
+        if (listener != null) Utils.runOnMainThread(listener);
     }
 
     /**

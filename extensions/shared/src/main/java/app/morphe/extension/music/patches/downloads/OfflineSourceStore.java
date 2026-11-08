@@ -24,6 +24,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.function.Function;
 
 /**
@@ -119,6 +120,25 @@ final class OfflineSourceStore {
         next.put(sourceId, new Source(sourceId, header.title(), header.subtitle(), header.thumbnailUrl(),
                 previous.videoIds(), now));
         publish(next);
+    }
+
+    /**
+     * The saved track lists that are not remembered here yet and have tracks, in id order: the playlists and albums
+     * downloaded before the offline store existed.
+     */
+    static Map<String, List<String>> adoptable(Map<String, List<String>> saved, Set<String> known) {
+        Map<String, List<String>> adopted = new TreeMap<>();
+        for (Map.Entry<String, List<String>> entry : saved.entrySet()) {
+            if (!known.contains(entry.getKey()) && !entry.getValue().isEmpty()) {
+                adopted.put(entry.getKey(), entry.getValue());
+            }
+        }
+        return adopted;
+    }
+
+    /** The ids of the remembered sources. No disk access. */
+    Set<String> ids() {
+        return sources.keySet();
     }
 
     /** Every remembered source, the most recently updated first. */

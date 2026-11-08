@@ -107,11 +107,12 @@ internal fun BytecodePatchContext.installOfflineReplay() {
 
 /**
  * The seek of the player after a drag on the progress bar (`Lacbd.ap` in 9.40.51, found by the strings the video
- * information patch also uses). It asks the app's stream cache for the start of the span nearest to the target and
- * moves the target there; a copy played from a file has no span, the lookup answers -1 and its millisecond
- * conversion 0, and the seek restarts the song. The answer goes through [REPLAY] on its way, which drops a 0 while
- * there is no network. The lookup is the one call in the method that takes two objects, a long and a boolean and
- * returns a long. Optional: a version where it is not found only keeps the stock seek, and the rest still installs.
+ * information patch also uses). It asks the app's stream cache for the start of the span nearest to the target:
+ * a negative answer cancels the seek, one below the target moves the target there, one at or above it seeks to the
+ * target. A copy played from a file has no span, the lookup answers 0 and the seek restarts the song. The answer goes
+ * through [REPLAY] on its way, which replaces a 0 with a value above any target while there is no network. The
+ * lookup is the one call in the method that takes two objects, a long and a boolean and returns a long. Optional:
+ * a version where it is not found only keeps the stock seek, and the rest still installs.
  */
 private fun BytecodePatchContext.prepareSeekSnap(): (() -> Unit)? {
     try {

@@ -33,6 +33,7 @@ import app.morphe.extension.shared.utils.Utils;
 final class OfflineBackfill {
     private static final AtomicBoolean running = new AtomicBoolean();
     private static final OfflineBackfillLogic.Schedule schedule = new OfflineBackfillLogic.Schedule();
+    private static final OfflineBackfillLogic.Schedule headerSchedule = new OfflineBackfillLogic.Schedule();
     private static volatile long idleUntil;
 
     private OfflineBackfill() {}
@@ -60,19 +61,24 @@ final class OfflineBackfill {
                     break;
                 }
 
-                List<String> pending = OfflineCopyStore.idsWithoutData();
-                String id = schedule.next(pending, SystemClock.elapsedRealtime());
-                if (id == null) {
+                long now = SystemClock.elapsedRealtime();
+                String id = schedule.next(OfflineCopyStore.idsWithoutData(), now);
+                String sourceId = id != null ? null
+                        : headerSchedule.next(OfflineCopyStore.sourceIdsWithoutTitle(), now);
+                if (id == null && sourceId == null) {
                     idleUntil = SystemClock.elapsedRealtime() + OfflineBackfillLogic.IDLE_MILLIS;
                     break;
                 }
 
-                String failure = backfill(id);
+                String failure = id != null ? backfill(id) : backfillHeader(sourceId);
+                OfflineBackfillLogic.Schedule step = id != null ? schedule : headerSchedule;
+                String stepId = id != null ? id : sourceId;
                 if (failure == null) {
-                    stored++;
+                    step.succeeded(stepId);
+                    if (id != null) stored++;
                 } else if (OfflineReplay.networkAvailable()) {
+                    step.failed(stepId, SystemClock.elapsedRealtime());
                     failed++;
-                    schedule.failed(id, SystemClock.elapsedRealtime());
                 }
                 Thread.sleep(OfflineBackfillLogic.PAUSE_BETWEEN_MILLIS);
             }
@@ -89,6 +95,20 @@ final class OfflineBackfill {
             int failedNow = failed;
             Logger.printInfo(() -> "Backfill: summary stored=" + storedNow + " failed=" + failedNow
                     + " remaining=" + OfflineCopyStore.idsWithoutData().size());
+        }
+    }
+
+    /** @return null once the playlist or album has its title, else why it has none. Logs the outcome. */
+    @Nullable
+    private static String backfillHeader(String sourceId) {
+        try {
+            String title = OfflineCopyStore.fillHeader(sourceId);
+            Logger.printInfo(() -> "Backfill: source " + sourceId + " title=" + title);
+            return null;
+        } catch (Exception ex) {
+            String failure = ex.getClass().getSimpleName() + " " + ex.getMessage();
+            Logger.printInfo(() -> "Backfill: source " + sourceId + " failed:" + failure);
+            return failure;
         }
     }
 
@@ -142,6 +162,7 @@ final class OfflineBackfill {
 
                 int bytes = outcome.written().responseBytes();
                 Logger.printInfo(() -> "Backfill: " + videoId + " stored=" + bytes);
+                StreamDownloads.readinessChanged();
                 return null;
             }
             return failure;

@@ -8,9 +8,11 @@ package app.morphe.extension.music.patches.downloads;
 import androidx.annotation.Nullable;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -89,12 +91,54 @@ final class OfflineCopyStore {
     static List<OfflineSourceStore.Source> sources() {
         Utils.verifyOffMainThread();
         Storage.sources.ensureLoaded();
+        adoptEarlierSources();
+
         Set<String> copyIds = RawAudioStore.copyIds();
         List<OfflineSourceStore.Source> present = new ArrayList<>();
         for (OfflineSourceStore.Source source : Storage.sources.sources()) {
             if (!Collections.disjoint(source.videoIds(), copyIds)) present.add(source);
         }
         return present;
+    }
+
+    /**
+     * Playlists and albums downloaded before the offline lists existed are only in the track lists the downloaded
+     * markers keep. They are remembered here, without a title and older than any later download, so the list shows
+     * them in their recorded track order; {@link #fillHeader} gives them their title once there is a network.
+     */
+    private static void adoptEarlierSources() {
+        if (!StreamSwap.enabled()) return;
+
+        try {
+            Map<String, List<String>> adoptable = OfflineSourceStore.adoptable(DownloadedMarkers.savedTrackLists(),
+                    Storage.sources.ids());
+            for (Map.Entry<String, List<String>> saved : adoptable.entrySet()) {
+                Storage.sources.remember(saved.getKey(), null, saved.getValue(), 0);
+                Logger.printDebug(() -> "OfflineCopyStore: adopted " + saved.getKey() + " tracks="
+                        + saved.getValue().size());
+            }
+        } catch (Exception ex) {
+            Logger.printException(() -> "OfflineCopyStore: could not adopt the earlier sources", ex);
+        }
+    }
+
+    /** The remembered playlists and albums that have a stream copy and no title yet. A worker thread only. */
+    static List<String> sourceIdsWithoutTitle() {
+        List<String> ids = new ArrayList<>();
+        for (OfflineSourceStore.Source source : sources()) {
+            if (source.title().isEmpty()) ids.add(source.id());
+        }
+        return ids;
+    }
+
+    /** Fetches and stores the title of a source from the network. A worker thread only; throws when it has none. */
+    static String fillHeader(String sourceId) throws Exception {
+        Utils.verifyOffMainThread();
+        SourceHeader header = PlaylistDownloads.fetchHeader(sourceId);
+        if (!header.hasTitle()) throw new IOException("the page has no title");
+
+        Storage.sources.updateHeader(sourceId, header, System.currentTimeMillis());
+        return header.title();
     }
 
     /**
@@ -247,9 +291,8 @@ final class OfflineCopyStore {
 
         Utils.runOnBackgroundThread(() -> {
             try {
-                SourceHeader header = PlaylistDownloads.fetchHeader(sourceId);
-                Storage.sources.updateHeader(sourceId, header, System.currentTimeMillis());
-                Logger.printDebug(() -> "OfflineCopyStore: header of " + sourceId + " title=" + header.title());
+                String title = fillHeader(sourceId);
+                Logger.printDebug(() -> "OfflineCopyStore: header of " + sourceId + " title=" + title);
             } catch (Exception ex) {
                 Logger.printDebug(() -> "OfflineCopyStore: no header for " + sourceId, ex);
             }

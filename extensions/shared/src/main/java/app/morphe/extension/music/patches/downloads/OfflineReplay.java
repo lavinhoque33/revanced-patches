@@ -522,21 +522,24 @@ public final class OfflineReplay {
     }
 
     /** A decision of a hook that only runs for an offline request or a stock failure: every one is said. */
-    /** The value the player's seek snap answers when the stream cache has no span for the song: no snap. */
-    private static final long NO_SNAP = -1;
+    /**
+     * What the seek snap answers to keep the dragged position. The player compares the snap with the target: a
+     * negative snap cancels the seek, one below the target moves it there, one at or above it seeks to the target.
+     */
+    private static final long KEEP_TARGET = Long.MAX_VALUE;
 
     /**
      * Injection point: the seek snap the player computed for a drag on the progress bar, in milliseconds. A song
      * played from a copy has no span in the stream cache, so with no network the snap is 0 and the seek restarts the
-     * song; there a negative answer makes the player keep the dragged position.
+     * song; there an answer above any target makes the player seek to the dragged position.
      */
     static long seekSnap(long snappedMillis) {
         try {
             noteAlive(HOOK_SEEK);
             boolean drop = OfflineReplayLogic.dropsSeekSnap(enabled(), networkAvailable(), snappedMillis);
             logDecision(HOOK_SEEK, "snap=" + snappedMillis + " online=" + networkAvailable()
-                    + (drop ? " dropped, the dragged position stands" : " kept"));
-            return drop ? NO_SNAP : snappedMillis;
+                    + (drop ? " dropped, seeking to the dragged position" : " kept"));
+            return drop ? KEEP_TARGET : snappedMillis;
         } catch (Exception ex) {
             Logger.printException(() -> "OfflineReplay: seek snap", ex);
             return snappedMillis;

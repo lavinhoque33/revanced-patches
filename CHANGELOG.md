@@ -7,8 +7,8 @@
   saves only that copy, which is kept inside the app and is not shown in Device files or the library (about 5 MB a
   song); with Download in app also on, one download feeds both the files and the copy. Add a Stream downloads action
   that shows what the copies take and deletes them all, without touching the saved files. Downloaded songs start in
-  audio mode (a sub-setting, on by default) so the local copy plays; the Song/Video switch still reaches the online
-  video.
+  audio mode (a sub-setting, on by default) so the local copy plays, also from an album's track list, its Play button
+  and Next; the Song/Video switch still reaches the online video and starts the song over.
 * **YouTube Music - Downloads:** Add green downloaded checkmarks, on by default and a child of Play downloads locally.
   Songs and playlists saved for local playback show a check on playlist pages, in the Search songs filter and in the
   player queue, and a playlist or album page whose every track has a stream copy shows one on its Download button.

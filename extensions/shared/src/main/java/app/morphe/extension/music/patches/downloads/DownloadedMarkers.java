@@ -6,6 +6,7 @@
 package app.morphe.extension.music.patches.downloads;
 
 import android.content.SharedPreferences;
+import android.os.SystemClock;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
@@ -44,7 +45,10 @@ public final class DownloadedMarkers {
     private static final int ROW_CHECK_MARGIN_DP = 4;
 
     private static final DownloadedRegistry registry = new DownloadedRegistry();
+    private static final long LOAD_RETRY_MILLIS = 30_000;
     private static final AtomicBoolean loadStarted = new AtomicBoolean();
+    /** When the last load failed, so the next try waits; 0 when none failed. */
+    private static volatile long loadFailedAt;
     private static final CoalescedRunner refresh = new CoalescedRunner(Utils::runOnMainThread,
             DownloadedMarkers::refreshViews);
     private static final AtomicBoolean revalidating = new AtomicBoolean();
@@ -109,6 +113,9 @@ public final class DownloadedMarkers {
     public static void onRowBound(View view, Object model) {
         try {
             RowState state = rows.get(view);
+            // Switched off: only a row that shows a check has anything to do (hide it).
+            if (!enabled() && (state == null || state.liveChecks().isEmpty())) return;
+
             if (state == null) {
                 state = hasBadgesContainer(view) ? new RowState() : RowState.NOT_A_ROW;
                 rows.put(view, state);
@@ -293,6 +300,8 @@ public final class DownloadedMarkers {
 
     /** Fills the registry once, in the background. Until then no check is shown. */
     private static void ensureLoaded() {
+        long failedAt = loadFailedAt;
+        if (failedAt != 0 && SystemClock.elapsedRealtime() - failedAt < LOAD_RETRY_MILLIS) return;
         if (!loadStarted.compareAndSet(false, true)) return;
 
         Utils.submitOnBackgroundThread(() -> {
@@ -310,6 +319,12 @@ public final class DownloadedMarkers {
                 rescanStreamCopies();
             } catch (Exception ex) {
                 Logger.printException(() -> "Could not load the downloaded songs", ex);
+            } finally {
+                // A load that did not finish is tried again, after a while, instead of never.
+                if (!loaded) {
+                    loadFailedAt = SystemClock.elapsedRealtime();
+                    loadStarted.set(false);
+                }
             }
             return null;
         });

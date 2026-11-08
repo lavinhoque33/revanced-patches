@@ -137,9 +137,7 @@ public class DownloadedRegistryTest {
         registry.putSource("PLcopy", tracks);
         tracks.add(THIRD);
 
-        assertTrue(registry.isSourceDownloaded("PLcopy"));
-        registry.removeSource("PLcopy");
-        assertFalse(registry.hasSource("PLcopy"));
+        assertEquals(Arrays.asList(SONG, OTHER), registry.sourceTracks("PLcopy"));
     }
 
     @Test public void scannerFindsADownloadedIdAnywhereInTheModel() throws Exception {

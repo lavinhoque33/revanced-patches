@@ -212,17 +212,6 @@ public class CommandRewriteTest {
         assertEquals(registry.findSource(bytes), registry.findSource(retarget(bytes, OMV, ATV).command()));
     }
 
-    @Test public void theDescriptionShowsNumbersSizesTheTypeValueAndCutsLongStrings() {
-        String text = CommandRewrite.describeWatch(omvRow());
-
-        assertTrue(text, text.contains("3:v0"));
-        assertTrue(text, text.contains("136656028:{136657325:{1:v0,2:v2,3:\"x\"}}"));
-        assertTrue(text, text.contains("79857908:s1107"));
-        assertTrue(text, text.contains("OLAK5uy_nmDUsWOM"));
-        assertEquals("[no watch endpoint]", CommandRewrite.describeWatch(new byte[0]));
-        assertEquals("[unreadable]", CommandRewrite.describeWatch(new byte[]{(byte) 0xFF}));
-    }
-
     @Test public void onlyAnExactRowIdIsRetargeted() {
         Set<String> copies = Collections.singleton(ATV);
         assertTrue(AudioFirstLogic.namesTheRow("playlist-index", ATV, OMV, copies::contains));
@@ -274,7 +263,8 @@ public class CommandRewriteTest {
             out.writeInt32(2, 2);
             out.writeInt32(3, 2);
         });
-        CommandRewrite.Result replaced = CommandRewrite.retarget(command(watch(OMV, supportedOf(video))), OMV, ATV, true);
+        CommandRewrite.Result replaced = CommandRewrite.retarget(command(watch(OMV, supportedOf(video))), OMV, ATV,
+                true);
         assertEquals("replaced", replaced.hint());
 
         byte[] expected = build(out -> {

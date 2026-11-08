@@ -227,6 +227,12 @@ private fun BytecodePatchContext.installQueueItemRetarget() {
         val rendererField = item.fields.single { it.type == rendererType && !AccessFlags.STATIC.isSet(it.accessFlags) }
         val pill = pillItemListenerFingerprint(itemType).matchSingle()
 
+        // The queue items, the pill and the queue start work together: a song renderer on an item the pill cannot
+        // reach the video from, or a queue that cannot start at the tapped row, is worse than none. Everything is
+        // resolved before anything is changed.
+        val installPill = preparePillClick(item, pill.method.name, pill.classDef.type)
+        val installStart = prepareQueueStart()
+
         val renderer = mutableClassDefBy(rendererType)
         val defaultRenderer = renderer.fields.single {
             it.type == rendererType && AccessFlags.STATIC.isSet(it.accessFlags)
@@ -268,11 +274,12 @@ private fun BytecodePatchContext.installQueueItemRetarget() {
         printInfo("AudioFirst: queue item tracking $itemType, renderer $rendererType, replacer ${replacer.name}, " +
             "toggle view ${pill.classDef.type}")
 
-        installPillClick(item, pill.method.name, pill.classDef.type)
-        installQueueStart()
+        printInfo(installPill())
+        printInfo(installStart())
     } catch (ex: Exception) {
         printWarn("Start downloaded songs in audio mode cannot keep the next songs of an album on their song " +
-            "renderers on this Music version: ${ex.message}")
+            "renderers on this Music version, so the queue items, the song/video pill and the start at the " +
+            "tapped row are all skipped: ${ex.message}")
     }
 }
 
@@ -292,79 +299,82 @@ private val pillPressFingerprint = Fingerprint(
  * is the app's.
  *
  * Added to the toggle's view (the class of the item listener): `rvxOwner` (its field of the owner's type),
- * `rvxCurrentItem` (the queue's current item, asked as the view asks it when it binds) and `rvxGate` (the boolean the
- * listener tests before it shows its message, or -1 when it cannot be told). Added to the owner: `rvxNavigate`, through
- * the executor its press method navigates with, an interface method of the endpoint alone (9.40.51, 9.15.51) or one of
- * the endpoint, a context object and a null pair (8.30.54). The endpoint type is the one the owner's one-argument calls
- * of that kind take; the item gives the endpoint in a field of its watch reference, the object its hash code is made
- * of.
+ * `rvxCurrentItem` (the queue's current item, asked as the view asks it when it binds). Added to the owner:
+ * `rvxNavigate`, through the executor its press method navigates with, an interface method of the endpoint alone
+ * (9.40.51, 9.15.51) or one of the endpoint, a context object and a null pair (8.30.54). The endpoint type is the
+ * one the owner's one-argument calls of that kind take; the item gives the endpoint in a field of its watch
+ * reference, the object its hash code is made of.
  *
  * Resolved by shape: listener `Lhvs.onClick` case 0 (9.40.51) / `Lnkd.onClick` (9.15.51) / `Lmwl.onClick` (8.30.54),
  * the one that calls the owner's press method `Lhvr.d` / `Lnjz.e` / `Lmwg.d`. The hook goes right after the listener
- * has its view, in the register that holds it, with a scratch register the listener overwrites before it reads it. Only this step is skipped, with a warning, when anything is missing.
+ * has its view, in the register that holds it, with a scratch register the listener overwrites before it reads it.
+ * Resolved with the queue items and the queue start, see [installQueueItemRetarget]: all or none.
  */
-private fun BytecodePatchContext.installPillClick(item: ClassDef, listenerName: String, viewType: String) {
-    try {
-        val press = pillPressFingerprint.matchSingle()
-        val owner = mutableClassDefBy(press.classDef.type)
-        val view = mutableClassDefBy(viewType)
+private fun BytecodePatchContext.preparePillClick(
+    item: ClassDef, listenerName: String, viewType: String,
+): () -> String {
+    val press = pillPressFingerprint.matchSingle()
+    val owner = mutableClassDefBy(press.classDef.type)
+    val view = mutableClassDefBy(viewType)
 
-        // The endpoint is what the owner's one-argument calls take. The item gives it by its watch reference: the
-        // object its hash code is made of, which holds the endpoint in a field of its own.
-        val endpointTypes = owner.methods.flatMap { it.implementation?.instructions.orEmpty() }
-            .filter { it.opcode == Opcode.INVOKE_INTERFACE }.mapNotNull { it.getReference<MethodReference>() }
-            .filter { it.returnType == "V" && it.parameterTypes.size == 1 }
-            .map { it.parameterTypes.single().toString() }.distinct()
-        val hashed = item.methods.single { it.name == "hashCode" && it.parameterTypes.isEmpty() }
-            .implementation!!.instructions.mapNotNull { it.getReference<MethodReference>() }
-            .filter { it.definingClass == item.type && it.parameterTypes.isEmpty() }.map { it.name }.toSet()
-        val holding = item.methods.filter { it.name in hashed }.mapNotNull { method ->
-            val result = runCatching { classDefBy(method.returnType) }.getOrNull() ?: return@mapNotNull null
-            val field = result.fields.singleOrNull {
-                !AccessFlags.STATIC.isSet(it.accessFlags) && it.type in endpointTypes
-            } ?: return@mapNotNull null
-            method to field
-        }.single()
-        val referenceMethod = holding.first
-        val endpointType = holding.second.type
+    // The endpoint is what the owner's one-argument calls take. The item gives it by its watch reference: the
+    // object its hash code is made of, which holds the endpoint in a field of its own.
+    val endpointTypes = owner.methods.flatMap { it.implementation?.instructions.orEmpty() }
+        .filter { it.opcode == Opcode.INVOKE_INTERFACE }.mapNotNull { it.getReference<MethodReference>() }
+        .filter { it.returnType == "V" && it.parameterTypes.size == 1 }
+        .map { it.parameterTypes.single().toString() }.distinct()
+    val hashed = item.methods.single { it.name == "hashCode" && it.parameterTypes.isEmpty() }
+        .implementation!!.instructions.mapNotNull { it.getReference<MethodReference>() }
+        .filter { it.definingClass == item.type && it.parameterTypes.isEmpty() }.map { it.name }.toSet()
+    val holding = item.methods.filter { it.name in hashed }.mapNotNull { method ->
+        val result = runCatching { classDefBy(method.returnType) }.getOrNull() ?: return@mapNotNull null
+        val field = result.fields.singleOrNull {
+            !AccessFlags.STATIC.isSet(it.accessFlags) && it.type in endpointTypes
+        } ?: return@mapNotNull null
+        method to field
+    }.single()
+    val referenceMethod = holding.first
+    val endpointType = holding.second.type
 
-        val calls = press.method.implementation!!.instructions
-            .filter { it.opcode == Opcode.INVOKE_INTERFACE }.mapNotNull { it.getReference<MethodReference>() }
-            .filter { it.returnType == "V" }.distinct()
-        val single = calls.singleOrNull { it.parameterTypes.map(CharSequence::toString) == listOf(endpointType) }
-        val triple = calls.singleOrNull {
-            val types = it.parameterTypes.map(CharSequence::toString)
-            types.size == 3 && types[0] == OBJECT && types[2] == "Landroid/util/Pair;"
+    val calls = press.method.implementation!!.instructions
+        .filter { it.opcode == Opcode.INVOKE_INTERFACE }.mapNotNull { it.getReference<MethodReference>() }
+        .filter { it.returnType == "V" }.distinct()
+    val single = calls.singleOrNull { it.parameterTypes.map(CharSequence::toString) == listOf(endpointType) }
+    val triple = calls.singleOrNull {
+        val types = it.parameterTypes.map(CharSequence::toString)
+        types.size == 3 && types[0] == OBJECT && types[2] == "Landroid/util/Pair;"
+    }
+    val navigation = single ?: triple ?: error("no navigation call")
+    val navigator = owner.fields.single {
+        !AccessFlags.STATIC.isSet(it.accessFlags) && it.type == navigation.definingClass
+    }
+
+    val endpoint = "iget-object v0, v0, ${referenceMethod.returnType}->${holding.second.name}:$endpointType"
+    val navigate = if (single != null) {
+        "invoke-interface {v1, v0}, ${navigation.definingClass}->${navigation.name}($endpointType)V"
+    } else {
+        val context = owner.fields.single {
+            !AccessFlags.STATIC.isSet(it.accessFlags) && it.type == navigation.parameterTypes[1].toString()
         }
-        val navigation = single ?: triple ?: error("no navigation call")
-        val navigator = owner.fields.single {
-            !AccessFlags.STATIC.isSet(it.accessFlags) && it.type == navigation.definingClass
-        }
+        val signature = "$OBJECT${context.type}Landroid/util/Pair;"
+        """
+        iget-object v2, p0, ${owner.type}->${context.name}:${context.type}
+        const/4 v3, 0x0
+        invoke-interface {v1, v0, v2, v3}, ${navigation.definingClass}->${navigation.name}($signature)V
+        """
+    }
 
-        val endpoint = "iget-object v0, v0, ${referenceMethod.returnType}->${holding.second.name}:$endpointType"
-        val navigate = if (single != null) {
-            "invoke-interface {v1, v0}, ${navigation.definingClass}->${navigation.name}($endpointType)V"
-        } else {
-            val context = owner.fields.single {
-                !AccessFlags.STATIC.isSet(it.accessFlags) && it.type == navigation.parameterTypes[1].toString()
-            }
-            val signature = "$OBJECT${context.type}Landroid/util/Pair;"
-            """
-            iget-object v2, p0, ${owner.type}->${context.name}:${context.type}
-            const/4 v3, 0x0
-            invoke-interface {v1, v0, v2, v3}, ${navigation.definingClass}->${navigation.name}($signature)V
-            """
-        }
+    // The view: where the listener has it, its owner field, and how the view asks the queue for the current item.
+    val click = pillClickHook(owner.type, press.method.name, viewType)
+    val ownerField = view.fields.single { !AccessFlags.STATIC.isSet(it.accessFlags) && it.type == owner.type }
+    val current = currentItemCall(view, viewType, listenerName)
+    val clickMethod = mutableClassDefBy(click.classType).findMutableMethodOf(click.method)
+    val clickTarget = clickMethod.getInstruction(click.index)
+    val ownerConstructors = owner.methods.filter { it.name == "<init>" }.takeIf { it.size == 1 }.orEmpty()
 
-        // The view: where the listener has it, its owner field, the boolean it tests before the owner's message, and
-        // how the view asks the queue for the current item.
-        val click = pillClickHook(owner.type, press.method.name, viewType)
-        val ownerField = view.fields.single { !AccessFlags.STATIC.isSet(it.accessFlags) && it.type == owner.type }
-        val current = currentItemCall(view, viewType, listenerName)
-
+    return {
         owner.interfaces.add(PILL_OWNER)
         // The owner reports itself when it is built: the extension navigates with it when it starts a queue by itself.
-        val ownerConstructors = owner.methods.filter { it.name == "<init>" }.takeIf { it.size == 1 }.orEmpty()
         for (constructor in ownerConstructors) {
             constructor.implementation!!.instructions.withIndex()
                 .filter { it.value.opcode == Opcode.RETURN_VOID }.map { it.index }.reversed()
@@ -396,27 +406,18 @@ private fun BytecodePatchContext.installPillClick(item: ClassDef, listenerName: 
             move-result-object v0
             return-object v0
         """)
-        view.addDownloadsBridge("rvxGate", emptyList(), "I", 2, if (click.gate == null) {
-            "const/4 v0, -0x1\nreturn v0"
-        } else {
-            "iget-boolean v0, p0, $viewType->${click.gate}:Z\nreturn v0"
-        })
 
-        val method = mutableClassDefBy(click.classType).findMutableMethodOf(click.method)
-        method.addInstructionsWithLabels(click.index, """
+        clickMethod.addInstructionsWithLabels(click.index, """
             invoke-static {${click.view}}, $ON_PILL_CLICK
             move-result ${click.scratch}
             if-eqz ${click.scratch}, :rvx_stock
             return-void
-        """, ExternalLabel("rvx_stock", method.getInstruction(click.index)))
+        """, ExternalLabel("rvx_stock", clickTarget))
 
-        printInfo("AudioFirst: pill click ${click.classType}->${click.method.name}, owner press " +
+        "AudioFirst: pill click ${click.classType}->${click.method.name}, owner press " +
             "${press.classDef.type}->${press.method.name}, navigates with ${navigation.definingClass}->" +
-            "${navigation.name}, item reference ${referenceMethod.name}, gate ${click.gate ?: "unreadable"}, " +
-            "owner reported by ${ownerConstructors.size} constructor")
-    } catch (ex: Exception) {
-        printWarn("Start downloaded songs in audio mode cannot take over the song/video pill for the next songs " +
-            "of an album on this Music version: ${ex.message}")
+            "${navigation.name}, item reference ${referenceMethod.name}, owner reported by " +
+            "${ownerConstructors.size} constructor"
     }
 }
 
@@ -438,35 +439,44 @@ private val queueStartFingerprint = Fingerprint(
  * position the queue starts at: the extension may choose another position, the row the user chose.
  *
  * Resolved by shape: `Liar.J` (9.40.51) / `Lnyb` (9.15.51) / `Lnko` (8.30.54), the one method that calls a constructor
- * of a list, an `Optional` and an int. Only this step is skipped, with a warning, when anything is missing.
+ * of a list, an `Optional` and an int. Resolved with the queue items and the pill: all or none.
  */
-private fun BytecodePatchContext.installQueueStart() {
-    try {
-        val match = queueStartFingerprint.matchSingle()
-        val method = mutableClassDefBy(match.classDef.type).findMutableMethodOf(match.method)
-        val instructions = method.implementation!!.instructions.toList()
-        val index = instructions.indexOfFirst {
-            val call = it.getReference<MethodReference>()
-            call != null && call.name == "<init>" && call.parameterTypes.size == 3 &&
-                call.parameterTypes[2] == "I" && call.parameterTypes[0] == "Ljava/util/List;"
-        }
-        val call = instructions[index] as FiveRegisterInstruction
-        val firstParameter = method.implementation!!.registerCount - method.parameterTypes.size - 1
-        fun name(register: Int) = if (register >= firstParameter) "p${register - firstParameter}" else "v$register"
+private fun BytecodePatchContext.prepareQueueStart(): () -> String {
+    val match = queueStartFingerprint.matchSingle()
+    val method = mutableClassDefBy(match.classDef.type).findMutableMethodOf(match.method)
+    val instructions = method.implementation!!.instructions.toList()
+    val index = instructions.indexOfFirst {
+        val call = it.getReference<MethodReference>()
+        call != null && call.name == "<init>" && call.parameterTypes.size == 3 &&
+            call.parameterTypes[2] == "I" && call.parameterTypes[0] == "Ljava/util/List;"
+    }
+    check(index >= 0) { "no queue constructor" }
 
-        // invoke-direct {result, items, selected, position}
-        val items = name(call.registerD)
-        val position = name(call.registerF)
+    // invoke-direct {result, items, selected, position}
+    val call = instructions[index] as FiveRegisterInstruction
+    val items = method.registerName(call.registerD)
+    val position = method.registerName(call.registerF)
+
+    return {
         method.addInstructions(index, "invoke-static {$items, $position}, $START_INDEX\nmove-result $position")
-
-        printInfo("AudioFirst: queue start ${match.classDef.type}->${match.method.name}, items $items, position $position")
-    } catch (ex: Exception) {
-        printWarn("Start downloaded songs in audio mode cannot start an album queue at the tapped row on this Music " +
-            "version: ${ex.message}")
+        "AudioFirst: queue start ${match.classDef.type}->${match.method.name}, items $items, position $position"
     }
 }
 
-/** Where the pill's click listener gets its view, and what it tests before its message. */
+/**
+ * The smali name of [register] in this method: the parameter registers (the receiver first, a long or a double taking
+ * two) are the last of its registers and are named p0, p1, ...; every other is v<number>.
+ */
+private fun Method.registerName(register: Int): String {
+    val receiver = if (AccessFlags.STATIC.isSet(accessFlags)) 0 else 1
+    val parameters = receiver + parameterTypes.sumOf { type ->
+        if (type.toString() == "J" || type.toString() == "D") 2 else 1
+    }
+    val first = implementation!!.registerCount - parameters
+    return if (register >= first) "p${register - first}" else "v$register"
+}
+
+/** Where the pill's click listener gets its view. */
 private class PillClickHook(
     val classType: String,
     val method: Method,
@@ -476,8 +486,6 @@ private class PillClickHook(
     val view: String,
     /** Smali name of a register the listener overwrites before it reads it. */
     val scratch: String,
-    /** The view's boolean the listener tests before it shows the owner's message, if there is one. */
-    val gate: String?,
 )
 
 /** How the pill's view asks the queue for the current item: a flag read from one object, then `queue.item(flag)`. */
@@ -506,8 +514,6 @@ private fun BytecodePatchContext.pillClickHook(
 
     val clickMethod = clickMatch.method
     val instructions = clickMethod.implementation!!.instructions.toList()
-    val firstParameter = clickMethod.implementation!!.registerCount - clickMethod.parameterTypes.size - 1
-    fun name(register: Int) = if (register >= firstParameter) "p${register - firstParameter}" else "v$register"
 
     // The listener's first use of the owner's field of the view is where it tests the gate and shows its message.
     val ownerIndex = instructions.indexOfFirst {
@@ -519,12 +525,6 @@ private fun BytecodePatchContext.pillClickHook(
 
     val ownerRead = instructions[ownerIndex] as TwoRegisterInstruction
     val viewRegister = ownerRead.registerB
-    val gate = if (ownerIndex >= 2 && instructions[ownerIndex - 1] is OffsetInstruction &&
-        instructions[ownerIndex - 2].opcode == Opcode.IGET_BOOLEAN) {
-        instructions[ownerIndex - 2].getReference<FieldReference>()?.name
-    } else {
-        null
-    }
 
     val viewIndex = (ownerIndex - 1 downTo 0).first {
         (instructions[it] as? OneRegisterInstruction)?.registerA == viewRegister
@@ -534,7 +534,8 @@ private fun BytecodePatchContext.pillClickHook(
         .filter { it != viewRegister }.firstOrNull { instructions.overwritesBeforeReading(insertion, it) }
         ?: error("no register of the listener is free after it has its view")
 
-    return PillClickHook(clickMatch.classDef.type, clickMethod, insertion, name(viewRegister), name(scratch), gate)
+    return PillClickHook(clickMatch.classDef.type, clickMethod, insertion, clickMethod.registerName(viewRegister),
+        clickMethod.registerName(scratch))
 }
 
 /** The registers an instruction names. */
@@ -567,28 +568,43 @@ private fun List<Instruction>.overwritesBeforeReading(from: Int, register: Int):
 }
 
 private fun currentItemCall(view: ClassDef, viewType: String, itemListenerName: String): CurrentItemCall {
-    val instructions = view.methods.flatMap { method -> method.implementation?.instructions?.toList().orEmpty() }
     // `queue.item(flag)` is called right before the view's item listener gets its result, cast: it is the call three
-    // instructions above the listener, and the flag is the boolean call two instructions above that.
-    val listenerIndex = instructions.indexOfFirst {
-        it.getReference<MethodReference>()?.let { call ->
-            call.definingClass == viewType && call.name == itemListenerName && call.parameterTypes.size == 1
-        } == true
-    }
-    if (listenerIndex < 5) error("the view does not read the current item before its item listener")
+    // instructions above the listener, and the flag is the boolean call two instructions above that, both in the one
+    // method that calls the listener.
+    for (method in view.methods) {
+        val instructions = method.implementation?.instructions?.toList() ?: continue
+        val listenerIndex = instructions.indexOfFirst {
+            it.getReference<MethodReference>()?.let { call ->
+                call.definingClass == viewType && call.name == itemListenerName && call.parameterTypes.size == 1
+            } == true
+        }
+        if (listenerIndex < 5) continue
 
-    val item = instructions[listenerIndex - 3].getReference<MethodReference>()!!
-    val flag = instructions[listenerIndex - 5].getReference<MethodReference>()!!
-    val queueField = view.fields.single { it.type == item.definingClass }
-    val flagField = view.fields.single { it.type == flag.definingClass }
-    return CurrentItemCall(queueField, flagField, flag.toString(), item.toString())
+        val itemCall = instructions[listenerIndex - 3]
+        val flagCall = instructions[listenerIndex - 5]
+        val item = itemCall.getReference<MethodReference>() ?: continue
+        val flag = flagCall.getReference<MethodReference>() ?: continue
+        if (itemCall.opcode != Opcode.INVOKE_VIRTUAL && itemCall.opcode != Opcode.INVOKE_INTERFACE) continue
+        if (flagCall.opcode != Opcode.INVOKE_VIRTUAL && flagCall.opcode != Opcode.INVOKE_INTERFACE) continue
+        if (item.parameterTypes.map(CharSequence::toString) != listOf("Z") || item.returnType == "V") continue
+        if (flag.parameterTypes.isNotEmpty() || flag.returnType != "Z") continue
+
+        val instanceFields = view.fields.filter { !AccessFlags.STATIC.isSet(it.accessFlags) }
+        val queueFields = instanceFields.filter { it.type == item.definingClass }
+        val flagFields = instanceFields.filter { it.type == flag.definingClass }
+        if (queueFields.size != 1 || flagFields.size != 1) continue
+
+        return CurrentItemCall(queueFields.single(), flagFields.single(), flag.toString(), item.toString())
+    }
+    error("the view does not read the current item before its item listener")
 }
 
 /**
  * The tap hook of [installAudioFirst]. It runs after every patch, because the playlist track tap patch hooks the very
  * same method at its start: installed last, this one runs FIRST whichever patch executed first, so the start is armed
  * (and a row of a downloaded album retargeted) on the command the app built, with its playlist, before the track tap
- * action turns it into a single-track or queue command. Each hook then continues with the command the previous returned.
+ * action turns it into a single-track or queue command. Each hook then continues with the command the previous
+ * returned.
  *
  * When the command class cannot rebuild itself from bytes, only the arming is installed, with a warning.
  */

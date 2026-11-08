@@ -71,10 +71,6 @@ final class DownloadedRegistry {
         sources.put(sourceId, Collections.unmodifiableList(new ArrayList<>(videoIds)));
     }
 
-    void removeSource(String sourceId) {
-        sources.remove(sourceId);
-    }
-
     /** The ordered video ids of a remembered playlist or album, or null. */
     @Nullable
     List<String> sourceTracks(@Nullable String sourceId) {

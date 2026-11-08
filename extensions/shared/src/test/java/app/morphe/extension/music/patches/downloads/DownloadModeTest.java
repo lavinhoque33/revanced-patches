@@ -90,7 +90,9 @@ public class DownloadModeTest {
                     if (!mode.localFiles()) assertFalse(mode + " " + work, work.writesLocalFile());
                     if (!mode.streamCopy()) assertFalse(mode + " " + work, work.keepsStreamCopy());
                     if (mode.localFiles() && !nativeTrack) assertTrue(mode + " " + work, work.writesLocalFile());
-                    if (mode.streamCopy() && !copy && work != SKIP) assertTrue(mode + " " + work, work.keepsStreamCopy());
+                    if (mode.streamCopy() && !copy && work != SKIP) {
+                        assertTrue(mode + " " + work, work.keepsStreamCopy());
+                    }
                 }
             }
         }

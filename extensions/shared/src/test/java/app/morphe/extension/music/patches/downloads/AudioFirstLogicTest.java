@@ -52,6 +52,32 @@ public class AudioFirstLogicTest {
         return java.util.Set.of(ids)::contains;
     }
 
+    @Test public void theTracksOfThePlaylistAreLookedUpOnlyWhenNoIdHasACopy() {
+        int[] lookups = {0};
+        var byId = AudioFirstLogic.chooseArmLazily(true, java.util.List.of("atv1"),
+                () -> {
+                    lookups[0]++;
+                    return ALBUM;
+                }, -1, false, copies("atv1"));
+        assertEquals("id", byId.rule());
+        assertEquals(0, lookups[0]);
+
+        var byIndex = AudioFirstLogic.chooseArmLazily(true, java.util.List.of("omv"),
+                () -> {
+                    lookups[0]++;
+                    return ALBUM;
+                }, 2, false, copies("atv2"));
+        assertEquals("playlist-index", byIndex.rule());
+        assertEquals(1, lookups[0]);
+    }
+
+    @Test public void aQueueListsTheRowTheUserChoseWhenAnItemIsKnownByItsIds() {
+        var items = java.util.List.of(java.util.List.<String>of(), java.util.List.of("omv3", "atv3"));
+        assertTrue(AudioFirstLogic.listsRow(items, java.util.List.of("atv3", "omv3")));
+        assertFalse(AudioFirstLogic.listsRow(items, java.util.List.of("atv9", "omv9")));
+        assertFalse(AudioFirstLogic.listsRow(java.util.List.of(), java.util.List.of("atv3")));
+    }
+
     @Test public void aCommandIdWithACopyArmsByTheId() {
         var arm = AudioFirstLogic.chooseArm(true, java.util.List.of("omv", "atv1"), null, -1, false, copies("atv1"));
         assertEquals(new AudioFirstLogic.Arm("id", "atv1"), arm);

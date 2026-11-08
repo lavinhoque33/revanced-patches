@@ -14,6 +14,7 @@ import com.google.protobuf.MessageLite;
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.StringJoiner;
 
 import app.morphe.extension.music.settings.Settings;
 import app.morphe.extension.shared.utils.Logger;
@@ -74,16 +75,20 @@ public final class AudioFirst {
      * class has a single constructor, that constructor.
      */
     public static void captureHolder(@Nullable Object holder) {
-        if (!(holder instanceof ModeHolder modeHolder)) return;
+        try {
+            if (!(holder instanceof ModeHolder modeHolder)) return;
 
-        synchronized (lock) {
-            for (WeakReference<ModeHolder> reference : holders) {
-                if (reference.get() == modeHolder) return;
+            synchronized (lock) {
+                for (WeakReference<ModeHolder> reference : holders) {
+                    if (reference.get() == modeHolder) return;
+                }
+                holders.removeIf(reference -> reference.get() == null);
+                holders.add(new WeakReference<>(modeHolder));
             }
-            holders.removeIf(reference -> reference.get() == null);
-            holders.add(new WeakReference<>(modeHolder));
+            Logger.printDebug(() -> "AudioFirst: mode holder captured");
+        } catch (Exception ex) {
+            Logger.printException(() -> "AudioFirst: mode holder capture failure", ex);
         }
-        Logger.printDebug(() -> "AudioFirst: mode holder captured");
     }
 
     /** The holder's mode, or null when it is not a mode holder or holds none. */
@@ -120,7 +125,8 @@ public final class AudioFirst {
     /**
      * Turns the mode the app holds into the audio mode, through the app's own setter, so the queue that the tap builds
      * is in the audio mode and the next rows keep their song ids. On the thread of the app's mode changes when it is
-     * not this one, for every holder built (the app may have more than one). The arm stays live: the app may still set its video fallback, which the setter hook turns back.
+     * not this one, for every holder built (the app may have more than one). The arm stays live: the app may still
+     * set its video fallback, which the setter hook turns back.
      *
      * @return What was done, for the log.
      */
@@ -128,14 +134,14 @@ public final class AudioFirst {
         List<ModeHolder> live = liveHolders();
         if (live.isEmpty()) return "no mode holder known yet";
 
-        StringBuilder status = new StringBuilder();
+        StringJoiner status = new StringJoiner("; ");
         for (ModeHolder holder : live) {
             Enum<?> mode = modeOf(holder);
             if (mode == null) continue;
 
             String target = AudioFirstLogic.modeToSet(true, true, mode.name());
             if (target == null) {
-                status.append("holder is ").append(mode.name()).append(", left as it is; ");
+                status.add("holder is " + mode.name() + ", left as it is");
                 continue;
             }
 
@@ -151,7 +157,7 @@ public final class AudioFirst {
                     Logger.printException(() -> "AudioFirst: could not set the mode", ex);
                 }
             });
-            status.append("holder was ").append(was).append(", set requested; ");
+            status.add("holder was " + was + ", set requested");
         }
         return status.length() == 0 ? "no holder answered" : status.toString();
     }
@@ -240,17 +246,16 @@ public final class AudioFirst {
 
             byte[] bytes = message.toByteArray();
             TapCommand tap = TapCommand.parse(bytes);
-            if (tap.ids.isEmpty() && !tap.isWatch()) return null;
+            // Only a watch command starts a playback. A like, an add to the queue or a menu item that merely names a
+            // downloaded song is no tap on a row: it must not arm a start, nor change the mode the user chose.
+            if (!tap.isWatch()) return null;
 
-            String source = registry.findSource(bytes);
             String mode = liveMode();
-            boolean logged = logCommand(tap, source, mode);
+            logCommand(tap, registry, bytes, mode);
 
-            AudioFirstLogic.Arm arm = AudioFirstLogic.chooseArm(true, tap.ids, registry.sourceTracks(source),
-                    tap.index, tap.hasParams, registry::isDownloaded);
-            // Only a watch command that ties to no copy disarms an earlier tap: a command of another kind may
-            // follow the tap that armed.
-            if (arm == null && !tap.isWatch()) return null;
+            AudioFirstLogic.Arm arm = AudioFirstLogic.chooseArmLazily(true, tap.ids,
+                    () -> registry.sourceTracks(registry.findSource(bytes)), tap.index, tap.hasParams,
+                    registry::isDownloaded);
 
             synchronized (lock) {
                 armedId = arm == null ? null : arm.videoId();
@@ -259,8 +264,6 @@ public final class AudioFirst {
             }
             if (arm == null) return null;
             Logger.printDebug(() -> "AudioFirst: armed by " + arm.rule() + " v=" + arm.videoId());
-
-            if (logged) Logger.printDebug(() -> "AudioFirst: watch config fields=" + CommandRewrite.describeWatch(bytes));
 
             // A tap is a fresh selection: stock resets the mode on every tap, so the user's earlier Video choice does
             // not hold for it. The toggle the user presses afterwards is a setter call of its own, left as it is.
@@ -290,17 +293,17 @@ public final class AudioFirst {
     }
 
     /** What the tap carried, which decides how it ties to a copy; at most once every 300 ms. */
-    private static boolean logCommand(TapCommand tap, @Nullable String source, @Nullable String mode) {
+    private static void logCommand(TapCommand tap, DownloadedRegistry registry, byte[] bytes,
+                                   @Nullable String mode) {
         long now = SystemClock.elapsedRealtime();
         synchronized (lock) {
-            if (now - lastCommandLogAt < COMMAND_LOG_INTERVAL_MILLIS) return false;
+            if (now - lastCommandLogAt < COMMAND_LOG_INTERVAL_MILLIS) return;
             lastCommandLogAt = now;
         }
         Logger.printDebug(() -> "AudioFirst: command ids=" + tap.ids + " video=" + tap.videoId
                 + " playlist=" + (tap.playlistId.isEmpty() ? "-" : tap.playlistId)
                 + " index=" + (tap.index < 0 ? "-" : tap.index) + " params=" + tap.hasParams
-                + " source=" + (source == null ? "-" : source) + " mode=" + mode + " fields=" + tap.fields);
-        return true;
+                + " source=" + registry.findSource(bytes) + " mode=" + mode + " fields=" + tap.fields());
     }
 
     /** Injection point: the argument of the app's mode setter. */

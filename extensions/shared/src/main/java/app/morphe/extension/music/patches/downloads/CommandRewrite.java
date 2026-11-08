@@ -18,9 +18,9 @@ import java.util.List;
  * that no obfuscated class is needed. Only two things change: the video id of the watch endpoint (field 1) and, when
  * it is present and says official music video, the music video type of the endpoint's music config. When asked, it
  * also sets the config's playlist content type to audio preferred, the explicit hint the app reads when a watch starts
- * and turns into its audio mode (an unknown hint falls back to the video mode for an account without Premium). Every other
- * field, known or not, is copied byte for byte, so the playlist, the position, the playlist entry id, the params and
- * the tracking stay as the app built them.
+ * and turns into its audio mode (an unknown hint falls back to the video mode for an account without Premium). Every
+ * other field, known or not, is copied byte for byte, so the playlist, the position, the playlist entry id, the params
+ * and the tracking stay as the app built them.
  *
  * <p>Path of the type: command, watch endpoint 48,687,757, supported configs 136,656,028, music config 136,657,325,
  * field 2 (the enum, 1 = song/ATV, 2 = official music video/OMV); field 3 of the same config is the content type.
@@ -37,10 +37,6 @@ final class CommandRewrite {
     static final int HINT_FIELD = 3;
     static final int HINT_ATV_PREFERRED = 1;
     private static final int VIDEO_ID_LENGTH = 11;
-    private static final int DUMP_DEPTH = 3;
-    private static final int DUMP_MAX_FIELDS = 24;
-    private static final int DUMP_MAX_CHARS = 900;
-    private static final int DUMP_STRING_CHARS = 16;
 
     private CommandRewrite() {}
 
@@ -56,15 +52,7 @@ final class CommandRewrite {
     /** The music config with its edits and what they were. */
     private record ConfigEdit(byte[] watch, String type, String hint) {}
 
-    /**
-     * @param fromId  The video id the watch endpoint carries now.
-     * @param toId    The video id to carry instead.
-     * @param setHint Also ask the app for the audio mode by the config's playlist content type (see
-     *                {@link #HINT_FIELD}), which it reads when a watch starts. Pass false in a mode the user chose.
-     * @return The retargeted command, or null when it has no watch endpoint with exactly {@code fromId} or when it
-     * cannot be read. A type other than official music video is left as it is, and a config of another shape is
-     * left untouched (no type switch, no hint).
-     */
+
     /**
      * What a renderer retarget did: how many id strings and commands it replaced.
      *
@@ -132,6 +120,18 @@ final class CommandRewrite {
         }
     }
 
+    /**
+     * Retargets a watch command from one video id to another, see the class comment.
+     *
+     * @param fromId  The video id the watch endpoint carries now.
+     * @param toId    The video id to carry instead.
+     * @param setHint Also ask the app for the audio mode by the config's playlist content type (see
+     *                {@link #HINT_FIELD}), which it reads when a watch starts. Pass false while the data-saving
+     *                override is held (see {@link AudioFirstLogic#hintsIn}); it is audio already.
+     * @return The retargeted command, or null when it has no watch endpoint with exactly {@code fromId} or when it
+     * cannot be read. A type other than official music video is left as it is, and a config of another shape is
+     * left untouched (no type switch, no hint).
+     */
     @Nullable
     static Result retarget(byte[] command, String fromId, String toId, boolean setHint) {
         if (fromId.length() != VIDEO_ID_LENGTH || !isVideoId(toId)) return null;
@@ -178,7 +178,9 @@ final class CommandRewrite {
         List<Field> fields = parse(music);
         Field hintField = first(fields, HINT_FIELD, 0);
         for (Field field : fields) {
-            if (setHint && field.number == HINT_FIELD && field.wireType != 0) throw new IllegalArgumentException("Hint");
+            if (setHint && field.number == HINT_FIELD && field.wireType != 0) {
+                throw new IllegalArgumentException("Hint");
+            }
         }
         ByteArrayOutputStream out = new ByteArrayOutputStream(music.length + 2);
         String type = "untouched";
@@ -219,66 +221,6 @@ final class CommandRewrite {
     private static void writeHint(ByteArrayOutputStream out) {
         writeVarint(out, (long) HINT_FIELD << 3);
         writeVarint(out, HINT_ATV_PREFERRED);
-    }
-
-    /**
-     * A compact structure of the watch endpoint: {@code 3:v0,79857908:s1107,136656028:{136657325:{2:v2}}}.
-     * Varints show their value, messages recurse, strings are cut to 16 characters.
-     */
-    static String describeWatch(byte[] command) {
-        try {
-            Field watchField = first(parse(command), WATCH_ENDPOINT_FIELD, 2);
-            if (watchField == null) return "[no watch endpoint]";
-            String text = describe(payload(command, watchField), DUMP_DEPTH);
-            return "[" + (text.length() <= DUMP_MAX_CHARS ? text : text.substring(0, DUMP_MAX_CHARS) + "...") + "]";
-        } catch (IllegalArgumentException malformed) {
-            return "[unreadable]";
-        }
-    }
-
-    private static String describe(byte[] message, int depth) {
-        StringBuilder text = new StringBuilder();
-        List<Field> fields = parse(message);
-        for (int index = 0; index < fields.size(); index++) {
-            if (index >= DUMP_MAX_FIELDS) {
-                text.append(",...");
-                break;
-            }
-            Field field = fields.get(index);
-            if (index > 0) text.append(',');
-            text.append(field.number).append(':');
-            switch (field.wireType) {
-                case 0 -> text.append('v').append(readVarint(message, new int[]{field.valueStart}));
-                case 1 -> text.append("f64");
-                case 5 -> text.append("f32");
-                default -> text.append(describeBytes(payload(message, field), depth));
-            }
-        }
-        return text.toString();
-    }
-
-    private static String describeBytes(byte[] bytes, int depth) {
-        if (isPrintable(bytes)) {
-            String text = new String(bytes, StandardCharsets.ISO_8859_1);
-            return text.length() <= DUMP_STRING_CHARS ? "\"" + text + "\""
-                    : "\"" + text.substring(0, DUMP_STRING_CHARS) + "\"(" + text.length() + ")";
-        }
-        if (depth > 0 && bytes.length > 0) {
-            try {
-                return "{" + describe(bytes, depth - 1) + "}";
-            } catch (IllegalArgumentException notAMessage) {
-                // Fall through to the size.
-            }
-        }
-        return "s" + bytes.length;
-    }
-
-    private static boolean isPrintable(byte[] bytes) {
-        if (bytes.length == 0) return false;
-        for (byte value : bytes) {
-            if (value < 0x20 || value > 0x7E) return false;
-        }
-        return true;
     }
 
     private static boolean isVideoId(String id) {

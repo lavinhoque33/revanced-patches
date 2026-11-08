@@ -40,59 +40,74 @@ final class TapCommand {
     /** The position in the playlist, or -1 when the endpoint has none. */
     final int index;
     final boolean hasParams;
-    /** The field numbers and kinds of the command and of its watch endpoint, for the debug log. */
-    final String fields;
+
+    private final byte[] command;
+    /** Where the watch endpoint lies in the command, or -1 when there is none. */
+    private final int watchStart;
+    private final int watchEnd;
 
     private TapCommand(List<String> ids, @Nullable String videoId, String playlistId, int index, boolean hasParams,
-                       String fields) {
+                       byte[] command, int watchStart, int watchEnd) {
         this.ids = ids;
         this.videoId = videoId;
         this.playlistId = playlistId;
         this.index = index;
         this.hasParams = hasParams;
-        this.fields = fields;
+        this.command = command;
+        this.watchStart = watchStart;
+        this.watchEnd = watchEnd;
     }
 
+    /**
+     * Whether this is a watch endpoint, the command that starts a playback. Any other command that merely carries a
+     * song's id (a like, an add to the queue, a menu item) is not, and never starts anything.
+     */
     boolean isWatch() {
         return videoId != null;
     }
 
+    /** The field numbers and kinds of the command and of its watch endpoint, for the debug log. Built on demand. */
+    String fields() {
+        String outer = summarize(command, 0, command.length);
+        return watchStart < 0 ? outer : outer + " watch=" + summarize(command, watchStart, watchEnd);
+    }
+
     static TapCommand parse(byte[] command) {
         List<String> ids = DownloadedRegistry.candidateIds(command, MAX_IDS);
-        byte[] watch = null;
-        String outer = "";
+        int[] watch = null;
         try {
-            int[] budget = {MAX_NODES};
-            outer = summarize(command);
-            watch = findWatchEndpoint(command, 0, budget);
+            watch = findWatchEndpoint(command, 0, command.length, 0, new int[]{MAX_NODES});
         } catch (RuntimeException malformed) {
             // A message that does not parse still has its ids.
         }
-        if (watch == null) return new TapCommand(ids, null, "", -1, false, outer);
+        if (watch == null) return new TapCommand(ids, null, "", -1, false, command, -1, -1);
 
         String videoId = "";
         String playlistId = "";
         int index = -1;
         boolean hasParams = false;
         try {
-            int[] position = {0};
-            while (position[0] < watch.length) {
-                long key = readVarint(watch, position);
+            int[] position = {watch[0]};
+            while (position[0] < watch[1]) {
+                long key = readVarint(command, position, watch[1]);
                 int field = (int) (key >>> 3);
                 switch ((int) (key & 7)) {
                     case 0 -> {
-                        long value = readVarint(watch, position);
+                        long value = readVarint(command, position, watch[1]);
                         if (field == INDEX_FIELD) index = (int) value;
                     }
                     case 1 -> position[0] += 8;
                     case 5 -> position[0] += 4;
                     case 2 -> {
-                        int length = (int) readVarint(watch, position);
-                        if (length < 0 || position[0] + length > watch.length) throw new IllegalArgumentException();
-                        String text = new String(watch, position[0], length, StandardCharsets.ISO_8859_1);
-                        if (field == VIDEO_ID_FIELD) videoId = text;
-                        else if (field == PLAYLIST_ID_FIELD) playlistId = text;
-                        else if (field == PARAMS_FIELD) hasParams = !text.isEmpty();
+                        int length = (int) readVarint(command, position, watch[1]);
+                        if (length < 0 || position[0] + length > watch[1]) throw new IllegalArgumentException();
+                        if (field == VIDEO_ID_FIELD) {
+                            videoId = new String(command, position[0], length, StandardCharsets.ISO_8859_1);
+                        } else if (field == PLAYLIST_ID_FIELD) {
+                            playlistId = new String(command, position[0], length, StandardCharsets.ISO_8859_1);
+                        } else if (field == PARAMS_FIELD) {
+                            hasParams = length > 0;
+                        }
                         position[0] += length;
                     }
                     default -> throw new IllegalArgumentException();
@@ -101,29 +116,29 @@ final class TapCommand {
         } catch (RuntimeException malformed) {
             // Keep what was read.
         }
-        String summary = outer + " watch=" + summarize(watch);
-        return new TapCommand(ids, videoId, playlistId, index, hasParams, summary);
+        return new TapCommand(ids, videoId, playlistId, index, hasParams, command, watch[0], watch[1]);
     }
 
+    /** The start and end of the watch endpoint in [from, to) of the message, or null. */
     @Nullable
-    private static byte[] findWatchEndpoint(byte[] message, int depth, int[] budget) {
-        int[] position = {0};
-        while (position[0] < message.length && budget[0]-- > 0) {
-            long key = readVarint(message, position);
+    private static int[] findWatchEndpoint(byte[] message, int from, int to, int depth, int[] budget) {
+        int[] position = {from};
+        while (position[0] < to && budget[0]-- > 0) {
+            long key = readVarint(message, position, to);
             int field = (int) (key >>> 3);
             switch ((int) (key & 7)) {
-                case 0 -> readVarint(message, position);
+                case 0 -> readVarint(message, position, to);
                 case 1 -> position[0] += 8;
                 case 5 -> position[0] += 4;
                 case 2 -> {
-                    int length = (int) readVarint(message, position);
-                    if (length < 0 || position[0] + length > message.length) throw new IllegalArgumentException();
-                    byte[] payload = Arrays.copyOfRange(message, position[0], position[0] + length);
+                    int length = (int) readVarint(message, position, to);
+                    if (length < 0 || position[0] + length > to) throw new IllegalArgumentException();
+                    int start = position[0];
                     position[0] += length;
-                    if (field == WATCH_ENDPOINT_FIELD) return payload;
+                    if (field == WATCH_ENDPOINT_FIELD) return new int[]{start, start + length};
                     if (depth < MAX_DEPTH && length >= 8) {
                         try {
-                            byte[] nested = findWatchEndpoint(payload, depth + 1, budget);
+                            int[] nested = findWatchEndpoint(message, start, start + length, depth + 1, budget);
                             if (nested != null) return nested;
                         } catch (RuntimeException notAMessage) {
                             // A string or bytes field, not a message.
@@ -137,17 +152,17 @@ final class TapCommand {
     }
 
     /** "1:s11,2:s17,3:v4" for the top-level fields: number, kind (v varint, s length-delimited) and size or value. */
-    private static String summarize(byte[] message) {
+    private static String summarize(byte[] message, int from, int to) {
         StringBuilder summary = new StringBuilder("[");
-        int[] position = {0};
+        int[] position = {from};
         int count = 0;
         try {
-            while (position[0] < message.length && count < MAX_SUMMARY_FIELDS) {
-                long key = readVarint(message, position);
+            while (position[0] < to && count < MAX_SUMMARY_FIELDS) {
+                long key = readVarint(message, position, to);
                 int field = (int) (key >>> 3);
                 if (count++ > 0) summary.append(',');
                 switch ((int) (key & 7)) {
-                    case 0 -> summary.append(field).append(":v").append(readVarint(message, position));
+                    case 0 -> summary.append(field).append(":v").append(readVarint(message, position, to));
                     case 1 -> {
                         summary.append(field).append(":f64");
                         position[0] += 8;
@@ -157,7 +172,7 @@ final class TapCommand {
                         position[0] += 4;
                     }
                     case 2 -> {
-                        int length = (int) readVarint(message, position);
+                        int length = (int) readVarint(message, position, to);
                         summary.append(field).append(":s").append(length);
                         position[0] += length;
                     }
@@ -170,10 +185,10 @@ final class TapCommand {
         return summary.append(']').toString();
     }
 
-    private static long readVarint(byte[] data, int[] position) {
+    private static long readVarint(byte[] data, int[] position, int limit) {
         long result = 0;
         for (int shift = 0; shift < 64; shift += 7) {
-            if (position[0] >= data.length) throw new IllegalArgumentException("Truncated varint");
+            if (position[0] >= limit) throw new IllegalArgumentException("Truncated varint");
             byte b = data[position[0]++];
             result |= (long) (b & 0x7F) << shift;
             if ((b & 0x80) == 0) return result;

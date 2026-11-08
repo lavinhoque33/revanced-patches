@@ -64,7 +64,7 @@ public class TapCommandTest {
         assertEquals(4, tap.index);
         assertFalse(tap.hasParams);
         assertEquals(List.of("dQw4w9WgXcQ"), tap.ids);
-        assertTrue(tap.fields, tap.fields.contains("watch=[1:s11,2:s28,3:v4"));
+        assertTrue(tap.fields(), tap.fields().contains("watch=[1:s11,2:s28,3:v4"));
     }
 
     @Test public void anAbsentIndexIsMinusOneAndParamsAreSeen() {
@@ -89,6 +89,32 @@ public class TapCommandTest {
         TapCommand tap = TapCommand.parse(other.toByteArray());
         assertFalse(tap.isWatch());
         assertEquals(List.of("lYBUbBu4W08"), tap.ids);
+    }
+
+    @Test public void aLikeOrAnAddToQueueThatNamesASongIsNotAPlayback() {
+        // The commands of a like, an add to the queue and a share carry the song's id and no watch endpoint: the
+        // start of a playback must not be armed (and the user's video mode not changed) by any of them.
+        ByteArrayOutputStream like = new ByteArrayOutputStream();
+        ByteArrayOutputStream target = new ByteArrayOutputStream();
+        text(target, 1, "lYBUbBu4W08");
+        message(like, 5000, target.toByteArray());
+        TapCommand tap = TapCommand.parse(like.toByteArray());
+
+        assertFalse(tap.isWatch());
+        assertEquals(List.of("lYBUbBu4W08"), tap.ids);
+        // It does tie to a copy by its id, which is why only a watch command may arm.
+        assertNotNull(AudioFirstLogic.chooseArm(true, tap.ids, null, tap.index, tap.hasParams, "lYBUbBu4W08"::equals));
+    }
+
+    @Test public void theFieldsAreSummarisedOnDemandOverTheRangeOfTheWatchEndpoint() {
+        ByteArrayOutputStream wrapper = new ByteArrayOutputStream();
+        text(wrapper, 1, "anything here");
+        message(wrapper, 7, command(watch("lYBUbBu4W08", "OLAK5uy_albumAlbumAlbumAlbum", 2, null)));
+        TapCommand tap = TapCommand.parse(wrapper.toByteArray());
+
+        assertEquals(2, tap.index);
+        assertTrue(tap.fields(), tap.fields().startsWith("[1:s13,7:s"));
+        assertTrue(tap.fields(), tap.fields().contains("watch=[1:s11,2:s28,3:v2"));
     }
 
     @Test public void garbageNeverThrows() {

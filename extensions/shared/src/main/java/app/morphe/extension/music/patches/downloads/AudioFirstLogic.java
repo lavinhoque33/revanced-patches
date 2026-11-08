@@ -9,6 +9,7 @@ import androidx.annotation.Nullable;
 
 import java.util.List;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 
 /**
  * Pure rules of the audio-first start, so they can be tested without Android. The modes are the names of the
@@ -51,13 +52,25 @@ final class AudioFirstLogic {
      * @return The rule and the song to arm for, or null when no copy is tied to the tap.
      */
     @Nullable
-    static Arm chooseArm(boolean enabled, List<String> commandIds, @Nullable List<String> sourceTracks, int index, boolean hasParams,
-                         Predicate<String> hasCopy) {
+    static Arm chooseArm(boolean enabled, List<String> commandIds, @Nullable List<String> sourceTracks, int index,
+                         boolean hasParams, Predicate<String> hasCopy) {
+        return chooseArmLazily(enabled, commandIds, () -> sourceTracks, index, hasParams, hasCopy);
+    }
+
+    /**
+     * As {@link #chooseArm(boolean, List, List, int, boolean, Predicate)}, with the downloaded playlist the command
+     * names looked up only when no video id of the command has a copy: finding it scans the whole command for every
+     * remembered playlist.
+     */
+    @Nullable
+    static Arm chooseArmLazily(boolean enabled, List<String> commandIds, Supplier<List<String>> sourceTracksOf,
+                               int index, boolean hasParams, Predicate<String> hasCopy) {
         if (!enabled) return null;
 
         for (String id : commandIds) {
             if (hasCopy.test(id)) return new Arm(RULE_ID, id);
         }
+        List<String> sourceTracks = sourceTracksOf.get();
         if (sourceTracks == null || sourceTracks.isEmpty()) return null;
 
         int position = index >= 0 ? index : (hasParams ? -1 : 0);
@@ -257,6 +270,16 @@ final class AudioFirstLogic {
             }
         }
         return index;
+    }
+
+    /** Whether any item of the new queue is known by one of the wanted ids: the queue is the one the row asked for. */
+    static boolean listsRow(List<List<String>> itemIds, List<String> wanted) {
+        for (List<String> ids : itemIds) {
+            for (String id : ids) {
+                if (wanted.contains(id)) return true;
+            }
+        }
+        return false;
     }
 
     static final String RENDERS_SONG = "song";

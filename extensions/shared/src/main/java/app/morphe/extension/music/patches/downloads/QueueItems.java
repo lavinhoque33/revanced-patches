@@ -15,6 +15,7 @@ import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.function.Supplier;
 
 import app.morphe.extension.music.patches.CrossfadeManager;
 import app.morphe.extension.music.settings.Settings;
@@ -51,7 +52,7 @@ public final class QueueItems {
         void rvxNavigate(Object item);
     }
 
-    /** The toggle's view, by the three methods the patch adds to it. */
+    /** The toggle's view, by the two methods the patch adds to it. */
     public interface PillView {
         /** The toggle's owner. */
         Object rvxOwner();
@@ -59,9 +60,6 @@ public final class QueueItems {
         /** The queue's current item, asked the way the view asks it when it binds. Null when there is none. */
         @Nullable
         Object rvxCurrentItem();
-
-        /** The boolean the click listener tests before it shows its message: 1 or 0, or -1 when not readable. */
-        int rvxGate();
     }
 
     /** A panel renderer, rebuilt from bytes by the one method the patch adds to its class. */
@@ -93,7 +91,6 @@ public final class QueueItems {
     private static final List<Tracked> tracked = new ArrayList<>();
     private static final QueueLogBudget log = new QueueLogBudget();
     private static final QueueLogBudget pillClickLog = new QueueLogBudget();
-    private static volatile boolean alive;
     /** The ids of the row the user chose, until the queue it starts is built; null when none is awaited. */
     @Nullable
     private static List<String> expectedStart;
@@ -107,12 +104,11 @@ public final class QueueItems {
      */
     public static void onQueueItem(@Nullable Object item) {
         try {
-            if (!alive) {
-                alive = true;
-                Logger.printDebug(() -> "AudioFirst: queue item hook alive");
-            }
             if (!AudioFirst.supported() || !(item instanceof Item queueItem)) return;
-            if (!tracksItems()) return;
+            if (!tracksItems()) {
+                releaseTrackedItems();
+                return;
+            }
 
             Object shown = queueItem.rvxRenderer();
             Tracked known;
@@ -179,8 +175,9 @@ public final class QueueItems {
      */
     public static boolean onPillClick(@Nullable Object view) {
         try {
-            if (!(view instanceof PillView pill) || !AudioFirst.supported()
-                    || !Settings.START_DOWNLOADED_IN_AUDIO.get()) {
+            if (!(view instanceof PillView pill) || !AudioFirst.supported()) return false;
+            if (!tracksItems()) {
+                releaseTrackedItems();
                 return false;
             }
 
@@ -200,13 +197,13 @@ public final class QueueItems {
             Object owner = pill.rvxOwner();
             String was = AudioFirst.liveMode();
             if (item == null || !(owner instanceof PillOwner)) {
-                logClick(entry, via, current, pill, was, "stock");
+                logClick(entry, via, current, was, "stock");
                 return false;
             }
 
             if (owner instanceof CrossfadeManager.VideoToggleAccess
                     && CrossfadeManager.shouldBlockVideoToggle(owner)) {
-                logClick(entry, via, current, pill, was, "blocked-by-crossfade");
+                logClick(entry, via, current, was, "blocked-by-crossfade");
                 return true;
             }
 
@@ -217,11 +214,11 @@ public final class QueueItems {
             AudioFirst.leaveTapsAlone();
             String now = AudioFirst.togglePillMode();
             if (now == null) {
-                logClick(entry, via, current, pill, was, "stock:no-mode-holder");
+                logClick(entry, via, current, was, "stock:no-mode-holder");
                 return false;
             }
 
-            logClick(entry, via, current, pill, was, "takeover mode=" + was + "->" + now);
+            logClick(entry, via, current, was, "takeover mode=" + was + "->" + now);
             expectStart(entry.songId, entry.videoId);
             ((PillOwner) owner).rvxNavigate(item);
             return true;
@@ -231,8 +228,8 @@ public final class QueueItems {
         }
     }
 
-    private static void logClick(@Nullable Tracked entry, String via, @Nullable Object current, PillView pill,
-                                 String mode, String outcome) {
+    private static void logClick(@Nullable Tracked entry, String via, @Nullable Object current, String mode,
+                                 String outcome) {
         if (!pillClickLog.allow(SystemClock.elapsedRealtime())) return;
 
         int items;
@@ -241,7 +238,7 @@ public final class QueueItems {
         }
         Logger.printDebug(() -> "AudioFirst: pill click item=" + (entry == null ? null : entry.videoId)
                 + " via=" + via + " class=" + simpleName(current) + " tracked=" + (entry != null)
-                + " known=" + items + " gate=" + pill.rvxGate() + " mode=" + mode + " outcome=" + outcome);
+                + " known=" + items + " mode=" + mode + " outcome=" + outcome);
     }
 
     private static String simpleName(@Nullable Object object) {
@@ -406,12 +403,15 @@ public final class QueueItems {
      */
     public static int startIndex(@Nullable List<?> items, int index) {
         try {
-            if (items == null || !AudioFirst.supported() || !Settings.START_DOWNLOADED_IN_AUDIO.get()) return index;
+            if (items == null || !AudioFirst.supported()) return index;
+            if (!tracksItems()) {
+                releaseTrackedItems();
+                return index;
+            }
 
-            boolean tapStart = awaitsStart();
-            int start = tapStart ? chosenStart(items, index) : index;
-            startCorrectively(items, start, tapStart);
-            return start;
+            ChosenStart chosen = awaitsStart() ? chosenStart(items, index) : new ChosenStart(index, false);
+            startCorrectively(items, chosen.position(), chosen.listsRow());
+            return chosen.position();
         } catch (Exception ex) {
             Logger.printException(() -> "AudioFirst: queue start failure", ex);
             return index;
@@ -431,13 +431,19 @@ public final class QueueItems {
         }
     }
 
+    /**
+     * @param position The position the queue starts at.
+     * @param listsRow The queue lists the row the user chose, so it is the queue that row asked for.
+     */
+    private record ChosenStart(int position, boolean listsRow) {}
+
     /** The position of the row the user chose in the queue just built, see {@link AudioFirstLogic#queueStart}. */
-    private static int chosenStart(List<?> items, int index) {
+    private static ChosenStart chosenStart(List<?> items, int index) {
         List<String> wanted;
         List<List<String>> itemIds = new ArrayList<>(items.size());
         synchronized (tracked) {
             wanted = expectedStart;
-            if (wanted == null) return index;
+            if (wanted == null) return new ChosenStart(index, false);
 
             for (Object item : items) {
                 Tracked entry = item == null ? null : find(item);
@@ -446,14 +452,28 @@ public final class QueueItems {
         }
 
         int start = AudioFirstLogic.queueStart(index, itemIds, wanted);
-        if (start != index || itemIds.stream().anyMatch(ids -> !ids.isEmpty())) {
+        boolean listsRow = AudioFirstLogic.listsRow(itemIds, wanted);
+        // The expectation ends with the first queue of tracked items: it is either the awaited one or another that
+        // the tap did not ask for (a play button pressed meanwhile), which must not be taken for it.
+        if (listsRow || itemIds.stream().anyMatch(ids -> !ids.isEmpty())) {
             synchronized (tracked) {
                 expectedStart = null;
             }
             Logger.printDebug(() -> "AudioFirst: queue start " + index + " -> " + start + " of " + items.size()
-                    + " items, wanted=" + wanted);
+                    + " items, wanted=" + wanted + (listsRow ? "" : " (not listed)"));
         }
-        return start;
+        return new ChosenStart(start, listsRow);
+    }
+
+    /**
+     * The feature went off while items were tracked (the setting is read where it is used, there is no listener): the
+     * items are given back as the app built them, at the next place the extension is asked something.
+     */
+    private static void releaseTrackedItems() {
+        synchronized (tracked) {
+            if (tracked.isEmpty()) return;
+        }
+        onMode(AudioFirst.liveMode());
     }
 
     /** Called when the app sets its mode: every tracked item shows the renderer the new mode asks for. */
@@ -501,27 +521,30 @@ public final class QueueItems {
 
         DownloadedMarkers.warmUp();
         DownloadedRegistry registry = DownloadedMarkers.loadedRegistry();
-        if (registry == null) return null;
+        // Without a single stream copy no item is one to track: nothing of the renderer is read for it.
+        if (registry == null || !registry.hasTracks()) return null;
 
         byte[] bytes = message.toByteArray();
         TapCommand row = TapCommand.parse(bytes);
         if (!row.isWatch() || row.videoId == null || row.videoId.isEmpty()) return null;
 
-        AudioFirstLogic.Arm arm = AudioFirstLogic.chooseArm(true, List.of(row.videoId),
-                registry.sourceTracks(registry.findSource(bytes)), row.index, row.hasParams, registry::isDownloaded);
+        AudioFirstLogic.Arm arm = AudioFirstLogic.chooseArmLazily(true, List.of(row.videoId),
+                () -> registry.sourceTracks(registry.findSource(bytes)), row.index, row.hasParams,
+                registry::isDownloaded);
         if (arm == null) {
-            logDecision(row, "declined:no-copy");
+            logDecision(row, () -> "declined:no-copy", null);
             return null;
         }
         if (!AudioFirstLogic.namesTheRow(arm.rule(), arm.videoId(), row.videoId, registry::isDownloaded)) {
-            logDecision(row, "declined:not-the-row(" + arm.rule() + ")");
+            logDecision(row, () -> "declined:not-the-row(" + arm.rule() + ")", null);
             return null;
         }
 
         CommandRewrite.RendererResult result = CommandRewrite.retargetRenderer(bytes, row.videoId, arm.videoId(),
                 true);
         if (result == null || !result.complete()) {
-            logDecision(row, "declined:unreadable(" + (result == null ? "malformed" : result.describe()) + ")");
+            logDecision(row, () -> "declined:unreadable(" + (result == null ? "malformed" : result.describe()) + ")",
+                    null);
             return null;
         }
 
@@ -532,7 +555,7 @@ public final class QueueItems {
         synchronized (tracked) {
             tracked.add(created);
         }
-        logDecision(row, "tracked(" + arm.rule() + "," + result.describe() + ")", arm.videoId());
+        logDecision(row, () -> "tracked(" + arm.rule() + "," + result.describe() + ")", arm.videoId());
         return created;
     }
 
@@ -555,16 +578,12 @@ public final class QueueItems {
         return null;
     }
 
-    private static void logDecision(TapCommand row, String outcome) {
-        logDecision(row, outcome, null);
-    }
-
-    private static void logDecision(TapCommand row, String outcome, @Nullable String songId) {
+    private static void logDecision(TapCommand row, Supplier<String> outcome, @Nullable String songId) {
         if (!log.allow(SystemClock.elapsedRealtime())) return;
 
         Logger.printDebug(() -> "AudioFirst: queue item view video=" + row.videoId + " -> song=" + songId
                 + " mode=" + AudioFirst.liveMode() + " playlist=" + row.playlistId + " index=" + row.index
-                + " outcome=" + outcome);
+                + " outcome=" + outcome.get());
     }
 
     private static void logView(Tracked entry, String mode, String outcome) {

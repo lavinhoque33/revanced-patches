@@ -14,25 +14,30 @@ import android.widget.FrameLayout;
 import androidx.annotation.Nullable;
 
 import java.lang.ref.WeakReference;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.function.Supplier;
 
+import app.morphe.extension.shared.settings.BaseSettings;
 import app.morphe.extension.shared.utils.Logger;
+import app.morphe.extension.shared.utils.ResourceUtils;
 
 /**
  * The green check on the Download button of a downloaded playlist or album page.
  * The header is a server-driven Elements (Litho) view, so its button cannot be restyled; instead a check view of
- * our own is laid over the header container, at the corner of the button's icon. The button is found by its
- * label, or else as the first icon-sized clickable view, and the check follows it on every layout.
+ * our own is laid over the header container, at the corner of the button's icon. The button is found by its label
+ * (the content description the header gives it) and the check follows it on every layout. A button that is not
+ * recognised by its label gets no check: a guess by size could put the check on another button.
  */
 final class DownloadedHeaders {
     private static final String DOWNLOAD_LABEL = "Download";
+    /** The app's own strings for "Download" (playlist, songs, confirmation), in the language the app shows. */
+    private static final String[] DOWNLOAD_LABEL_RESOURCES = {
+            "action_add_playlist_to_offline", "action_add_to_offline_songs", "confirm_download"};
     private static final int BADGE_DP = 18;
     private static final int BADGE_PADDING_DP = 1;
     private static final int BADGE_OFFSET_DP = 11;
-    private static final int BUTTON_MIN_DP = 36;
-    private static final int BUTTON_MAX_DP = 60;
-    private static final int BUTTON_SQUARE_TOLERANCE_DP = 2;
     private static final int MAX_DEPTH = 12;
     private static final int MAX_VIEWS = 400;
 
@@ -58,14 +63,15 @@ final class DownloadedHeaders {
         }
         if (!downloaded) {
             if (badge != null) badge.setShown(false);
-            logOnChange(state, "not downloaded");
+            logOnChange(state, () -> "not downloaded");
             return;
         }
 
         View button = downloadButton(container, state, badge);
         if (button == null) {
             if (badge != null) badge.setShown(false);
-            logOnChange(state, "downloaded but no Download button in the header (collapsed or not laid out)");
+            logOnChange(state, () -> "downloaded but no button labelled " + downloadLabels()
+                    + " in the header (collapsed, not laid out, or another language): no check");
             return;
         }
 
@@ -83,13 +89,15 @@ final class DownloadedHeaders {
         if (container.indexOfChild(badge) != container.getChildCount() - 1) badge.bringToFront();
         place(container, button, badge);
         badge.setShown(true);
-        logOnChange(state, "check shown at " + button.getClass().getSimpleName()
+        logOnChange(state, () -> "check shown at " + button.getClass().getSimpleName()
                 + " " + button.getWidth() + "x" + button.getHeight());
     }
 
     /** One line per change of what the header shows, never one per bind or layout. */
-    private static void logOnChange(State state, String result) {
-        String line = "Header sources=" + state.sourceIds + ": " + result;
+    private static void logOnChange(State state, Supplier<String> result) {
+        if (!BaseSettings.DEBUG.get()) return;
+
+        String line = "Header sources=" + state.sourceIds + ": " + result.get();
         if (line.equals(state.lastLogged)) return;
 
         state.lastLogged = line;
@@ -140,11 +148,9 @@ final class DownloadedHeaders {
         }
 
         View[] labeled = new View[1];
-        View[] iconSized = new View[1];
-        scan(container, badge, labeled, iconSized, new int[]{MAX_VIEWS}, 0);
-        View found = labeled[0] != null ? labeled[0] : iconSized[0];
-        state.host = new WeakReference<>(found);
-        return found;
+        scan(container, badge, downloadLabels(), labeled, new int[]{MAX_VIEWS}, 0);
+        state.host = new WeakReference<>(labeled[0]);
+        return labeled[0];
     }
 
     private static boolean isInside(View view, ViewGroup container) {
@@ -156,26 +162,50 @@ final class DownloadedHeaders {
         return false;
     }
 
-    private static void scan(ViewGroup parent, @Nullable View ignored, View[] labeled, View[] iconSized,
+    private static void scan(ViewGroup parent, @Nullable View ignored, List<String> labels, View[] labeled,
                              int[] budget, int depth) {
         for (int index = 0; index < parent.getChildCount() && labeled[0] == null; index++) {
             View child = parent.getChildAt(index);
             if (child == ignored || --budget[0] < 0) continue;
             if (!(child instanceof ViewGroup group)) continue;
 
-            if (child.isClickable() && child.getWidth() > 0) {
-                CharSequence label = child.getContentDescription();
-                if (label != null && DOWNLOAD_LABEL.equalsIgnoreCase(label.toString().trim())) labeled[0] = child;
-                else if (iconSized[0] == null && isIconSized(child)) iconSized[0] = child;
+            if (child.isClickable() && child.getWidth() > 0 && isDownloadLabel(child.getContentDescription(), labels)) {
+                labeled[0] = child;
             }
-            if (depth < MAX_DEPTH) scan(group, ignored, labeled, iconSized, budget, depth + 1);
+            if (depth < MAX_DEPTH) scan(group, ignored, labels, labeled, budget, depth + 1);
         }
     }
 
-    private static boolean isIconSized(View view) {
-        int width = view.getWidth();
-        int height = view.getHeight();
-        return width >= DownloadedCheck.dp(BUTTON_MIN_DP) && width <= DownloadedCheck.dp(BUTTON_MAX_DP)
-                && Math.abs(width - height) <= DownloadedCheck.dp(BUTTON_SQUARE_TOLERANCE_DP);
+    /** Whether a content description is one of the labels of the Download button, ignoring case and spacing. */
+    static boolean isDownloadLabel(@Nullable CharSequence description, List<String> labels) {
+        if (description == null) return false;
+
+        String text = description.toString().trim();
+        for (String label : labels) {
+            if (label.equalsIgnoreCase(text)) return true;
+        }
+        return false;
+    }
+
+    private static volatile List<String> downloadLabels;
+
+    /** The English label and the app's own "Download" strings in the language it shows; resolved once. */
+    private static List<String> downloadLabels() {
+        List<String> labels = downloadLabels;
+        if (labels != null) return labels;
+
+        List<String> found = new ArrayList<>();
+        found.add(DOWNLOAD_LABEL);
+        for (String name : DOWNLOAD_LABEL_RESOURCES) {
+            try {
+                int id = ResourceUtils.getStringIdentifier(name);
+                String text = id == 0 ? null : ResourceUtils.getActivityOrContext().getString(id).trim();
+                if (text != null && !text.isEmpty() && !found.contains(text)) found.add(text);
+            } catch (RuntimeException unavailable) {
+                // The string does not exist in this version.
+            }
+        }
+        downloadLabels = Collections.unmodifiableList(found);
+        return downloadLabels;
     }
 }

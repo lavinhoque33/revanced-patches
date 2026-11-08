@@ -220,11 +220,66 @@ public final class QueueItems {
 
             logClick(entry, via, current, was, "takeover mode=" + was + "->" + now);
             expectStart(entry.songId, entry.videoId);
-            ((PillOwner) owner).rvxNavigate(item);
+            navigateKeepingPosition((PillOwner) owner, item);
             return true;
         } catch (Exception ex) {
             Logger.printException(() -> "AudioFirst: pill click failure", ex);
             return false;
+        }
+    }
+
+    /**
+     * Navigates to the other item of the switch, which starts where the player is now: the owner hands the item's
+     * command to {@link #withPillStart} on its way, which gives it the start time. A position that cannot be used
+     * starts the item at its beginning, as the app does.
+     */
+    private static void navigateKeepingPosition(PillOwner owner, Object item) {
+        PillPosition.Start start = PillPosition.choose(VideoInformation.getVideoTime(),
+                VideoInformation.getVideoLength());
+        Logger.printDebug(() -> "AudioFirst: pill start " + start.reason());
+        synchronized (tracked) {
+            pillStartMillis = start.millis();
+        }
+        try {
+            owner.rvxNavigate(item);
+        } finally {
+            synchronized (tracked) {
+                pillStartMillis = 0;
+            }
+        }
+    }
+
+    /**
+     * Injection point: the command the pill's owner is about to navigate with. While the pill's click navigates, it
+     * is given the start time of the click (see {@link #navigateKeepingPosition}); any other command, and any it
+     * cannot rebuild, is returned as it is.
+     */
+    public static Object withPillStart(@Nullable Object command) {
+        try {
+            long millis;
+            synchronized (tracked) {
+                millis = pillStartMillis;
+            }
+            if (millis <= 0 || command == null) return command;
+
+            if (!(command instanceof NativeDownloads.Command rebuildable)
+                    || !(command instanceof MessageLite message)) {
+                Logger.printDebug(() -> "AudioFirst: pill start not set (command cannot be rebuilt)");
+                return command;
+            }
+
+            byte[] started = CommandRewrite.withStartTime(message.toByteArray(), millis / 1000f);
+            if (started == null) {
+                Logger.printDebug(() -> "AudioFirst: pill start not set (no watch endpoint)");
+                return command;
+            }
+
+            Object rebuilt = rebuildable.rvxWithBytes(started);
+            Logger.printDebug(() -> "AudioFirst: pill start set to " + millis + "ms");
+            return rebuilt;
+        } catch (Exception ex) {
+            Logger.printException(() -> "AudioFirst: pill start failure", ex);
+            return command;
         }
     }
 
@@ -255,6 +310,8 @@ public final class QueueItems {
     private static String correctedVideoId;
     private static long correctedAt;
     private static long pillPressedAt;
+    /** The start time, in milliseconds, of the navigation the pill's click is making; 0 outside of it. */
+    private static long pillStartMillis;
     /** A corrective start that waits for the pill's owner to be built; its request is only so old. */
     @Nullable
     private static Pending pending;

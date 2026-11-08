@@ -361,4 +361,60 @@ public class CommandRewriteTest {
         assertNull(CommandRewrite.retargetRenderer(new byte[]{0x3A, 0x7F, 1}, OMV, ATV, true));
         assertNull(CommandRewrite.retargetRenderer(renderer(OMV, omvRow()), OMV, "short", true));
     }
+
+    private static float startTimeOf(byte[] command) throws Exception {
+        byte[] watch = field(command, CommandRewrite.WATCH_ENDPOINT_FIELD);
+        for (ProtoFields.Field field : ProtoFields.parse(watch)) {
+            if (field.number() == CommandRewrite.START_TIME_FIELD) {
+                assertEquals(5, field.wireType());
+                return Float.intBitsToFloat((int) field.varint());
+            }
+        }
+        return -1;
+    }
+
+    @Test public void aStartTimeIsInsertedInFieldOrderAndNothingElseMoves() throws Exception {
+        byte[] row = command(watch(ATV, null));
+        byte[] started = CommandRewrite.withStartTime(row, 61.5f);
+
+        assertEquals(61.5f, startTimeOf(started), 0f);
+        byte[] expectedWatch = build(out -> {
+            out.writeString(1, ATV);
+            out.writeString(2, ALBUM);
+            out.writeInt32(3, 0);
+            out.writeFloat(CommandRewrite.START_TIME_FIELD, 61.5f);
+            out.writeString(9, "01234567890123456789012345678901");
+            out.writeString(13, "setVideoId123456");
+            out.writeByteArray(26, new byte[68]);
+            out.writeByteArray(28, new byte[]{1, 2, 3, 4});
+            out.writeByteArray(79_857_908, new byte[1107]);
+        });
+        assertArrayEquals(command(expectedWatch), started);
+    }
+
+    @Test public void aStartTimeReplacesTheOneTheEndpointHas() throws Exception {
+        byte[] first = CommandRewrite.withStartTime(command(watch(ATV, null)), 10f);
+        byte[] second = CommandRewrite.withStartTime(first, 95f);
+
+        assertEquals(95f, startTimeOf(second), 0f);
+        assertEquals(first.length, second.length);
+    }
+
+    @Test public void aStartTimeIsAppendedWhenNoLaterFieldFollows() throws Exception {
+        byte[] watch = build(out -> out.writeString(1, ATV));
+        byte[] started = CommandRewrite.withStartTime(command(watch), 30f);
+
+        byte[] expected = build(out -> {
+            out.writeString(1, ATV);
+            out.writeFloat(CommandRewrite.START_TIME_FIELD, 30f);
+        });
+        assertArrayEquals(command(expected), started);
+    }
+
+    @Test public void noStartTimeIsSetWithoutAWatchEndpoint() {
+        byte[] command = build(out -> out.writeString(2, "x"));
+
+        assertNull(CommandRewrite.withStartTime(command, 30f));
+        assertNull(CommandRewrite.withStartTime(new byte[]{(byte) 0xFF}, 30f));
+    }
 }

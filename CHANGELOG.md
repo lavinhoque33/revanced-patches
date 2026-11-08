@@ -8,8 +8,9 @@
   or the library (about 5 MB a song); with Download in app also on, one download feeds both the files and the copy.
   Add a Stream downloads action that shows what the copies take and deletes them all, without touching the saved
   files. Downloaded songs start in audio mode (a sub-setting, on by default) so the local copy plays, also from an
-  album's track list, its Play button and Next; the Song/Video switch still reaches the online video and starts the
-  song over.
+  album's track list, its Play button and Next; the Song/Video switch still reaches the online video, and continues
+  at the same position in either direction (it starts over only when the position is unknown or within 3 seconds of
+  the end).
 * **YouTube Music - Downloads:** Play the stream copies with no network. Each copy keeps the details of its song,
   and Library > Downloads opens a list of the downloaded albums, playlists and all songs; a tap starts the song, and
   Next and the end of a song go on through the list, with no connection too. Lyrics, comments and related stay blank

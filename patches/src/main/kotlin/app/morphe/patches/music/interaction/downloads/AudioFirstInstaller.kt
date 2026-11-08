@@ -48,6 +48,7 @@ private const val PILL_OWNER = $$"$${AUDIO_FIRST_PATH}QueueItems$PillOwner;"
 private const val START_INDEX = "$QUEUE_ITEMS->startIndex(Ljava/util/List;I)I"
 private const val PILL_VIEW = $$"$${AUDIO_FIRST_PATH}QueueItems$PillView;"
 private const val ON_PILL_OWNER = "$QUEUE_ITEMS->onPillOwner(Ljava/lang/Object;)V"
+private const val WITH_PILL_START = "$QUEUE_ITEMS->withPillStart(Ljava/lang/Object;)Ljava/lang/Object;"
 private const val ON_PILL_CLICK = "$QUEUE_ITEMS->onPillClick(Ljava/lang/Object;)Z"
 private const val REGISTRY = "Lcom/google/protobuf/ExtensionRegistryLite;"
 private const val CAPTURE_HOLDER = "$AUDIO_FIRST->captureHolder(Ljava/lang/Object;)V"
@@ -349,7 +350,25 @@ private fun BytecodePatchContext.preparePillClick(
         !AccessFlags.STATIC.isSet(it.accessFlags) && it.type == navigation.definingClass
     }
 
-    val endpoint = "iget-object v0, v0, ${referenceMethod.returnType}->${holding.second.name}:$endpointType"
+    // The pill's switch continues at the position the player had: the endpoint is the command the app rebuilds from
+    // bytes, so the extension can give it a start time. A version whose endpoint is another type switches from 0:00.
+    val commandType = nativeDownloadsCommandResolverFingerprint.method.parameterTypes[1].toString()
+    val keepsPosition = endpointType == commandType
+    if (!keepsPosition) {
+        printWarn("The Song/Video switch of the Music player cannot keep the playback position on this Music " +
+            "version: its endpoint $endpointType is not the rebuildable command $commandType")
+    }
+    val endpointLoad = "iget-object v0, v0, ${referenceMethod.returnType}->${holding.second.name}:$endpointType"
+    val endpoint = if (keepsPosition) {
+        """
+        $endpointLoad
+        invoke-static {v0}, $WITH_PILL_START
+        move-result-object v0
+        check-cast v0, $endpointType
+        """
+    } else {
+        endpointLoad
+    }
     val navigate = if (single != null) {
         "invoke-interface {v1, v0}, ${navigation.definingClass}->${navigation.name}($endpointType)V"
     } else {
@@ -416,8 +435,8 @@ private fun BytecodePatchContext.preparePillClick(
 
         "AudioFirst: pill click ${click.classType}->${click.method.name}, owner press " +
             "${press.classDef.type}->${press.method.name}, navigates with ${navigation.definingClass}->" +
-            "${navigation.name}, item reference ${referenceMethod.name}, owner reported by " +
-            "${ownerConstructors.size} constructor"
+            "${navigation.name}, item reference ${referenceMethod.name}, keeps position=$keepsPosition, " +
+            "owner reported by ${ownerConstructors.size} constructor"
     }
 }
 

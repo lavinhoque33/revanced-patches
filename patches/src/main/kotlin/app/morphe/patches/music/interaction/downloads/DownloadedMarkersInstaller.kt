@@ -19,6 +19,7 @@ import com.android.tools.smali.dexlib2.AccessFlags
 import com.android.tools.smali.dexlib2.Opcode
 import com.android.tools.smali.dexlib2.iface.ClassDef
 import com.android.tools.smali.dexlib2.iface.instruction.FiveRegisterInstruction
+import com.android.tools.smali.dexlib2.iface.instruction.OneRegisterInstruction
 import com.android.tools.smali.dexlib2.iface.instruction.Instruction
 import com.android.tools.smali.dexlib2.iface.reference.MethodReference
 
@@ -134,18 +135,28 @@ private fun Instruction.isSetTreeCall(owner: String): Boolean {
 }
 
 /**
- * The binds of the Elements presenter: `(context, model, flag...)V` that end by giving the view its tree. The
- * presenter has two or three of them (`h` and `f`, `g` and `h`, `e` and `h`), each used by other Elements users.
+ * The index of the `return-void` that follows the call giving the view its tree, in a bind of the Elements presenter:
+ * `(context, model, flag...)V`. The presenter has two or three of them (`h` and `f`, `g` and `h`, `e` and `h`), each
+ * used by other Elements users; some end with an unreachable `throw` after that return. Null for any other method.
  */
-private fun Method.isElementsBind(owner: String, contextType: String): Boolean {
+private fun Method.elementsBindReturn(owner: String, contextType: String): Int? {
     val parameters = parameterTypes.names()
-    val instructions = implementation?.instructions?.toList() ?: return false
-    return AccessFlags.PUBLIC.isSet(accessFlags) && AccessFlags.FINAL.isSet(accessFlags) &&
+    val instructions = implementation?.instructions?.toList() ?: return null
+    val shape = AccessFlags.PUBLIC.isSet(accessFlags) && AccessFlags.FINAL.isSet(accessFlags) &&
         !AccessFlags.STATIC.isSet(accessFlags) && returnType == "V" && parameters.size >= 3 &&
         parameters[0] == contextType && parameters[1].startsWith("L") && parameters[1] != OBJECT &&
-        parameters.drop(2).all { it == "Z" } && instructions.size >= 2 &&
-        instructions.last().opcode == Opcode.RETURN_VOID && instructions[instructions.size - 2].isSetTreeCall(owner)
+        parameters.drop(2).all { it == "Z" }
+    if (!shape) return null
+
+    val calls = instructions.indices.filter { index ->
+        index + 1 < instructions.size && instructions[index].isSetTreeCall(owner) &&
+            instructions[index + 1].opcode == Opcode.RETURN_VOID
+    }
+    return calls.singleOrNull()?.plus(1)
 }
+
+private fun Instruction.writesRegister(register: Int): Boolean =
+    opcode.setsRegister() && (this as? OneRegisterInstruction)?.registerA == register
 
 /** Whether [type] is, through the app's own classes, a subclass of the framework's View. */
 private fun BytecodePatchContext.isView(type: String): Boolean {
@@ -167,15 +178,18 @@ private fun BytecodePatchContext.installElementRowMarkers() {
     val owner = match.classDef
     val contextType = match.method.parameterTypes.first().toString()
 
-    val hooks = owner.methods.filter { it.isElementsBind(owner.type, contextType) }.map { bind ->
-        val instructions = bind.implementation!!.instructions.toList()
-        val call = instructions[instructions.size - 2] as? FiveRegisterInstruction
+    val hooks = owner.methods.mapNotNull { bind ->
+        val returnIndex = bind.elementsBindReturn(owner.type, contextType) ?: return@mapNotNull null
+        val call = bind.implementation!!.instructions.toList()[returnIndex - 1] as? FiveRegisterInstruction
             ?: error("${bind.name} sets the tree through a register range")
         check(isView(call.getReference<MethodReference>()!!.definingClass)) { "${bind.name} sets the tree of no view" }
-        check(call.registerC <= 15 && bind.implementation!!.registerCount - 1 - (bind.parameterTypes.size - 2) <= 15) {
-            "${bind.name} has its model register above 15"
+        // p0 = this, p1 = the bind context, p2 = the model: the registers after the locals.
+        val model = bind.implementation!!.registerCount - bind.parameterTypes.size + 1
+        check(call.registerC <= 15 && model <= 15) { "${bind.name} has a register above 15" }
+        check(bind.implementation!!.instructions.take(returnIndex).none { it.writesRegister(model) }) {
+            "${bind.name} overwrites its model before it gives the view its tree"
         }
-        Triple(bind, instructions.lastIndex, bind.registerName(call.registerC))
+        Triple(bind, returnIndex, bind.registerName(call.registerC))
     }
     check(hooks.isNotEmpty()) { "${owner.type} has no bind that gives its view a tree" }
 

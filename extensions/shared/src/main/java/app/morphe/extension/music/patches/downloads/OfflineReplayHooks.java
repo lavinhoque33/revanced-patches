@@ -159,16 +159,16 @@ public final class OfflineReplayHooks {
     }
 
     /**
-     * Injection point: the bottom bar navigates to a tab, on the main thread. True when the Library tab was sent to the
-     * Downloads page while the device is online: the patch then navigates to the Library page instead.
+     * Injection point: the app is asked to remember a page as the one its Library tab opens next, with the command
+     * that says so. True when that is not to be done: the page is the Downloads page the offline list replaces.
      */
-    public static boolean libraryTabRedirect(String tabId, Object command) {
+    public static boolean skipLibraryPersist(Object command) {
         if (!usable()) return false;
 
         try {
-            return OfflineReplay.libraryTabRedirect(tabId, command);
+            return OfflineReplay.skipLibraryPersist(command);
         } catch (Throwable failure) {
-            disable("library tab", failure);
+            disable("library launch page", failure);
             return false;
         }
     }

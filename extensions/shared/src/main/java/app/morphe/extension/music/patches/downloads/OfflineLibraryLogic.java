@@ -24,8 +24,6 @@ import java.util.function.Function;
 final class OfflineLibraryLogic {
     /** The Downloads page the Library tab, the account menu and the offline banner all navigate to. */
     static final String DOWNLOADS_BROWSE_ID = "FEmusic_offline";
-    /** The Library tab's own page, and the id of its tab. */
-    static final String LIBRARY_BROWSE_ID = "FEmusic_library_landing";
     /** The page the Device files library opens at, the one {@link #DOWNLOADS_BROWSE_ID} is rewritten to. */
     static final String DEVICE_FILES_BROWSE_ID = "FEmusic_library_sideloaded_tracks";
 
@@ -106,11 +104,12 @@ final class OfflineLibraryLogic {
     }
 
     /**
-     * Whether the Library tab's navigation to the Downloads page is replaced by one to the Library page: it is while
-     * the device has a network, which is what the user asked for with the tab; offline the tab goes to the list.
+     * Whether a page the app is asked to remember as the Library tab's launch page is dropped: the Downloads page is,
+     * while the list that replaces it has something to show. Any other page is the app's to remember, the Library
+     * page itself included.
      */
-    static boolean redirectsTabToLibrary(@Nullable String tabId, @Nullable String browseId, boolean networkAvailable) {
-        return networkAvailable && LIBRARY_BROWSE_ID.equals(tabId) && DOWNLOADS_BROWSE_ID.equals(browseId);
+    static boolean keepsLaunchPage(@Nullable String browseId, boolean hasStoredData) {
+        return hasStoredData && DOWNLOADS_BROWSE_ID.equals(browseId);
     }
 
     /**

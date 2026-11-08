@@ -7,8 +7,11 @@ package app.morphe.extension.music.patches.downloads;
 
 import static org.junit.Assert.*;
 
+import com.google.protobuf.CodedOutputStream;
+
 import org.junit.Test;
 
+import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
@@ -164,6 +167,34 @@ public class OfflineReplayLogicTest {
     @Test public void aWatchCommandIsNoBrowseCommand() {
         assertNull(OfflineReplayLogic.browseIdOf(OnlineWatchCommand.build("vid1", null, 0)));
         assertNull(OfflineReplayLogic.browseIdOf(new byte[0]));
+    }
+
+    @Test public void aLaunchPageCommandNamesThePageItRemembers() throws Exception {
+        byte[] persist = persistCommand(OfflineLibraryLogic.browseCommand("FEmusic_offline"));
+
+        assertEquals("FEmusic_offline", OfflineReplayLogic.persistedBrowseId(persist));
+        assertEquals("FEmusic_library_landing", OfflineReplayLogic.persistedBrowseId(
+                persistCommand(OfflineLibraryLogic.browseCommand("FEmusic_library_landing"))));
+    }
+
+    @Test public void aLaunchPageCommandWithoutAPageOrAnyOtherCommandNamesNone() throws Exception {
+        assertNull(OfflineReplayLogic.persistedBrowseId(persistCommand(new byte[0])));
+        assertNull(OfflineReplayLogic.persistedBrowseId(OfflineLibraryLogic.browseCommand("FEmusic_offline")));
+        assertNull(OfflineReplayLogic.persistedBrowseId(OnlineWatchCommand.build("vid1", null, 0)));
+        assertNull(OfflineReplayLogic.persistedBrowseId(new byte[0]));
+    }
+
+    private static byte[] persistCommand(byte[] page) throws Exception {
+        ByteArrayOutputStream nested = new ByteArrayOutputStream();
+        CodedOutputStream inner = CodedOutputStream.newInstance(nested);
+        inner.writeByteArray(1, page);
+        inner.flush();
+
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        CodedOutputStream outer = CodedOutputStream.newInstance(bytes);
+        outer.writeByteArray(453_962_765, nested.toByteArray());
+        outer.flush();
+        return bytes.toByteArray();
     }
 
     // endregion

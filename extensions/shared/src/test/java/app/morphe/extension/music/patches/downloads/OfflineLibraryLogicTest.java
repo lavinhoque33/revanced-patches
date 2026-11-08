@@ -37,16 +37,15 @@ public class OfflineLibraryLogicTest {
 
     // region decide
 
-    @Test public void theLibraryTabSentToDownloadsOnlineGoesToTheLibrary() {
-        assertTrue(OfflineLibraryLogic.redirectsTabToLibrary("FEmusic_library_landing", "FEmusic_offline", true));
+    @Test public void theDownloadsPageIsNeverRememberedAsTheLaunchPageWhileTheListHasSomethingToShow() {
+        assertTrue(OfflineLibraryLogic.keepsLaunchPage("FEmusic_offline", true));
     }
 
-    @Test public void theLibraryTabIsLeftAloneOfflineAndForOtherTabsAndPages() {
-        assertFalse(OfflineLibraryLogic.redirectsTabToLibrary("FEmusic_library_landing", "FEmusic_offline", false));
-        assertFalse(OfflineLibraryLogic.redirectsTabToLibrary("FEmusic_home", "FEmusic_offline", true));
-        assertFalse(OfflineLibraryLogic.redirectsTabToLibrary("FEmusic_library_landing", "FEmusic_liked", true));
-        assertFalse(OfflineLibraryLogic.redirectsTabToLibrary("FEmusic_library_landing", null, true));
-        assertFalse(OfflineLibraryLogic.redirectsTabToLibrary(null, "FEmusic_offline", true));
+    @Test public void everyOtherLaunchPageIsRemembered() {
+        assertFalse(OfflineLibraryLogic.keepsLaunchPage("FEmusic_offline", false));
+        assertFalse(OfflineLibraryLogic.keepsLaunchPage("FEmusic_library_landing", true));
+        assertFalse(OfflineLibraryLogic.keepsLaunchPage("FEmusic_offline_playlists", true));
+        assertFalse(OfflineLibraryLogic.keepsLaunchPage(null, true));
     }
 
     @Test public void theLibraryTabOpensTheListOnlyWhileOffline() {

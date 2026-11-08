@@ -54,9 +54,6 @@ private const val REGISTRY = "Lcom/google/protobuf/ExtensionRegistryLite;"
 /** The browse id the "No connection" sheet's "Go to downloads" button opens. */
 private const val SHEET_BROWSE = "FEmusic_offline"
 
-/** The browse id of the Library tab's own page. */
-private const val LIBRARY_LANDING = "FEmusic_library_landing"
-
 private val REPLAY_VERSIONS = setOf("9.40.51", "9.15.51", "8.30.54")
 
 /** The experiment flag the offline watch command gate reads in every supported version (the id is the same). */
@@ -69,6 +66,9 @@ private const val UNPLAYABLE = "Unplayable Video"
 private const val TAB_SEARCH_PAGE = "FEmusic_search"
 private const val TAB_HIDE_SEARCH_BACK = "hide_search_back_action"
 
+/** What the Library launch page resolver logs for a persist command that has no nested command. */
+private const val PERSIST_WITHOUT_COMMAND = "Received MusicLibraryPersistLaunchNavigationCommand with no command"
+
 /** Message of the failure the Library chip loader ends with for a continuation it does not know. */
 private const val UNSUPPORTED_CONTINUATION = "Unsupported continuation: "
 
@@ -76,7 +76,8 @@ private const val UNSUPPORTED_CONTINUATION = "Unsupported continuation: "
  * Offline playback of stream copies, in 9.40.51 / 9.15.51 / 8.30.54 order:
  * gate `Lgup.c` / `Lkch.c` / `Ljto.c`, player lookup `Laalc.c` / `Laxlp.c` / `Lauhp.c`,
  * watch-next entry `Lhyv.b` / `Lntb.b` / `Lnez.b`, watch-next request `Labjm` / `Lazmi` / `Lawgh`,
- * the Library chip loader (`Lhtd.a` in 9.40.51) and the tab navigation (`Lhis.c` in 9.40.51).
+ * the Library chip loader (`Lhtd.a` in 9.40.51), the persisting of the Library launch page (`Lgtr.c` in 9.40.51)
+ * and the tab navigation (`Lhis.c` in 9.40.51).
  * Every dependency of every hook is resolved before anything is changed, and the hooks go in together or not at all:
  * a version whose shape is unfamiliar only warns and plays as before. Needs [installStreamSwap]: the stored response
  * gets the same audio swap an online one does.
@@ -94,6 +95,7 @@ internal fun BytecodePatchContext.installOfflineReplay() {
         val (requestType, installTail) = prepareReplayTail()
         val installNext = prepareReplayNext(requestType, commandType)
         val installChip = prepareLibraryChip()
+        val installPersist = prepareLibraryPersist()
         val installTab = prepareTabNavigation()
 
         val installSeek = prepareSeekSnap()
@@ -103,12 +105,13 @@ internal fun BytecodePatchContext.installOfflineReplay() {
         installTail()
         installNext()
         installChip()
+        installPersist()
         installTab()
         installSeek?.invoke()
         installSheet?.invoke()?.let(::printInfo)
         supported.returnEarly(true)
         printInfo(
-            "OfflineReplay: gate, player lookup, watch-next, library chip and tab navigation hooked; " +
+            "OfflineReplay: gate, player lookup, watch-next, library chip, launch page and tab navigation hooked; " +
                 "request $requestType",
         )
     } catch (ex: Exception) {
@@ -159,36 +162,6 @@ private fun BytecodePatchContext.prepareSeekSnap(): (() -> Unit)? {
         return null
     }
 }
-
-/**
- * The Library tab's handler (`Lhiz.o` in 9.40.51) navigates to the Downloads page, the [SHEET_BROWSE] page, when the
- * app counts the Library empty or itself offline (and so shows the empty stock Downloads page to a user whose copies
- * are ours), and to the Library page otherwise. The command builder it makes that command with, a static method of one
- * string that returns the navigation command type (`Lmbf.aD` in 9.40.51), is read off the call right after the
- * [SHEET_BROWSE] string. The handler is found by the strings `FEmusic_library_landing` and [SHEET_BROWSE] in one
- * one-argument method that tests a connectivity predicate right before it ([libraryTabTest]).
- */
-private fun BytecodePatchContext.libraryTabCommandBuilder(commandType: String): MethodReference {
-    val handler = Fingerprint(
-        returnType = "V",
-        strings = listOf(LIBRARY_LANDING, SHEET_BROWSE),
-        custom = { method, _ ->
-            method.parameterTypes.size == 1 && method.implementation!!.instructions.toList().libraryTabTest() >= 0
-        },
-    ).matchSingle().method
-    val instructions = handler.implementation!!.instructions.toList()
-
-    val browse = instructions.indexOfFirst { it.getReference<StringReference>()?.string == SHEET_BROWSE }
-    val builder = instructions.drop(browse + 1).take(2).singleOrNull {
-        it.opcode == Opcode.INVOKE_STATIC && it.getReference<MethodReference>()?.let { reference ->
-            reference.returnType == commandType &&
-                reference.parameterTypes.map(CharSequence::toString) == listOf(STRING)
-        } == true
-    } ?: error("library tab: no command builder after the offline page string")
-
-    return builder.getReference<MethodReference>()!!
-}
-
 
 /**
  * The stock "No connection" bottom sheet covers the player controls offline. Its presenter (`Lhjm.a` in 9.40.51) builds
@@ -247,29 +220,6 @@ private fun BytecodePatchContext.prepareNoConnectionSheet(): (() -> String)? {
         return null
     }
 }
-
-/**
- * The index of the Library tab handler's connectivity test: a call of no arguments that returns a boolean, an
- * interface call or a virtual one of a class of the app, whose answer is branched on and which is followed within a
- * few instructions by the [SHEET_BROWSE] string; -1 when the method has no such call.
- */
-private fun List<Instruction>.libraryTabTest(): Int {
-    val browse = indexOfFirst { it.getReference<StringReference>()?.string == SHEET_BROWSE }
-    if (browse < 3) return -1
-
-    val test = (0 until browse).lastOrNull { index ->
-        (this[index].opcode == Opcode.INVOKE_VIRTUAL || this[index].opcode == Opcode.INVOKE_INTERFACE) &&
-            this[index].getReference<MethodReference>()?.let {
-                it.returnType == "Z" && it.parameterTypes.isEmpty() && !it.definingClass.startsWith("Ljava/")
-            } == true
-    } ?: return -1
-
-    val branched = this[test + 1].opcode == Opcode.MOVE_RESULT && this[test + 2].opcode == Opcode.IF_NEZ
-    return if (branched && browse - test <= LIBRARY_TAB_TEST_REACH) test else -1
-}
-
-/** How many instructions at most lie between the Library tab's connectivity test and the Downloads page string. */
-private const val LIBRARY_TAB_TEST_REACH = 8
 
 /** The presenter's method: reads a clock (a no-argument interface call returning a long) and keeps long times. */
 private fun Method.looksLikeSheetPresenter(): Boolean {
@@ -531,6 +481,39 @@ private fun BytecodePatchContext.prepareLibraryChip(): () -> Unit {
 }
 
 /**
+ * The persisting of the Library launch page. Every chip of the Library page (Library, Downloads, ...) runs a command
+ * that browses to its page and then asks the app to remember that page as the one the Library tab opens next (an
+ * extension command, answered by the resolver `Lgtr.c(command, map)` in 9.40.51, which writes the
+ * `MusicLibraryPrefsStore`). The Downloads chip opens the offline list in front of the stock page, so remembering
+ * the stock Downloads page would make the Library tab restore it later, with the app's own empty Downloads. The
+ * resolver is found by the one string it logs when it receives the command with no nested command; its first
+ * parameter is the command. [REPLAY] gets the command first thing and the resolver returns when that wants no page
+ * remembered.
+ */
+private fun BytecodePatchContext.prepareLibraryPersist(): () -> Unit {
+    val method = Fingerprint(
+        returnType = "V",
+        parameters = listOf("L", MAP),
+        strings = listOf(PERSIST_WITHOUT_COMMAND),
+    ).matchSingle().method
+    check(!AccessFlags.STATIC.isSet(method.accessFlags)) { "library launch page: static method" }
+    // The registers are the locals, `this` and the parameters; the hook needs one local.
+    check(method.implementation!!.registerCount > method.parameterTypes.size + 1) {
+        "library launch page: no free register"
+    }
+
+    return {
+        val stock = ExternalLabel("rvx_persist_stock", method.getInstruction<Instruction>(0))
+        method.addInstructionsWithLabels(0, """
+            invoke-static {p1}, $REPLAY->skipLibraryPersist(Ljava/lang/Object;)Z
+            move-result v0
+            if-eqz v0, :rvx_persist_stock
+            return-void
+        """, stock)
+    }
+}
+
+/**
  * The bottom bar's tab navigation (`Lhis.c(String, command)` in 9.40.51). The Library tab goes offline to the
  * Downloads page, and that navigation is not guaranteed to pass the command dispatcher: it may only switch to a
  * tab's own page. The command is handed to [REPLAY] first thing, which opens the offline list for the Downloads
@@ -544,28 +527,8 @@ private fun BytecodePatchContext.prepareTabNavigation(): () -> Unit {
     ).matchSingle().method
     check(!AccessFlags.STATIC.isSet(method.accessFlags)) { "tab navigation: static method" }
 
-    val builder = try {
-        check(method.implementation!!.registerCount >= 4) { "library tab: no free register" }
-        libraryTabCommandBuilder(method.parameterTypes[1].toString())
-    } catch (ex: Exception) {
-        printWarn("OfflineReplay: library tab not redirected; online it can show the Downloads page: ${ex.message}")
-        null
-    }
-
     return {
         method.addInstruction(0, "invoke-static {p2}, $REPLAY->onTabNavigation(Ljava/lang/Object;)V")
-        if (builder != null) {
-            // In front of the hook above, so that it sees the command the tab really navigates with.
-            val first = method.getInstruction(0)
-            method.addInstructionsWithLabels(0, """
-                invoke-static {p1, p2}, $REPLAY->libraryTabRedirect(Ljava/lang/String;Ljava/lang/Object;)Z
-                move-result v0
-                if-eqz v0, :rvx_stock
-                const-string v0, "$LIBRARY_LANDING"
-                invoke-static {v0}, ${builder.definingClass}->${builder.name}(${STRING})${builder.returnType}
-                move-result-object p2
-            """, ExternalLabel("rvx_stock", first))
-        }
     }
 }
 

@@ -279,6 +279,7 @@ public final class AudioFirst {
                 return null;
             }
             Object rewritten = rebuildable.rvxWithBytes(result.command());
+            QueueItems.expectStart(arm.videoId(), tap.videoId);
             Logger.printDebug(() -> "AudioFirst: rewrote command v=" + tap.videoId + " -> " + arm.videoId()
                     + " type=" + result.type() + " hint=" + result.hint());
             return rewritten;

@@ -155,4 +155,22 @@ final class AudioFirstLogic {
     static String pillTarget(@Nullable String mode) {
         return isAudioMode(mode) ? "OMV_PREFERRED_USER_TRIGGERED" : "ATV_PREFERRED_USER_TRIGGERED";
     }
+
+    /**
+     * Where a queue the app has just built starts. The app starts at the item its server response marks as selected,
+     * and the response to a song's id marks none, so the queue would start at its first item whichever row was tapped.
+     *
+     * @param index The position the app chose, -1 or more.
+     * @param itemIds For every item of the new queue, the ids it is known by (empty when it is not tracked).
+     * @param wanted The ids of the row the user chose.
+     * @return The position of the first item known by one of the wanted ids, else {@code index}.
+     */
+    static int queueStart(int index, List<List<String>> itemIds, List<String> wanted) {
+        for (int position = 0; position < itemIds.size(); position++) {
+            for (String id : itemIds.get(position)) {
+                if (wanted.contains(id)) return position;
+            }
+        }
+        return index;
+    }
 }

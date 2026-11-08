@@ -21,8 +21,16 @@ import app.morphe.util.findMutableMethodOf
 import app.morphe.util.returnEarly
 import com.android.tools.smali.dexlib2.AccessFlags
 import com.android.tools.smali.dexlib2.Opcode
+import com.android.tools.smali.dexlib2.iface.ClassDef
 import com.android.tools.smali.dexlib2.iface.Method
+import com.android.tools.smali.dexlib2.iface.instruction.FiveRegisterInstruction
+import com.android.tools.smali.dexlib2.iface.instruction.Instruction
+import com.android.tools.smali.dexlib2.iface.instruction.OffsetInstruction
+import com.android.tools.smali.dexlib2.iface.instruction.OneRegisterInstruction
+import com.android.tools.smali.dexlib2.iface.instruction.RegisterRangeInstruction
+import com.android.tools.smali.dexlib2.iface.instruction.ThreeRegisterInstruction
 import com.android.tools.smali.dexlib2.iface.instruction.TwoRegisterInstruction
+import com.android.tools.smali.dexlib2.iface.reference.FieldReference
 import com.android.tools.smali.dexlib2.iface.reference.MethodReference
 import com.android.tools.smali.dexlib2.iface.reference.TypeReference
 
@@ -36,14 +44,15 @@ private const val QUEUE_ITEMS = "${AUDIO_FIRST_PATH}QueueItems;"
 private const val QUEUE_ITEM = $$"$${AUDIO_FIRST_PATH}QueueItems$Item;"
 private const val QUEUE_RENDERER = $$"$${AUDIO_FIRST_PATH}QueueItems$Renderer;"
 private const val ON_QUEUE_ITEM = "$QUEUE_ITEMS->onQueueItem(Ljava/lang/Object;)V"
-private const val PILL = $$"$${AUDIO_FIRST_PATH}QueueItems$Pill;"
-private const val ON_PILL_PRESS = "$QUEUE_ITEMS->onPillPress(Ljava/lang/Object;)Z"
+private const val PILL_OWNER = $$"$${AUDIO_FIRST_PATH}QueueItems$PillOwner;"
+private const val START_INDEX = "$QUEUE_ITEMS->startIndex(Ljava/util/List;I)I"
+private const val PILL_VIEW = $$"$${AUDIO_FIRST_PATH}QueueItems$PillView;"
+private const val ON_PILL_CLICK = "$QUEUE_ITEMS->onPillClick(Ljava/lang/Object;)Z"
 private const val PILL_ITEM = "$QUEUE_ITEMS->pillItem(Ljava/lang/Object;)Ljava/lang/Object;"
 private const val REGISTRY = "Lcom/google/protobuf/ExtensionRegistryLite;"
 private const val CAPTURE_HOLDER = "$AUDIO_FIRST->captureHolder(Ljava/lang/Object;)V"
 private const val OBJECT = "Ljava/lang/Object;"
 private const val MAX_SETTER_INSTRUCTIONS = 6
-private const val LEADING_HOOK_LIMIT = 8
 
 /** The five-value audio/video mode enum, found by the names of its constants. */
 private val audioVideoModeEnumFingerprint = Fingerprint(
@@ -77,7 +86,6 @@ private fun Method.callsOneObjectSubject(): Boolean {
  */
 internal fun BytecodePatchContext.installAudioFirst() {
     audioFirstResolved = false
-    trackedItemType = null
     try {
         val enumType = audioVideoModeEnumFingerprint.matchSingle().classDef.type
         val setter = Fingerprint(
@@ -266,7 +274,9 @@ private fun BytecodePatchContext.installQueueItemRetarget() {
 
         printInfo("AudioFirst: queue item tracking $itemType, renderer $rendererType, replacer ${replacer.name}, " +
             "toggle listener ${pill.classDef.type}->${pill.method.name}")
-        trackedItemType = itemType
+
+        installPillClick(item, pill.method.name, pill.classDef.type)
+        installQueueStart()
     } catch (ex: Exception) {
         printWarn("Start downloaded songs in audio mode cannot keep the next songs of an album on their song " +
             "renderers on this Music version: ${ex.message}")
@@ -280,27 +290,31 @@ private val pillPressFingerprint = Fingerprint(
 )
 
 /**
- * The pill's own press does nothing for an album item: the app changes the mode, and then reloads only a queue item
- * that has a counterpart, or, when its flag for it is off, follows the switch endpoint of the player response, which an
- * audio-only response of a song has not. So the press is taken over for a tracked item: the toggle's press method asks
- * the extension first, which changes the mode (the items then show the renderer of that mode) and has the toggle's
- * owner navigate to the item's own watch endpoint, as the app does for a tap on the row. The owner gets one bridge for
- * the navigation, through the executor its press method already navigates with: an interface method of the endpoint
- * alone (9.40.51, 9.15.51), or one of the endpoint, a context object and a null pair (8.30.54). The endpoint type is
- * the one the owner's one-argument calls of that kind take; the item gives the endpoint in a field of its watch
- * reference, the object its hash code is made of.
+ * The pill's own press does nothing for an album item: the click listener lets it through only when the toggle's gate
+ * is open, and the app then changes the mode and reloads only a queue item that has a counterpart, or, when its flag
+ * for it is off, follows the switch endpoint of the player response, which an audio-only response of a song has not.
+ * So the click is taken over, at the start of the listener, before any gate: the extension is asked first, and for the
+ * item being played, when it is tracked, it changes the mode (the items then show the renderer of that mode) and has
+ * the toggle's owner navigate to the item's own watch endpoint, as the app does for a tap on the row. Any other click
+ * is the app's.
  *
- * Resolved by shape: toggle press method `Lhvr.d` (9.40.51) / `Lnjz.e` (9.15.51) / `Lmwg.d` (8.30.54). Only this step
- * is skipped, with a warning, when anything is missing. It is installed once every patch has run, like the tap hook,
- * after the hook another patch (crossfade) puts at the start of the same method.
+ * Added to the toggle's view (the class of the item listener): `rvxOwner` (its field of the owner's type),
+ * `rvxCurrentItem` (the queue's current item, asked as the view asks it when it binds) and `rvxGate` (the boolean the
+ * listener tests before it shows its message, or -1 when it cannot be told). Added to the owner: `rvxNavigate`, through
+ * the executor its press method navigates with, an interface method of the endpoint alone (9.40.51, 9.15.51) or one of
+ * the endpoint, a context object and a null pair (8.30.54). The endpoint type is the one the owner's one-argument calls
+ * of that kind take; the item gives the endpoint in a field of its watch reference, the object its hash code is made
+ * of.
+ *
+ * Resolved by shape: listener `Lhvs.onClick` case 0 (9.40.51) / `Lnkd.onClick` (9.15.51) / `Lmwl.onClick` (8.30.54),
+ * the one that calls the owner's press method `Lhvr.d` / `Lnjz.e` / `Lmwg.d`. The hook goes right after the listener
+ * has its view, in the register that holds it, with a scratch register the listener overwrites before it reads it. Only this step is skipped, with a warning, when anything is missing.
  */
-internal fun BytecodePatchContext.installPillPress() {
-    val itemType = trackedItemType ?: return
-
+private fun BytecodePatchContext.installPillClick(item: ClassDef, listenerName: String, viewType: String) {
     try {
-        val item = classDefBy(itemType)
         val press = pillPressFingerprint.matchSingle()
         val owner = mutableClassDefBy(press.classDef.type)
+        val view = mutableClassDefBy(viewType)
 
         // The endpoint is what the owner's one-argument calls take. The item gives it by its watch reference: the
         // object its hash code is made of, which holds the endpoint in a field of its own.
@@ -349,7 +363,13 @@ internal fun BytecodePatchContext.installPillPress() {
             """
         }
 
-        owner.interfaces.add(PILL)
+        // The view: where the listener has it, its owner field, the boolean it tests before the owner's message, and
+        // how the view asks the queue for the current item.
+        val click = pillClickHook(owner.type, press.method.name, viewType)
+        val ownerField = view.fields.single { !AccessFlags.STATIC.isSet(it.accessFlags) && it.type == owner.type }
+        val current = currentItemCall(view, viewType, listenerName)
+
+        owner.interfaces.add(PILL_OWNER)
         owner.addDownloadsBridge("rvxNavigate", listOf(OBJECT), "V", 6, """
             check-cast p1, ${item.type}
             invoke-virtual {p1}, ${item.type}->${referenceMethod.name}()${referenceMethod.returnType}
@@ -361,28 +381,206 @@ internal fun BytecodePatchContext.installPillPress() {
             :done
             return-void
         """)
-        // The hook another patch (crossfade) puts at the start of this method ends in a nop its branch lands on: this
-        // one goes after that nop, and its branch lands on the first instruction the app's own code starts with. The
-        // target is an existing instruction: a label written into the inserted text lost its place when the method
-        // already had a hook of that kind.
-        val pressMethod = mutableClassDefBy(press.classDef.type).findMutableMethodOf(press.method)
-        val leading = pressMethod.implementation!!.instructions.take(LEADING_HOOK_LIMIT)
-        val after = if (leading.firstOrNull()?.opcode == Opcode.INVOKE_STATIC) leading.indexOfFirst {
-            it.opcode == Opcode.NOP
-        } + 1 else 0
-        pressMethod.addInstructionsWithLabels(after, """
-            invoke-static {p0}, $ON_PILL_PRESS
-            move-result v0
-            if-eqz v0, :rvx_stock
-            return-void
-        """, ExternalLabel("rvx_stock", pressMethod.getInstruction(after)))
 
-        printInfo("AudioFirst: pill press ${press.classDef.type}->${press.method.name}, navigates with " +
-            "${navigation.definingClass}->${navigation.name}, item reference ${referenceMethod.name}")
+        view.interfaces.add(PILL_VIEW)
+        view.addDownloadsBridge("rvxOwner", emptyList(), OBJECT, 2, """
+            iget-object v0, p0, $viewType->${ownerField.name}:${owner.type}
+            return-object v0
+        """)
+        view.addDownloadsBridge("rvxCurrentItem", emptyList(), OBJECT, 4, """
+            iget-object v0, p0, $viewType->${current.queueField.name}:${current.queueField.type}
+            iget-object v1, p0, $viewType->${current.flagField.name}:${current.flagField.type}
+            invoke-virtual {v1}, ${current.flag}
+            move-result v1
+            invoke-virtual {v0, v1}, ${current.item}
+            move-result-object v0
+            return-object v0
+        """)
+        view.addDownloadsBridge("rvxGate", emptyList(), "I", 2, if (click.gate == null) {
+            "const/4 v0, -0x1\nreturn v0"
+        } else {
+            "iget-boolean v0, p0, $viewType->${click.gate}:Z\nreturn v0"
+        })
+
+        val method = mutableClassDefBy(click.classType).findMutableMethodOf(click.method)
+        method.addInstructionsWithLabels(click.index, """
+            invoke-static {${click.view}}, $ON_PILL_CLICK
+            move-result ${click.scratch}
+            if-eqz ${click.scratch}, :rvx_stock
+            return-void
+        """, ExternalLabel("rvx_stock", method.getInstruction(click.index)))
+
+        printInfo("AudioFirst: pill click ${click.classType}->${click.method.name}, owner press " +
+            "${press.classDef.type}->${press.method.name}, navigates with ${navigation.definingClass}->" +
+            "${navigation.name}, item reference ${referenceMethod.name}, gate ${click.gate ?: "unreadable"}")
     } catch (ex: Exception) {
         printWarn("Start downloaded songs in audio mode cannot take over the song/video pill for the next songs " +
             "of an album on this Music version: ${ex.message}")
     }
+}
+
+/** The method that builds a queue from a server response: it ends in the constructor of (items, selected, index). */
+private val queueStartFingerprint = Fingerprint(
+    custom = { method, _ ->
+        method.implementation?.instructions?.any {
+            val call = it.getReference<MethodReference>()
+            call != null && call.name == "<init>" && call.parameterTypes.map(CharSequence::toString) ==
+                listOf("Ljava/util/List;", "Lj\$/util/Optional;", "I")
+        } == true
+    },
+)
+
+/**
+ * The queue of an album the app builds from the server's response starts at the item the response marks as selected,
+ * and the response to a song's id marks none, so a queue started from the song of the third row would start at the
+ * first. The method that builds the queue ends in the constructor of its result, which takes the list of items and the
+ * position the queue starts at: the extension may choose another position, the row the user chose.
+ *
+ * Resolved by shape: `Liar.J` (9.40.51) / `Lnyb` (9.15.51) / `Lnko` (8.30.54), the one method that calls a constructor
+ * of a list, an `Optional` and an int. Only this step is skipped, with a warning, when anything is missing.
+ */
+private fun BytecodePatchContext.installQueueStart() {
+    try {
+        val match = queueStartFingerprint.matchSingle()
+        val method = mutableClassDefBy(match.classDef.type).findMutableMethodOf(match.method)
+        val instructions = method.implementation!!.instructions.toList()
+        val index = instructions.indexOfFirst {
+            val call = it.getReference<MethodReference>()
+            call != null && call.name == "<init>" && call.parameterTypes.size == 3 &&
+                call.parameterTypes[2] == "I" && call.parameterTypes[0] == "Ljava/util/List;"
+        }
+        val call = instructions[index] as FiveRegisterInstruction
+        val firstParameter = method.implementation!!.registerCount - method.parameterTypes.size - 1
+        fun name(register: Int) = if (register >= firstParameter) "p${register - firstParameter}" else "v$register"
+
+        // invoke-direct {result, items, selected, position}
+        val items = name(call.registerD)
+        val position = name(call.registerF)
+        method.addInstructions(index, "invoke-static {$items, $position}, $START_INDEX\nmove-result $position")
+
+        printInfo("AudioFirst: queue start ${match.classDef.type}->${match.method.name}, items $items, position $position")
+    } catch (ex: Exception) {
+        printWarn("Start downloaded songs in audio mode cannot start an album queue at the tapped row on this Music " +
+            "version: ${ex.message}")
+    }
+}
+
+/** Where the pill's click listener gets its view, and what it tests before its message. */
+private class PillClickHook(
+    val classType: String,
+    val method: Method,
+    /** Index of the first instruction after the one that gives the listener its view. */
+    val index: Int,
+    /** Smali name of the register that holds the view there. */
+    val view: String,
+    /** Smali name of a register the listener overwrites before it reads it. */
+    val scratch: String,
+    /** The view's boolean the listener tests before it shows the owner's message, if there is one. */
+    val gate: String?,
+)
+
+/** How the pill's view asks the queue for the current item: a flag read from one object, then `queue.item(flag)`. */
+private class CurrentItemCall(
+    val queueField: FieldReference,
+    val flagField: FieldReference,
+    val flag: String,
+    val item: String,
+)
+
+private fun BytecodePatchContext.pillClickHook(
+    ownerType: String, pressName: String, viewType: String,
+): PillClickHook {
+    val clickMatch = Fingerprint(
+        name = "onClick",
+        returnType = "V",
+        custom = { method, classDef ->
+            classDef.interfaces.contains("Landroid/view/View\$OnClickListener;") &&
+                method.implementation?.instructions?.any {
+                    val call = it.getReference<MethodReference>()
+                    call != null && call.definingClass == ownerType && call.name == pressName &&
+                        call.parameterTypes.isEmpty()
+                } == true
+        },
+    ).matchSingle()
+
+    val clickMethod = clickMatch.method
+    val instructions = clickMethod.implementation!!.instructions.toList()
+    val firstParameter = clickMethod.implementation!!.registerCount - clickMethod.parameterTypes.size - 1
+    fun name(register: Int) = if (register >= firstParameter) "p${register - firstParameter}" else "v$register"
+
+    // The listener's first use of the owner's field of the view is where it tests the gate and shows its message.
+    val ownerIndex = instructions.indexOfFirst {
+        it.opcode == Opcode.IGET_OBJECT && it.getReference<FieldReference>()?.let { field ->
+            field.type == ownerType && field.definingClass == viewType
+        } == true
+    }
+    if (ownerIndex < 0) error("the listener does not read the owner from the view")
+
+    val ownerRead = instructions[ownerIndex] as TwoRegisterInstruction
+    val viewRegister = ownerRead.registerB
+    val gate = if (ownerIndex >= 2 && instructions[ownerIndex - 1] is OffsetInstruction &&
+        instructions[ownerIndex - 2].opcode == Opcode.IGET_BOOLEAN) {
+        instructions[ownerIndex - 2].getReference<FieldReference>()?.name
+    } else {
+        null
+    }
+
+    val viewIndex = (ownerIndex - 1 downTo 0).first {
+        (instructions[it] as? OneRegisterInstruction)?.registerA == viewRegister
+    }
+    val insertion = viewIndex + 1
+    val scratch = (0 until clickMethod.implementation!!.registerCount)
+        .filter { it != viewRegister }.firstOrNull { instructions.overwritesBeforeReading(insertion, it) }
+        ?: error("no register of the listener is free after it has its view")
+
+    return PillClickHook(clickMatch.classDef.type, clickMethod, insertion, name(viewRegister), name(scratch), gate)
+}
+
+/** The registers an instruction names. */
+private fun Instruction.registers(): List<Int> = when (this) {
+    is FiveRegisterInstruction -> listOf(registerC, registerD, registerE, registerF, registerG).take(registerCount)
+    is RegisterRangeInstruction -> (startRegister until startRegister + registerCount).toList()
+    is ThreeRegisterInstruction -> listOf(registerA, registerB, registerC)
+    is TwoRegisterInstruction -> listOf(registerA, registerB)
+    is OneRegisterInstruction -> listOf(registerA)
+    else -> emptyList()
+}
+
+private val DESTINATION_ONLY = setOf(
+    Opcode.IGET, Opcode.IGET_OBJECT, Opcode.IGET_BOOLEAN, Opcode.SGET, Opcode.SGET_OBJECT, Opcode.SGET_BOOLEAN,
+    Opcode.CONST_4, Opcode.CONST_16, Opcode.CONST, Opcode.NEW_INSTANCE, Opcode.MOVE_RESULT,
+    Opcode.MOVE_RESULT_OBJECT,
+)
+
+/** Whether straight-line code from [from] writes [register] before anything reads it, with no branch in between. */
+private fun List<Instruction>.overwritesBeforeReading(from: Int, register: Int): Boolean {
+    for (instruction in subList(from, size)) {
+        if (instruction is OffsetInstruction || !instruction.opcode.canContinue()) return false
+        if (register !in instruction.registers()) continue
+
+        val destination = (instruction as? OneRegisterInstruction)?.registerA
+        val source = (instruction as? TwoRegisterInstruction)?.registerB
+        return instruction.opcode in DESTINATION_ONLY && destination == register && source != register
+    }
+    return false
+}
+
+private fun currentItemCall(view: ClassDef, viewType: String, itemListenerName: String): CurrentItemCall {
+    val instructions = view.methods.flatMap { method -> method.implementation?.instructions?.toList().orEmpty() }
+    // `queue.item(flag)` is called right before the view's item listener gets its result, cast: it is the call three
+    // instructions above the listener, and the flag is the boolean call two instructions above that.
+    val listenerIndex = instructions.indexOfFirst {
+        it.getReference<MethodReference>()?.let { call ->
+            call.definingClass == viewType && call.name == itemListenerName && call.parameterTypes.size == 1
+        } == true
+    }
+    if (listenerIndex < 5) error("the view does not read the current item before its item listener")
+
+    val item = instructions[listenerIndex - 3].getReference<MethodReference>()!!
+    val flag = instructions[listenerIndex - 5].getReference<MethodReference>()!!
+    val queueField = view.fields.single { it.type == item.definingClass }
+    val flagField = view.fields.single { it.type == flag.definingClass }
+    return CurrentItemCall(queueField, flagField, flag.toString(), item.toString())
 }
 
 /**
@@ -420,5 +618,3 @@ internal fun BytecodePatchContext.installAudioFirstCommandHook() {
 
 private var audioFirstResolved = false
 
-/** The queue item class [installQueueItemRetarget] tracks, for [installPillPress]; null when it could not. */
-private var trackedItemType: String? = null

@@ -9,6 +9,8 @@ import static org.junit.Assert.*;
 
 import org.junit.Test;
 
+import java.util.List;
+
 public class AudioFirstLogicTest {
     private static final String USER_VIDEO = "OMV_PREFERRED_USER_TRIGGERED";
     private static final long TTL = AudioFirstLogic.ARM_TTL_MILLIS;
@@ -184,6 +186,24 @@ public class AudioFirstLogicTest {
         assertFalse(AudioFirstLogic.showsSong(true, null, true));
         assertFalse(AudioFirstLogic.showsSong(true, "ATV_PREFERRED", false));
         assertFalse(AudioFirstLogic.showsSong(false, "ATV_PREFERRED", true));
+    }
+
+    @Test
+    public void queueStartsAtTheFirstItemKnownByAWantedId() {
+        List<List<String>> items = List.of(List.of("v0", "s0"), List.of("v1", "s1"), List.of("v2", "s2"));
+
+        assertEquals(2, AudioFirstLogic.queueStart(0, items, List.of("s2", "v2")));
+        assertEquals(1, AudioFirstLogic.queueStart(0, items, List.of("v1")));
+        assertEquals(0, AudioFirstLogic.queueStart(0, items, List.of("s0")));
+    }
+
+    @Test
+    public void queueKeepsTheAppsStartWhenNoItemIsKnownByAWantedId() {
+        List<List<String>> items = List.of(List.of("v0", "s0"), List.of(), List.of("v2", "s2"));
+
+        assertEquals(1, AudioFirstLogic.queueStart(1, items, List.of("other")));
+        assertEquals(-1, AudioFirstLogic.queueStart(-1, items, List.of()));
+        assertEquals(0, AudioFirstLogic.queueStart(0, List.of(), List.of("s0")));
     }
 
     @Test

@@ -7,8 +7,11 @@ package app.morphe.patches.music.interaction.downloads
 
 import app.morphe.patcher.Fingerprint
 import app.morphe.patcher.extensions.InstructionExtensions.addInstructions
+import app.morphe.patcher.extensions.InstructionExtensions.addInstructionsWithLabels
+import app.morphe.patcher.extensions.InstructionExtensions.getInstruction
 import app.morphe.patcher.patch.BytecodePatchContext
 import app.morphe.patcher.util.getReference
+import app.morphe.patcher.util.smali.ExternalLabel
 import app.morphe.patches.music.interaction.playlisttracktap.CommandResolverFingerprint
 import app.morphe.patches.shared.misc.fix.proto.parseByteArrayMethodRef
 import app.morphe.util.Utils.printInfo
@@ -358,21 +361,21 @@ internal fun BytecodePatchContext.installPillPress() {
             :done
             return-void
         """)
-        // A hook added at the start with a branch (crossfade's, ending in a nop its branch lands on) keeps its target
-        // only while nothing is inserted before that nop: this one goes after it.
+        // The hook another patch (crossfade) puts at the start of this method ends in a nop its branch lands on: this
+        // one goes after that nop, and its branch lands on the first instruction the app's own code starts with. The
+        // target is an existing instruction: a label written into the inserted text lost its place when the method
+        // already had a hook of that kind.
         val pressMethod = mutableClassDefBy(press.classDef.type).findMutableMethodOf(press.method)
         val leading = pressMethod.implementation!!.instructions.take(LEADING_HOOK_LIMIT)
         val after = if (leading.firstOrNull()?.opcode == Opcode.INVOKE_STATIC) leading.indexOfFirst {
             it.opcode == Opcode.NOP
         } + 1 else 0
-        pressMethod.addInstructions(after, """
+        pressMethod.addInstructionsWithLabels(after, """
             invoke-static {p0}, $ON_PILL_PRESS
             move-result v0
             if-eqz v0, :rvx_stock
             return-void
-            :rvx_stock
-            nop
-        """)
+        """, ExternalLabel("rvx_stock", pressMethod.getInstruction(after)))
 
         printInfo("AudioFirst: pill press ${press.classDef.type}->${press.method.name}, navigates with " +
             "${navigation.definingClass}->${navigation.name}, item reference ${referenceMethod.name}")

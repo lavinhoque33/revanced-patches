@@ -40,6 +40,7 @@ private const val REGISTRY = "Lcom/google/protobuf/ExtensionRegistryLite;"
 private const val CAPTURE_HOLDER = "$AUDIO_FIRST->captureHolder(Ljava/lang/Object;)V"
 private const val OBJECT = "Ljava/lang/Object;"
 private const val MAX_SETTER_INSTRUCTIONS = 6
+private const val LEADING_HOOK_LIMIT = 8
 
 /** The five-value audio/video mode enum, found by the names of its constants. */
 private val audioVideoModeEnumFingerprint = Fingerprint(
@@ -287,8 +288,8 @@ private val pillPressFingerprint = Fingerprint(
  * reference, the object its hash code is made of.
  *
  * Resolved by shape: toggle press method `Lhvr.d` (9.40.51) / `Lnjz.e` (9.15.51) / `Lmwg.d` (8.30.54). Only this step
- * is skipped, with a warning, when anything is missing. It is installed once every patch has run, like the tap hook:
- * another patch (crossfade) hooks the same method at its start, and a hook added before it lost its branch target.
+ * is skipped, with a warning, when anything is missing. It is installed once every patch has run, like the tap hook,
+ * after the hook another patch (crossfade) puts at the start of the same method.
  */
 internal fun BytecodePatchContext.installPillPress() {
     val itemType = trackedItemType ?: return
@@ -357,7 +358,14 @@ internal fun BytecodePatchContext.installPillPress() {
             :done
             return-void
         """)
-        mutableClassDefBy(press.classDef.type).findMutableMethodOf(press.method).addInstructions(0, """
+        // A hook added at the start with a branch (crossfade's, ending in a nop its branch lands on) keeps its target
+        // only while nothing is inserted before that nop: this one goes after it.
+        val pressMethod = mutableClassDefBy(press.classDef.type).findMutableMethodOf(press.method)
+        val leading = pressMethod.implementation!!.instructions.take(LEADING_HOOK_LIMIT)
+        val after = if (leading.firstOrNull()?.opcode == Opcode.INVOKE_STATIC) leading.indexOfFirst {
+            it.opcode == Opcode.NOP
+        } + 1 else 0
+        pressMethod.addInstructions(after, """
             invoke-static {p0}, $ON_PILL_PRESS
             move-result v0
             if-eqz v0, :rvx_stock

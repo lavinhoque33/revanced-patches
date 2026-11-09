@@ -2,6 +2,7 @@
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
  * Written by lavinhoque33, 2026-11-08.
+ * Modified by lavinhoque33, 2026-11-09.
  */
 package app.morphe.extension.music.patches.downloads;
 
@@ -13,7 +14,8 @@ package app.morphe.extension.music.patches.downloads;
  * <p>Payload fields (decoded from the app's message info): 1 video id, 2 playlist id, 3 index, 10 a config message
  * whose field 6 is the music video type. The start time (7), the single-offline-video flag (config field 5) and the
  * wait flag (config field 7) are never written: the first would seek, the other two change how the app resolves the
- * endpoint. The type is the song (ATV) so the replay never resolves to the video mode.
+ * endpoint. The type is the song (ATV) so the replay never resolves to the video mode, except for the command of a
+ * song's music video (OMV), which names the video copy and is the counterpart of the song in a wrapper queue item.
  */
 final class OfflineWatchCommand {
     static final int ENDPOINT_FIELD = 57_703_777;
@@ -27,12 +29,17 @@ final class OfflineWatchCommand {
 
     /** The command bytes that start track {@code index} of {@code playlistId}, beginning with {@code videoId}. */
     static byte[] build(String videoId, String playlistId, int index) {
+        return build(videoId, playlistId, index, CommandRewrite.TYPE_ATV);
+    }
+
+    /** The same for a video of the given music video type: the song (ATV) or its music video (OMV). */
+    static byte[] build(String videoId, String playlistId, int index, int musicVideoType) {
         if (videoId == null || videoId.isEmpty()) throw new IllegalArgumentException("videoId is empty");
         if (playlistId == null || playlistId.isEmpty()) throw new IllegalArgumentException("playlistId is empty");
         if (index < 0) throw new IllegalArgumentException("index is negative: " + index);
 
         byte[] config = new ProtoWriter()
-                .int32(MUSIC_VIDEO_TYPE_FIELD, CommandRewrite.TYPE_ATV)
+                .int32(MUSIC_VIDEO_TYPE_FIELD, musicVideoType)
                 .toByteArray();
         byte[] endpoint = new ProtoWriter()
                 .string(VIDEO_ID_FIELD, videoId)

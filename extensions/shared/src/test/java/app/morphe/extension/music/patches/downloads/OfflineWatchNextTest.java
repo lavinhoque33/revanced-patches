@@ -2,6 +2,7 @@
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
  * Written by lavinhoque33, 2026-11-08.
+ * Modified by lavinhoque33, 2026-11-09.
  */
 package app.morphe.extension.music.patches.downloads;
 
@@ -215,5 +216,90 @@ public class OfflineWatchNextTest {
     @Test(expected = IllegalArgumentException.class)
     public void anItemWithoutAVideoIdIsRejected() {
         OfflineWatchNext.build(PLAYLIST, List.of(item("", "T", "A", "B", 1, null)), 0);
+    }
+
+    private static List<Item> itemsWithVideos() {
+        List<Item> items = items();
+        return List.of(items.get(0), items.get(1).withVideoCopy("VVVVVVVVVVV"), items.get(2));
+    }
+
+    private static byte[] wrapperOf(byte[] panel, int index) throws Exception {
+        return ProtoFields.one(ProtoFields.all(panel, 2).get(index), 206_848_145);
+    }
+
+    private static long typeOf(byte[] track) throws Exception {
+        byte[] endpoint = ProtoFields.one(ProtoFields.one(track, 7), 57_703_777);
+        return ProtoFields.varint(ProtoFields.one(endpoint, 10), 6);
+    }
+
+    @Test public void aSongWithAVideoCopyIsAWrapperAndTheOthersStayPlain() throws Exception {
+        byte[] panel = panel(OfflineWatchNext.build(PLAYLIST, itemsWithVideos(), 0));
+        List<byte[]> panelItems = ProtoFields.all(panel, 2);
+
+        assertEquals(List.of(51_779_701), ProtoFields.numbers(panelItems.get(0)));
+        assertEquals(List.of(206_848_145), ProtoFields.numbers(panelItems.get(1)));
+        assertEquals(List.of(51_779_701), ProtoFields.numbers(panelItems.get(2)));
+    }
+
+    @Test public void theWrapperHoldsTheSongAsPrimaryAndTheVideoAsTheOnlyCounterpart() throws Exception {
+        byte[] wrapper = wrapperOf(panel(OfflineWatchNext.build(PLAYLIST, itemsWithVideos(), 0)), 1);
+
+        assertEquals(List.of(1, 2), ProtoFields.numbers(wrapper));
+        byte[] primary = ProtoFields.one(ProtoFields.one(wrapper, 1), 51_779_701);
+        assertEquals("bbbbbbbbbbb", ProtoFields.string(primary, 10));
+        assertEquals(1, typeOf(primary));
+        assertArrayEquals(OfflineWatchCommand.build("bbbbbbbbbbb", PLAYLIST, 1), ProtoFields.one(primary, 7));
+
+        byte[] counterpart = ProtoFields.one(wrapper, 2);
+        assertEquals(List.of(2), ProtoFields.numbers(counterpart));
+        byte[] video = ProtoFields.one(ProtoFields.one(counterpart, 2), 51_779_701);
+        assertEquals("VVVVVVVVVVV", ProtoFields.string(video, 10));
+        assertEquals(2, typeOf(video));
+        assertArrayEquals(OfflineWatchCommand.build("VVVVVVVVVVV", PLAYLIST, 1, 2), ProtoFields.one(video, 7));
+    }
+
+    @Test public void theVideoIsShownWithTheDecorationOfItsSong() throws Exception {
+        byte[] wrapper = wrapperOf(panel(OfflineWatchNext.build(PLAYLIST, itemsWithVideos(), 0)), 1);
+        byte[] primary = ProtoFields.one(ProtoFields.one(wrapper, 1), 51_779_701);
+        byte[] video = ProtoFields.one(ProtoFields.one(ProtoFields.one(wrapper, 2), 2), 51_779_701);
+
+        assertEquals(texts(ProtoFields.one(primary, 1)), texts(ProtoFields.one(video, 1)));
+        assertEquals("Second", ProtoFields.string(ProtoFields.one(video, 1), 4));
+        assertEquals(texts(ProtoFields.one(primary, 4)), texts(ProtoFields.one(video, 4)));
+        assertEquals("2", texts(ProtoFields.one(video, 5)));
+    }
+
+    @Test public void theCurrentWrapperIsSelectedOnItsSongAndItsVideo() throws Exception {
+        byte[] wrapper = wrapperOf(panel(OfflineWatchNext.build(PLAYLIST, itemsWithVideos(), 1)), 1);
+        byte[] primary = ProtoFields.one(ProtoFields.one(wrapper, 1), 51_779_701);
+        byte[] video = ProtoFields.one(ProtoFields.one(ProtoFields.one(wrapper, 2), 2), 51_779_701);
+
+        assertEquals(1, ProtoFields.varint(primary, 6));
+        assertEquals(1, ProtoFields.varint(video, 6));
+    }
+
+    @Test public void theCurrentEndpointNamesTheVideoWhenTheVideoWasRequested() throws Exception {
+        byte[] response = OfflineWatchNext.build(PLAYLIST, itemsWithVideos(), 1, "VVVVVVVVVVV");
+
+        assertArrayEquals(OfflineWatchCommand.build("VVVVVVVVVVV", PLAYLIST, 1, 2), ProtoFields.one(response, 9));
+    }
+
+    @Test public void theCurrentEndpointNamesTheSongForAnyOtherRequest() throws Exception {
+        List<Item> items = itemsWithVideos();
+
+        assertArrayEquals(OfflineWatchCommand.build("bbbbbbbbbbb", PLAYLIST, 1),
+                ProtoFields.one(OfflineWatchNext.build(PLAYLIST, items, 1, "bbbbbbbbbbb"), 9));
+        assertArrayEquals(OfflineWatchCommand.build("bbbbbbbbbbb", PLAYLIST, 1),
+                ProtoFields.one(OfflineWatchNext.build(PLAYLIST, items, 1, "zzzzzzzzzzz"), 9));
+        assertArrayEquals(OfflineWatchCommand.build("bbbbbbbbbbb", PLAYLIST, 1),
+                ProtoFields.one(OfflineWatchNext.build(PLAYLIST, items, 1), 9));
+    }
+
+    @Test public void theCountAndOrderOfTheItemsDoNotChangeWithWrappers() throws Exception {
+        byte[] panel = panel(OfflineWatchNext.build(PLAYLIST, itemsWithVideos(), 2));
+
+        assertEquals(List.of(2, 2, 2, 3, 5, 6), ProtoFields.numbers(panel));
+        assertEquals(3, ProtoFields.varint(panel, 6));
+        assertEquals(2, ProtoFields.varint(panel, 3));
     }
 }

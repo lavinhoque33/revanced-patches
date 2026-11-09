@@ -2,6 +2,7 @@
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
  * Written by lavinhoque33, 2026-11-08.
+ * Modified by lavinhoque33, 2026-11-09.
  */
 package app.morphe.extension.music.patches.downloads;
 
@@ -87,5 +88,14 @@ public class OfflineWatchCommandTest {
     @Test(expected = IllegalArgumentException.class)
     public void aNegativeIndexIsRejected() {
         OfflineWatchCommand.build(VIDEO, PLAYLIST, -1);
+    }
+
+    @Test public void theMusicVideoTypeOfAVideoCommandIsTheVideosOnly() throws Exception {
+        byte[] endpoint = endpoint(OfflineWatchCommand.build(VIDEO, PLAYLIST, 3, 2));
+        byte[] config = ProtoFields.one(endpoint, 10);
+
+        assertEquals(List.of(1, 2, 3, 10), ProtoFields.numbers(endpoint));
+        assertEquals(2, ProtoFields.varint(config, 6));
+        assertEquals(VIDEO, ProtoFields.string(endpoint, 1));
     }
 }

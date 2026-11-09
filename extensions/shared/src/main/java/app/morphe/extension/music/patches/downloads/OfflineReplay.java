@@ -625,11 +625,14 @@ public final class OfflineReplay {
             return null;
         }
 
+        // The queue holds songs: a request for the music video of a song is a request for that song's item.
+        Map<String, String> videos = videoCopies();
+        String songId = OfflineReplayLogic.songOf(videoId, videos);
         String sourceId = sourceOf(playlistId);
         List<OfflineWatchNext.Item> items = sourceId == null ? List.of() : queueOf(sourceId);
-        int current = OfflineReplayLogic.currentIndex(items, videoId, index);
+        int current = OfflineReplayLogic.currentIndex(items, songId, index);
         if (current < 0) {
-            OfflineCopyFiles.Stored stored = OfflineCopyStore.find(videoId);
+            OfflineCopyFiles.Stored stored = OfflineCopyStore.find(songId);
             if (stored == null) {
                 logSkip(HOOK_NEXT, OfflineReplayLogic.REASON_NOT_OURS);
                 return null;
@@ -638,13 +641,28 @@ public final class OfflineReplay {
             items = List.of(OfflineReplayLogic.itemOf(stored.metadata()));
             current = 0;
         }
+        items = OfflineReplayLogic.withVideoCopies(items, videos);
 
         String queueId = playlistId == null || playlistId.isEmpty() ? playlistId(SONGS) : playlistId;
-        byte[] response = OfflineWatchNext.build(queueId, items, current);
+        byte[] response = OfflineWatchNext.build(queueId, items, current, videoId);
         int queued = items.size();
+        long wrappers = items.stream().filter(item -> item.videoCopyId() != null).count();
         Logger.printWarn(() -> "OfflineReplay: next v=" + videoId + " playlist=" + queueId + " items=" + queued
-                + " bytes=" + response.length);
+                + " withVideo=" + wrappers + " bytes=" + response.length);
         return response;
+    }
+
+    /**
+     * The committed video copies, music video id to song id; none when they cannot be read, so that a queue is
+     * always answered, as plain items. Off the main thread.
+     */
+    private static Map<String, String> videoCopies() {
+        try {
+            return VideoCopyStore.pairs();
+        } catch (Exception ex) {
+            Logger.printException(() -> "OfflineReplay: the video copies cannot be read, the queue has none", ex);
+            return Map.of();
+        }
     }
 
     // endregion

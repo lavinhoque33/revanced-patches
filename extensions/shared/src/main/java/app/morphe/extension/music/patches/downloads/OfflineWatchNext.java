@@ -2,6 +2,7 @@
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
  * Written by lavinhoque33, 2026-11-08.
+ * Modified by lavinhoque33, 2026-11-09.
  */
 package app.morphe.extension.music.patches.downloads;
 
@@ -22,17 +23,36 @@ import java.util.regex.Pattern;
  * response 7 -> contents 125354411 -> 7 -> renderer 91700600 -> 1 (tab list) -> 58174010 -> tab {2 title, 4 ->
  *   278751218 -> 1 -> renderer 50631000 -> playlist panel {2 items, 3 current index, 5 playlist id, 6 count}}
  * response 9 = the endpoint of the current track
- * item      = {51779701 -> track}
+ * item      = {51779701 -> track}, or, for a song that has a video copy, a wrapper {206848145 -> wrapper}
+ * wrapper   = {1 primary renderer {51779701 -> track of the song}, 2 counterpart {2 renderer {51779701 -> track of
+ *              the music video}}}
  * track     = {1 title, 2 byline, 3 thumbnail, 4 length, 5 position, 6 selected, 7 endpoint, 10 video id,
  *              12 short byline}
  * </pre>
  * The endpoint of every track is its offline watch command, so choosing a track (or Next, or auto-advance) makes an
  * offline request that the replay hooks answer from the stored copy.
+ *
+ * <p>The wrapper is the item the app builds for a song with a music video: with it the Song/Video pill is enabled and
+ * the queue shows the song renderer in an audio mode and the video renderer in a video mode (stock decodes: the
+ * primary's own music video type decides which of the two is the audio one, and nothing else is required). The
+ * song is the primary, with the song type, and the music video the counterpart, with the music video's id and type.
  */
 final class OfflineWatchNext {
-    /** One track of the queue. Only the video id is required; the rest only decorates the row. */
+    /**
+     * One track of the queue. Only the video id is required; the rest only decorates the row. A video copy id makes
+     * the item a wrapper whose counterpart is that music video, shown with the song's own decoration.
+     */
     record Item(String videoId, String title, String artist, String album, long durationMs,
-                @Nullable String thumbnailUrl) {}
+                @Nullable String thumbnailUrl, @Nullable String videoCopyId) {
+        Item(String videoId, String title, String artist, String album, long durationMs,
+             @Nullable String thumbnailUrl) {
+            this(videoId, title, artist, album, durationMs, thumbnailUrl, null);
+        }
+
+        Item withVideoCopy(@Nullable String videoCopyId) {
+            return new Item(videoId, title, artist, album, durationMs, thumbnailUrl, videoCopyId);
+        }
+    }
 
     static final int RESPONSE_CONTENTS_FIELD = 7;
     static final int RESPONSE_CURRENT_ENDPOINT_FIELD = 9;
@@ -51,6 +71,10 @@ final class OfflineWatchNext {
     static final int PANEL_PLAYLIST_ID_FIELD = 5;
     static final int PANEL_COUNT_FIELD = 6;
     static final int ITEM_TRACK_FIELD = 51_779_701;
+    static final int ITEM_WRAPPER_FIELD = 206_848_145;
+    static final int WRAPPER_PRIMARY_FIELD = 1;
+    static final int WRAPPER_COUNTERPART_FIELD = 2;
+    static final int COUNTERPART_RENDERER_FIELD = 2;
     static final int TRACK_TITLE_FIELD = 1;
     static final int TRACK_BYLINE_FIELD = 2;
     static final int TRACK_THUMBNAIL_FIELD = 3;
@@ -86,6 +110,14 @@ final class OfflineWatchNext {
      * {@code currentIndex}.
      */
     static byte[] build(String playlistId, List<Item> items, int currentIndex) {
+        return build(playlistId, items, currentIndex, null);
+    }
+
+    /**
+     * The same, with the current endpoint of the response naming {@code currentVideoId}, which is the song of the
+     * current item or its video copy; null for the song.
+     */
+    static byte[] build(String playlistId, List<Item> items, int currentIndex, @Nullable String currentVideoId) {
         if (playlistId == null || playlistId.isEmpty()) throw new IllegalArgumentException("playlistId is empty");
         if (items == null || items.isEmpty()) throw new IllegalArgumentException("a queue needs at least one item");
         if (currentIndex < 0 || currentIndex >= items.size()) {
@@ -107,18 +139,20 @@ final class OfflineWatchNext {
         byte[] contents = new ProtoWriter().message(CONTENTS_QUEUE_FIELD, queue).toByteArray();
 
         Item current = items.get(currentIndex);
+        boolean video = currentVideoId != null && currentVideoId.equals(current.videoCopyId());
+        byte[] endpoint = video
+                ? OfflineWatchCommand.build(current.videoCopyId(), playlistId, currentIndex, CommandRewrite.TYPE_OMV)
+                : OfflineWatchCommand.build(current.videoId(), playlistId, currentIndex);
         return new ProtoWriter()
                 .message(RESPONSE_CONTENTS_FIELD, contents)
-                .message(RESPONSE_CURRENT_ENDPOINT_FIELD,
-                        OfflineWatchCommand.build(current.videoId(), playlistId, currentIndex))
+                .message(RESPONSE_CURRENT_ENDPOINT_FIELD, endpoint)
                 .toByteArray();
     }
 
     private static byte[] panel(String playlistId, List<Item> items, int currentIndex) {
         ProtoWriter panel = new ProtoWriter();
         for (int index = 0; index < items.size(); index++) {
-            byte[] track = track(items.get(index), playlistId, index, index == currentIndex);
-            panel.message(PANEL_ITEMS_FIELD, new ProtoWriter().message(ITEM_TRACK_FIELD, track).toByteArray());
+            panel.message(PANEL_ITEMS_FIELD, panelItem(items.get(index), playlistId, index, index == currentIndex));
         }
         return panel
                 .int32(PANEL_CURRENT_INDEX_FIELD, currentIndex)
@@ -127,8 +161,29 @@ final class OfflineWatchNext {
                 .toByteArray();
     }
 
-    private static byte[] track(Item item, String playlistId, int index, boolean selected) {
-        if (item.videoId() == null || item.videoId().isEmpty()) throw new IllegalArgumentException("videoId is empty");
+    /** The panel item of a track: the plain item, or the wrapper of a song with a video copy. */
+    private static byte[] panelItem(Item item, String playlistId, int index, boolean selected) {
+        byte[] song = track(item, item.videoId(), CommandRewrite.TYPE_ATV, playlistId, index, selected);
+        String copy = item.videoCopyId();
+        if (copy == null || copy.isEmpty()) return new ProtoWriter().message(ITEM_TRACK_FIELD, song).toByteArray();
+
+        byte[] video = track(item, copy, CommandRewrite.TYPE_OMV, playlistId, index, selected);
+        byte[] counterpart = new ProtoWriter().message(COUNTERPART_RENDERER_FIELD, renderer(video)).toByteArray();
+        byte[] wrapper = new ProtoWriter()
+                .message(WRAPPER_PRIMARY_FIELD, renderer(song))
+                .message(WRAPPER_COUNTERPART_FIELD, counterpart)
+                .toByteArray();
+        return new ProtoWriter().message(ITEM_WRAPPER_FIELD, wrapper).toByteArray();
+    }
+
+    /** A renderer holder: the message that carries a track as its one extension. */
+    private static byte[] renderer(byte[] track) {
+        return new ProtoWriter().message(ITEM_TRACK_FIELD, track).toByteArray();
+    }
+
+    private static byte[] track(Item item, String videoId, int musicVideoType, String playlistId, int index,
+                                boolean selected) {
+        if (videoId == null || videoId.isEmpty()) throw new IllegalArgumentException("videoId is empty");
 
         ProtoWriter track = new ProtoWriter().message(TRACK_TITLE_FIELD, plainText(nullToEmpty(item.title())));
 
@@ -142,8 +197,8 @@ final class OfflineWatchNext {
         return track
                 .message(TRACK_POSITION_FIELD, runsText(String.valueOf(index + 1)))
                 .bool(TRACK_SELECTED_FIELD, selected)
-                .message(TRACK_ENDPOINT_FIELD, OfflineWatchCommand.build(item.videoId(), playlistId, index))
-                .string(TRACK_VIDEO_ID_FIELD, item.videoId())
+                .message(TRACK_ENDPOINT_FIELD, OfflineWatchCommand.build(videoId, playlistId, index, musicVideoType))
+                .string(TRACK_VIDEO_ID_FIELD, videoId)
                 .message(TRACK_SHORT_BYLINE_FIELD, plainText(nullToEmpty(item.artist())))
                 .toByteArray();
     }

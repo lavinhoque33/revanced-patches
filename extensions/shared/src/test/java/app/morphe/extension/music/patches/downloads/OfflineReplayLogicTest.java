@@ -2,6 +2,7 @@
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
  * Written by lavinhoque33, 2026-11-08.
+ * Modified by lavinhoque33, 2026-11-09.
  */
 package app.morphe.extension.music.patches.downloads;
 
@@ -322,5 +323,48 @@ public class OfflineReplayLogicTest {
         List<String> ids = new ArrayList<>();
         for (OfflineWatchNext.Item item : items) ids.add(item.videoId());
         return ids;
+    }
+
+    @Test public void onlyTheSongsWithAVideoCopyGetItsVideo() {
+        List<OfflineWatchNext.Item> items = itemsOf("a", "b", "c");
+
+        List<OfflineWatchNext.Item> wrapped = OfflineReplayLogic.withVideoCopies(items, Map.of("vb", "b"));
+
+        assertEquals(List.of("a", "b", "c"), idsOf(wrapped));
+        assertNull(wrapped.get(0).videoCopyId());
+        assertEquals("vb", wrapped.get(1).videoCopyId());
+        assertNull(wrapped.get(2).videoCopyId());
+    }
+
+    @Test public void noVideoCopiesLeavesTheItemsAsTheyWere() {
+        List<OfflineWatchNext.Item> items = itemsOf("a", "b");
+
+        assertSame(items, OfflineReplayLogic.withVideoCopies(items, Map.of()));
+    }
+
+    @Test public void aVideoCopyOfAnotherSongIsIgnoredAndACopyNeverPointsAtItself() {
+        List<OfflineWatchNext.Item> items = itemsOf("a", "b");
+
+        List<OfflineWatchNext.Item> wrapped = OfflineReplayLogic.withVideoCopies(items,
+                Map.of("vz", "z", "b", "b"));
+
+        assertNull(wrapped.get(0).videoCopyId());
+        assertNull(wrapped.get(1).videoCopyId());
+    }
+
+    @Test public void aRequestForAMusicVideoNamesItsSong() {
+        Map<String, String> videos = Map.of("vb", "b");
+
+        assertEquals("b", OfflineReplayLogic.songOf("vb", videos));
+        assertEquals("b", OfflineReplayLogic.songOf("b", videos));
+        assertEquals("q", OfflineReplayLogic.songOf("q", videos));
+    }
+
+    @Test public void theQueueIndexOfAVideoRequestIsTheOneOfItsSong() {
+        List<OfflineWatchNext.Item> items = itemsOf("a", "b", "c");
+        Map<String, String> videos = Map.of("vc", "c");
+
+        assertEquals(2, OfflineReplayLogic.currentIndex(items, OfflineReplayLogic.songOf("vc", videos), 2));
+        assertEquals(-1, OfflineReplayLogic.currentIndex(items, "vc", 2));
     }
 }

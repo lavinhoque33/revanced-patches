@@ -2,6 +2,7 @@
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
  * Written by lavinhoque33, 2026-11-08.
+ * Modified by lavinhoque33, 2026-11-09.
  */
 package app.morphe.extension.music.patches.downloads;
 
@@ -14,6 +15,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.ConcurrentMap;
 import java.util.Map;
@@ -324,6 +326,36 @@ final class OfflineReplayLogic {
         List<OfflineWatchNext.Item> items = new ArrayList<>(sorted.size());
         for (OfflineCopyMetadata copy : sorted) items.add(itemOf(copy));
         return items;
+    }
+
+    /**
+     * The items with the music video of every song that has a video copy: those items are wrappers whose counterpart
+     * is the video. The others stay as they are.
+     *
+     * @param videoToSong The committed video copies, music video id to the id of the song they belong to.
+     */
+    static List<OfflineWatchNext.Item> withVideoCopies(List<OfflineWatchNext.Item> items,
+                                                       Map<String, String> videoToSong) {
+        if (videoToSong.isEmpty()) return items;
+
+        Map<String, String> videoOfSong = new HashMap<>();
+        for (Map.Entry<String, String> pair : videoToSong.entrySet()) videoOfSong.put(pair.getValue(), pair.getKey());
+
+        List<OfflineWatchNext.Item> wrapped = new ArrayList<>(items.size());
+        for (OfflineWatchNext.Item item : items) {
+            String video = videoOfSong.get(item.videoId());
+            wrapped.add(video == null || video.equals(item.videoId()) ? item : item.withVideoCopy(video));
+        }
+        return wrapped;
+    }
+
+    /**
+     * The song a request names: the id itself, or the song of the video copy when the id is a music video that has
+     * one. The queue of a list holds songs, so a request for a song's video is the request for that song's item.
+     */
+    static String songOf(String videoId, Map<String, String> videoToSong) {
+        String song = videoToSong.get(videoId);
+        return song == null ? videoId : song;
     }
 
     static OfflineWatchNext.Item itemOf(OfflineCopyMetadata copy) {

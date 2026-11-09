@@ -61,6 +61,30 @@ public final class OfflineReplayHooks {
         }
     }
 
+    /** Injection point: the success callback of the browse controller: a page the user opened. */
+    public static void onBrowseResponse(String browseId, Object result) {
+        if (!usable()) return;
+
+        try {
+            OfflineReplay.onBrowseResponse(browseId, result);
+        } catch (Throwable failure) {
+            disable("browse capture", failure);
+        }
+    }
+
+    /** Injection point: a browse failed. The recorded page of a downloaded list, or null to let it fail. */
+    @Nullable
+    public static byte[] answerBrowse(String browseId) {
+        if (!usable()) return null;
+
+        try {
+            return OfflineReplay.answerBrowse(browseId);
+        } catch (Throwable failure) {
+            disable("browse replay", failure);
+            return null;
+        }
+    }
+
     /** Injection point: the seek snap of the player for a drag on the progress bar, in milliseconds. */
     public static long seekSnap(long snappedMillis) {
         if (!usable()) return snappedMillis;

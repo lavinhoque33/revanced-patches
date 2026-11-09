@@ -13,6 +13,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -57,6 +58,7 @@ final class OfflineCopyStore {
         Utils.runOnBackgroundThread(() -> {
             Storage.copies.ensureLoaded();
             Storage.sources.ensureLoaded();
+            OfflineBrowsePages.load();
         });
     }
 
@@ -73,6 +75,14 @@ final class OfflineCopyStore {
     static boolean hasSource(String sourceId) {
         warmUp();
         return Storage.sources.ids().contains(sourceId);
+    }
+
+    /** The song ids of every remembered source, by source id. In memory, empty until loaded. */
+    static Map<String, List<String>> tracksBySource() {
+        warmUp();
+        Map<String, List<String>> tracks = new HashMap<>();
+        for (OfflineSourceStore.Source source : Storage.sources.sources()) tracks.put(source.id(), source.videoIds());
+        return tracks;
     }
 
     /** Whether the copy has stored data. In memory, so the main thread may ask. */
@@ -327,6 +337,7 @@ final class OfflineCopyStore {
         try {
             Storage.copies.clear();
             Storage.sources.clear();
+            OfflineBrowsePages.retainOnly(Collections.emptySet());
         } catch (Exception ex) {
             Logger.printException(() -> "OfflineCopyStore: could not clear the stored data", ex);
         }
@@ -341,6 +352,7 @@ final class OfflineCopyStore {
         try {
             Storage.copies.retainOnly(copyIds, copyIdsReadAt);
             Storage.sources.retainWithCopies(copyIds);
+            OfflineBrowsePages.retainOnly(Storage.sources.ids());
         } catch (Exception ex) {
             Logger.printException(() -> "OfflineCopyStore: could not clean up the stored data", ex);
         }

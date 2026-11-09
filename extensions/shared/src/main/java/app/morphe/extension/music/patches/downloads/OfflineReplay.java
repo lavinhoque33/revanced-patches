@@ -65,6 +65,7 @@ public final class OfflineReplay {
     private static final String HOOK_NEXT = "next";
     private static final String HOOK_COMMAND = "command";
     private static final String HOOK_SEEK = "seek";
+    private static final String HOOK_BROWSE = "browse";
     private static final String HOOK_GATE_FLAG = "gate-flag";
 
     private static final ConcurrentMap<String, Long> skipLoggedAt = new ConcurrentHashMap<>();
@@ -283,20 +284,22 @@ public final class OfflineReplay {
     }
 
     private static boolean takeOffline(byte[] command, @Nullable String browseId) {
-        String watchId = browseId == null ? OfflineReplayLogic.plainWatchOf(command) : null;
-        if (browseId == null && watchId == null) return false;
+        OfflineReplayLogic.WatchTarget watch = browseId == null ? OfflineReplayLogic.onlineWatchOf(command) : null;
+        if (browseId == null && watch == null) return false;
 
-        OfflineReplayLogic.Route route = OfflineReplayLogic.routeOf(networkAvailable(), browseId, watchId,
-                id -> OfflineCopyStore.hasSource(id), id -> false, OfflineCopyStore::has);
-        switch (route) {
+        Map<String, List<String>> tracks = OfflineCopyStore.tracksBySource();
+        OfflineReplayLogic.Decision decision = OfflineReplayLogic.routeOf(networkAvailable(), browseId, watch, SONGS,
+                tracks::containsKey, OfflineBrowsePages::has, OfflineCopyStore::has,
+                target -> OfflineReplayLogic.sourceOfPlaylist(target.playlistId(), target.videoId(), tracks));
+        switch (decision.route()) {
             case PLAY_SOURCE -> {
-                String sourceId = OfflineReplayLogic.sourceOfBrowseId(browseId);
-                logDecision(HOOK_COMMAND, "offline browse of " + sourceId + " plays the list");
-                return play(sourceId, 0);
+                logDecision(HOOK_COMMAND, "offline browse or watch of " + decision.sourceId() + " plays the list");
+                return play(decision.sourceId(), 0);
             }
-            case PLAY_SONG -> {
-                logDecision(HOOK_COMMAND, "offline watch of " + watchId + " plays the copy");
-                return playSong(watchId);
+            case PLAY_TRACK -> {
+                logDecision(HOOK_COMMAND, "offline watch of " + decision.videoId() + " in " + decision.sourceId()
+                        + " plays the copy");
+                return playTrack(decision.sourceId(), decision.videoId());
             }
             default -> {
                 return false;
@@ -304,26 +307,86 @@ public final class OfflineReplay {
         }
     }
 
-    /** Starts a song with stored data from the all-songs queue, with no network. On the main thread. */
-    private static boolean playSong(String videoId) {
+    /** Starts a song with stored data as a track of the list's offline queue, with no network. Main thread. */
+    private static boolean playTrack(String sourceId, String videoId) {
         if (!canDispatch()) return false;
 
         logDecision(HOOK_COMMAND, "audio mode: " + AudioFirst.startAudioMode());
         Utils.runOnBackgroundThread(() -> {
             try {
-                List<OfflineWatchNext.Item> items = queueOf(SONGS);
+                List<OfflineWatchNext.Item> items = queueOf(sourceId);
                 int index = OfflineReplayLogic.currentIndex(items, videoId, -1);
-                byte[] command = index < 0 ? null : offlineCommand(SONGS, index);
+                byte[] command = index < 0 ? null : offlineCommand(sourceId, index);
                 if (command == null) {
-                    Logger.printWarn(() -> "OfflineReplay: no stored song " + videoId);
+                    Logger.printWarn(() -> "OfflineReplay: no stored song " + videoId + " in " + sourceId);
                     return;
                 }
                 dispatchCommand(command);
             } catch (Exception ex) {
-                Logger.printException(() -> "OfflineReplay: could not start " + videoId, ex);
+                Logger.printException(() -> "OfflineReplay: could not start " + videoId + " of " + sourceId, ex);
             }
         });
         return true;
+    }
+
+    /**
+     * Injection point: the success callback of the app's browse controller, on the main thread. Records the page of a
+     * downloaded list the user opened while online, to open it again with no network. The serialization and the
+     * write run on a worker thread: the response is immutable.
+     */
+    static void onBrowseResponse(String browseId, Object result) {
+        if (!enabled() || browseId == null) return;
+
+        if (!OfflineBrowsePagesLogic.recordable(browseId, OfflineCopyStore::hasSource)) return;
+
+        if (!networkAvailable()) return; // A replayed page is the recorded one: nothing new.
+
+        if (!(result instanceof OfflineBrowsePages.Bytes holder)) {
+            Logger.printWarn(() -> "OfflineReplay: the browse result of " + browseId + " has no bytes bridge");
+            return;
+        }
+
+        String sourceId = OfflineReplayLogic.sourceOfBrowseId(browseId);
+        Utils.runOnBackgroundThread(() -> {
+            try {
+                byte[] response = holder.rvxBrowseBytes();
+                if (OfflineBrowsePagesLogic.isContinuation(response)) {
+                    logDecision(HOOK_BROWSE, "not recorded: " + browseId + " is a continuation");
+                    return;
+                }
+
+                int updates = OfflineBrowsePagesLogic.frameworkUpdatesSize(response);
+                int written = OfflineBrowsePages.write(sourceId, response);
+                logDecision(HOOK_BROWSE, "recorded " + browseId + " bytes=" + response.length + " frameworkUpdates="
+                        + updates + " stored=" + written + " fields=" + OfflineBrowsePagesLogic.fieldSizes(response));
+            } catch (Exception ex) {
+                Logger.printException(() -> "OfflineReplay: could not record the page of " + browseId, ex);
+            }
+        });
+    }
+
+    /**
+     * Injection point: the browse of a page failed. The recorded page of a downloaded list answers it while there is
+     * no network; every other failure, an online one included, stays the app's.
+     *
+     * @return the recorded browse response, or null.
+     */
+    @Nullable
+    static byte[] answerBrowse(String browseId) {
+        if (!enabled() || browseId == null) return null;
+
+        if (networkAvailable()) return null;
+
+        String sourceId = OfflineReplayLogic.sourceOfBrowseId(browseId);
+        if (!OfflineBrowsePages.has(sourceId)) {
+            logDecision(HOOK_BROWSE, "no recorded page for " + browseId);
+            return null;
+        }
+
+        byte[] response = OfflineBrowsePages.read(sourceId);
+        logDecision(HOOK_BROWSE, "replay " + browseId + " bytes=" + (response == null ? -1 : response.length)
+                + " thread=" + (Utils.isCurrentlyOnMainThread() ? "main" : "worker"));
+        return response;
     }
 
     /**

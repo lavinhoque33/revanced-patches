@@ -12,6 +12,7 @@ import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
@@ -238,16 +239,26 @@ public class OfflineReplayLogicTest {
 
     // region routes
 
-    private static OfflineReplayLogic.Route route(boolean online, String browseId, String watchId, boolean page) {
-        return OfflineReplayLogic.routeOf(online, browseId, watchId, id -> id.equals("PLa"), id -> page,
-                id -> id.equals("x"));
+    private static final Map<String, List<String>> TRACKS = Map.of(
+            "PLa", List.of("x", "y"), "MPREb_c", List.of("z"));
+
+    private static OfflineReplayLogic.Decision route(boolean online, String browseId, byte[] watchCommand,
+                                                     boolean page) {
+        OfflineReplayLogic.WatchTarget watch = watchCommand == null ? null
+                : OfflineReplayLogic.onlineWatchOf(watchCommand);
+        return OfflineReplayLogic.routeOf(online, browseId, watch, "songs", TRACKS::containsKey, id -> page,
+                id -> id.equals("x") || id.equals("z"),
+                target -> OfflineReplayLogic.sourceOfPlaylist(target.playlistId(), target.videoId(), TRACKS));
     }
 
-    @Test public void aPlainWatchIsTheOneWithNothingButAVideoId() {
-        assertEquals("x", OfflineReplayLogic.plainWatchOf(OnlineWatchCommand.build("x", null, 0)));
-        assertNull(OfflineReplayLogic.plainWatchOf(OnlineWatchCommand.build("x", "PLa", 3)));
-        assertNull(OfflineReplayLogic.plainWatchOf(OfflineLibraryLogic.browseCommand("VLPLa")));
-        assertNull(OfflineReplayLogic.plainWatchOf(new byte[]{(byte) 0xff}));
+    @Test public void anOnlineWatchNamesItsVideoPlaylistAndPlace() {
+        assertEquals(new OfflineReplayLogic.WatchTarget("x", "", 0),
+                OfflineReplayLogic.onlineWatchOf(OnlineWatchCommand.build("x", null, 0)));
+        assertEquals(new OfflineReplayLogic.WatchTarget("x", "PLa", 3),
+                OfflineReplayLogic.onlineWatchOf(OnlineWatchCommand.build("x", "PLa", 3)));
+
+        assertNull(OfflineReplayLogic.onlineWatchOf(OfflineLibraryLogic.browseCommand("VLPLa")));
+        assertNull(OfflineReplayLogic.onlineWatchOf(new byte[]{(byte) 0xff}));
     }
 
     @Test public void aSourceIsNamedWithOrWithoutThePlaylistPrefix() {
@@ -256,25 +267,47 @@ public class OfflineReplayLogicTest {
         assertEquals("MPREb_c", OfflineReplayLogic.sourceOfBrowseId("MPREb_c"));
     }
 
+    @Test public void aPlaylistWatchBelongsToTheListWithThatIdOrTheAlbumHoldingTheSong() {
+        assertEquals("PLa", OfflineReplayLogic.sourceOfPlaylist("PLa", "x", TRACKS));
+        assertEquals("MPREb_c", OfflineReplayLogic.sourceOfPlaylist("OLAK5uy_q", "z", TRACKS));
+        assertNull(OfflineReplayLogic.sourceOfPlaylist("OLAK5uy_q", "other", TRACKS));
+        assertNull(OfflineReplayLogic.sourceOfPlaylist("PLother", "x", TRACKS));
+    }
+
     @Test public void onlineEveryCommandStaysTheApps() {
-        assertEquals(OfflineReplayLogic.Route.STOCK, route(true, "VLPLa", null, false));
-        assertEquals(OfflineReplayLogic.Route.STOCK, route(true, null, "x", false));
+        assertEquals(OfflineReplayLogic.Decision.STOCK, route(true, "VLPLa", null, false));
+        assertEquals(OfflineReplayLogic.Decision.STOCK,
+                route(true, null, OnlineWatchCommand.build("x", "PLa", 0), false));
     }
 
     @Test public void offlineTheBrowseOfADownloadedListPlaysItUnlessAPageWasRecorded() {
-        assertEquals(OfflineReplayLogic.Route.PLAY_SOURCE, route(false, "VLPLa", null, false));
-        assertEquals(OfflineReplayLogic.Route.STOCK, route(false, "VLPLa", null, true));
+        assertEquals(new OfflineReplayLogic.Decision(OfflineReplayLogic.Route.PLAY_SOURCE, "PLa", null),
+                route(false, "VLPLa", null, false));
+        assertEquals(OfflineReplayLogic.Decision.STOCK, route(false, "VLPLa", null, true));
     }
 
     @Test public void offlineOtherPagesAndUnknownListsStayTheApps() {
-        assertEquals(OfflineReplayLogic.Route.STOCK, route(false, "FEmusic_offline", null, false));
-        assertEquals(OfflineReplayLogic.Route.STOCK, route(false, "VLPLother", null, false));
-        assertEquals(OfflineReplayLogic.Route.STOCK, route(false, null, null, false));
+        assertEquals(OfflineReplayLogic.Decision.STOCK, route(false, "FEmusic_offline", null, false));
+        assertEquals(OfflineReplayLogic.Decision.STOCK, route(false, "VLPLother", null, false));
+        assertEquals(OfflineReplayLogic.Decision.STOCK, route(false, null, null, false));
     }
 
-    @Test public void offlineTheWatchOfADownloadedSongPlaysItsCopy() {
-        assertEquals(OfflineReplayLogic.Route.PLAY_SONG, route(false, null, "x", false));
-        assertEquals(OfflineReplayLogic.Route.STOCK, route(false, null, "no-copy", false));
+    @Test public void offlineTheWatchOfADownloadedSongPlaysItsCopyAsATrackOfItsList() {
+        assertEquals(new OfflineReplayLogic.Decision(OfflineReplayLogic.Route.PLAY_TRACK, "songs", "x"),
+                route(false, null, OnlineWatchCommand.build("x", null, 0), false));
+        assertEquals(new OfflineReplayLogic.Decision(OfflineReplayLogic.Route.PLAY_TRACK, "PLa", "x"),
+                route(false, null, OnlineWatchCommand.build("x", "PLa", 4), true));
+        assertEquals(new OfflineReplayLogic.Decision(OfflineReplayLogic.Route.PLAY_TRACK, "MPREb_c", "z"),
+                route(false, null, OnlineWatchCommand.build("z", "OLAK5uy_q", 0), true));
+    }
+
+    @Test public void offlineAWatchOfASongWithNoCopyStartsItsListOrStaysTheApps() {
+        assertEquals(new OfflineReplayLogic.Decision(OfflineReplayLogic.Route.PLAY_SOURCE, "PLa", null),
+                route(false, null, OnlineWatchCommand.build("y", "PLa", 1), true));
+        assertEquals(OfflineReplayLogic.Decision.STOCK,
+                route(false, null, OnlineWatchCommand.build("no-copy", null, 0), false));
+        assertEquals(OfflineReplayLogic.Decision.STOCK,
+                route(false, null, OnlineWatchCommand.build("x", "PLother", 1), false));
     }
 
     // endregion

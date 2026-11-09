@@ -16,6 +16,8 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.ConcurrentMap;
+import java.util.Map;
+import java.util.function.Function;
 import java.util.function.Predicate;
 
 /**
@@ -38,6 +40,8 @@ final class OfflineReplayLogic {
     private static final String QUEUE_PLAYLIST_PREFIX = "PPSVrvx:";
     /** An album page's browse id: not a playlist id, so an online watch command must not carry it. */
     private static final String ALBUM_BROWSE_PREFIX = "MPREb_";
+    /** The playlist id of an album's audio playlist, which the watch of a song on an album page carries. */
+    private static final String AUDIO_PLAYLIST_PREFIX = "OLAK5uy_";
     private static final long SKIP_LOG_INTERVAL_MS = 60_000L;
     private static final int OFFLINE_RESPONSE_FIELD = OfflineReplayResponse.OFFLINE_MARKER_FIELD;
 
@@ -170,66 +174,112 @@ final class OfflineReplayLogic {
     }
 
     /**
-     * The video of a plain watch command: the app's watch endpoint with nothing but a video id, the command of a song
-     * row of the Downloads page. Null for any other command, a watch of a playlist or one with params included.
+     * What the app's watch endpoint of a command names: the video, and the playlist and position when it has them
+     * (the playlist id is empty for a song that plays on its own). Null when the command has no watch endpoint.
      */
     @Nullable
-    static String plainWatchOf(byte[] command) {
+    static WatchTarget onlineWatchOf(byte[] command) {
         try {
             byte[] endpoint = lengthDelimitedField(command, CommandRewrite.WATCH_ENDPOINT_FIELD);
             if (endpoint == null) return null;
 
-            String videoId = null;
+            String videoId = "";
+            String playlistId = "";
+            int index = 0;
             CodedInputStream input = CodedInputStream.newInstance(endpoint);
             while (!input.isAtEnd()) {
                 int tag = input.readTag();
-                boolean video = WireFormat.getTagFieldNumber(tag) == VIDEO_ID_FIELD
-                        && WireFormat.getTagWireType(tag) == WireFormat.WIRETYPE_LENGTH_DELIMITED;
-                if (!video) return null;
-
-                videoId = input.readStringRequireUtf8();
+                int field = WireFormat.getTagFieldNumber(tag);
+                int wireType = WireFormat.getTagWireType(tag);
+                if (field == VIDEO_ID_FIELD && wireType == WireFormat.WIRETYPE_LENGTH_DELIMITED) {
+                    videoId = input.readStringRequireUtf8();
+                } else if (field == OnlineWatchCommand.PLAYLIST_ID_FIELD
+                        && wireType == WireFormat.WIRETYPE_LENGTH_DELIMITED) {
+                    playlistId = input.readStringRequireUtf8();
+                } else if (field == OnlineWatchCommand.INDEX_FIELD && wireType == WireFormat.WIRETYPE_VARINT) {
+                    index = input.readInt32();
+                } else if (!input.skipField(tag)) {
+                    break;
+                }
             }
-            return videoId == null || videoId.isEmpty() ? null : videoId;
+            return videoId.isEmpty() ? null : new WatchTarget(videoId, playlistId, index);
         } catch (IOException ex) {
             return null;
         }
     }
 
-    /** What the app's own command of a tap in the Downloads page becomes at the moment it is dispatched. */
+    /** What the app's own command of a tap in the Downloads page, or of a recorded page, becomes when it runs. */
     enum Route {
         /** The app runs the command as it is. */
         STOCK,
         /** The command is dropped and the downloaded list plays from its first song, with no network. */
         PLAY_SOURCE,
-        /** The command is dropped and the downloaded song plays from its copy, with no network. */
-        PLAY_SONG
+        /** The command is dropped and the song plays from its copy as a track of the list, with no network. */
+        PLAY_TRACK
+    }
+
+    /** A decision: what to do, and for which list and song (null where the route does not use them). */
+    record Decision(Route route, @Nullable String sourceId, @Nullable String videoId) {
+        static final Decision STOCK = new Decision(Route.STOCK, null, null);
     }
 
     /**
      * Decides a command when it is dispatched, never before: a row of the page carries the app's own command, and
      * only the network of this moment says whether the app can run it. Online every command stays the app's.
-     * Offline, the browse of a downloaded list plays its songs unless a page was recorded for it, and the watch of
-     * a downloaded song plays its copy.
+     * Offline, the browse of a downloaded list plays its songs unless a page was recorded for it (then the app opens
+     * that page); the watch of a song of a downloaded list, from the recorded page or a row, plays that song as a
+     * track of the list; the watch of a downloaded song on its own plays its copy.
      *
-     * @param online        The device reaches the internet now.
-     * @param browseId      The page a browse command opens, or null for any other command.
-     * @param plainWatchId  The video a plain watch command plays, or null for any other command.
-     * @param isSource      Whether a page id names a downloaded list, the {@code VL} prefix of a playlist included.
-     * @param hasPage       Whether a page was recorded for the downloaded list.
-     * @param hasCopy       Whether the song has a copy with stored data.
+     * @param online         The device reaches the internet now.
+     * @param browseId       The page a browse command opens, or null for any other command.
+     * @param watch          What a watch command names, or null for any other command.
+     * @param songsId        The id of the list of every song.
+     * @param isSource       Whether a page id names a downloaded list, the {@code VL} prefix of a playlist included.
+     * @param hasPage        Whether a page was recorded for the downloaded list.
+     * @param hasCopy        Whether the song has a copy with stored data.
+     * @param sourceOfWatch  The downloaded list a watch of a list's song belongs to, or null.
      */
-    static Route routeOf(boolean online, @Nullable String browseId, @Nullable String plainWatchId,
-                         Predicate<String> isSource, Predicate<String> hasPage,
-                         Predicate<String> hasCopy) {
-        if (online) return Route.STOCK;
+    static Decision routeOf(boolean online, @Nullable String browseId, @Nullable WatchTarget watch, String songsId,
+                            Predicate<String> isSource, Predicate<String> hasPage, Predicate<String> hasCopy,
+                            Function<WatchTarget, String> sourceOfWatch) {
+        if (online) return Decision.STOCK;
 
         if (browseId != null) {
             String sourceId = sourceOfBrowseId(browseId);
-            return isSource.test(sourceId) && !hasPage.test(sourceId) ? Route.PLAY_SOURCE : Route.STOCK;
+            boolean plays = isSource.test(sourceId) && !hasPage.test(sourceId);
+            return plays ? new Decision(Route.PLAY_SOURCE, sourceId, null) : Decision.STOCK;
         }
-        if (plainWatchId != null && hasCopy.test(plainWatchId)) return Route.PLAY_SONG;
 
-        return Route.STOCK;
+        if (watch == null || !hasCopy.test(watch.videoId())) {
+            // A song with no copy has nothing to play here; it may still start the downloaded list it is a track of.
+            String sourceId = watch == null ? null : sourceOfWatch.apply(watch);
+            return sourceId == null ? Decision.STOCK : new Decision(Route.PLAY_SOURCE, sourceId, null);
+        }
+
+        if (watch.playlistId().isEmpty()) return new Decision(Route.PLAY_TRACK, songsId, watch.videoId());
+
+        String sourceId = sourceOfWatch.apply(watch);
+        return sourceId == null ? Decision.STOCK : new Decision(Route.PLAY_TRACK, sourceId, watch.videoId());
+    }
+
+    /**
+     * The downloaded list a watch of a playlist song belongs to: the list with the playlist's id, or for an album
+     * page (its browse id is not the playlist id of the album's audio playlist) the downloaded album that holds the
+     * song. Null when no downloaded list does.
+     *
+     * @param tracksBySource The song ids of every downloaded list, by list id.
+     */
+    @Nullable
+    static String sourceOfPlaylist(String playlistId, String videoId, Map<String, List<String>> tracksBySource) {
+        if (tracksBySource.containsKey(playlistId)) return playlistId;
+        if (!playlistId.startsWith(AUDIO_PLAYLIST_PREFIX)) return null;
+
+        for (Map.Entry<String, List<String>> source : tracksBySource.entrySet()) {
+            if (source.getKey().startsWith(ALBUM_BROWSE_PREFIX) && source.getValue().contains(videoId)) {
+                return source.getKey();
+            }
+        }
+        return null;
     }
 
     /** The id of the downloaded list a browse id opens: a playlist page is {@code VL} and the playlist id. */

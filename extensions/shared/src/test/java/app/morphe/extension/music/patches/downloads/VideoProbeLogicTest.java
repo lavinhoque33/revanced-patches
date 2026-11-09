@@ -59,6 +59,13 @@ public class VideoProbeLogicTest {
                 "next2 PLabc dQw4w9WgXcQ index=x")).reason());
     }
 
+    @Test public void aShapeLineWithoutAPlaylistIsAccepted() {
+        assertEquals(new VideoProbeLogic.NextShapeLine("-", "h9ba3KgHguc", "none"),
+                VideoProbeLogic.parseLine("next2 - h9ba3KgHguc none"));
+        assertEquals(new VideoProbeLogic.NextShapeLine("-", "h9ba3KgHguc", "webRemix,audioOnly"),
+                VideoProbeLogic.parseLine("next2 - h9ba3KgHguc webRemix,audioOnly"));
+    }
+
     @Test public void theFlagsBuildTheFieldsOfTheRequest() throws Exception {
         JSONObject minimal = VideoProbeLogic.nextShape("PLabc", "dQw4w9WgXcQ", "none");
         assertEquals(2, minimal.length());

@@ -79,7 +79,7 @@ final class VideoProbeLogic {
                 return new InvalidLine(line, "expected: next <playlistId> <videoId>");
             }
             case "next2" -> {
-                if (words.length != 4 || !PLAYLIST_ID.matcher(words[1]).matches()
+                if (words.length != 4 || !(words[1].equals("-") || PLAYLIST_ID.matcher(words[1]).matches())
                         || !VIDEO_ID.matcher(words[2]).matches()) {
                     return new InvalidLine(line, "expected: next2 <playlistId|-> <videoId> <flags>");
                 }

@@ -325,31 +325,34 @@ public class OfflineReplayLogicTest {
         return ids;
     }
 
-    @Test public void onlyTheSongsWithAVideoCopyGetItsVideo() {
+    @Test public void aVideoModeShowsTheMusicVideoOfTheSongsThatHaveACopy() {
         List<OfflineWatchNext.Item> items = itemsOf("a", "b", "c");
 
-        List<OfflineWatchNext.Item> wrapped = OfflineReplayLogic.withVideoCopies(items, Map.of("vb", "b"));
+        List<OfflineWatchNext.Item> wrapped = OfflineReplayLogic.showingVideos(items, Map.of("vb", "b"));
 
-        assertEquals(List.of("a", "b", "c"), idsOf(wrapped));
-        assertNull(wrapped.get(0).videoCopyId());
-        assertEquals("vb", wrapped.get(1).videoCopyId());
-        assertNull(wrapped.get(2).videoCopyId());
+        assertEquals(List.of("a", "vb", "c"), idsOf(wrapped));
+        assertEquals("a", wrapped.get(0).videoId());
+        assertEquals(1, wrapped.get(0).musicVideoType());
+        assertEquals("vb", wrapped.get(1).videoId());
+        assertEquals(2, wrapped.get(1).musicVideoType());
+        assertEquals("Tb", wrapped.get(1).title());
+        assertEquals("c", wrapped.get(2).videoId());
     }
 
     @Test public void noVideoCopiesLeavesTheItemsAsTheyWere() {
         List<OfflineWatchNext.Item> items = itemsOf("a", "b");
 
-        assertSame(items, OfflineReplayLogic.withVideoCopies(items, Map.of()));
+        assertSame(items, OfflineReplayLogic.showingVideos(items, Map.of()));
     }
 
     @Test public void aVideoCopyOfAnotherSongIsIgnoredAndACopyNeverPointsAtItself() {
         List<OfflineWatchNext.Item> items = itemsOf("a", "b");
 
-        List<OfflineWatchNext.Item> wrapped = OfflineReplayLogic.withVideoCopies(items,
+        List<OfflineWatchNext.Item> wrapped = OfflineReplayLogic.showingVideos(items,
                 Map.of("vz", "z", "b", "b"));
 
-        assertNull(wrapped.get(0).videoCopyId());
-        assertNull(wrapped.get(1).videoCopyId());
+        assertEquals(List.of("a", "b"), idsOf(wrapped));
+        assertEquals(1, wrapped.get(1).musicVideoType());
     }
 
     @Test public void aRequestForAMusicVideoNamesItsSong() {
@@ -366,5 +369,26 @@ public class OfflineReplayLogicTest {
 
         assertEquals(2, OfflineReplayLogic.currentIndex(items, OfflineReplayLogic.songOf("vc", videos), 2));
         assertEquals(-1, OfflineReplayLogic.currentIndex(items, "vc", 2));
+    }
+
+    private static byte[] watchWrapped(byte[] command, int levels) {
+        byte[] message = command;
+        for (int i = 0; i < levels; i++) message = new ProtoWriter().message(7, message).toByteArray();
+        return message;
+    }
+
+    @Test public void theOfflineWatchIsFoundInsideTheMessagesThatHoldTheCommand() {
+        byte[] command = OfflineWatchCommand.build("vid1", "PPSVrvx:PLabc", 4, 2);
+
+        assertEquals(new OfflineReplayLogic.WatchTarget("vid1", "PPSVrvx:PLabc", 4),
+                OfflineReplayLogic.offlineWatchIn(command));
+        assertEquals(new OfflineReplayLogic.WatchTarget("vid1", "PPSVrvx:PLabc", 4),
+                OfflineReplayLogic.offlineWatchIn(watchWrapped(command, 2)));
+    }
+
+    @Test public void aCommandThatIsNotAnOfflineWatchHasNone() {
+        assertNull(OfflineReplayLogic.offlineWatchIn(new ProtoWriter().string(1, "text").toByteArray()));
+        assertNull(OfflineReplayLogic.offlineWatchIn(new byte[]{(byte) 0xff, 0x01}));
+        assertNull(OfflineReplayLogic.offlineWatchIn(new byte[0]));
     }
 }

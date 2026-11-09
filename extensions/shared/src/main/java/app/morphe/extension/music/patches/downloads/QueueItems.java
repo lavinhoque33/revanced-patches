@@ -2,6 +2,7 @@
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
  * Written by lavinhoque33, 2026-11-07.
+ * Modified by lavinhoque33, 2026-11-09.
  */
 package app.morphe.extension.music.patches.downloads;
 
@@ -196,6 +197,8 @@ public final class QueueItems {
             Object item = entry == null ? null : entry.get();
             Object owner = pill.rvxOwner();
             String was = AudioFirst.liveMode();
+            if (item == null && takeOverOffline(current, was)) return true;
+
             if (item == null || !(owner instanceof PillOwner)) {
                 logClick(entry, via, current, was, "stock");
                 return false;
@@ -227,6 +230,56 @@ public final class QueueItems {
             Logger.printException(() -> "AudioFirst: pill click failure", ex);
             return false;
         }
+    }
+
+    /**
+     * The click of the pill with no network, on an item no tracked renderer stands for: the replayed queue holds the
+     * songs of the list, so the app's own click has no counterpart to go to. When the playing song has a video copy
+     * (or the video of one is playing), the mode goes to the other kind and the replay starts the other kind's offline
+     * watch, at the position the player has now, as the online takeover does through the app's own navigation. The
+     * replayed queue is asked for again by that watch, in the new mode.
+     *
+     * @return True when the click was taken, so the app's must not run.
+     */
+    private static boolean takeOverOffline(@Nullable Object current, String was) {
+        if (!OfflineReplay.enabled() || OfflineReplay.networkAvailable()) return false;
+
+        OfflinePillLogic.Target target = OfflinePillLogic.target(OfflineReplay.lastQueue(),
+                VideoCopyStore.pairsIfLoaded(), VideoInformation.getVideoId(),
+                VideoInformation.getPlayerResponseVideoId());
+        if (target == null) {
+            logClick(null, "offline", current, was, "stock:offline-no-pair");
+            return false;
+        }
+
+        if (!OfflineReplay.canDispatch()) {
+            logClick(null, "offline", current, was, "stock:offline-no-dispatcher");
+            return false;
+        }
+
+        synchronized (tracked) {
+            pillPressedAt = SystemClock.elapsedRealtime();
+            pending = null;
+            pillStart = null;
+        }
+        AudioFirst.leaveTapsAlone();
+        String now = AudioFirst.togglePillMode();
+        if (now == null) {
+            logClick(null, "offline", current, was, "stock:no-mode-holder");
+            return false;
+        }
+
+        PillPosition.Start start = PillPosition.choose(VideoInformation.getVideoTime(),
+                VideoInformation.getVideoLength());
+        Logger.printDebug(() -> "AudioFirst: pill start " + start.reason());
+        synchronized (tracked) {
+            pillStart = start.continues() ? new PillStart(target.videoId(), target.songId(), start.millis(),
+                    SystemClock.elapsedRealtime()) : null;
+        }
+        logClick(null, "offline", current, was, "takeover-offline mode=" + was + "->" + now + " video="
+                + target.videoId() + " type=" + target.musicVideoType() + " index=" + target.index());
+        return OfflineReplay.dispatchCommand(OfflineWatchCommand.build(target.videoId(), target.playlistId(),
+                target.index(), target.musicVideoType()));
     }
 
     /**
@@ -264,8 +317,7 @@ public final class QueueItems {
 
             if (SystemClock.elapsedRealtime() - noted.madeAt > PILL_START_TTL_MILLIS) return position;
 
-            String videoId = command instanceof MessageLite message ? TapCommand.parse(message.toByteArray()).videoId
-                    : null;
+            String videoId = command instanceof MessageLite message ? watchedVideoId(message.toByteArray()) : null;
             if (videoId == null || !noted.names(videoId)) {
                 Logger.printDebug(() -> "AudioFirst: pill start not for descriptor of " + videoId);
                 return position;
@@ -277,6 +329,16 @@ public final class QueueItems {
             Logger.printException(() -> "AudioFirst: pill start failure", ex);
             return position;
         }
+    }
+
+    /** The video a command starts: the one of its watch endpoint, or of its offline watch endpoint. */
+    @Nullable
+    private static String watchedVideoId(byte[] command) {
+        String videoId = TapCommand.parse(command).videoId;
+        if (videoId != null) return videoId;
+
+        OfflineReplayLogic.WatchTarget offline = OfflineReplayLogic.offlineWatchIn(command);
+        return offline == null ? null : offline.videoId();
     }
 
     private static void logClick(@Nullable Tracked entry, String via, @Nullable Object current, String mode,

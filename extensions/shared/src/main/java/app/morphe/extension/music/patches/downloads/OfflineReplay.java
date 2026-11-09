@@ -81,6 +81,8 @@ public final class OfflineReplay {
     private static final Set<String> aliveHooks = ConcurrentHashMap.newKeySet();
     private static volatile Captured captured;
     private static volatile boolean lastGateFlag;
+    /** The queue the last offline watch-next answered, for the Song/Video pill, which no queue item can serve. */
+    private static volatile OfflinePillLogic.Queue lastQueue;
 
     private OfflineReplay() {}
 
@@ -229,7 +231,13 @@ public final class OfflineReplay {
         return 0;
     }
 
-    private static boolean canDispatch() {
+    /** The queue the replay answered last, or null when it has answered none. */
+    @Nullable
+    static OfflinePillLogic.Queue lastQueue() {
+        return lastQueue;
+    }
+
+    static boolean canDispatch() {
         Captured seen = captured;
         return seen != null && seen.dispatcher().get() != null;
     }
@@ -641,14 +649,18 @@ public final class OfflineReplay {
             items = List.of(OfflineReplayLogic.itemOf(stored.metadata()));
             current = 0;
         }
-        items = OfflineReplayLogic.withVideoCopies(items, videos);
-
         String queueId = playlistId == null || playlistId.isEmpty() ? playlistId(SONGS) : playlistId;
-        byte[] response = OfflineWatchNext.build(queueId, items, current, videoId);
+        lastQueue = new OfflinePillLogic.Queue(queueId, items.stream().map(OfflineWatchNext.Item::videoId).toList());
+        // A video mode shows the music video of every song that has a copy, as the queue of an online album does;
+        // every navigation asks for the queue again, so it is the mode of that moment that is shown.
+        boolean videoMode = AudioFirst.supported() && AudioFirstLogic.isVideoMode(AudioFirst.liveMode());
+        if (videoMode) items = OfflineReplayLogic.showingVideos(items, videos);
+
+        byte[] response = OfflineWatchNext.build(queueId, items, current);
         int queued = items.size();
-        long wrappers = items.stream().filter(item -> item.videoCopyId() != null).count();
+        long shown = items.stream().filter(item -> item.musicVideoType() == CommandRewrite.TYPE_OMV).count();
         Logger.printWarn(() -> "OfflineReplay: next v=" + videoId + " playlist=" + queueId + " items=" + queued
-                + " withVideo=" + wrappers + " bytes=" + response.length);
+                + " videos=" + shown + " bytes=" + response.length);
         return response;
     }
 

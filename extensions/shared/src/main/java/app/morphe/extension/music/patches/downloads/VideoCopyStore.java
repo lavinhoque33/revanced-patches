@@ -67,6 +67,12 @@ final class VideoCopyStore {
         return Storage.files.videoOf(songId);
     }
 
+    /** The committed pairs for the main thread: none until they are loaded, as {@link #has}. */
+    static Map<String, String> pairsIfLoaded() {
+        warmUp();
+        return Storage.files.pairs();
+    }
+
     /** The committed pairs, video id to song id. */
     static Map<String, String> pairs() {
         Utils.verifyOffMainThread();

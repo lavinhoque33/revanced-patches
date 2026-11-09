@@ -289,6 +289,39 @@ final class OfflineReplayLogic {
         return browseId.startsWith("VL") ? browseId.substring(2) : browseId;
     }
 
+    private static final int MAX_NESTING = 3;
+
+    /**
+     * The offline watch of a command, which may hold the endpoint at any of the first few levels (the start
+     * descriptor of a playback holds the command it starts); null when it has none.
+     */
+    @Nullable
+    static WatchTarget offlineWatchIn(byte[] message) {
+        return offlineWatchIn(message, 0);
+    }
+
+    @Nullable
+    private static WatchTarget offlineWatchIn(byte[] message, int depth) {
+        WatchTarget here = offlineWatchOf(message);
+        if (here != null || depth >= MAX_NESTING) return here;
+
+        try {
+            CodedInputStream input = CodedInputStream.newInstance(message);
+            while (!input.isAtEnd()) {
+                int tag = input.readTag();
+                if (WireFormat.getTagWireType(tag) == WireFormat.WIRETYPE_LENGTH_DELIMITED) {
+                    WatchTarget nested = offlineWatchIn(input.readByteArray(), depth + 1);
+                    if (nested != null) return nested;
+                } else if (!input.skipField(tag)) {
+                    break;
+                }
+            }
+        } catch (IOException | RuntimeException notAMessage) {
+            // A string or bytes field, not a message.
+        }
+        return null;
+    }
+
     /** Whether the message has the field, of any wire type. */
     static boolean hasField(byte[] message, int number) {
         try {
@@ -329,24 +362,24 @@ final class OfflineReplayLogic {
     }
 
     /**
-     * The items with the music video of every song that has a video copy: those items are wrappers whose counterpart
-     * is the video. The others stay as they are.
+     * The items as a video mode shows them: every song that has a video copy is its music video, with its own id.
+     * The others stay the songs.
      *
      * @param videoToSong The committed video copies, music video id to the id of the song they belong to.
      */
-    static List<OfflineWatchNext.Item> withVideoCopies(List<OfflineWatchNext.Item> items,
-                                                       Map<String, String> videoToSong) {
+    static List<OfflineWatchNext.Item> showingVideos(List<OfflineWatchNext.Item> items,
+                                                     Map<String, String> videoToSong) {
         if (videoToSong.isEmpty()) return items;
 
         Map<String, String> videoOfSong = new HashMap<>();
         for (Map.Entry<String, String> pair : videoToSong.entrySet()) videoOfSong.put(pair.getValue(), pair.getKey());
 
-        List<OfflineWatchNext.Item> wrapped = new ArrayList<>(items.size());
+        List<OfflineWatchNext.Item> shown = new ArrayList<>(items.size());
         for (OfflineWatchNext.Item item : items) {
             String video = videoOfSong.get(item.videoId());
-            wrapped.add(video == null || video.equals(item.videoId()) ? item : item.withVideoCopy(video));
+            shown.add(video == null || video.equals(item.videoId()) ? item : item.showingVideo(video));
         }
-        return wrapped;
+        return shown;
     }
 
     /**

@@ -93,11 +93,11 @@ final class OfflineCopyStore {
         return Storage.copies.has(videoId);
     }
 
-    /** The length in seconds of a copy with stored data, or 0 when it has none or does not know it. */
-    static long durationSeconds(String videoId) {
+    /** The metadata of a copy with stored data, or null when it has none. Reads the disk: a worker thread only. */
+    @Nullable
+    static OfflineCopyMetadata metadataOf(String videoId) {
         Utils.verifyOffMainThread();
-        OfflineCopyMetadata metadata = Storage.copies.metadata(videoId);
-        return metadata == null ? 0 : metadata.durationMs() / 1000;
+        return Storage.copies.metadata(videoId);
     }
 
     /** The stored data of a copy, or null when it has none. */

@@ -51,6 +51,8 @@ import app.morphe.extension.shared.utils.Utils;
  * formats with the downloader's own ranged request to learn whether the url downloads and how big the stream is;
  * <li>{@code fetch <videoId> <itag>}: stores that one format in {@code files/rvx_probe_video_out/} with the
  * downloader's ranged requests (the first such line of a run only) and logs its size, hash and container header;
+ * <li>{@code next2 <playlistId|-> <videoId> <flags>}: one {@code /next} request shape ({@code flags}: see
+ * {@link VideoProbeLogic#nextShape}), logged as a table with the title, artist, length and counterpart of each item;
  * <li>{@code next <playlistId> <videoId>}: sends Music's own {@code /next} for the video in the playlist, through
  * {@link MusicBrowseRequest} (the transport the playlist download's {@code browse} uses, with its auth headers), in
  * three request shapes, and logs the queue it lists.
@@ -111,6 +113,9 @@ final class VideoProbe {
                 probePlayer(player.videoId());
             } else if (line instanceof VideoProbeLogic.FetchLine fetch) {
                 probeFetch(fetch.videoId(), fetch.itag());
+            } else if (line instanceof VideoProbeLogic.NextShapeLine shape) {
+                probeNextShape(shape);
+                pause();
             } else if (line instanceof VideoProbeLogic.NextLine next) {
                 probeNext(next.playlistId(), next.videoId());
             } else if (line instanceof VideoProbeLogic.InvalidLine invalid) {
@@ -399,6 +404,17 @@ final class VideoProbe {
         for (Variant variant : nextVariants(playlistId, videoId)) {
             probeNextVariant(context, "next " + playlistId + " " + variant.name() + " ", variant.fields());
             pause();
+        }
+    }
+
+    /** One {@code next2} line: the request shape the flags describe, and the item table it answers. */
+    private static void probeNextShape(VideoProbeLogic.NextShapeLine shape) {
+        String prefix = "next2 " + shape.playlistId() + " " + shape.videoId() + " [" + shape.flags() + "] ";
+        try {
+            probeNextVariant(Utils.getContext(), prefix,
+                    VideoProbeLogic.nextShape(shape.playlistId(), shape.videoId(), shape.flags()));
+        } catch (Exception ex) {
+            log(prefix + "failed: " + describe(ex));
         }
     }
 

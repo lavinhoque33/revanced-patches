@@ -21,8 +21,8 @@ final class WatchQueueLogic {
 
 
     /** One item of a watch queue: what the primary renderer is and what its counterpart is, if it has one. */
-    record NextItem(int index, String kind, String videoId, String type, String counterpartId,
-                    String counterpartType, String length) {
+    record NextItem(int index, String kind, String videoId, String type, String title, String artist, String length,
+                    String counterpartId, String counterpartType, String counterpartLength) {
         boolean hasCounterpart() {
             return !counterpartId.isEmpty();
         }
@@ -50,7 +50,7 @@ final class WatchQueueLogic {
             } else if (entry.has(PLAIN)) {
                 JSONObject renderer = entry.optJSONObject(PLAIN);
                 items.add(new NextItem(firstIndex + items.size(), "plain", videoIdOf(renderer), typeOf(renderer),
-                        "", "", lengthOf(renderer)));
+                        titleOf(renderer), artistOf(renderer), lengthOf(renderer), "", "", ""));
             } else if (entry.has(AUTOMIX)) {
                 automix++;
             } else {
@@ -66,6 +66,7 @@ final class WatchQueueLogic {
         JSONObject renderer = primary == null ? null : primary.optJSONObject(PLAIN);
         String counterpartId = "";
         String counterpartType = "";
+        String counterpartLength = "";
         JSONArray counterparts = wrapper == null ? null : wrapper.optJSONArray("counterpart");
         for (int position = 0; counterparts != null && position < counterparts.length(); position++) {
             JSONObject counterpart = counterparts.optJSONObject(position);
@@ -75,10 +76,11 @@ final class WatchQueueLogic {
 
             counterpartId = videoIdOf(other);
             counterpartType = typeOf(other);
+            counterpartLength = lengthOf(other);
             break;
         }
-        return new NextItem(index, "wrapper", videoIdOf(renderer), typeOf(renderer), counterpartId, counterpartType,
-                lengthOf(renderer));
+        return new NextItem(index, "wrapper", videoIdOf(renderer), typeOf(renderer), titleOf(renderer),
+                artistOf(renderer), lengthOf(renderer), counterpartId, counterpartType, counterpartLength);
     }
 
     private static String videoIdOf(JSONObject renderer) {
@@ -92,6 +94,23 @@ final class WatchQueueLogic {
         JSONObject config = supported == null ? null : supported.optJSONObject("watchEndpointMusicConfig");
         String type = config == null ? "" : config.optString("musicVideoType");
         return type.replace("MUSIC_VIDEO_TYPE_", "");
+    }
+
+    private static String titleOf(JSONObject renderer) {
+        return firstRun(renderer, "title");
+    }
+
+    /** The first run of the short byline, else of the long one: the artist. */
+    private static String artistOf(JSONObject renderer) {
+        String artist = firstRun(renderer, "shortBylineText");
+        return artist.isEmpty() ? firstRun(renderer, "longBylineText") : artist;
+    }
+
+    private static String firstRun(JSONObject renderer, String key) {
+        JSONObject text = renderer == null ? null : renderer.optJSONObject(key);
+        JSONArray runs = text == null ? null : text.optJSONArray("runs");
+        JSONObject run = runs == null ? null : runs.optJSONObject(0);
+        return run == null ? "" : run.optString("text");
     }
 
     private static String lengthOf(JSONObject renderer) {
@@ -155,6 +174,9 @@ final class WatchQueueLogic {
             text.append(" counterpart=none");
         }
         if (!item.length().isEmpty()) text.append(" len=").append(item.length());
+        if (!item.counterpartLength().isEmpty()) text.append(" counterpartLen=").append(item.counterpartLength());
+        if (!item.title().isEmpty()) text.append(" title=\"").append(item.title()).append('"');
+        if (!item.artist().isEmpty()) text.append(" artist=\"").append(item.artist()).append('"');
         return text.toString();
     }
 

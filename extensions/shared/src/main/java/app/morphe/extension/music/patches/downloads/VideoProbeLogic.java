@@ -6,6 +6,9 @@
 package app.morphe.extension.music.patches.downloads;
 
 
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import java.io.IOException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
@@ -21,7 +24,7 @@ import java.util.regex.Pattern;
  */
 final class VideoProbeLogic {
     /** The most lines of the marker file that are used. */
-    static final int MAX_LINES = 12;
+    static final int MAX_LINES = 24;
     /** The longest log line, in characters. */
     static final int MAX_LOG_LENGTH = 300;
 
@@ -41,6 +44,9 @@ final class VideoProbeLogic {
     record NextLine(String playlistId, String videoId) implements Line {}
 
     record FetchLine(String videoId, int itag) implements Line {}
+
+    /** {@code next2 <playlistId|-> <videoId> <flags>}: one {@code /next} request shape; {@code flags} as written. */
+    record NextShapeLine(String playlistId, String videoId, String flags) implements Line {}
 
     /** A line that is none of the forms; {@code reason} says why. */
     record InvalidLine(String text, String reason) implements Line {}
@@ -72,6 +78,18 @@ final class VideoProbeLogic {
                 }
                 return new InvalidLine(line, "expected: next <playlistId> <videoId>");
             }
+            case "next2" -> {
+                if (words.length != 4 || !PLAYLIST_ID.matcher(words[1]).matches()
+                        || !VIDEO_ID.matcher(words[2]).matches()) {
+                    return new InvalidLine(line, "expected: next2 <playlistId|-> <videoId> <flags>");
+                }
+                try {
+                    nextShape(words[1], words[2], words[3]);
+                } catch (IllegalArgumentException | JSONException ex) {
+                    return new InvalidLine(line, ex.getMessage());
+                }
+                return new NextShapeLine(words[1], words[2], words[3]);
+            }
             case "fetch" -> {
                 if (words.length == 3 && VIDEO_ID.matcher(words[1]).matches()
                         && DIGITS.matcher(words[2]).matches()) {
@@ -83,6 +101,66 @@ final class VideoProbeLogic {
                 return new InvalidLine(line, "unknown form");
             }
         }
+    }
+
+    // ---- the shapes of a /next request ----
+
+    private static final String MUSIC_CONFIG = "watchEndpointMusicSupportedConfigs";
+    private static final String WEB_REMIX_VERSION = "1.20250310.01.00";
+
+    /**
+     * The fields of one {@code /next} request: the video (and the playlist unless it is {@code -} or the flag
+     * {@code noPlaylist} is on), then each flag of the comma list, in this vocabulary: {@code audioOnly}
+     * ({@code isAudioOnly}), {@code persistent} ({@code enablePersistentPlaylistPanel}), {@code tuner}
+     * ({@code tunerSettingValue} AUTOMIX_SETTING_NORMAL), {@code atvConfig} / {@code omvConfig} (the music video type
+     * of the watch endpoint's music config), {@code hasPersistent} (its {@code hasPersistentPlaylistPanel}),
+     * {@code webRemix} (the body's client is WEB_REMIX; the headers stay the app's), {@code params=<value>}, {@code index=<n>}, {@code none} (no flag).
+     * @throws IllegalArgumentException for a flag that is not in the vocabulary.
+     */
+    static JSONObject nextShape(String playlistId, String videoId, String flags) throws JSONException {
+        JSONObject fields = new JSONObject().put("videoId", videoId);
+        boolean withPlaylist = !playlistId.equals("-");
+        for (String flag : flags.split(",")) {
+            if (flag.equals("noPlaylist")) withPlaylist = false;
+        }
+        if (withPlaylist) fields.put("playlistId", playlistId);
+
+        for (String flag : flags.split(",")) {
+            int equals = flag.indexOf('=');
+            String name = equals < 0 ? flag : flag.substring(0, equals);
+            String value = equals < 0 ? "" : flag.substring(equals + 1);
+            switch (name) {
+                case "none", "noPlaylist" -> { }
+                case "audioOnly" -> fields.put("isAudioOnly", true);
+                case "persistent" -> fields.put("enablePersistentPlaylistPanel", true);
+                case "tuner" -> fields.put("tunerSettingValue", "AUTOMIX_SETTING_NORMAL");
+                case "atvConfig" -> musicConfig(fields).put("musicVideoType", "MUSIC_VIDEO_TYPE_ATV");
+                case "omvConfig" -> musicConfig(fields).put("musicVideoType", "MUSIC_VIDEO_TYPE_OMV");
+                case "hasPersistent" -> musicConfig(fields).put("hasPersistentPlaylistPanel", true);
+                case "webRemix" -> fields.put("context", new JSONObject().put("client", new JSONObject()
+                        .put("clientName", "WEB_REMIX").put("clientVersion", WEB_REMIX_VERSION)
+                        .put("hl", "en").put("gl", "US")));
+                case "params" -> {
+                    if (value.isEmpty()) throw new IllegalArgumentException("params= needs a value");
+                    fields.put("params", value);
+                }
+                case "index" -> {
+                    if (!DIGITS.matcher(value).matches()) throw new IllegalArgumentException("index= needs a number");
+                    fields.put("index", Integer.parseInt(value));
+                }
+                default -> throw new IllegalArgumentException("unknown flag " + name);
+            }
+        }
+        return fields;
+    }
+
+    /** The {@code watchEndpointMusicConfig} of the fields, created when it is not there yet. */
+    private static JSONObject musicConfig(JSONObject fields) throws JSONException {
+        JSONObject supported = fields.optJSONObject(MUSIC_CONFIG);
+        if (supported == null) fields.put(MUSIC_CONFIG, supported = new JSONObject());
+        JSONObject config = supported.optJSONObject("watchEndpointMusicConfig");
+        if (config == null) supported.put("watchEndpointMusicConfig", config = new JSONObject());
+        return config;
     }
 
     // ---- log lines ----

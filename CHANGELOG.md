@@ -40,7 +40,8 @@
   download now names the reason in a one-line message.
 * **YouTube Music - Downloads:** Songs that have a music video also save its 360p video (about 12 MB), so the Video
   switch plays from the device and works with no connection; the song keeps its own audio copy. The videos are found
-  and saved when an album or playlist is downloaded (a song downloaded on its own saves none), one at a time after
+  and saved when an album or playlist is downloaded (a song downloaded on its own saves none, and a playlist whose
+  songs the server does not link to a video saves none), one at a time after
   the songs, and a video that cannot be saved never fails the song or the list. The finished message and the Stream
   downloads action count the videos and their size, tapping Download on a saved list fetches the videos it is
   missing, and deleting the stream downloads deletes the videos too.

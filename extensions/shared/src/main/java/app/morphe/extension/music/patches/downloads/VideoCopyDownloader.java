@@ -75,8 +75,11 @@ final class VideoCopyDownloader {
                         + sourceId);
                 return Outcome.NONE;
             }
-            Logger.printWarn(() -> "VideoCopy: paired " + pairing.pairs().size() + " of " + songIds.size()
-                    + " tracks with a video, unverified=" + pairing.unverified() + " list=" + sourceId);
+            if (!pairing.hasOtherIds()) {
+                Logger.printInfo(() -> "VideoCopy: video pairing: list " + sourceId + " no counterparts in /next");
+                return Outcome.NONE;
+            }
+            logDecisions(sourceId, pairing);
             return download(sourceId, title, pairing.pairs());
         } catch (Exception ex) {
             Logger.printException(() -> "VideoCopy: video pairing failed, list=" + sourceId, ex);
@@ -86,8 +89,28 @@ final class VideoCopyDownloader {
 
     private static List<VideoPairingLogic.Song> songsOf(List<String> songIds) {
         List<VideoPairingLogic.Song> songs = new ArrayList<>(songIds.size());
-        for (String id : songIds) songs.add(new VideoPairingLogic.Song(id, OfflineCopyStore.durationSeconds(id)));
+        for (String id : songIds) {
+            OfflineCopyMetadata metadata = OfflineCopyStore.metadataOf(id);
+            songs.add(metadata == null ? new VideoPairingLogic.Song(id, 0, "", "")
+                    : new VideoPairingLogic.Song(id, metadata.durationMs() / 1000, metadata.title(),
+                    metadata.artist()));
+        }
         return songs;
+    }
+
+    /** The count of a list and its per-item table: index, song, video, both lengths, and how it was accepted. */
+    private static void logDecisions(String sourceId, VideoPairingLogic.Result pairing) {
+        for (VideoPairingLogic.Decision decision : pairing.decisions()) {
+            Logger.printInfo(() -> "VideoCopy: video pairing: item " + decision.index() + " song="
+                    + decision.songId() + " video=" + decision.videoId() + " songSeconds=" + decision.songSeconds()
+                    + " videoSeconds=" + decision.videoSeconds() + " by=" + decision.by());
+            if (decision.differs() && !decision.paired()) {
+                Logger.printWarn(() -> "VideoCopy: video pairing: item " + decision.index() + " "
+                        + decision.videoId() + " not paired (" + decision.reason() + ")");
+            }
+        }
+        Logger.printWarn(() -> "VideoCopy: video pairing: paired " + pairing.pairs().size() + " of "
+                + pairing.decisions().size() + " tracks with a video list=" + sourceId);
     }
 
     /** The items of the list's queue, as many as {@code expected} when the server pages it. */

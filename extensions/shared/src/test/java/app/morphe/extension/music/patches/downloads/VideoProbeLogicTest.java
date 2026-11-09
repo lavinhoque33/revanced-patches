@@ -9,6 +9,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import org.json.JSONObject;
 import org.junit.Test;
 
 import java.io.ByteArrayOutputStream;
@@ -41,11 +42,59 @@ public class VideoProbeLogicTest {
         assertEquals("unknown form", ((VideoProbeLogic.InvalidLine) VideoProbeLogic.parseLine("go")).reason());
     }
 
-    @Test public void atMostTwelveLinesAreUsed() {
+    @Test public void atMostTwentyFourLinesAreUsed() {
         StringBuilder text = new StringBuilder();
-        for (int index = 0; index < 20; index++) text.append("player dQw4w9WgXc").append(index % 10).append('\n');
+        for (int index = 0; index < 30; index++) text.append("player dQw4w9WgXc").append(index % 10).append('\n');
 
         assertEquals(VideoProbeLogic.MAX_LINES, VideoProbeLogic.parseLines(text.toString()).size());
+    }
+
+    @Test public void aShapeLineKeepsItsFlagsAndAnUnknownFlagIsInvalid() {
+        assertEquals(new VideoProbeLogic.NextShapeLine("PLabc", "dQw4w9WgXcQ", "audioOnly,atvConfig"),
+                VideoProbeLogic.parseLine("next2 PLabc dQw4w9WgXcQ audioOnly,atvConfig"));
+        assertEquals("unknown flag bogus", ((VideoProbeLogic.InvalidLine) VideoProbeLogic.parseLine(
+                "next2 PLabc dQw4w9WgXcQ audioOnly,bogus")).reason());
+        assertTrue(VideoProbeLogic.parseLine("next2 PLabc dQw4w9WgXcQ") instanceof VideoProbeLogic.InvalidLine);
+        assertEquals("index= needs a number", ((VideoProbeLogic.InvalidLine) VideoProbeLogic.parseLine(
+                "next2 PLabc dQw4w9WgXcQ index=x")).reason());
+    }
+
+    @Test public void theFlagsBuildTheFieldsOfTheRequest() throws Exception {
+        JSONObject minimal = VideoProbeLogic.nextShape("PLabc", "dQw4w9WgXcQ", "none");
+        assertEquals(2, minimal.length());
+        assertEquals("dQw4w9WgXcQ", minimal.getString("videoId"));
+        assertEquals("PLabc", minimal.getString("playlistId"));
+
+        JSONObject full = VideoProbeLogic.nextShape("PLabc", "dQw4w9WgXcQ",
+                "audioOnly,persistent,tuner,atvConfig,params=wAEB,index=3");
+        assertTrue(full.getBoolean("isAudioOnly"));
+        assertTrue(full.getBoolean("enablePersistentPlaylistPanel"));
+        assertEquals("AUTOMIX_SETTING_NORMAL", full.getString("tunerSettingValue"));
+        assertEquals("wAEB", full.getString("params"));
+        assertEquals(3, full.getInt("index"));
+        assertEquals("MUSIC_VIDEO_TYPE_ATV", full.getJSONObject("watchEndpointMusicSupportedConfigs")
+                .getJSONObject("watchEndpointMusicConfig").getString("musicVideoType"));
+    }
+
+    @Test public void theMusicConfigFlagsShareOneConfigAndWebRemixReplacesTheClient() throws Exception {
+        JSONObject fields = VideoProbeLogic.nextShape("PLabc", "dQw4w9WgXcQ", "omvConfig,hasPersistent,webRemix");
+
+        JSONObject config = fields.getJSONObject("watchEndpointMusicSupportedConfigs")
+                .getJSONObject("watchEndpointMusicConfig");
+        assertEquals("MUSIC_VIDEO_TYPE_OMV", config.getString("musicVideoType"));
+        assertTrue(config.getBoolean("hasPersistentPlaylistPanel"));
+        assertEquals("WEB_REMIX", fields.getJSONObject("context").getJSONObject("client").getString("clientName"));
+    }
+
+    @Test public void noPlaylistLeavesOnlyTheVideo() throws Exception {
+        JSONObject audio = VideoProbeLogic.nextShape("PLabc", "dQw4w9WgXcQ", "audioOnly,noPlaylist");
+        assertEquals(2, audio.length());
+        assertTrue(audio.getBoolean("isAudioOnly"));
+        assertFalse(audio.has("playlistId"));
+
+        JSONObject bare = VideoProbeLogic.nextShape("-", "dQw4w9WgXcQ", "none");
+        assertEquals(1, bare.length());
+        assertEquals("dQw4w9WgXcQ", bare.getString("videoId"));
     }
 
     // ---- log lines ----

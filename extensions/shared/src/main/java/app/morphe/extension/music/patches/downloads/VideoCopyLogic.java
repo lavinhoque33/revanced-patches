@@ -56,11 +56,14 @@ final class VideoCopyLogic {
         return !audioFirstSupported || AudioFirstLogic.isVideoMode(mode);
     }
 
-    /** The online response describes the same cut: its length is unknown, or within the pairing tolerance. */
+    /** How much the online response's length may differ from the stored copy's: the same cut, not another one. */
+    static final long SAME_CUT_TOLERANCE_SECONDS = 3;
+
+    /** The online response describes the same cut: its length is unknown, or within the tolerance. */
     static boolean sameLength(long onlineLengthSeconds, long copyDurationMs) {
         if (onlineLengthSeconds <= 0 || copyDurationMs <= 0) return true;
 
-        return Math.abs(onlineLengthSeconds - copyDurationMs / 1000) <= VideoPairingLogic.DURATION_TOLERANCE_SECONDS;
+        return Math.abs(onlineLengthSeconds - copyDurationMs / 1000) <= SAME_CUT_TOLERANCE_SECONDS;
     }
 
     /**

@@ -23,7 +23,8 @@
   playlists, with their covers, and Android Auto downloaded playlists no longer needs Download in app. A song tapped
   while offline starts at once. The No connection sheet no longer covers the player controls while a downloaded song
   plays offline. The Library tab keeps the app's own behavior and opens where you left it. The Playlists, Albums and
-  Songs chips of the Downloads view filter the list.
+  Songs chips of the Downloads view filter the list. A row of the list no longer decides online or offline when the
+  page is drawn but when you tap it, so a tap right after the network came back or went away works.
 * **YouTube Music - Downloads:** Add green downloaded checkmarks, on by default and a child of Play downloads locally.
   Songs and playlists saved for local playback show a check at the end of the song row, next to its menu or drag
   handle, on playlist pages, on the track rows of an album page, in the Search songs filter and in the player queue,

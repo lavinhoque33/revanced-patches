@@ -69,6 +69,12 @@ final class OfflineCopyStore {
         return !Storage.copies.ids().isEmpty() || !Storage.sources.isEmpty();
     }
 
+    /** Whether a downloaded album or playlist is remembered under the id. In memory, false until loaded. */
+    static boolean hasSource(String sourceId) {
+        warmUp();
+        return Storage.sources.ids().contains(sourceId);
+    }
+
     /** Whether the copy has stored data. In memory, so the main thread may ask. */
     static boolean has(String videoId) {
         warmUp();

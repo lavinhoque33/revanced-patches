@@ -16,6 +16,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.ConcurrentMap;
+import java.util.function.Predicate;
 
 /**
  * The decisions of {@link OfflineReplay} that need no Android: which playlist id stands for a list, whether a hook
@@ -166,6 +167,74 @@ final class OfflineReplayLogic {
             // Not a message this decision knows: it is some other command.
         }
         return null;
+    }
+
+    /**
+     * The video of a plain watch command: the app's watch endpoint with nothing but a video id, the command of a song
+     * row of the Downloads page. Null for any other command, a watch of a playlist or one with params included.
+     */
+    @Nullable
+    static String plainWatchOf(byte[] command) {
+        try {
+            byte[] endpoint = lengthDelimitedField(command, CommandRewrite.WATCH_ENDPOINT_FIELD);
+            if (endpoint == null) return null;
+
+            String videoId = null;
+            CodedInputStream input = CodedInputStream.newInstance(endpoint);
+            while (!input.isAtEnd()) {
+                int tag = input.readTag();
+                boolean video = WireFormat.getTagFieldNumber(tag) == VIDEO_ID_FIELD
+                        && WireFormat.getTagWireType(tag) == WireFormat.WIRETYPE_LENGTH_DELIMITED;
+                if (!video) return null;
+
+                videoId = input.readStringRequireUtf8();
+            }
+            return videoId == null || videoId.isEmpty() ? null : videoId;
+        } catch (IOException ex) {
+            return null;
+        }
+    }
+
+    /** What the app's own command of a tap in the Downloads page becomes at the moment it is dispatched. */
+    enum Route {
+        /** The app runs the command as it is. */
+        STOCK,
+        /** The command is dropped and the downloaded list plays from its first song, with no network. */
+        PLAY_SOURCE,
+        /** The command is dropped and the downloaded song plays from its copy, with no network. */
+        PLAY_SONG
+    }
+
+    /**
+     * Decides a command when it is dispatched, never before: a row of the page carries the app's own command, and
+     * only the network of this moment says whether the app can run it. Online every command stays the app's.
+     * Offline, the browse of a downloaded list plays its songs unless a page was recorded for it, and the watch of
+     * a downloaded song plays its copy.
+     *
+     * @param online        The device reaches the internet now.
+     * @param browseId      The page a browse command opens, or null for any other command.
+     * @param plainWatchId  The video a plain watch command plays, or null for any other command.
+     * @param isSource      Whether a page id names a downloaded list, the {@code VL} prefix of a playlist included.
+     * @param hasPage       Whether a page was recorded for the downloaded list.
+     * @param hasCopy       Whether the song has a copy with stored data.
+     */
+    static Route routeOf(boolean online, @Nullable String browseId, @Nullable String plainWatchId,
+                         Predicate<String> isSource, Predicate<String> hasPage,
+                         Predicate<String> hasCopy) {
+        if (online) return Route.STOCK;
+
+        if (browseId != null) {
+            String sourceId = sourceOfBrowseId(browseId);
+            return isSource.test(sourceId) && !hasPage.test(sourceId) ? Route.PLAY_SOURCE : Route.STOCK;
+        }
+        if (plainWatchId != null && hasCopy.test(plainWatchId)) return Route.PLAY_SONG;
+
+        return Route.STOCK;
+    }
+
+    /** The id of the downloaded list a browse id opens: a playlist page is {@code VL} and the playlist id. */
+    static String sourceOfBrowseId(String browseId) {
+        return browseId.startsWith("VL") ? browseId.substring(2) : browseId;
     }
 
     /** Whether the message has the field, of any wire type. */

@@ -139,18 +139,6 @@ public final class OfflineReplay {
     }
 
     /**
-     * The command a song row of the Downloads page runs. Offline it is the offline watch command of the song's place
-     * in the all-songs queue, or null for a song with no stored data; online it is the normal watch command of the
-     * song, so the online response still owns radio, lyrics and the rest, and only the audio comes from the copy.
-     */
-    @Nullable
-    static byte[] songCommand(int queueIndex, String videoId) {
-        if (networkAvailable()) return OnlineWatchCommand.build(videoId, null, 0);
-
-        return queueIndex < 0 ? null : OfflineWatchCommand.build(videoId, playlistId(SONGS), queueIndex);
-    }
-
-    /**
      * Starts track {@code index} of the list's queue. Offline the command is the offline watch command; online it
      * is the normal watch command, so the online response still owns radio, lyrics and the rest, and only the audio
      * comes from the copy. On the main thread.
@@ -264,25 +252,78 @@ public final class OfflineReplay {
 
     /**
      * Injection point: every command the app dispatches, on the main thread. Remembers how to dispatch a command
-     * while the setting is on. Nothing is taken: a browse command of the Downloads page is the app's own, and the
-     * page is built in place, with the stream copies in it.
+     * while the setting is on, and decides the tap of a row of the Downloads page now, with the network of this
+     * moment: the rows carry the app's own commands (a page's browse, a song's watch), which the app runs as they
+     * are while online. Offline, one that cannot work is taken and the downloaded copy plays instead.
+     *
+     * @return true when the command is taken: the app must not run it.
      */
-    static void onCommand(Object dispatcher, Object command, Map<?, ?> context) {
+    static boolean onCommand(Object dispatcher, Object command, Map<?, ?> context) {
         try {
             noteAlive(HOOK_COMMAND);
-            if (!(dispatcher instanceof Dispatcher stockDispatcher) || !(command instanceof Command message)) return;
+            if (!(dispatcher instanceof Dispatcher stockDispatcher) || !(command instanceof Command message)) {
+                return false;
+            }
 
-            if (!enabled()) return;
+            if (!enabled()) return false;
 
             captured = new Captured(new WeakReference<>(stockDispatcher), message, new WeakReference<>(context));
             OfflineCopyStore.warmUp();
             OfflineBackfill.kick();
 
-            String browseId = OfflineReplayLogic.browseIdOf(message.toByteArray());
+            byte[] bytes = message.toByteArray();
+            String browseId = OfflineReplayLogic.browseIdOf(bytes);
             if (browseId != null) logDecision(HOOK_COMMAND, "browse=" + browseId);
+
+            return takeOffline(bytes, browseId);
         } catch (Exception ex) {
             Logger.printException(() -> "OfflineReplay: could not read the command", ex);
+            return false;
         }
+    }
+
+    private static boolean takeOffline(byte[] command, @Nullable String browseId) {
+        String watchId = browseId == null ? OfflineReplayLogic.plainWatchOf(command) : null;
+        if (browseId == null && watchId == null) return false;
+
+        OfflineReplayLogic.Route route = OfflineReplayLogic.routeOf(networkAvailable(), browseId, watchId,
+                id -> OfflineCopyStore.hasSource(id), id -> false, OfflineCopyStore::has);
+        switch (route) {
+            case PLAY_SOURCE -> {
+                String sourceId = OfflineReplayLogic.sourceOfBrowseId(browseId);
+                logDecision(HOOK_COMMAND, "offline browse of " + sourceId + " plays the list");
+                return play(sourceId, 0);
+            }
+            case PLAY_SONG -> {
+                logDecision(HOOK_COMMAND, "offline watch of " + watchId + " plays the copy");
+                return playSong(watchId);
+            }
+            default -> {
+                return false;
+            }
+        }
+    }
+
+    /** Starts a song with stored data from the all-songs queue, with no network. On the main thread. */
+    private static boolean playSong(String videoId) {
+        if (!canDispatch()) return false;
+
+        logDecision(HOOK_COMMAND, "audio mode: " + AudioFirst.startAudioMode());
+        Utils.runOnBackgroundThread(() -> {
+            try {
+                List<OfflineWatchNext.Item> items = queueOf(SONGS);
+                int index = OfflineReplayLogic.currentIndex(items, videoId, -1);
+                byte[] command = index < 0 ? null : offlineCommand(SONGS, index);
+                if (command == null) {
+                    Logger.printWarn(() -> "OfflineReplay: no stored song " + videoId);
+                    return;
+                }
+                dispatchCommand(command);
+            } catch (Exception ex) {
+                Logger.printException(() -> "OfflineReplay: could not start " + videoId, ex);
+            }
+        });
+        return true;
     }
 
     /**

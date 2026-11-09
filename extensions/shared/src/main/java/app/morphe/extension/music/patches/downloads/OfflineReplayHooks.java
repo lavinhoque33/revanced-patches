@@ -50,13 +50,14 @@ public final class OfflineReplayHooks {
     }
 
     /** Injection point: every command the app dispatches. */
-    public static void onCommand(Object dispatcher, Object command, Map<?, ?> context) {
-        if (!usable()) return;
+    public static boolean onCommand(Object dispatcher, Object command, Map<?, ?> context) {
+        if (!usable()) return false;
 
         try {
-            OfflineReplay.onCommand(dispatcher, command, context);
+            return OfflineReplay.onCommand(dispatcher, command, context);
         } catch (Throwable failure) {
             disable("command", failure);
+            return false;
         }
     }
 

@@ -74,7 +74,8 @@ public final class NativeDownloads {
      * dispatch one); then either kind of download takes over the download command.
      */
     public static Object rewriteCommand(Object dispatcher, Object original, java.util.Map<?, ?> context) {
-        OfflineReplayHooks.onCommand(dispatcher, original, context);
+        if (OfflineReplayHooks.onCommand(dispatcher, original, context)) return null;
+
         return rewriteDownloadCommand(original, context);
     }
 

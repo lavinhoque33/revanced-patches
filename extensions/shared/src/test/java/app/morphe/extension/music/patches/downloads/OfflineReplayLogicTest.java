@@ -236,6 +236,49 @@ public class OfflineReplayLogicTest {
 
     // endregion
 
+    // region routes
+
+    private static OfflineReplayLogic.Route route(boolean online, String browseId, String watchId, boolean page) {
+        return OfflineReplayLogic.routeOf(online, browseId, watchId, id -> id.equals("PLa"), id -> page,
+                id -> id.equals("x"));
+    }
+
+    @Test public void aPlainWatchIsTheOneWithNothingButAVideoId() {
+        assertEquals("x", OfflineReplayLogic.plainWatchOf(OnlineWatchCommand.build("x", null, 0)));
+        assertNull(OfflineReplayLogic.plainWatchOf(OnlineWatchCommand.build("x", "PLa", 3)));
+        assertNull(OfflineReplayLogic.plainWatchOf(OfflineLibraryLogic.browseCommand("VLPLa")));
+        assertNull(OfflineReplayLogic.plainWatchOf(new byte[]{(byte) 0xff}));
+    }
+
+    @Test public void aSourceIsNamedWithOrWithoutThePlaylistPrefix() {
+        assertEquals("PLa", OfflineReplayLogic.sourceOfBrowseId("VLPLa"));
+        assertEquals("OLAK5uy_b", OfflineReplayLogic.sourceOfBrowseId("VLOLAK5uy_b"));
+        assertEquals("MPREb_c", OfflineReplayLogic.sourceOfBrowseId("MPREb_c"));
+    }
+
+    @Test public void onlineEveryCommandStaysTheApps() {
+        assertEquals(OfflineReplayLogic.Route.STOCK, route(true, "VLPLa", null, false));
+        assertEquals(OfflineReplayLogic.Route.STOCK, route(true, null, "x", false));
+    }
+
+    @Test public void offlineTheBrowseOfADownloadedListPlaysItUnlessAPageWasRecorded() {
+        assertEquals(OfflineReplayLogic.Route.PLAY_SOURCE, route(false, "VLPLa", null, false));
+        assertEquals(OfflineReplayLogic.Route.STOCK, route(false, "VLPLa", null, true));
+    }
+
+    @Test public void offlineOtherPagesAndUnknownListsStayTheApps() {
+        assertEquals(OfflineReplayLogic.Route.STOCK, route(false, "FEmusic_offline", null, false));
+        assertEquals(OfflineReplayLogic.Route.STOCK, route(false, "VLPLother", null, false));
+        assertEquals(OfflineReplayLogic.Route.STOCK, route(false, null, null, false));
+    }
+
+    @Test public void offlineTheWatchOfADownloadedSongPlaysItsCopy() {
+        assertEquals(OfflineReplayLogic.Route.PLAY_SONG, route(false, null, "x", false));
+        assertEquals(OfflineReplayLogic.Route.STOCK, route(false, null, "no-copy", false));
+    }
+
+    // endregion
+
     private static List<OfflineWatchNext.Item> itemsOf(String... videoIds) {
         List<OfflineWatchNext.Item> items = new ArrayList<>();
         for (String id : videoIds) items.add(OfflineReplayLogic.itemOf(copy(id, "T" + id, null)));

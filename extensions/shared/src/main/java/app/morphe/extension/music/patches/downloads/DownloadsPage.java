@@ -47,14 +47,12 @@ public final class DownloadsPage {
     }
 
     private static final DownloadsPageLogic.Taps TAPS = new DownloadsPageLogic.Taps() {
-        @Override @Nullable public byte[] source(SourceRow row) {
-            if (!OfflineReplay.networkAvailable()) return OfflineReplay.offlineCommand(row.sourceId(), 0);
-
+        @Override public byte[] source(SourceRow row) {
             return OfflineLibraryLogic.browseCommand("VL" + row.sourceId());
         }
 
-        @Override @Nullable public byte[] song(SongRow row) {
-            return OfflineReplay.songCommand(row.queueIndex(), row.videoId());
+        @Override public byte[] song(SongRow row) {
+            return OnlineWatchCommand.build(row.videoId(), null, 0);
         }
     };
 

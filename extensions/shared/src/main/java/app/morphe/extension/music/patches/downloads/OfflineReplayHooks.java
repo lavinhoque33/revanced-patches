@@ -61,18 +61,7 @@ public final class OfflineReplayHooks {
         }
     }
 
-    /** Injection point: the browse controller starts loading a page. */
-    public static void onBrowseRequest(String browseId) {
-        if (!usable()) return;
-
-        try {
-            OfflineReplay.onBrowseRequest(browseId);
-        } catch (Throwable failure) {
-            disable("browse request", failure);
-        }
-    }
-
-    /** Injection point: the success callback of the browse controller: a page the user opened. */
+    /** Injection point: the success of a page the page fragment shows: a page the user opened. */
     public static void onBrowseResponse(String browseId, Object result) {
         if (!usable()) return;
 
@@ -83,13 +72,13 @@ public final class OfflineReplayHooks {
         }
     }
 
-    /** Injection point: a browse failed. The recorded page of a downloaded list, or null to let it fail. */
+    /** Injection point: a page failed to load. The recorded page of a downloaded list, or null to let it fail. */
     @Nullable
-    public static byte[] answerBrowse(String browseId) {
+    public static byte[] answerBrowse(String browseId, Throwable error) {
         if (!usable()) return null;
 
         try {
-            return OfflineReplay.answerBrowse(browseId);
+            return OfflineReplay.answerBrowse(browseId, error);
         } catch (Throwable failure) {
             disable("browse replay", failure);
             return null;

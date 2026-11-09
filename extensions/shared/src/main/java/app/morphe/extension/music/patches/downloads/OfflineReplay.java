@@ -17,6 +17,7 @@ import androidx.annotation.Nullable;
 
 import com.google.common.util.concurrent.ListenableFuture;
 
+import java.io.File;
 import java.lang.ref.WeakReference;
 import java.util.Collections;
 import java.util.HashMap;
@@ -67,7 +68,12 @@ public final class OfflineReplay {
     private static final String HOOK_SEEK = "seek";
     private static final String HOOK_BROWSE_CAPTURE = "browse-capture";
     private static final String HOOK_BROWSE_REPLAY = "browse-replay";
-    private static final String HOOK_BROWSE_REQUEST = "browse-request";
+    /**
+     * TEMPORARY probe, removed before release: while this file exists in the app's files directory, an offline browse
+     * of a downloaded list is not taken, so the stock page (its own cache, a failure, or a wait) shows what the app
+     * does by itself. Created and removed by hand on the device.
+     */
+    private static final String PROBE_STOCK_BROWSE_FILE = "rvx_probe_stock_browse";
     private static final String HOOK_GATE_FLAG = "gate-flag";
 
     private static final ConcurrentMap<String, Long> skipLoggedAt = new ConcurrentHashMap<>();
@@ -289,6 +295,11 @@ public final class OfflineReplay {
         OfflineReplayLogic.WatchTarget watch = browseId == null ? OfflineReplayLogic.onlineWatchOf(command) : null;
         if (browseId == null && watch == null) return false;
 
+        if (browseId != null && !networkAvailable() && probeStockBrowse()) {
+            logDecision(HOOK_COMMAND, "probe: offline browse of " + browseId + " passes to the stock");
+            return false;
+        }
+
         Map<String, List<String>> tracks = OfflineCopyStore.tracksBySource();
         OfflineReplayLogic.Decision decision = OfflineReplayLogic.routeOf(networkAvailable(), browseId, watch, SONGS,
                 tracks::containsKey, OfflineBrowsePages::has, OfflineCopyStore::has,
@@ -307,6 +318,10 @@ public final class OfflineReplay {
                 return false;
             }
         }
+    }
+
+    private static boolean probeStockBrowse() {
+        return new File(Utils.getContext().getFilesDir(), PROBE_STOCK_BROWSE_FILE).exists();
     }
 
     /** Starts a song with stored data as a track of the list's offline queue, with no network. Main thread. */
@@ -332,7 +347,8 @@ public final class OfflineReplay {
     }
 
     /**
-     * Injection point: the success callback of the app's browse controller, on the main thread. Records the page of a
+     * Injection point: the success of a page the app's page fragment shows (a playlist, an album), on the main
+     * thread, with the response model it renders. Records the page of a
      * downloaded list the user opened while online, to open it again with no network. The serialization and the
      * write run on a worker thread: the response is immutable.
      */
@@ -366,15 +382,6 @@ public final class OfflineReplay {
         });
     }
 
-    /**
-     * Injection point: the browse controller starts loading a page, on the main thread. Only says so, with the page's
-     * id: it shows which pages go through the controller whose success callback records them.
-     */
-    static void onBrowseRequest(String browseId) {
-        noteAlive(HOOK_BROWSE_REQUEST);
-        logDecision(HOOK_BROWSE_REQUEST, "load id=" + browseId);
-    }
-
     /** Why the page the success callback saw is not recorded, or null when it is. */
     @Nullable
     private static String captureSkipReason(@Nullable String browseId, Object result) {
@@ -392,19 +399,19 @@ public final class OfflineReplay {
     }
 
     /**
-     * Injection point: the browse of a page failed. The recorded page of a downloaded list answers it while there is
-     * no network; every other failure, an online one included, stays the app's.
+     * Injection point: the page fragment's load of a page failed. The recorded page of a downloaded list answers it
+     * while there is no network; every other failure, an online one included, stays the app's.
      *
      * @return the recorded browse response, or null.
      */
     @Nullable
-    static byte[] answerBrowse(String browseId) {
+    static byte[] answerBrowse(String browseId, Throwable failure) {
         noteAlive(HOOK_BROWSE_REPLAY);
         boolean online = networkAvailable();
         String sourceId = browseId == null ? null : OfflineReplayLogic.sourceOfBrowseId(browseId);
         boolean stored = sourceId != null && OfflineBrowsePages.has(sourceId);
         logDecision(HOOK_BROWSE_REPLAY, "asked id=" + browseId + " enabled=" + enabled() + " online=" + online
-                + " stored=" + stored);
+                + " stored=" + stored + " failure=" + failure);
         if (!enabled() || sourceId == null || online || !stored) return null;
 
         byte[] response = OfflineBrowsePages.read(sourceId);

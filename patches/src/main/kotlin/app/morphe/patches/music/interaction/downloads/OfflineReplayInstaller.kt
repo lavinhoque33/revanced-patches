@@ -12,7 +12,6 @@ import app.morphe.patcher.extensions.InstructionExtensions.addInstructionsWithLa
 import app.morphe.patcher.extensions.InstructionExtensions.getInstruction
 import app.morphe.patcher.patch.BytecodePatchContext
 import app.morphe.patcher.util.getReference
-import app.morphe.patcher.util.proxy.mutableTypes.MutableMethod
 import app.morphe.patcher.util.smali.ExternalLabel
 import app.morphe.patches.music.video.information.ModernVideoEndFingerprint
 import app.morphe.patches.shared.misc.fix.proto.parseByteArrayMethodRef
@@ -29,7 +28,6 @@ import com.android.tools.smali.dexlib2.iface.ClassDef
 import com.android.tools.smali.dexlib2.iface.Method
 import com.android.tools.smali.dexlib2.iface.instruction.FiveRegisterInstruction
 import com.android.tools.smali.dexlib2.iface.instruction.Instruction
-import com.android.tools.smali.dexlib2.iface.instruction.NarrowLiteralInstruction
 import com.android.tools.smali.dexlib2.iface.instruction.OneRegisterInstruction
 import com.android.tools.smali.dexlib2.iface.instruction.RegisterRangeInstruction
 import com.android.tools.smali.dexlib2.iface.instruction.ThreeRegisterInstruction
@@ -50,6 +48,7 @@ private const val SHEET_CONTROLLER = $$"Lapp/morphe/extension/music/patches/down
 private const val ON_SHEET_SHOWN = "$REPLAY->noConnectionSheetShown(Ljava/lang/Object;)V"
 private const val OBJECT = "Ljava/lang/Object;"
 private const val STRING = "Ljava/lang/String;"
+private const val THROWABLE = "Ljava/lang/Throwable;"
 private const val MAP = "Ljava/util/Map;"
 private const val LIST = "Ljava/util/List;"
 private const val FUTURE = "Lcom/google/common/util/concurrent/ListenableFuture;"
@@ -71,14 +70,8 @@ private const val PAGE_SERVICE =
 /** The one string of the constructor of the request of that service: the name its log lines go under. */
 private const val PAGE_REQUEST_NAME = "OfflineBrowsePageGenerationService"
 
-/** The message the browse controller's failure callback logs; the success callback is its sibling in the class. */
-private const val BROWSE_ERROR = "Encountered error for browse model: %s"
-
-/** The message the browse controller's catch handler logs for a page the persistent service could not load. */
-private const val BROWSE_FAILURE = "Failed to load response from PersistentBrowseService"
-
-/** The name of the metadata property "the response came from the disk cache" in the builder's missing-property list. */
-private const val DISK_CACHE_PROPERTY = " wasLoadedFromDiskCache"
+/** The message the failure method of the page fragment (the base class of playlist and album pages) logs. */
+private const val DETAIL_ERROR = "AbstractDetailPageFragment onEntityError."
 
 /** Message of the failure the stock player lookup ends with when a song was not downloaded the stock way. */
 private const val UNPLAYABLE = "Unplayable Video"
@@ -358,58 +351,52 @@ private fun BytecodePatchContext.serializerOf(message: String): String {
 }
 
 /**
- * The pages the app opens through its browse controller (a playlist, an album): the stock page is recorded online and
- * answered again offline, so a downloaded list opens as its own page. Two hooks that go in together or not at all:
+ * The pages the app shows in its page fragment (a playlist, an album): the stock page is recorded online and answered
+ * again offline, so a downloaded list opens as its own page. The fragment is the base class of the playlist and album
+ * pages (`Lglh` in 9.40.51), found by the message its failure method logs, [DETAIL_ERROR]. Its two sibling methods
+ * take the page's request state (the base class of the browse request, which also holds the browse id): the failure
+ * `(State, Throwable)V` and the success `(State, Object)V` that renders the response model. Two hooks that go in
+ * together or not at all:
  *
- * - capture: the success callback of the controller (`Lagyd.b` in 9.40.51, `Ljlh.ht` in 9.15.51, `Ljcl.gN` in
- *   8.30.54: the `(Object)V` sibling of the failure callback that logs [BROWSE_ERROR]) hands the browse result, right
- *   after the cast of its argument, with the request's browse id to [REPLAY]. The result class (`Lgmf`, the
- *   cast type `Ljmt`, `Ljec`) gets [BROWSE_BYTES] and a bridge that serializes the response message it holds.
- * - replay: the controller's catch handler (`Lgll.a`, `Ljkx.a`, `Ljby.a`: the `(Object)ListenableFuture` method that
- *   logs [BROWSE_FAILURE]) asks [REPLAY] for a stored page before anything else. With one the handler builds the
- *   result the way its own placeholder path does (response model of the parsed message, metadata, result, immediate
- *   future), with the one metadata property "loaded from the disk cache" set: the stale-on-read property would make
- *   the success callback start a refresh, which fails offline. Without one the stock body runs unchanged.
+ * - capture: the success hands the request's browse id and the response model to [REPLAY]. The model class gets
+ *   [BROWSE_BYTES] and a bridge that serializes the message it holds.
+ * - replay: the failure asks [REPLAY] for a stored page before anything else. With one it parses the bytes into a
+ *   model, the way the controller does, and gives it to the success method of the same fragment, which renders it
+ *   and sets the state of the request. Without one the stock body runs unchanged.
  *
- * The request class is the one the handler asks a boolean of; its browse id is its only no-argument string method,
- * read by both hooks, so a page is recorded and asked for under the same id. Every other name comes from the code
- * the handler already runs for its placeholder.
- * A third, log-only call says which page the controller starts to load (the method that creates the success
- * callback); a version where that method is not found goes without it.
+ * The request class is the subclass of the state class the fragment tests; its browse id is its only
+ * no-argument string method. The model class is the one the success method tests (`instance-of`); its message is the
+ * field its one-argument constructor takes.
  * Optional: a version where the shape is not found opens a downloaded list as before.
  */
 private fun BytecodePatchContext.prepareBrowsePages(): (() -> Unit)? {
     try {
-        val handlerMatch = Fingerprint(
-            returnType = FUTURE,
-            parameters = listOf(OBJECT),
-            strings = listOf(BROWSE_FAILURE),
-            custom = { method, _ -> !AccessFlags.STATIC.isSet(method.accessFlags) },
+        val failureMatch = Fingerprint(
+            returnType = "V",
+            strings = listOf(DETAIL_ERROR),
+            custom = { method, _ ->
+                !AccessFlags.STATIC.isSet(method.accessFlags) && method.parameterTypes.size == 2 &&
+                    method.parameterTypes[1] == THROWABLE
+            },
         ).matchSingle()
-        val handler = handlerMatch.method
-        val handlerClass = mutableClassDefBy(handlerMatch.classDef.type)
-        val steps = handler.implementation!!.instructions.toList()
-        val selfRegister = handler.implementation!!.registerCount - 2
-        // The hook uses v0 and v1, which are free at the entry, and calls a method on `this`.
-        check(selfRegister >= 2 && selfRegister <= 15) { "browse: handler registers" }
-
-        fun calls(opcode: Opcode, accept: (MethodReference) -> Boolean) = steps
-            .filter { it.opcode == opcode }
-            .mapNotNull { it.getReference<MethodReference>() }
-            .filter(accept)
-            .distinctBy { "${it.definingClass}->${it.name}${it.parameters()}" }
-
-        // The request: the field type the handler asks a boolean of.
-        val fieldTypes = handlerClass.fields.filter { !AccessFlags.STATIC.isSet(it.accessFlags) }
-            .map { it.type }.filter { it != STRING }.toSet()
-        val flagCalls = calls(Opcode.INVOKE_VIRTUAL) {
-            it.definingClass in fieldTypes && it.parameters().isEmpty() && it.returnType == "Z"
+        val page = mutableClassDefBy(failureMatch.classDef.type)
+        val failure = failureMatch.method
+        val stateType = failure.parameterTypes[0].toString()
+        val success = page.methods.single {
+            !AccessFlags.STATIC.isSet(it.accessFlags) && it.returnType == "V" &&
+                it.parameterTypes.map(CharSequence::toString) == listOf(stateType, OBJECT)
         }
-        check(flagCalls.size == 1) { "browse: found ${flagCalls.size} request flags" }
-        val requestType = flagCalls.single().definingClass
-        val requestField = handlerClass.fields.single {
-            it.type == requestType && !AccessFlags.STATIC.isSet(it.accessFlags)
-        }
+        // Both hooks use v0 at the entry and call a method on `this` with the state and one more register.
+        check(success.implementation!!.registerCount - 3 >= 1) { "browse: success registers" }
+        check(failure.implementation!!.registerCount - 3 in 1..13) { "browse: failure registers" }
+
+        val requestTypes = page.methods.flatMap { it.implementation?.instructions ?: emptyList() }
+            .filter { it.opcode == Opcode.INSTANCE_OF }
+            .mapNotNull { it.getReference<TypeReference>()?.type }
+            .filter { classDefByOrNull(it)?.superclass == stateType }
+            .distinct()
+        check(requestTypes.size == 1) { "browse: found ${requestTypes.size} request classes" }
+        val requestType = requestTypes.single()
         val idAccessors = classDefByOrNull(requestType)!!.methods.filter {
             !AccessFlags.STATIC.isSet(it.accessFlags) && it.parameterTypes.isEmpty() &&
                 it.returnType == STRING && it.name != "toString"
@@ -417,24 +404,11 @@ private fun BytecodePatchContext.prepareBrowsePages(): (() -> Unit)? {
         check(idAccessors.size == 1) { "browse: found ${idAccessors.size} id accessors" }
         val idName = idAccessors.single().name
 
-        // What the placeholder path ends with: `new Result(new Model(message), metadata)` as an immediate future.
-        val futureIndexes = steps.indices.filter { index ->
-            steps[index].opcode == Opcode.INVOKE_STATIC && steps[index].getReference<MethodReference>()?.let {
-                it.returnType == FUTURE && it.parameters() == listOf(OBJECT)
-            } == true
-        }
-        check(futureIndexes.size == 1) { "browse: found ${futureIndexes.size} immediate futures" }
-        val future = steps[futureIndexes.single()].getReference<MethodReference>()!!
-        val resultInit = steps.getOrNull(futureIndexes.single() - 1)
-            ?.takeIf { it.opcode == Opcode.INVOKE_DIRECT }?.getReference<MethodReference>()
-        check(resultInit != null && resultInit.name == "<init>" && resultInit.parameterTypes.size == 2) {
-            "browse: the future is not of a result"
-        }
-        val resultType = resultInit.definingClass
-        val modelType = resultInit.parameterTypes[0].toString()
-        val metadataType = resultInit.parameterTypes[1].toString()
-
-        val modelClass = classDefByOrNull(modelType)!!
+        val models = success.implementation!!.instructions.filter { it.opcode == Opcode.INSTANCE_OF }
+            .mapNotNull { it.getReference<TypeReference>()?.type }.distinct()
+        check(models.size == 1) { "browse: found ${models.size} model classes" }
+        val modelType = models.single()
+        val modelClass = mutableClassDefBy(modelType)
         val modelInit = modelClass.methods.singleOrNull { it.name == "<init>" && it.parameterTypes.size == 1 }
         check(modelInit != null) { "browse: model constructor" }
         val messageType = modelInit.parameterTypes.single().toString()
@@ -450,86 +424,28 @@ private fun BytecodePatchContext.prepareBrowsePages(): (() -> Unit)? {
             it.name == "parseFrom" && it.parameterTypes == listOf(parserOwner, "[B", REGISTRY)
         }
 
-        val factories = calls(Opcode.INVOKE_STATIC) {
-            it.definingClass == metadataType && it.parameters().isEmpty()
-        }
-        check(factories.size == 1) { "browse: found ${factories.size} metadata builders" }
-        val factory = factories.single()
-        val builderType = factory.returnType
-        val timeSetters = calls(Opcode.INVOKE_VIRTUAL) {
-            it.definingClass == builderType && it.parameters() == listOf("J") && it.returnType == "V"
-        }
-        val builds = calls(Opcode.INVOKE_VIRTUAL) {
-            it.definingClass == builderType && it.parameters().isEmpty() && it.returnType == metadataType
-        }
-        check(timeSetters.size == 1 && builds.size == 1) { "browse: metadata builder calls" }
-        val diskCache = diskCacheSetter(builderType)
-
-        // The success callback: its cast of the result, and the field of its request.
-        val errorMatch = Fingerprint(
-            returnType = "V",
-            parameters = listOf("Ljava/lang/Throwable;"),
-            strings = listOf(BROWSE_ERROR),
-        ).matchSingle()
-        val callbackClass = mutableClassDefBy(errorMatch.classDef.type)
-        val success = callbackClass.methods.single {
-            !AccessFlags.STATIC.isSet(it.accessFlags) && it.returnType == "V" &&
-                it.parameterTypes.map(CharSequence::toString) == listOf(OBJECT)
-        }
-        val successSteps = success.implementation!!.instructions.toList()
-        val argument = success.implementation!!.registerCount - 1
-        val castIndex = successSteps.indexOfFirst {
-            it.opcode == Opcode.CHECK_CAST && (it as OneRegisterInstruction).registerA == argument
-        }
-        check(castIndex >= 0 && successSteps.take(castIndex).none { it.writes(argument) }) { "browse: no result cast" }
-        val responseType = successSteps[castIndex].getReference<TypeReference>()!!.type
-        check(responseType == resultType || classDefByOrNull(resultType)?.superclass == responseType) {
-            "browse: the callback casts to $responseType, not the handler's $resultType"
-        }
-        val callbackRequest = browseRequestField(callbackClass, successSteps, requestType)
-        check(success.implementation!!.registerCount - 2 <= 15) { "browse: callback registers" }
-
-        val response = mutableClassDefBy(responseType)
-        val modelGetters = response.methods.filter {
-            !AccessFlags.STATIC.isSet(it.accessFlags) && it.parameterTypes.isEmpty() && it.returnType == modelType
-        }
-        val modelFields = response.fields.filter {
-            it.type == modelType && !AccessFlags.STATIC.isSet(it.accessFlags)
-        }
-        val readModel = when {
-            modelGetters.size == 1 -> """
-                invoke-virtual {p0}, $responseType->${modelGetters.single().name}()$modelType
-                move-result-object v0
-            """
-            modelFields.size == 1 -> "iget-object v0, p0, $responseType->${modelFields.single().name}:$modelType"
-            else -> error("browse: the response holds ${modelGetters.size} getters and ${modelFields.size} fields")
-        }
-        // Only for a log line, so a version where the loader is not found, or whose request register does not fit a
-        // four-bit operand or leaves no free local, goes without it.
-        val loader = loaderOf(callbackClass.type, requestType)?.takeIf {
-            it.implementation!!.registerCount - it.parameterTypes.size in 2..15
-        }
-        val castRequest = if (callbackRequest.type == requestType) "" else "check-cast v0, $requestType"
-        val stock = ExternalLabel("rvx_browse_stock", handler.getInstruction<Instruction>(0))
+        val stock = ExternalLabel("rvx_page_stock", failure.getInstruction<Instruction>(0))
 
         return {
-            response.interfaces.add(BROWSE_BYTES)
-            response.addDownloadsBridge("rvxBrowseBytes", emptyList(), "[B", 2, """
-                $readModel
-                iget-object v0, v0, $modelType->${messageField.name}:${messageField.type}
+            modelClass.interfaces.add(BROWSE_BYTES)
+            modelClass.addDownloadsBridge("rvxBrowseBytes", emptyList(), "[B", 2, """
+                iget-object v0, p0, $modelType->${messageField.name}:$messageType
                 invoke-virtual {v0}, $serialize
                 move-result-object v0
                 return-object v0
             """)
-            callbackClass.addDownloadsBridge("rvxBrowseSeen", listOf(OBJECT), "V", 4, """
-                iget-object v0, p0, ${callbackClass.type}->${callbackRequest.name}:${callbackRequest.type}
-                $castRequest
-                invoke-virtual {v0}, $requestType->$idName()$STRING
+            page.addDownloadsBridge("rvxPageId", listOf(stateType), STRING, 3, """
+                instance-of v0, p1, $requestType
+                if-eqz v0, :rvx_no_id
+                check-cast p1, $requestType
+                invoke-virtual {p1}, $requestType->$idName()$STRING
                 move-result-object v0
-                invoke-static {v0, p1}, $REPLAY->onBrowseResponse($STRING$OBJECT)V
-                return-void
+                return-object v0
+                :rvx_no_id
+                const/4 v0, 0x0
+                return-object v0
             """)
-            handlerClass.addDownloadsBridge("rvxBrowseResult", listOf("[B"), OBJECT, 6, """
+            page.addDownloadsBridge("rvxPageModel", listOf("[B"), OBJECT, 4, """
                 sget-object v0, $messageType->${default.name}:${default.type}
                 invoke-static {}, $REGISTRY->getGeneratedRegistry()$REGISTRY
                 move-result-object v1
@@ -538,139 +454,29 @@ private fun BytecodePatchContext.prepareBrowsePages(): (() -> Unit)? {
                 check-cast v0, $messageType
                 new-instance v1, $modelType
                 invoke-direct {v1, v0}, $modelType-><init>($messageType)V
-                invoke-static {}, $metadataType->${factory.name}()$builderType
-                move-result-object v0
-                const/4 v2, 0x1
-                invoke-virtual {v0, v2}, $builderType->$diskCache(Z)V
-                invoke-static {}, Ljava/lang/System;->currentTimeMillis()J
-                move-result-wide v2
-                invoke-virtual {v0, v2, v3}, $builderType->${timeSetters.single().name}(J)V
-                invoke-virtual {v0}, $builderType->${builds.single().name}()$metadataType
-                move-result-object v0
-                new-instance v2, $resultType
-                invoke-direct {v2, v1, v0}, $resultType-><init>($modelType$metadataType)V
-                return-object v2
+                return-object v1
             """)
-            loader?.addInstructions(0, """
-                invoke-virtual {p1}, $requestType->$idName()$STRING
+            success.addInstructions(0, """
+                invoke-virtual {p0, p1}, ${page.type}->rvxPageId($stateType)$STRING
                 move-result-object v0
-                invoke-static {v0}, $REPLAY->onBrowseRequest($STRING)V
+                invoke-static {v0, p2}, $REPLAY->onBrowseResponse($STRING$OBJECT)V
             """)
-            success.addInstruction(
-                castIndex + 1,
-                "invoke-virtual {p0, p1}, ${callbackClass.type}->rvxBrowseSeen($OBJECT)V",
-            )
-            handler.addInstructionsWithLabels(0, """
-                iget-object v0, p0, ${handlerClass.type}->${requestField.name}:$requestType
-                invoke-virtual {v0}, $requestType->$idName()$STRING
+            failure.addInstructionsWithLabels(0, """
+                invoke-virtual {p0, p1}, ${page.type}->rvxPageId($stateType)$STRING
                 move-result-object v0
-                invoke-static {v0}, $REPLAY->answerBrowse($STRING)[B
+                invoke-static {v0, p2}, $REPLAY->answerBrowse($STRING$THROWABLE)[B
                 move-result-object v0
-                if-eqz v0, :rvx_browse_stock
-                invoke-virtual {p0, v0}, ${handlerClass.type}->rvxBrowseResult([B)$OBJECT
+                if-eqz v0, :rvx_page_stock
+                invoke-virtual {p0, v0}, ${page.type}->rvxPageModel([B)$OBJECT
                 move-result-object v0
-                invoke-static {v0}, ${future.definingClass}->${future.name}($OBJECT)$FUTURE
-                move-result-object v0
-                return-object v0
+                invoke-virtual {p0, p1, v0}, ${page.type}->${success.name}($stateType$OBJECT)V
+                return-void
             """, stock)
         }
     } catch (ex: Exception) {
         printWarn("OfflineReplay: browse pages not hooked; a downloaded list opens as before: ${ex.message}")
         return null
     }
-}
-
-/**
- * The method of the browse controller that starts loading a page: the one that creates the success callback
- * [callbackType] and takes the request of [requestType] and a number. Null when no one method does: it only serves a
- * log line, so a version where it is not found goes without.
- */
-private fun BytecodePatchContext.loaderOf(callbackType: String, requestType: String): MutableMethod? {
-    val found = mutableListOf<Pair<String, Method>>()
-    classDefForEach { owner ->
-        owner.methods.forEach { method ->
-            val creates = method.implementation?.instructions?.any {
-                it.opcode == Opcode.NEW_INSTANCE && it.getReference<TypeReference>()?.type == callbackType
-            } == true
-            val loads = !AccessFlags.STATIC.isSet(method.accessFlags) && method.returnType == "V" &&
-                method.parameterTypes.map(CharSequence::toString) == listOf(requestType, "I")
-            if (creates && loads) found.add(owner.type to method)
-        }
-    }
-    if (found.size != 1) return null
-
-    val (type, method) = found.single()
-    return mutableClassDefBy(type).methods.single {
-        it.name == method.name && it.parameterTypes == method.parameterTypes && it.returnType == method.returnType
-    }
-}
-
-private fun MethodReference.parameters() = parameterTypes.map(CharSequence::toString)
-
-/**
- * The field of the success callback that holds its request: a field of the request's type, or (when one class serves
- * several roles, as in 9.40.51) an object field whose value is cast to the request's type before the register is
- * reassigned.
- */
-private fun browseRequestField(owner: ClassDef, steps: List<Instruction>, requestType: String): FieldReference {
-    steps.forEachIndexed { index, step ->
-        val field = step.getReference<FieldReference>() ?: return@forEachIndexed
-        if (step.opcode != Opcode.IGET_OBJECT || field.definingClass != owner.type) return@forEachIndexed
-        if (field.type == requestType) return field
-        if (field.type != OBJECT) return@forEachIndexed
-
-        val register = (step as TwoRegisterInstruction).registerA
-        for (next in steps.subList(index + 1, steps.size)) {
-            if (next.opcode == Opcode.CHECK_CAST && (next as OneRegisterInstruction).registerA == register) {
-                if (next.getReference<TypeReference>()?.type == requestType) return field
-                break
-            }
-            if (next.writes(register)) break
-        }
-    }
-    error("browse: the callback's request")
-}
-
-/**
- * The setter of the response metadata builder for "loaded from the disk cache": the builder's build method lists the
- * missing properties, each behind a test of its bit; the setter is the one that sets that bit. The builder type the
- * handler uses may be an abstract class of one subclass.
- */
-private fun BytecodePatchContext.diskCacheSetter(builderType: String): String {
-    val builder = classDefByOrNull(builderType)!!
-    val concrete = if (AccessFlags.ABSTRACT.isSet(builder.accessFlags)) {
-        val subclasses = mutableListOf<ClassDef>()
-        classDefForEach { if (it.superclass == builderType) subclasses.add(it) }
-        check(subclasses.size == 1) { "browse: found ${subclasses.size} metadata builders" }
-        subclasses.single()
-    } else {
-        builder
-    }
-
-    val builds = concrete.methods.filter { method ->
-        method.implementation?.instructions?.any {
-            it.getReference<StringReference>()?.string == DISK_CACHE_PROPERTY
-        } == true
-    }
-    check(builds.size == 1) { "browse: found ${builds.size} property lists" }
-    val steps = builds.single().implementation!!.instructions.toList()
-    val property = steps.indexOfFirst { it.getReference<StringReference>()?.string == DISK_CACHE_PROPERTY }
-    val test = steps.subList(0, property).lastOrNull { it.opcode == Opcode.AND_INT_LIT8 }
-    check(test != null) { "browse: no property test" }
-    val bit = (test as NarrowLiteralInstruction).narrowLiteral
-
-    val setters = concrete.methods.filter { method ->
-        method.returnType == "V" && method.parameterTypes.map(CharSequence::toString) == listOf("Z") &&
-            method.implementation?.instructions?.any {
-                it.opcode == Opcode.OR_INT_LIT8 && (it as NarrowLiteralInstruction).narrowLiteral == bit
-            } == true
-    }
-    check(setters.size == 1) { "browse: found ${setters.size} disk cache setters" }
-    val name = setters.single().name
-    check(builder.methods.any {
-        it.name == name && it.returnType == "V" && it.parameterTypes.map(CharSequence::toString) == listOf("Z")
-    }) { "browse: the builder type lacks $name" }
-    return name
 }
 
 /**

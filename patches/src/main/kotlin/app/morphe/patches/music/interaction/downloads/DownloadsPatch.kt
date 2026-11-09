@@ -10,7 +10,6 @@
 package app.morphe.patches.music.interaction.downloads
 
 import app.morphe.patcher.extensions.InstructionExtensions.addInstruction
-import app.morphe.patcher.extensions.InstructionExtensions.addInstructions
 import app.morphe.patcher.extensions.InstructionExtensions.addInstructionsWithLabels
 import app.morphe.patcher.patch.PatchException
 import app.morphe.patcher.patch.bytecodePatch
@@ -108,7 +107,7 @@ internal fun MutableClass.addDownloadsBridge(
     methods.add(
         ImmutableMethod(type, name, parameters.map { ImmutableMethodParameter(it, null, null) },
             returnType, AccessFlags.PUBLIC.value, null, null, MutableMethodImplementation(registers)
-        ).toMutable().apply { addInstructions(0, instructions) }
+        ).toMutable().apply { addInstructionsWithLabels(0, instructions) }
     )
 }
 

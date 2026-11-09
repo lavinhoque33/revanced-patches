@@ -5,12 +5,17 @@
  */
 package app.morphe.extension.music.patches.downloads;
 
+import androidx.annotation.Nullable;
+
 import com.google.protobuf.CodedInputStream;
 import com.google.protobuf.WireFormat;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.util.Set;
+import java.util.function.BooleanSupplier;
 import java.util.function.Predicate;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
@@ -24,6 +29,10 @@ final class OfflineBrowsePagesLogic {
     static final int FRAMEWORK_UPDATES_FIELD = 777;
 
     private static final int MAX_ID_LENGTH = 64;
+    /** An album page's browse id; the page of a list that is downloaded under its audio playlist id. */
+    private static final String ALBUM_PAGE_PREFIX = "MPREb_";
+    /** The playlist id of an album's audio playlist, which a list of an album is downloaded under. */
+    private static final String ALBUM_PLAYLIST_PREFIX = "OLAK5uy_";
 
     private OfflineBrowsePagesLogic() {}
 
@@ -31,11 +40,66 @@ final class OfflineBrowsePagesLogic {
     static final int CONTINUATION_FIELD = 10;
 
     /**
-     * Whether the page a browse id opens is recorded: the page of a downloaded list. The id of a playlist page has
-     * the {@code VL} prefix, which is not part of the list's id.
+     * Whether the page a browse id opens may be the page of a downloaded list: the id of a playlist page has the
+     * {@code VL} prefix, which is not part of the list's id, and an album page ({@code MPREb_}) of a list downloaded
+     * under its audio playlist id is only known by its content, see {@link #ownerOf}.
      */
-    static boolean recordable(String browseId, Predicate<String> isSource) {
-        return isSource.test(OfflineReplayLogic.sourceOfBrowseId(browseId));
+    static boolean recordable(String browseId, Predicate<String> isSource, BooleanSupplier hasAlbumPlaylist) {
+        String pageId = OfflineReplayLogic.sourceOfBrowseId(browseId);
+        return isSource.test(pageId) || pageId.startsWith(ALBUM_PAGE_PREFIX) && hasAlbumPlaylist.getAsBoolean();
+    }
+
+    /**
+     * The downloaded list a page belongs to, or null. A page of the list's own id belongs to it. An album page
+     * ({@code MPREb_}) belongs to the album playlist (a source id of {@code OLAK5uy_}) its content names most often:
+     * the play and shuffle buttons and every row carry it, other albums' ids appear only in shelves. A tie or no
+     * name is no owner.
+     */
+    @Nullable
+    static String ownerOf(String browseId, byte[] response, Set<String> sourceIds) {
+        String pageId = OfflineReplayLogic.sourceOfBrowseId(browseId);
+        if (sourceIds.contains(pageId)) return pageId;
+
+        if (!pageId.startsWith(ALBUM_PAGE_PREFIX)) return null;
+
+        String owner = null;
+        int most = 0;
+        boolean tie = false;
+        for (String id : sourceIds) {
+            if (!id.startsWith(ALBUM_PLAYLIST_PREFIX)) continue;
+
+            int count = occurrences(response, id.getBytes(StandardCharsets.UTF_8));
+            if (count > most) {
+                owner = id;
+                most = count;
+                tie = false;
+            } else if (count == most && count > 0) {
+                tie = true;
+            }
+        }
+        return tie ? null : owner;
+    }
+
+    /** How many times the bytes occur in the response, without overlapping. */
+    static int occurrences(byte[] response, byte[] needle) {
+        int count = 0;
+        int start = 0;
+        while (needle.length > 0 && start <= response.length - needle.length) {
+            if (matchesAt(response, needle, start)) {
+                count++;
+                start += needle.length;
+            } else {
+                start++;
+            }
+        }
+        return count;
+    }
+
+    private static boolean matchesAt(byte[] response, byte[] needle, int at) {
+        for (int i = 0; i < needle.length; i++) {
+            if (response[at + i] != needle[i]) return false;
+        }
+        return true;
     }
 
     /**

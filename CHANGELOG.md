@@ -24,9 +24,11 @@
   while offline starts at once. The No connection sheet no longer covers the player controls while a downloaded song
   plays offline. The Library tab keeps the app's own behavior and opens where you left it. The Playlists, Albums and
   Songs chips of the Downloads view filter the list. A row of the list no longer decides online or offline when the
-  page is drawn but when you tap it, so a tap right after the network came back or went away works. Opening a downloaded playlist or album online
-  records its page, and with no network the page opens as it does online, with its header, cover and track rows; tapping a
-  track plays it from its copy and goes on through the list.
+  page is drawn but when you tap it, so a tap right after the network came back or went away works. Opening a
+  downloaded playlist or album online records the app's own page of it (about 90 KB for a playlist, 22 KB for an
+  album), and with no network the page opens as it does online, with its header, cover and track rows, also when the
+  album is opened from the Albums chip; tapping a track plays it from its copy and goes on through the list. A
+  downloaded list that was not opened online since this version plays from its first song, as before.
 * **YouTube Music - Downloads:** Add green downloaded checkmarks, on by default and a child of Play downloads locally.
   Songs and playlists saved for local playback show a check at the end of the song row, next to its menu or drag
   handle, on playlist pages, on the track rows of an album page, in the Search songs filter and in the player queue,

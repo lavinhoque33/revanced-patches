@@ -17,7 +17,6 @@ import androidx.annotation.Nullable;
 
 import com.google.common.util.concurrent.ListenableFuture;
 
-import java.io.File;
 import java.lang.ref.WeakReference;
 import java.util.Collections;
 import java.util.HashMap;
@@ -68,12 +67,13 @@ public final class OfflineReplay {
     private static final String HOOK_SEEK = "seek";
     private static final String HOOK_BROWSE_CAPTURE = "browse-capture";
     private static final String HOOK_BROWSE_REPLAY = "browse-replay";
-    /**
-     * TEMPORARY probe, removed before release: while this file exists in the app's files directory, an offline browse
-     * of a downloaded list is not taken, so the stock page (its own cache, a failure, or a wait) shows what the app
-     * does by itself. Created and removed by hand on the device.
-     */
-    private static final String PROBE_STOCK_BROWSE_FILE = "rvx_probe_stock_browse";
+    private static final String REASON_SETTING_OFF = "setting off";
+    private static final String REASON_NO_ID = "no browse id";
+    private static final String REASON_NOT_A_LIST = "not a downloaded list";
+    private static final String REASON_OFFLINE = "offline";
+    /** The reasons that are the normal case of nearly every page: never said. */
+    private static final Set<String> QUIET_CAPTURE_SKIPS =
+            Set.of(REASON_SETTING_OFF, REASON_NO_ID, REASON_NOT_A_LIST, REASON_OFFLINE);
     private static final String HOOK_GATE_FLAG = "gate-flag";
 
     private static final ConcurrentMap<String, Long> skipLoggedAt = new ConcurrentHashMap<>();
@@ -295,11 +295,6 @@ public final class OfflineReplay {
         OfflineReplayLogic.WatchTarget watch = browseId == null ? OfflineReplayLogic.onlineWatchOf(command) : null;
         if (browseId == null && watch == null) return false;
 
-        if (browseId != null && !networkAvailable() && probeStockBrowse()) {
-            logDecision(HOOK_COMMAND, "probe: offline browse of " + browseId + " passes to the stock");
-            return false;
-        }
-
         Map<String, List<String>> tracks = OfflineCopyStore.tracksBySource();
         OfflineReplayLogic.Decision decision = OfflineReplayLogic.routeOf(networkAvailable(), browseId, watch, SONGS,
                 tracks::containsKey, OfflineBrowsePages::has, OfflineCopyStore::has,
@@ -318,10 +313,6 @@ public final class OfflineReplay {
                 return false;
             }
         }
-    }
-
-    private static boolean probeStockBrowse() {
-        return new File(Utils.getContext().getFilesDir(), PROBE_STOCK_BROWSE_FILE).exists();
     }
 
     /** Starts a song with stored data as a track of the list's offline queue, with no network. Main thread. */
@@ -348,21 +339,20 @@ public final class OfflineReplay {
 
     /**
      * Injection point: the success of a page the app's page fragment shows (a playlist, an album), on the main
-     * thread, with the response model it renders. Records the page of a
-     * downloaded list the user opened while online, to open it again with no network. The serialization and the
-     * write run on a worker thread: the response is immutable.
+     * thread, with the response model it renders. Records the page of a downloaded list the user opened while online,
+     * to open it again with no network. The serialization and the write run on a worker thread: the response is
+     * immutable. A recorded page is logged; of the pages that are not recorded only the odd reason is, once a minute.
      */
     static void onBrowseResponse(String browseId, Object result) {
         noteAlive(HOOK_BROWSE_CAPTURE);
         String skipped = captureSkipReason(browseId, result);
-        logDecision(HOOK_BROWSE_CAPTURE, "seen id=" + browseId + " result="
-                + (result == null ? "null" : result.getClass().getSimpleName())
-                + " enabled=" + enabled() + " online=" + networkAvailable() + (skipped == null ? " recording"
-                : " skipped: " + skipped));
-        if (skipped != null) return;
+        if (skipped != null) {
+            if (!QUIET_CAPTURE_SKIPS.contains(skipped)) logSkip(HOOK_BROWSE_CAPTURE, skipped);
+            return;
+        }
 
         OfflineBrowsePages.Bytes holder = (OfflineBrowsePages.Bytes) result;
-        String sourceId = OfflineReplayLogic.sourceOfBrowseId(browseId);
+        String pageId = OfflineReplayLogic.sourceOfBrowseId(browseId);
         Utils.runOnBackgroundThread(() -> {
             try {
                 byte[] response = holder.rvxBrowseBytes();
@@ -371,10 +361,17 @@ public final class OfflineReplay {
                     return;
                 }
 
+                String list = OfflineBrowsePagesLogic.ownerOf(browseId, response,
+                        OfflineCopyStore.tracksBySource().keySet());
+                if (list == null) {
+                    logSkip(HOOK_BROWSE_CAPTURE, "no downloaded list owns " + browseId);
+                    return;
+                }
+
                 int updates = OfflineBrowsePagesLogic.frameworkUpdatesSize(response);
-                int written = OfflineBrowsePages.write(sourceId, response);
-                logDecision(HOOK_BROWSE_CAPTURE, "recorded " + browseId + " bytes=" + response.length
-                        + " frameworkUpdates=" + updates + " stored=" + written + " fields="
+                int written = OfflineBrowsePages.write(pageId, list, response);
+                logDecision(HOOK_BROWSE_CAPTURE, "recorded " + browseId + " list=" + list + " bytes="
+                        + response.length + " frameworkUpdates=" + updates + " gzip=" + written + " fields="
                         + OfflineBrowsePagesLogic.fieldSizes(response));
             } catch (Exception ex) {
                 Logger.printException(() -> "OfflineReplay: could not record the page of " + browseId, ex);
@@ -382,16 +379,26 @@ public final class OfflineReplay {
         });
     }
 
+    private static boolean hasAlbumPlaylist() {
+        for (String id : OfflineCopyStore.tracksBySource().keySet()) {
+            if (id.startsWith("OLAK5uy_")) return true;
+        }
+        return false;
+    }
+
     /** Why the page the success callback saw is not recorded, or null when it is. */
     @Nullable
     private static String captureSkipReason(@Nullable String browseId, Object result) {
-        if (!enabled()) return "setting off";
+        if (!enabled()) return REASON_SETTING_OFF;
 
-        if (browseId == null || browseId.isEmpty()) return "no browse id";
+        if (browseId == null || browseId.isEmpty()) return REASON_NO_ID;
 
-        if (!OfflineBrowsePagesLogic.recordable(browseId, OfflineCopyStore::hasSource)) return "not a downloaded list";
+        if (!OfflineBrowsePagesLogic.recordable(browseId, OfflineCopyStore::hasSource,
+                OfflineReplay::hasAlbumPlaylist)) {
+            return REASON_NOT_A_LIST;
+        }
 
-        if (!networkAvailable()) return "offline";
+        if (!networkAvailable()) return REASON_OFFLINE;
 
         if (!(result instanceof OfflineBrowsePages.Bytes)) return "no bytes bridge on the result";
 
@@ -410,8 +417,8 @@ public final class OfflineReplay {
         boolean online = networkAvailable();
         String sourceId = browseId == null ? null : OfflineReplayLogic.sourceOfBrowseId(browseId);
         boolean stored = sourceId != null && OfflineBrowsePages.has(sourceId);
-        logDecision(HOOK_BROWSE_REPLAY, "asked id=" + browseId + " enabled=" + enabled() + " online=" + online
-                + " stored=" + stored + " failure=" + failure);
+        logDecision(HOOK_BROWSE_REPLAY, "asked id=" + browseId + " online=" + online + " stored=" + stored
+                + " failure=" + failure);
         if (!enabled() || sourceId == null || online || !stored) return null;
 
         byte[] response = OfflineBrowsePages.read(sourceId);
@@ -641,7 +648,6 @@ public final class OfflineReplay {
         }
     }
 
-    /** A decision of a hook that only runs for an offline request or a stock failure: every one is said. */
     /**
      * What the seek snap answers to keep the dragged position. The player compares the snap with the target: a
      * negative snap cancels the seek, one below the target moves it there, one at or above it seeks to the target.
@@ -666,6 +672,7 @@ public final class OfflineReplay {
         }
     }
 
+    /** A decision of a hook that only runs for an offline request or a stock failure: every one is said. */
     private static void logDecision(String hook, String decision) {
         Logger.printDebug(() -> "OfflineReplay: " + hook + " " + decision);
     }

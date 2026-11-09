@@ -17,13 +17,51 @@ public class OfflineBrowsePagesLogicTest {
     private static final Set<String> SOURCES = Set.of("PLa", "MPREb_c");
 
     @Test public void thePageOfADownloadedListIsRecorded() {
-        assertTrue(OfflineBrowsePagesLogic.recordable("VLPLa", SOURCES::contains));
-        assertTrue(OfflineBrowsePagesLogic.recordable("MPREb_c", SOURCES::contains));
+        assertTrue(OfflineBrowsePagesLogic.recordable("VLPLa", SOURCES::contains, () -> false));
+        assertTrue(OfflineBrowsePagesLogic.recordable("MPREb_c", SOURCES::contains, () -> false));
     }
 
     @Test public void anOtherPageIsNotRecorded() {
-        assertFalse(OfflineBrowsePagesLogic.recordable("VLPLother", SOURCES::contains));
-        assertFalse(OfflineBrowsePagesLogic.recordable("FEmusic_home", SOURCES::contains));
+        assertFalse(OfflineBrowsePagesLogic.recordable("VLPLother", SOURCES::contains, () -> true));
+        assertFalse(OfflineBrowsePagesLogic.recordable("FEmusic_home", SOURCES::contains, () -> true));
+    }
+
+    @Test public void anAlbumPageMayBelongToADownloadedAlbumPlaylist() {
+        assertTrue(OfflineBrowsePagesLogic.recordable("MPREb_x", SOURCES::contains, () -> true));
+        assertFalse(OfflineBrowsePagesLogic.recordable("MPREb_x", SOURCES::contains, () -> false));
+    }
+
+    @Test public void aPageOfTheListsOwnIdBelongsToIt() {
+        assertEquals("PLa", OfflineBrowsePagesLogic.ownerOf("VLPLa", new byte[0], SOURCES));
+        assertEquals("MPREb_c", OfflineBrowsePagesLogic.ownerOf("MPREb_c", new byte[0], SOURCES));
+    }
+
+    @Test public void anAlbumPageBelongsToThePlaylistItNamesMost() {
+        Set<String> sources = Set.of("PLa", "OLAK5uy_one", "OLAK5uy_two");
+        byte[] page = utf8("OLAK5uy_one;OLAK5uy_one;OLAK5uy_two;OLAK5uy_one");
+
+        assertEquals("OLAK5uy_one", OfflineBrowsePagesLogic.ownerOf("MPREb_x", page, sources));
+    }
+
+    @Test public void anAlbumPageThatNamesNoPlaylistOrTiesHasNoOwner() {
+        Set<String> sources = Set.of("OLAK5uy_one", "OLAK5uy_two");
+
+        assertNull(OfflineBrowsePagesLogic.ownerOf("MPREb_x", utf8("nothing"), sources));
+        assertNull(OfflineBrowsePagesLogic.ownerOf("MPREb_x", utf8("OLAK5uy_one OLAK5uy_two"), sources));
+    }
+
+    @Test public void aPlaylistPageOfAnOtherListHasNoOwner() {
+        assertNull(OfflineBrowsePagesLogic.ownerOf("VLPLother", utf8("OLAK5uy_one"), Set.of("OLAK5uy_one")));
+    }
+
+    @Test public void theOccurrencesDoNotOverlap() {
+        assertEquals(2, OfflineBrowsePagesLogic.occurrences(utf8("aaaa"), utf8("aa")));
+        assertEquals(0, OfflineBrowsePagesLogic.occurrences(utf8("ab"), utf8("abc")));
+        assertEquals(0, OfflineBrowsePagesLogic.occurrences(utf8("ab"), new byte[0]));
+    }
+
+    private static byte[] utf8(String text) {
+        return text.getBytes(StandardCharsets.UTF_8);
     }
 
     @Test public void theNextRowsOfAListAreNotItsPage() {

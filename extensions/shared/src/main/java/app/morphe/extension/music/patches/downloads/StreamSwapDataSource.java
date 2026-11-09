@@ -2,6 +2,7 @@
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
  * Written by lavinhoque33, 2026-11-07.
+ * Modified by lavinhoque33, 2026-11-09.
  */
 package app.morphe.extension.music.patches.downloads;
 
@@ -21,21 +22,22 @@ public final class StreamSwapDataSource {
     }
 
     /**
-     * Null for unrelated sources, the raw copy's file URI while it is intact. Otherwise the format's online URL, or
-     * an IOException (a failed file open, like stock) when a SABR response never had one.
+     * Null for unrelated sources, the file URI of the audio or video copy while it is intact. Otherwise the format's
+     * online URL, or an IOException (a failed file open, like stock) when a SABR response never had one.
      */
     public static Uri route(Uri uri, long position, long length) throws IOException {
         StreamSwapSources.Source source = StreamSwapSources.find(uri);
         if (source == null) return null;
         if (!StreamSwap.enabled() || StreamSwap.onMainThread() || !source.available) return fallback(source);
         try {
-            File file = source.raw.file();
-            long size = source.raw.length();
+            File file = source.served.file();
+            long size = source.served.length();
             if (!file.isFile() || file.length() != size || file.lastModified() != source.fileModified) {
                 source.available = false;
                 return fallback(source);
             }
-            Logger.printDebug(() -> "StreamSwap: source=FILE v=" + source.videoId + " position=" + position
+            Logger.printDebug(() -> "StreamSwap: source=FILE v=" + source.videoId + " kind=" + source.served.kind()
+                    + " itag=" + source.served.itag() + " position=" + position
                     + " length=" + length + " thread=" + Thread.currentThread().getName());
             return Uri.fromFile(file);
         } catch (SecurityException ex) {

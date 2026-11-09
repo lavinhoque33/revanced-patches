@@ -2,6 +2,7 @@
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
  * Written by lavinhoque33, 2026-11-08.
+ * Modified by lavinhoque33, 2026-11-09.
  */
 package app.morphe.extension.music.patches.downloads;
 
@@ -122,9 +123,16 @@ public final class OfflineReplay {
         return OfflineReplayLogic.sourceOf(playlistId);
     }
 
-    /** Whether the song has stored data. In memory, so the main thread may ask. */
+    /** Whether the song, or the music video of a song, has stored data. In memory, so the main thread may ask. */
     static boolean holds(String videoId) {
-        return OfflineCopyStore.has(videoId);
+        return OfflineCopyStore.has(videoId) || VideoCopyStore.has(videoId);
+    }
+
+    /** The stored player response of the song, or of the music video that has a video copy; null when neither. */
+    @Nullable
+    private static byte[] storedResponseOf(String videoId) {
+        OfflineCopyFiles.Stored stored = OfflineCopyStore.find(videoId);
+        return stored != null ? stored.response() : VideoCopyStore.response(videoId);
     }
 
     // region queue and commands
@@ -492,8 +500,8 @@ public final class OfflineReplay {
             noteAlive(HOOK_PLAYER);
             logDecision(HOOK_PLAYER, "lookup entered v=" + videoId + " offlineRequest=" + offlineRequest);
 
-            OfflineCopyFiles.Stored stored = null;
-            if (enabled() && offlineRequest && videoId != null) stored = OfflineCopyStore.find(videoId);
+            byte[] stored = null;
+            if (enabled() && offlineRequest && videoId != null) stored = storedResponseOf(videoId);
 
             String reason = OfflineReplayLogic.skipReason(enabled(), offlineRequest, stored != null, true);
             if (reason != null) {
@@ -501,7 +509,7 @@ public final class OfflineReplay {
                 return null;
             }
 
-            byte[] prepared = OfflineReplayResponse.prepare(stored.response());
+            byte[] prepared = OfflineReplayResponse.prepare(stored);
             Logger.printWarn(() -> "OfflineReplay: player v=" + videoId + " stock failed, answering from the copy"
                     + " stored=" + prepared.length + "B");
             logDecision(HOOK_PLAYER, "lookup answered v=" + videoId);

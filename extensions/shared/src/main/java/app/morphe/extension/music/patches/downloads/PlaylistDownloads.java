@@ -2,6 +2,7 @@
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
  * Modified by lavinhoque33, 2026-11-07.
+ * Modified by lavinhoque33, 2026-11-09.
  */
 package app.morphe.extension.music.patches.downloads;
 
@@ -86,7 +87,10 @@ public final class PlaylistDownloads {
                 if (mode.localFiles()) NativePlaylistStore.save(playlistId, title, mediaIds);
                 // The header check follows the stream copies: only a playlist that has them is remembered.
                 if (mode.streamCopy()) DownloadedMarkers.onPlaylistSaved(playlistId, tracks, header);
-                String done = completionText(mode, downloaded, available.size(), skipped);
+                // The videos of the songs that have one follow the audio copies; a video that fails fails nothing.
+                VideoCopyDownloader.Outcome videos = mode.streamCopy()
+                        ? VideoCopyDownloader.ensure(playlistId, title, available) : VideoCopyDownloader.Outcome.NONE;
+                String done = completionText(mode, downloaded, available.size(), skipped, videos);
                 LocalDownloadManager.awaitNotificationSlot();
                 LocalDownloadManager.showDownloadNotification("playlist:" + playlistId, title, 100, false, done);
                 Utils.showToastShort(done);
@@ -109,14 +113,21 @@ public final class PlaylistDownloads {
 
     /**
      * The text of a finished playlist download: {@code total} tracks were available and {@code skipped} were not. A
-     * stream-only download that found every copy already saved says so, because nothing was downloaded.
+     * stream-only download that found every copy already saved, audio and videos, says so, because nothing was
+     * downloaded. The videos the list has are counted; videos that failed are said last.
      */
-    static String completionText(DownloadMode mode, int downloaded, int total, int skipped) {
+    static String completionText(DownloadMode mode, int downloaded, int total, int skipped,
+                                 VideoCopyDownloader.Outcome videos) {
         String done;
-        if (mode.localFiles()) done = str("morphe_music_playlist_download_complete", total);
-        else if (downloaded == 0) done = str("morphe_music_playlist_stream_already_saved", total);
-        else done = str("morphe_music_playlist_stream_complete", total);
-
+        if (mode.localFiles()) {
+            done = str("morphe_music_playlist_download_complete", total);
+        } else {
+            String key = VideoCopyLogic.completionKey(downloaded, videos.saved(), videos.videos());
+            done = videos.videos() > 0 ? str(key, total, videos.videos()) : str(key, total);
+        }
+        if (mode.streamCopy() && videos.failed() > 0) {
+            done += " (" + str("morphe_music_playlist_videos_failed", videos.failed()) + ")";
+        }
         return skipped == 0 ? done : done + " (" + str("morphe_music_playlist_unavailable_skipped", skipped) + ")";
     }
 

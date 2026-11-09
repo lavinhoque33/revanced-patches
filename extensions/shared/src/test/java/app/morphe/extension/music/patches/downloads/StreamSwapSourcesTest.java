@@ -65,4 +65,21 @@ public class StreamSwapSourcesTest {
         assertSame(issued[issued.length - 1], StreamSwapSources.issue("busy", raw,
                 "https://example.invalid/" + (issued.length - 1)));
     }
+
+    private VideoCopyFiles.Entry video() throws Exception {
+        return new VideoCopyFiles.Entry(temporary.newFile(), temporary.newFile(), "clip00000000", "song0000000",
+                null, 18, "video/mp4", 1000, 123, 213_000, "digest");
+    }
+
+    @Test public void aVideoCopyGetsATokenOfItsOwnKindThatTheAudioKindCannotBeConfusedWith() throws Exception {
+        VideoCopyFiles.Entry video = video();
+        StreamSwapSources.Source source = StreamSwapSources.issueVideo("clip00000000", video, null);
+
+        assertTrue(source.token.startsWith("http://127.0.0.1:1/rvx?v=clip00000000&i=18&m=video&t="));
+        assertSame(source, StreamSwapSources.lookup(source.key));
+        assertSame(source, StreamSwapSources.issueVideo("clip00000000", video, null));
+        assertEquals(StreamSwapSources.KIND_VIDEO, source.served.kind());
+        assertEquals(video.file(), source.served.file());
+        assertEquals(1000, source.served.length());
+    }
 }

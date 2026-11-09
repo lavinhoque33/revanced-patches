@@ -176,9 +176,11 @@ YouTube Music 8.x - crossfade only runs on 9.x and newer"</string>
     <string name="morphe_music_open_downloads_ready">Offline ready: %1$s of %2$s songs. Songs that are not ready fill in while you are online</string>
     <string name="morphe_music_stream_downloads_title">Stream downloads</string>
     <string name="morphe_music_stream_downloads_summary">%1$s songs saved for local playback, %2$s MB. Tap to delete them</string>
+    <string name="morphe_music_stream_downloads_summary_videos">%1$s songs and %3$s videos saved for local playback, %2$s MB. Tap to delete them</string>
     <string name="morphe_music_stream_downloads_none">No stream downloads saved</string>
     <string name="morphe_music_stream_downloads_delete_title">Delete all stream downloads</string>
     <string name="morphe_music_stream_downloads_delete_message">Delete the %1$s stream downloads (%2$s MB)? Songs saved as files in Music/RVX and Device files are not affected</string>
+    <string name="morphe_music_stream_downloads_delete_message_videos">Delete the %1$s stream downloads and %3$s videos (%2$s MB)? Songs saved as files in Music/RVX and Device files are not affected</string>
     <string name="morphe_music_stream_downloads_deleted">Deleted %s stream downloads</string>
     <string name="morphe_music_offline_library_albums">Albums and playlists</string>
     <string name="morphe_music_offline_library_songs">Songs</string>
@@ -201,6 +203,10 @@ Audio files remain after uninstalling Music; playlist organization is app data. 
     <string name="morphe_music_playlist_download_started">Playlist download started</string>
     <string name="morphe_music_playlist_stream_already_saved">Stream copies already saved: %s tracks</string>
     <string name="morphe_music_playlist_stream_complete">Stream copies saved: %s tracks</string>
+    <string name="morphe_music_playlist_stream_already_saved_videos">Stream copies already saved: %1$s tracks, %2$s videos</string>
+    <string name="morphe_music_playlist_stream_complete_videos">Stream copies saved: %1$s tracks, %2$s videos</string>
+    <string name="morphe_music_playlist_videos_failed">%s videos not saved</string>
+    <string name="morphe_music_playlist_video_progress">Saving video %1$s of %2$s</string>
     <string name="morphe_music_playlist_unavailable_skipped">%s unavailable skipped</string>
     <!-- Jam queue sharing, ported from Morphe -->
     <string name="morphe_music_jam_add_to_queue">Add to Jam queue</string>

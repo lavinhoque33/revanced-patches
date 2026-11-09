@@ -2,6 +2,7 @@
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
  * Written by lavinhoque33, 2026-11-07.
+ * Modified by lavinhoque33, 2026-11-09.
  */
 
 package app.morphe.extension.music.settings.preference;
@@ -82,7 +83,8 @@ public class StreamDownloadsPreference extends Preference {
         try {
             CustomDialog.create(getContext(),
                     str("morphe_music_stream_downloads_delete_title"),
-                    str("morphe_music_stream_downloads_delete_message", summary.count(), megabytes(summary.bytes())),
+                    str(StreamDownloads.deleteMessageKey(summary), summary.count(),
+                            megabytes(summary.totalBytes()), summary.videos()),
                     null,
                     null,
                     this::deleteAll,
@@ -106,11 +108,12 @@ public class StreamDownloadsPreference extends Preference {
     }
 
     private static String summaryText(StreamDownloads.Summary summary) {
-        if (summary.count() == 0) return str("morphe_music_stream_downloads_none");
-        return str("morphe_music_stream_downloads_summary", summary.count(), megabytes(summary.bytes()));
+        if (summary.count() == 0) return str(StreamDownloads.summaryKey(summary));
+        return str(StreamDownloads.summaryKey(summary), summary.count(), megabytes(summary.totalBytes()),
+                summary.videos());
     }
 
     private static String megabytes(long bytes) {
-        return String.format(Locale.getDefault(), "%.1f", bytes / (1024.0 * 1024.0));
+        return StreamDownloads.megabytes(bytes, Locale.getDefault());
     }
 }

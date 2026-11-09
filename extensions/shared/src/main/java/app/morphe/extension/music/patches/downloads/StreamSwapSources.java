@@ -2,11 +2,13 @@
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
  * Written by lavinhoque33, 2026-11-07.
+ * Modified by lavinhoque33, 2026-11-09.
  */
 package app.morphe.extension.music.patches.downloads;
 
 import android.net.Uri;
 
+import java.io.File;
 import java.io.FileNotFoundException;
 import java.util.ArrayDeque;
 import java.util.HashMap;
@@ -18,9 +20,23 @@ import java.util.concurrent.atomic.AtomicLong;
 
 /** Loopback URLs are opaque engine-routing tokens, never HTTP endpoints. No listener or socket is needed. */
 final class StreamSwapSources {
+    static final String KIND_RAW = "raw";
+    static final String KIND_VIDEO = "video";
+
+    /** What a token serves: a file of a kind (the raw audio copy or the video copy), its itag and its length. */
+    record Served(String kind, File file, int itag, long length) {
+        static Served of(RawAudioFiles.Entry raw) {
+            return new Served(KIND_RAW, raw.file(), raw.itag(), raw.length());
+        }
+
+        static Served of(VideoCopyFiles.Entry video) {
+            return new Served(KIND_VIDEO, video.file(), video.itag(), video.length());
+        }
+    }
+
     static final class Source {
         final String videoId;
-        final RawAudioFiles.Entry raw;
+        final Served served;
         /** Original https URL of the swapped format, null for SABR formats that have none. */
         final String online;
         final String key;
@@ -28,13 +44,13 @@ final class StreamSwapSources {
         final long fileModified;
         volatile boolean available = true;
 
-        Source(String videoId, RawAudioFiles.Entry raw, String online, String key, String token) {
+        Source(String videoId, Served served, String online, String key, String token) {
             this.videoId = videoId;
-            this.raw = raw;
+            this.served = served;
             this.online = online;
             this.key = key;
             this.token = token;
-            fileModified = raw.file().lastModified();
+            fileModified = served.file().lastModified();
         }
 
         String fallback() throws FileNotFoundException {
@@ -57,15 +73,25 @@ final class StreamSwapSources {
     private StreamSwapSources() {}
 
     /** The format's own URL may be empty (SABR): the source then has no online fallback. */
-    static synchronized Source issue(String videoId, RawAudioFiles.Entry raw, String formatUrl) {
+    static Source issue(String videoId, RawAudioFiles.Entry raw, String formatUrl) {
+        return issue(videoId, Served.of(raw), formatUrl);
+    }
+
+    /** The source of a music video's video copy, {@code videoId} being the id of the music video. */
+    static Source issueVideo(String videoId, VideoCopyFiles.Entry video, String formatUrl) {
+        return issue(videoId, Served.of(video), formatUrl);
+    }
+
+    private static synchronized Source issue(String videoId, Served served, String formatUrl) {
         String onlineUrl = StreamSwapLogic.onlineUrl(formatUrl);
         Source previous = latest.get(videoId);
-        if (previous != null && previous.available && previous.raw.equals(raw)
+        if (previous != null && previous.available && previous.served.equals(served)
                 && Objects.equals(previous.online, onlineUrl)) return previous;
 
         String key = SESSION + "-" + sequence.incrementAndGet();
-        String uri = "http://127.0.0.1:1/rvx?v=" + videoId + "&i=" + raw.itag() + "&m=raw&t=" + key;
-        Source source = new Source(videoId, raw, onlineUrl, key, uri);
+        String uri = "http://127.0.0.1:1/rvx?v=" + videoId + "&i=" + served.itag() + "&m=" + served.kind()
+                + "&t=" + key;
+        Source source = new Source(videoId, served, onlineUrl, key, uri);
         sources.put(key, source);
         latest.put(videoId, source);
         ArrayDeque<Source> history = issued.computeIfAbsent(videoId, id -> new ArrayDeque<>());
@@ -86,8 +112,8 @@ final class StreamSwapSources {
         if (token == null) return null;
         Source source = lookup(token);
         if (source == null || !source.videoId.equals(uri.getQueryParameter("v"))
-                || !Integer.toString(source.raw.itag()).equals(uri.getQueryParameter("i"))
-                || !"raw".equals(uri.getQueryParameter("m"))) return null;
+                || !Integer.toString(source.served.itag()).equals(uri.getQueryParameter("i"))
+                || !source.served.kind().equals(uri.getQueryParameter("m"))) return null;
         return source;
     }
 
@@ -106,7 +132,7 @@ final class StreamSwapSources {
 
     static void invalidateMissing() {
         for (Source source : sources.values()) {
-            if (!source.raw.file().isFile() || source.raw.file().length() != source.raw.length()) {
+            if (!source.served.file().isFile() || source.served.file().length() != source.served.length()) {
                 source.available = false;
                 latest.remove(source.videoId, source);
             }

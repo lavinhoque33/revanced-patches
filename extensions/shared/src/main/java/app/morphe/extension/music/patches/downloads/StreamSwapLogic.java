@@ -2,6 +2,7 @@
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
  * Written by lavinhoque33, 2026-11-07.
+ * Modified by lavinhoque33, 2026-11-09.
  */
 package app.morphe.extension.music.patches.downloads;
 
@@ -10,6 +11,7 @@ import java.net.URISyntaxException;
 
 import app.morphe.extension.shared.innertube.PlayerResponseOuterClass.Format;
 import app.morphe.extension.shared.innertube.PlayerResponseOuterClass.PlayerResponse;
+import app.morphe.extension.shared.innertube.PlayerResponseOuterClass.StreamingData;
 
 /** Pure admission and proto transformation used by playback and the host tests. */
 final class StreamSwapLogic {
@@ -68,6 +70,22 @@ final class StreamSwapLogic {
         var streaming = online.getStreamingData().toBuilder().clearFormats().clearAdaptiveFormats()
                 .addAdaptiveFormats(audio);
         streaming.clearServerAbrStreamingUrl();
+        return withoutServerAbr(online, streaming);
+    }
+
+    /**
+     * The response of a music video that has a video copy: its only format is the muxed progressive one, played from
+     * the file. No adaptive format, no SABR route and no HLS manifest remains that the player could prefer to it.
+     */
+    static PlayerResponse replaceVideo(PlayerResponse online, Format muxed) {
+        var streaming = online.getStreamingData().toBuilder().clearFormats().clearAdaptiveFormats()
+                .addFormats(muxed).clearHlsManifestUrl();
+        streaming.clearServerAbrStreamingUrl();
+        return withoutServerAbr(online, streaming);
+    }
+
+    /** The response with this streaming data and no request hint that forces the player onto SABR. */
+    private static PlayerResponse withoutServerAbr(PlayerResponse online, StreamingData.Builder streaming) {
         var replacement = online.toBuilder().setStreamingData(streaming);
         if (!online.hasPlayerConfig()) return replacement.build();
 

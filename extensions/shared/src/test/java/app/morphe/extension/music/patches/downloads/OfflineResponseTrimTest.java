@@ -170,4 +170,26 @@ public class OfflineResponseTrimTest {
         assertFalse(built.hasPlayerConfig());
         assertEquals(new TreeSet<>(Set.of(2, 4, 11)), topLevelFields(built.toByteArray()));
     }
+
+    @Test public void aVideoCopysResponseKeepsTheMuxedFormatWithoutItsUrlAndTheRealLength() throws Exception {
+        Format muxed = Format.newBuilder().setItag(18).setMimeType("video/mp4; codecs=\"avc1.42001E, mp4a.40.2\"")
+                .setUrl("https://example.invalid/v").setSignatureCipher("cipher").setBitrate(444226).build();
+        VideoDetails details = VideoDetails.newBuilder().setVideoId("clip").setLengthSeconds(213).build();
+
+        PlayerResponse stored = PlayerResponse.parseFrom(OfflineResponseTrim.fromVideoDownload(muxed, details,
+                11_829_048));
+
+        assertEquals(Status.OK, stored.getPlayabilityStatus().getStatus());
+        assertEquals("clip", stored.getVideoDetails().getVideoId());
+        assertEquals(0, stored.getStreamingData().getAdaptiveFormatsCount());
+        assertEquals(1, stored.getStreamingData().getFormatsCount());
+        Format kept = stored.getStreamingData().getFormats(0);
+        assertEquals(18, kept.getItag());
+        assertEquals("", kept.getUrl());
+        assertEquals("", kept.getSignatureCipher());
+        assertEquals(11_829_048, kept.getContentLength());
+        assertEquals(444226, kept.getBitrate());
+        assertEquals(OfflineResponseTrim.DEFAULT_EXPIRES_SECONDS, stored.getStreamingData().getExpiresInSeconds());
+        assertTrue(VideoCopyLogic.stored(stored) != null);
+    }
 }

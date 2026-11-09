@@ -13,6 +13,9 @@ import java.io.File;
 
 import app.morphe.extension.shared.innertube.PlayerResponseOuterClass.ByteRange;
 import app.morphe.extension.shared.innertube.PlayerResponseOuterClass.Format;
+import app.morphe.extension.shared.innertube.PlayerResponseOuterClass.MediaCommonConfig;
+import app.morphe.extension.shared.innertube.PlayerResponseOuterClass.PlaybackRoutingConfig;
+import app.morphe.extension.shared.innertube.PlayerResponseOuterClass.PlayerConfig;
 import app.morphe.extension.shared.innertube.PlayerResponseOuterClass.PlayerResponse;
 import app.morphe.extension.shared.innertube.PlayerResponseOuterClass.StreamingData;
 import app.morphe.extension.shared.innertube.PlayerResponseOuterClass.VideoDetails;
@@ -111,5 +114,67 @@ public class StreamSwapLogicTest {
         assertFalse(StreamSwapLogic.isGuardedHost("127.0.0.2"));
         assertFalse(StreamSwapLogic.isGuardedHost("localhost.example"));
         assertFalse(StreamSwapLogic.isGuardedHost(null));
+    }
+
+    private static final String MP4 = "video/mp4; codecs=\"avc1.42001E, mp4a.40.2\"";
+
+    private Format.Builder muxed() {
+        return Format.newBuilder().setItag(18).setMimeType(MP4).setUrl("http://127.0.0.1:1/rvx")
+                .setContentLength(11_829_048);
+    }
+
+    /** The 9.40.51 shape of a music video: SABR route, adaptive formats and the request hints that force SABR. */
+    private PlayerResponse sabrVideo() {
+        return PlayerResponse.newBuilder()
+                .setVideoDetails(VideoDetails.newBuilder().setVideoId("clip").setLengthSeconds(213))
+                .setStreamingData(StreamingData.newBuilder().setExpiresInSeconds(21_540)
+                        .setServerAbrStreamingUrl("https://example.invalid/sabr")
+                        .setHlsManifestUrl("https://example.invalid/hls")
+                        .addAdaptiveFormats(audio()).addAdaptiveFormats(Format.newBuilder().setItag(137)))
+                .setPlayerConfig(PlayerConfig.newBuilder().setMediaCommonConfig(MediaCommonConfig.newBuilder()
+                        .setEnableSabr(true)).setPlaybackRoutingConfig(PlaybackRoutingConfig.newBuilder()
+                        .setPreferredEngine(3)))
+                .build();
+    }
+
+    @Test public void theVideoResponseExposesOnlyTheMuxedProgressiveFormat() {
+        PlayerResponse swapped = StreamSwapLogic.replaceVideo(sabrVideo(), muxed().build());
+
+        StreamingData streaming = swapped.getStreamingData();
+        assertEquals(1, streaming.getFormatsCount());
+        assertEquals(18, streaming.getFormats(0).getItag());
+        assertEquals("http://127.0.0.1:1/rvx", streaming.getFormats(0).getUrl());
+        assertEquals(11_829_048, streaming.getFormats(0).getContentLength());
+        assertEquals(0, streaming.getAdaptiveFormatsCount());
+        assertFalse(streaming.hasServerAbrStreamingUrl());
+        assertFalse(streaming.hasHlsManifestUrl());
+        assertEquals(21_540, streaming.getExpiresInSeconds());
+    }
+
+    @Test public void theVideoResponseDropsTheRequestHintsThatForceSabrAndKeepsTheRest() {
+        PlayerResponse swapped = StreamSwapLogic.replaceVideo(sabrVideo(), muxed().build());
+
+        assertFalse(swapped.getPlayerConfig().hasMediaCommonConfig());
+        assertFalse(swapped.getPlayerConfig().hasPlaybackRoutingConfig());
+        assertEquals("clip", swapped.getVideoDetails().getVideoId());
+        assertEquals(213, swapped.getVideoDetails().getLengthSeconds());
+    }
+
+    @Test public void aStoredVideoResponseWithoutAPlayerConfigIsSwappedToo() {
+        PlayerResponse stored = PlayerResponse.newBuilder()
+                .setVideoDetails(VideoDetails.newBuilder().setVideoId("clip"))
+                .setStreamingData(StreamingData.newBuilder().addFormats(muxed().clearUrl())).build();
+
+        PlayerResponse swapped = StreamSwapLogic.replaceVideo(stored, muxed().build());
+
+        assertEquals("http://127.0.0.1:1/rvx", swapped.getStreamingData().getFormats(0).getUrl());
+        assertFalse(swapped.hasPlayerConfig());
+    }
+
+    @Test public void theAudioSwapStillKeepsTheFormatsOutOfTheVideoField() {
+        PlayerResponse swapped = StreamSwapLogic.replaceAudio(sabrVideo(), audio().build());
+
+        assertEquals(0, swapped.getStreamingData().getFormatsCount());
+        assertEquals(1, swapped.getStreamingData().getAdaptiveFormatsCount());
     }
 }

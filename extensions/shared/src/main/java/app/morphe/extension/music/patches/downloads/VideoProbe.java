@@ -421,10 +421,10 @@ final class VideoProbe {
         try {
             long start = SystemClock.elapsedRealtime();
             JSONObject response = MusicBrowseRequest.nextWith(context, fields);
-            VideoProbeLogic.NextPage page = VideoProbeLogic.readNext(response, 0);
+            WatchQueueLogic.NextPage page = WatchQueueLogic.readNext(response, 0);
             log(prefix + "http=200 chars=" + response.toString().length() + " ms="
-                    + (SystemClock.elapsedRealtime() - start) + " " + VideoProbeLogic.describe(page));
-            for (VideoProbeLogic.NextItem item : page.items()) log(prefix + VideoProbeLogic.describe(item));
+                    + (SystemClock.elapsedRealtime() - start) + " " + WatchQueueLogic.describe(page));
+            for (WatchQueueLogic.NextItem item : page.items()) log(prefix + WatchQueueLogic.describe(item));
 
             if (!page.continuation().isEmpty()) continueNext(context, prefix, page);
         } catch (Exception ex) {
@@ -433,16 +433,16 @@ final class VideoProbe {
     }
 
     /** One more request with the token of the first page: can the queue be paged, and how many items does it add? */
-    private static void continueNext(Context context, String prefix, VideoProbeLogic.NextPage first) {
+    private static void continueNext(Context context, String prefix, WatchQueueLogic.NextPage first) {
         try {
             long start = SystemClock.elapsedRealtime();
             JSONObject response = MusicBrowseRequest.nextWith(context,
                     new JSONObject().put("continuation", first.continuation()));
-            VideoProbeLogic.NextPage page = VideoProbeLogic.readNext(response, first.items().size());
+            WatchQueueLogic.NextPage page = WatchQueueLogic.readNext(response, first.items().size());
             log(prefix + "continuation http=200 chars=" + response.toString().length() + " ms="
-                    + (SystemClock.elapsedRealtime() - start) + " " + VideoProbeLogic.describe(page));
-            for (VideoProbeLogic.NextItem item : page.items()) {
-                log(prefix + "continuation " + VideoProbeLogic.describe(item));
+                    + (SystemClock.elapsedRealtime() - start) + " " + WatchQueueLogic.describe(page));
+            for (WatchQueueLogic.NextItem item : page.items()) {
+                log(prefix + "continuation " + WatchQueueLogic.describe(item));
             }
         } catch (Exception ex) {
             log(prefix + "continuation failed: " + describe(ex));

@@ -2,6 +2,7 @@
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
  * Written by lavinhoque33, 2026-11-07.
+ * Modified by lavinhoque33, 2026-11-09.
  */
 package app.morphe.extension.music.patches.downloads;
 
@@ -59,6 +60,7 @@ final class OfflineCopyStore {
             Storage.copies.ensureLoaded();
             Storage.sources.ensureLoaded();
             OfflineBrowsePages.load();
+            VideoCopyStore.warmUp();
         });
     }
 
@@ -89,6 +91,13 @@ final class OfflineCopyStore {
     static boolean has(String videoId) {
         warmUp();
         return Storage.copies.has(videoId);
+    }
+
+    /** The length in seconds of a copy with stored data, or 0 when it has none or does not know it. */
+    static long durationSeconds(String videoId) {
+        Utils.verifyOffMainThread();
+        OfflineCopyMetadata metadata = Storage.copies.metadata(videoId);
+        return metadata == null ? 0 : metadata.durationMs() / 1000;
     }
 
     /** The stored data of a copy, or null when it has none. */

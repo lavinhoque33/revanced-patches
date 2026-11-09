@@ -345,7 +345,7 @@ public class StreamOrDetailsDataRequest {
     }
 
     /**
-     * TEMPORARY (S44 video probe, REMOVE with it): how the last download request of a video to a client ended,
+     * How the last download request of a video to a client ended,
      * as one short phrase: "OK", an HTTP status, a playability status, or why it was skipped.
      */
     private static final Map<String, String> downloadOutcomes = Collections.synchronizedMap(
@@ -358,7 +358,7 @@ public class StreamOrDetailsDataRequest {
         }
     }
 
-    /** TEMPORARY (S44 video probe, REMOVE with it): see {@link #downloadOutcomes}; null when none was noted. */
+    /** How the last download request of a video to a client ended, see {@link #downloadOutcomes}; null if unknown. */
     @Nullable
     public static String downloadOutcome(String videoId, ClientType clientType) {
         return downloadOutcomes.get(videoId + "/" + clientType.name());

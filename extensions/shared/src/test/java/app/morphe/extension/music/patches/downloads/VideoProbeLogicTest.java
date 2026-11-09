@@ -9,7 +9,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-import org.json.JSONObject;
 import org.junit.Test;
 
 import java.io.ByteArrayOutputStream;
@@ -234,69 +233,5 @@ public class VideoProbeLogicTest {
         assertEquals("1a45dfa3", VideoProbeLogic.hex(bytes(0x1a, 0x45, 0xdf, 0xa3, 0x01), 4));
         assertEquals("0a", VideoProbeLogic.hex(bytes(0x0a), 32));
         assertFalse(Arrays.asList(VideoProbeLogic.hex(bytes(0xff), 1)).isEmpty());
-    }
-
-    // ---- /next ----
-
-    private static final String WRAPPED = """
-            {"contents":{"singleColumnMusicWatchNextResultsRenderer":{"tabbedRenderer":{"watchNextTabbedResultsRenderer":
-            {"tabs":[{"tabRenderer":{"content":{"musicQueueRenderer":{"content":{"playlistPanelRenderer":{
-            "contents":[
-              {"playlistPanelVideoWrapperRenderer":{
-                "primaryRenderer":{"playlistPanelVideoRenderer":{"videoId":"omvOne00000","lengthText":{"runs":[{"text":"3:34"}]},
-                  "navigationEndpoint":{"watchEndpoint":{"watchEndpointMusicSupportedConfigs":{"watchEndpointMusicConfig":
-                  {"musicVideoType":"MUSIC_VIDEO_TYPE_OMV"}}}}}},
-                "counterpart":[{"counterpartRenderer":{"playlistPanelVideoRenderer":{"videoId":"atvOne00000",
-                  "navigationEndpoint":{"watchEndpoint":{"watchEndpointMusicSupportedConfigs":{"watchEndpointMusicConfig":
-                  {"musicVideoType":"MUSIC_VIDEO_TYPE_ATV"}}}}}}}]}},
-              {"playlistPanelVideoRenderer":{"videoId":"atvTwo00000","lengthText":{"runs":[{"text":"4:01"}]}}},
-              {"automixPreviewVideoRenderer":{}},
-              {"somethingElse":{}}
-            ],
-            "continuations":[{"nextRadioContinuationData":{"continuation":"TOKEN"}}]}}}}}}]}}}}}
-            """;
-
-    @Test public void aWrappedItemNamesItsCounterpart() throws Exception {
-        VideoProbeLogic.NextPage page = VideoProbeLogic.readNext(new JSONObject(WRAPPED), 0);
-
-        VideoProbeLogic.NextItem first = page.items().get(0);
-        assertEquals("wrapper", first.kind());
-        assertEquals("omvOne00000", first.videoId());
-        assertEquals("OMV", first.type());
-        assertEquals("atvOne00000", first.counterpartId());
-        assertEquals("ATV", first.counterpartType());
-        assertEquals("item 0 wrapper id=omvOne00000 type=OMV counterpart=atvOne00000 counterpartType=ATV len=3:34",
-                VideoProbeLogic.describe(first));
-    }
-
-    @Test public void aPlainItemHasNoCounterpart() throws Exception {
-        VideoProbeLogic.NextPage page = VideoProbeLogic.readNext(new JSONObject(WRAPPED), 0);
-
-        assertEquals("item 1 plain id=atvTwo00000 type=- counterpart=none len=4:01",
-                VideoProbeLogic.describe(page.items().get(1)));
-    }
-
-    @Test public void theTotalsCountTheKindsAndTheContinuation() throws Exception {
-        VideoProbeLogic.NextPage page = VideoProbeLogic.readNext(new JSONObject(WRAPPED), 0);
-
-        assertEquals("TOKEN", page.continuation());
-        assertEquals(1, page.automix());
-        assertEquals(List.of("somethingElse"), page.otherKinds());
-        assertEquals("items=2 wrappers=1 withCounterpart=1 automix=1 otherKinds=[somethingElse] continuation=yes",
-                VideoProbeLogic.describe(page));
-    }
-
-    @Test public void aContinuationResponseIsReadAndNumberedFromWhereTheFirstEnded() throws Exception {
-        JSONObject response = new JSONObject("{\"continuationContents\":{\"playlistPanelContinuation\":{\"contents\":["
-                + "{\"playlistPanelVideoRenderer\":{\"videoId\":\"atvThree0000\"}}]}}}");
-
-        VideoProbeLogic.NextPage page = VideoProbeLogic.readNext(response, 25);
-
-        assertEquals(25, page.items().get(0).index());
-        assertEquals("", page.continuation());
-    }
-
-    @Test public void aResponseWithNoQueueHasNoItems() throws Exception {
-        assertTrue(VideoProbeLogic.readNext(new JSONObject("{}"), 0).items().isEmpty());
     }
 }

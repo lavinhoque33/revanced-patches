@@ -2,6 +2,7 @@
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
  * Written by lavinhoque33, 2026-11-07.
+ * Modified by lavinhoque33, 2026-11-09.
  */
 package app.morphe.extension.music.patches.downloads;
 
@@ -20,7 +21,10 @@ import app.morphe.extension.shared.innertube.PlayerResponseOuterClass.Format;
 import app.morphe.extension.shared.innertube.PlayerResponseOuterClass.PlayerResponse;
 import app.morphe.extension.shared.utils.Logger;
 
-/** Replaces audio only: the online response still owns radio, queue, lyrics, tracking and related content. */
+/**
+ * Replaces the stream only: the audio of a downloaded song, or the video of a music video that has a video copy. The
+ * online response still owns radio, queue, lyrics, tracking and related content.
+ */
 @SuppressWarnings("unused")
 public final class StreamSwap {
     /** Implemented on the stock response wrapper by the Downloads patch. */
@@ -84,6 +88,9 @@ public final class StreamSwap {
         String videoId = "?";
         try {
             videoId = adapter.rvxVideoId();
+            VideoCopyFiles.Entry video = VideoCopyStore.find(videoId);
+            if (video != null) return swapVideo(original, adapter, video, stored);
+
             RawAudioFiles.Entry raw = RawAudioStore.find(videoId);
             if (raw == null) return unchanged(original, videoId, "no current raw download", stored);
             // A music video the user switched to must stay the online video; audio only would replace it.
@@ -118,6 +125,49 @@ public final class StreamSwap {
         } catch (Exception ex) {
             return unchanged(original, videoId, "raw copy or response unavailable", stored);
         }
+    }
+
+    /**
+     * Answers a music video that has a video copy from its file: the response keeps everything of the online one and
+     * announces the muxed progressive format, whose url is a local token. Only a video mode asks for a video copy;
+     * any other request for the video (the start of an album in the audio mode, before the song is chosen) stays
+     * online, as it was before the copies existed. A failure here is a decline: the online response plays.
+     */
+    private static Object swapVideo(Object original, Response adapter, VideoCopyFiles.Entry video, boolean stored)
+            throws Exception {
+        String videoId = video.videoId();
+        String mode = AudioFirst.liveMode();
+        if (!VideoCopyLogic.answersVideo(AudioFirst.supported(), mode)) {
+            return unchanged(original, videoId, "video copy, mode " + mode + " is not a video mode", stored);
+        }
+
+        PlayerResponse online = PlayerResponse.parseFrom(adapter.rvxBytes());
+        if (!online.hasStreamingData()) return unchanged(original, videoId, "no StreamingData", stored);
+        if (!VideoCopyLogic.sameLength(online.getVideoDetails().getLengthSeconds(), video.durationMs())) {
+            return unchanged(original, videoId, "video length differs", stored);
+        }
+
+        byte[] storedBytes = VideoCopyStore.response(videoId);
+        Format format = storedBytes == null ? null : VideoCopyLogic.stored(PlayerResponse.parseFrom(storedBytes));
+        if (format == null) return unchanged(original, videoId, "video copy has no stored format", stored);
+
+        Format onlineFormat = VideoCopyLogic.muxed(online);
+        StreamSwapSources.Source source = StreamSwapSources.issueVideo(videoId, video,
+                onlineFormat == null ? null : onlineFormat.getUrl());
+        Format local = VideoCopyLogic.local(format, source.token, video.length(), video.durationMs());
+        PlayerResponse replacement = StreamSwapLogic.replaceVideo(online, local);
+        Object result = adapter.rvxWithBytes(replacement.toByteArray(), true);
+        if (result == null || result == original) return unchanged(original, videoId, "stock adapter declined", stored);
+
+        replacements.put(result, new Replacement(original, source));
+        // Like any answer for the video, the start correction of the audio-first mode looks at it.
+        if (!stored) lastOnline = new OnlineDecision(videoId, SystemClock.elapsedRealtime());
+        Logger.printDebug(() -> "StreamSwap: decision=SWAP v=" + videoId + " itag=" + video.itag() + " kind=video"
+                + " song=" + video.songId() + " mode=" + mode + " length=" + video.length()
+                + " onlineUrl=" + (source.online != null) + " stored=" + stored
+                + " onlineAdaptive=" + online.getStreamingData().getAdaptiveFormatsCount()
+                + " onlineSabr=" + online.getStreamingData().hasServerAbrStreamingUrl());
+        return result;
     }
 
     /**

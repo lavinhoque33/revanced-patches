@@ -2,6 +2,7 @@
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
  * Written by lavinhoque33, 2026-11-07.
+ * Modified by lavinhoque33, 2026-11-09.
  */
 package app.morphe.extension.music.patches.downloads;
 
@@ -61,8 +62,10 @@ final class RawAudioStore {
             Utils.verifyOffMainThread();
             Storage.files.cleanup(RawAudioStore::nativeUri);
             // Stored data published after the id list is read belongs to a copy kept meanwhile.
+            Set<String> copyIds = Storage.files.committedIds();
             long copyIdsReadAt = System.currentTimeMillis();
-            OfflineCopyStore.retainOnly(Storage.files.committedIds(), copyIdsReadAt);
+            OfflineCopyStore.retainOnly(copyIds, copyIdsReadAt);
+            VideoCopyStore.retainOnly(copyIds, copyIdsReadAt);
             StreamSwapSources.invalidateMissing();
             DownloadedMarkers.rescanStreamCopies();
         } catch (Exception ex) {
@@ -116,6 +119,7 @@ final class RawAudioStore {
         StreamSwapSources.invalidate(videoId);
         Storage.files.delete(videoId);
         OfflineCopyStore.delete(videoId);
+        VideoCopyStore.deleteForSong(videoId);
         DownloadedMarkers.onStreamCopyRemoved(videoId);
     }
 
@@ -128,6 +132,7 @@ final class RawAudioStore {
         StreamSwapSources.invalidate(videoId);
         if (Storage.files.deleteUnlessStreamOnly(videoId)) {
             OfflineCopyStore.delete(videoId);
+            VideoCopyStore.deleteForSong(videoId);
             DownloadedMarkers.onStreamCopyRemoved(videoId);
         }
     }
@@ -153,6 +158,7 @@ final class RawAudioStore {
         StreamSwapSources.invalidateAll();
         int count = Storage.files.clear();
         OfflineCopyStore.clearAll();
+        VideoCopyStore.clearAll();
         DownloadedMarkers.onStreamCopiesCleared();
         return count;
     }

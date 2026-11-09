@@ -51,7 +51,7 @@ public final class MusicBrowseRequest {
     }
 
     /**
-     * TEMPORARY (S44 video probe, REMOVE with it): Music's watch response for the given request fields (a video, a
+     * Music's watch response for the given request fields (a video, a
      * playlist, a continuation, ...), sent exactly as {@link #next(Context, String)} and {@link #browse} are.
      */
     public static JSONObject nextWith(Context context, JSONObject fields) throws IOException, JSONException {

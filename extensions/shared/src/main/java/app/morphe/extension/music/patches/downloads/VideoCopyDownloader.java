@@ -1,0 +1,218 @@
+/*
+ * Copyright (C) 2026 lavinhoque33
+ * Licensed under the GNU General Public License v3.0.
+ * Written by lavinhoque33, 2026-11-09.
+ */
+package app.morphe.extension.music.patches.downloads;
+
+import static app.morphe.extension.shared.utils.StringRef.str;
+
+import org.json.JSONObject;
+
+import java.io.File;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
+import app.morphe.extension.music.patches.misc.requests.MusicBrowseRequest;
+import app.morphe.extension.music.patches.spoof.SpoofVideoStreamsPatch;
+import app.morphe.extension.shared.innertube.PlayerResponseOuterClass.Format;
+import app.morphe.extension.shared.innertube.PlayerResponseOuterClass.PlayerResponse;
+import app.morphe.extension.shared.spoof.ClientType;
+import app.morphe.extension.shared.spoof.requests.StreamOrDetailsDataRequest;
+import app.morphe.extension.shared.utils.Logger;
+import app.morphe.extension.shared.utils.Utils;
+
+/**
+ * Saves the video copies of a downloaded playlist or album: for every song that has a music video, the muxed 360p
+ * mp4 of that video. Runs after the audio copies of the list. The music video of each song is found from the queue
+ * the server lists for the list ({@link VideoPairingLogic}); each video is then downloaded on its own, one at a time,
+ * with the downloader's own ranged, retried download. A video that cannot be saved is only counted: it never fails
+ * the song or the list. Videos are saved only here, never later in the background.
+ */
+final class VideoCopyDownloader {
+    /** What a list ended with: videos already saved, saved now, and tried but failed. */
+    record Outcome(int present, int saved, int failed) {
+        static final Outcome NONE = new Outcome(0, 0, 0);
+
+        /** The videos the list has now. */
+        int videos() {
+            return present + saved;
+        }
+    }
+
+    /** The clients that answer the muxed itag 18 with a plain url, in the order they are asked. */
+    private static final List<ClientType> CLIENTS = List.of(ClientType.ANDROID_MUSIC_NO_SDK,
+            ClientType.ANDROID_MUSIC_REEL);
+    /** More pages than any list needs; a queue that never ends is a radio, not the list. */
+    private static final int MAX_QUEUE_PAGES = 12;
+
+    private VideoCopyDownloader() {}
+
+    /** The device has no room for the copy; no other client could change that. */
+    private static final class NoRoomException extends IOException {
+        NoRoomException(String message) {
+            super(message);
+        }
+    }
+
+    /**
+     * Brings the videos of a list to the state its audio copies ask for. Never throws.
+     *
+     * @param songIds The downloaded (available) tracks of the list, in order.
+     */
+    static Outcome ensure(String sourceId, String title, List<String> songIds) {
+        try {
+            Utils.verifyOffMainThread();
+            if (!StreamSwap.enabled() || songIds.isEmpty()) return Outcome.NONE;
+
+            VideoPairingLogic.Result pairing = VideoPairingLogic.pair(songsOf(songIds),
+                    queueOf(sourceId, songIds.get(0), songIds.size()));
+            if (pairing.skipReason() != null) {
+                Logger.printWarn(() -> "VideoCopy: video pairing skipped: " + pairing.skipReason() + " list="
+                        + sourceId);
+                return Outcome.NONE;
+            }
+            Logger.printWarn(() -> "VideoCopy: paired " + pairing.pairs().size() + " of " + songIds.size()
+                    + " tracks with a video, unverified=" + pairing.unverified() + " list=" + sourceId);
+            return download(sourceId, title, pairing.pairs());
+        } catch (Exception ex) {
+            Logger.printException(() -> "VideoCopy: video pairing failed, list=" + sourceId, ex);
+            return Outcome.NONE;
+        }
+    }
+
+    private static List<VideoPairingLogic.Song> songsOf(List<String> songIds) {
+        List<VideoPairingLogic.Song> songs = new ArrayList<>(songIds.size());
+        for (String id : songIds) songs.add(new VideoPairingLogic.Song(id, OfflineCopyStore.durationSeconds(id)));
+        return songs;
+    }
+
+    /** The items of the list's queue, as many as {@code expected} when the server pages it. */
+    private static List<WatchQueueLogic.NextItem> queueOf(String sourceId, String firstSongId, int expected)
+            throws Exception {
+        List<WatchQueueLogic.NextItem> items = new ArrayList<>();
+        Set<String> continuations = new HashSet<>();
+        JSONObject request = new JSONObject().put("videoId", firstSongId).put("playlistId", sourceId);
+        for (int page = 0; page < MAX_QUEUE_PAGES; page++) {
+            WatchQueueLogic.NextPage read = WatchQueueLogic.readNext(
+                    MusicBrowseRequest.nextWith(Utils.getContext(), request), items.size());
+            items.addAll(read.items());
+            if (items.size() >= expected || read.continuation().isEmpty()
+                    || !continuations.add(read.continuation())) break;
+
+            request = new JSONObject().put("continuation", read.continuation());
+        }
+        return items;
+    }
+
+    private static Outcome download(String sourceId, String title, List<VideoPairingLogic.Pair> pairs) {
+        Set<String> audioCopies = RawAudioStore.copyIds();
+        int present = 0;
+        int saved = 0;
+        int failed = 0;
+        for (int index = 0; index < pairs.size(); index++) {
+            VideoPairingLogic.Pair pair = pairs.get(index);
+            if (!audioCopies.contains(pair.songId())) continue;
+
+            VideoCopyFiles.Entry existing = VideoCopyStore.find(pair.videoId());
+            if (existing != null && existing.songId().equals(pair.songId())) {
+                present++;
+                continue;
+            }
+
+            if (LocalDownloadManager.canPostProgress()) {
+                LocalDownloadManager.showDownloadNotification("playlist:" + sourceId, title,
+                        index * 100 / pairs.size(), true,
+                        str("morphe_music_playlist_video_progress", index + 1, pairs.size()));
+            }
+            if (saveOne(pair, sourceId, title)) saved++;
+            else failed++;
+        }
+        Outcome outcome = new Outcome(present, saved, failed);
+        Logger.printWarn(() -> "VideoCopy: list=" + sourceId + " videos present=" + outcome.present() + " saved="
+                + outcome.saved() + " failed=" + outcome.failed());
+        return outcome;
+    }
+
+    private static boolean saveOne(VideoPairingLogic.Pair pair, String sourceId, String title) {
+        for (ClientType client : clients()) {
+            try {
+                if (save(pair, sourceId, title, client)) return true;
+            } catch (NoRoomException ex) {
+                Logger.printWarn(() -> "VideoCopy: v=" + pair.videoId() + " not saved: " + ex.getMessage());
+                return false;
+            } catch (Exception ex) {
+                Logger.printWarn(() -> "VideoCopy: v=" + pair.videoId() + " client=" + client + " failed: " + ex);
+            }
+        }
+        Logger.printWarn(() -> "VideoCopy: v=" + pair.videoId() + " song=" + pair.songId() + " not saved");
+        return false;
+    }
+
+    private static List<ClientType> clients() {
+        List<ClientType> clients = new ArrayList<>();
+        for (ClientType client : CLIENTS) {
+            if (SpoofVideoStreamsPatch.getAvailableClients().contains(client)) clients.add(client);
+        }
+        return clients;
+    }
+
+    private static boolean save(VideoPairingLogic.Pair pair, String sourceId, String title, ClientType client)
+            throws Exception {
+        String videoId = pair.videoId();
+        StreamOrDetailsDataRequest.StreamData stream = StreamOrDetailsDataRequest
+                .fetchRequestForDownload(videoId, List.of(client), client).getStream();
+        if (stream == null) {
+            Logger.printDebug(() -> "VideoCopy: v=" + videoId + " client=" + client + " no stream: "
+                    + StreamOrDetailsDataRequest.downloadOutcome(videoId, client));
+            return false;
+        }
+
+        PlayerResponse response = PlayerResponse.parseFrom(stream.streamingData());
+        Format muxed = VideoCopyLogic.muxed(response);
+        if (muxed == null) {
+            Logger.printDebug(() -> "VideoCopy: v=" + videoId + " client=" + client + " has no muxed itag 18");
+            return false;
+        }
+        if (!videoId.equals(response.getVideoDetails().getVideoId())) {
+            Logger.printDebug(() -> "VideoCopy: v=" + videoId + " client=" + client + " details name another video");
+            return false;
+        }
+
+        // The response lists no length for this format: the ranged answer's total is the file's.
+        long length = LocalDownloadManager.probeContentLength(muxed.getUrl());
+        if (length <= 0) return false;
+
+        long free = Utils.getContext().getFilesDir().getUsableSpace();
+        if (!VideoCopyLogic.hasRoomFor(free, length)) {
+            throw new NoRoomException("only " + free + " bytes free, " + length + " + "
+                    + VideoCopyLogic.MIN_FREE_BYTES_AFTER + " are needed");
+        }
+
+        File temporary = File.createTempFile("rvx-video-", ".part", Utils.getContext().getCacheDir());
+        try {
+            long start = System.currentTimeMillis();
+            // The notification key is the song's: its progress joins the song's own.
+            LocalDownloadManager.downloadWithResume(pair.songId(), title, muxed.getUrl(),
+                    new NativeAudioStore.Destination(null, temporary, muxed.getMimeType()), length);
+            long durationMs = durationOf(muxed, response);
+            byte[] stored = OfflineResponseTrim.fromVideoDownload(muxed, response.getVideoDetails(), length);
+            boolean kept = VideoCopyStore.retain(videoId, pair.songId(), sourceId, temporary,
+                    new VideoCopyLogic.Download(muxed.getMimeType(), length, muxed.getLastModified(), durationMs,
+                            stored));
+            Logger.printWarn(() -> "VideoCopy: v=" + videoId + " song=" + pair.songId() + " client=" + client
+                    + " bytes=" + length + " ms=" + (System.currentTimeMillis() - start) + " kept=" + kept);
+            return kept;
+        } finally {
+            temporary.delete();
+        }
+    }
+
+    private static long durationOf(Format format, PlayerResponse response) {
+        return format.getApproxDurationMs() > 0
+                ? format.getApproxDurationMs() : response.getVideoDetails().getLengthSeconds() * 1000L;
+    }
+}

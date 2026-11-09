@@ -2,6 +2,7 @@
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
  * Written by lavinhoque33, 2026-11-07.
+ * Modified by lavinhoque33, 2026-11-09.
  */
 package app.morphe.extension.music.patches.downloads;
 
@@ -81,6 +82,21 @@ final class OfflineResponseTrim {
     static byte[] fromDownload(Format downloaded, VideoDetails details) {
         return assemble(PlayabilityStatus.getDefaultInstance(), details, downloaded, DEFAULT_EXPIRES_SECONDS,
                 PlayerConfig.newBuilder()).toByteArray();
+    }
+
+    /**
+     * The response stored with a video copy: the details of the music video and the muxed progressive format, whose
+     * url is empty (the replay puts its own local token there) and whose length is the stored file's.
+     */
+    static byte[] fromVideoDownload(Format muxed, VideoDetails details, long length) {
+        Format local = muxed.toBuilder().clearUrl().clearSignatureCipher().setContentLength(length).build();
+        return PlayerResponse.newBuilder()
+                .setPlayabilityStatus(PlayabilityStatus.newBuilder().setStatus(Status.OK))
+                .setVideoDetails(details)
+                .setStreamingData(StreamingData.newBuilder()
+                        .setExpiresInSeconds(DEFAULT_EXPIRES_SECONDS)
+                        .addFormats(local))
+                .build().toByteArray();
     }
 
     private static PlayerResponse assemble(PlayabilityStatus playability, VideoDetails details, Format audio,

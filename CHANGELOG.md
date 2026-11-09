@@ -38,6 +38,12 @@
   private or blocked songs, shown greyed out) instead of failing the whole download. The finished message says how
   many were skipped, the Download button's check turns on when every available track has a copy, and a failed
   download now names the reason in a one-line message.
+* **YouTube Music - Downloads:** Songs that have a music video also save its 360p video (about 12 MB), so the Video
+  switch plays from the device and works with no connection; the song keeps its own audio copy. The videos are found
+  and saved when an album or playlist is downloaded (a song downloaded on its own saves none), one at a time after
+  the songs, and a video that cannot be saved never fails the song or the list. The finished message and the Stream
+  downloads action count the videos and their size, tapping Download on a saved list fetches the videos it is
+  missing, and deleting the stream downloads deletes the videos too.
 
 ## [1.33.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.32.2...v1.33.0) (2026-11-06)
 

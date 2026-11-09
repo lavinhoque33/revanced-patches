@@ -5,6 +5,7 @@
  * See the included NOTICE file for GPLv3 Section 7 terms that apply to this code.
  *
  * Modified by lavinhoque33, 2026-11-07.
+ * Modified by lavinhoque33, 2026-11-09.
  */
 
 package app.morphe.extension.music.patches.downloads;
@@ -363,8 +364,9 @@ public final class LocalDownloadManager {
     }
 
 
-    private static void downloadWithResume(String videoId, String title, String url,
-                                           NativeAudioStore.Destination temporary, long expectedLength) throws Exception {
+    // modified by lavinhoque33, 2026-11-09: package-private, the video copy download reuses it.
+    static void downloadWithResume(String videoId, String title, String url,
+                                   NativeAudioStore.Destination temporary, long expectedLength) throws Exception {
         if (expectedLength <= 0) expectedLength = probeContentLength(url);
         final long totalLength = expectedLength;
 
@@ -555,7 +557,8 @@ public final class LocalDownloadManager {
         }
     }
 
-    private static long probeContentLength(String url) {
+    // modified by lavinhoque33, 2026-11-09: package-private, the video copy download asks the length of its stream.
+    static long probeContentLength(String url) {
         HttpURLConnection connection = null;
         try {
             connection = openAudioConnection(url, 0, 0);

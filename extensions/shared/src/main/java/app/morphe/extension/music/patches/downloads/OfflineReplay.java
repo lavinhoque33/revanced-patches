@@ -286,7 +286,6 @@ public final class OfflineReplay {
     static boolean onCommand(Object dispatcher, Object command, Map<?, ?> context) {
         try {
             noteAlive(HOOK_COMMAND);
-            VideoProbe.kick(); // TEMPORARY (S44), REMOVE before the release.
             if (!(dispatcher instanceof Dispatcher stockDispatcher) || !(command instanceof Command message)) {
                 return false;
             }

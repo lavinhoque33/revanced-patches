@@ -13,7 +13,7 @@ import java.util.List;
 
 /**
  * Reads the queue a {@code /next} (watch-next) response lists: the id and length of every item, and the counterpart
- * the item names when it has one. Used by the video pairing of a stream download and by the temporary probe.
+ * the item names when it has one. Used by the video pairing of a stream download.
  * Contains no Android code.
  */
 final class WatchQueueLogic {

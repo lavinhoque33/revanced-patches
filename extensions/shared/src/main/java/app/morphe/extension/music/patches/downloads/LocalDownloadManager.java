@@ -577,8 +577,7 @@ public final class LocalDownloadManager {
         }
     }
 
-    // modified by lavinhoque33, 2026-11-09: package-private, the temporary video probe reuses the ranged request.
-    static HttpURLConnection openAudioConnection(String url, long start, long end) throws Exception {
+    private static HttpURLConnection openAudioConnection(String url, long start, long end) throws Exception {
         HttpURLConnection connection = Requester.openConnection(url);
         connection.setConnectTimeout(CONNECT_TIMEOUT_MILLISECONDS);
         connection.setReadTimeout(READ_TIMEOUT_MILLISECONDS);

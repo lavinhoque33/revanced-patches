@@ -82,11 +82,11 @@ final class VideoCopyLogic {
     }
 
     /**
-     * The format a played copy is announced with: the stored one, with the url of the local token and the file's
-     * real length, and the duration of the copy when the stored format has none.
+     * The format a played copy is announced with: the stored one, with the local url of the file and its real
+     * length, and the duration of the copy when the stored format has none.
      */
-    static Format local(Format stored, String token, long length, long durationMs) {
-        Format.Builder local = stored.toBuilder().setUrl(token).clearSignatureCipher().setContentLength(length);
+    static Format local(Format stored, String url, long length, long durationMs) {
+        Format.Builder local = stored.toBuilder().setUrl(url).clearSignatureCipher().setContentLength(length);
         if (local.getApproxDurationMs() <= 0 && durationMs > 0) local.setApproxDurationMs(durationMs);
         return local.build();
     }

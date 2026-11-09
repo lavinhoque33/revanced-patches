@@ -160,6 +160,8 @@ public final class StreamSwap {
         if (result == null || result == original) return unchanged(original, videoId, "stock adapter declined", stored);
 
         replacements.put(result, new Replacement(original, source));
+        Logger.printDebug(() -> "StreamSwap: source=FILE v=" + videoId + " kind=video itag=" + video.itag()
+                + " mode=path length=" + video.length());
         // Like any answer for the video, the start correction of the audio-first mode looks at it.
         if (!stored) lastOnline = new OnlineDecision(videoId, SystemClock.elapsedRealtime());
         Logger.printDebug(() -> "StreamSwap: decision=SWAP v=" + videoId + " itag=" + video.itag() + " kind=video"
@@ -199,7 +201,7 @@ public final class StreamSwap {
     public static boolean blocksLoopback(Uri uri) {
         if (!StreamSwapLogic.isGuardedHost(uri.getHost())) return false;
         try {
-            return StreamSwapSources.find(uri) == null;
+            return StreamSwapSources.find(uri) == null && StreamSwapSources.findVideoFile(uri) == null;
         } catch (Exception ex) {
             return true;
         }

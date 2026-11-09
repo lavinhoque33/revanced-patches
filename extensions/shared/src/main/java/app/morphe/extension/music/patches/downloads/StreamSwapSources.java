@@ -18,7 +18,10 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 
-/** Loopback URLs are opaque engine-routing tokens, never HTTP endpoints. No listener or socket is needed. */
+/**
+ * Loopback URLs are opaque engine-routing tokens, never HTTP endpoints; no listener or socket is needed. A video copy
+ * is announced by its file's loopback {@code file} uri instead, because the framework player cannot be hooked.
+ */
 final class StreamSwapSources {
     static final String KIND_RAW = "raw";
     static final String KIND_VIDEO = "video";
@@ -89,8 +92,8 @@ final class StreamSwapSources {
                 && Objects.equals(previous.online, onlineUrl)) return previous;
 
         String key = SESSION + "-" + sequence.incrementAndGet();
-        String uri = "http://127.0.0.1:1/rvx?v=" + videoId + "&i=" + served.itag() + "&m=" + served.kind()
-                + "&t=" + key;
+        String uri = KIND_VIDEO.equals(served.kind()) ? StreamSwapLogic.videoFileUrl(served.file().getAbsolutePath())
+                : "http://127.0.0.1:1/rvx?v=" + videoId + "&i=" + served.itag() + "&m=" + served.kind() + "&t=" + key;
         Source source = new Source(videoId, served, onlineUrl, key, uri);
         sources.put(key, source);
         latest.put(videoId, source);
@@ -115,6 +118,20 @@ final class StreamSwapSources {
                 || !Integer.toString(source.served.itag()).equals(uri.getQueryParameter("i"))
                 || !source.served.kind().equals(uri.getQueryParameter("m"))) return null;
         return source;
+    }
+
+    /** The issued video source whose file a {@link StreamSwapLogic#videoFileUrl} uri names, or null. */
+    static Source findVideoFile(Uri uri) {
+        if (uri == null) return null;
+
+        String path = StreamSwapLogic.videoFilePath(uri.getScheme(), uri.getHost(), uri.getPath());
+        if (path == null) return null;
+
+        for (Source source : sources.values()) {
+            if (source.available && KIND_VIDEO.equals(source.served.kind())
+                    && source.served.file().getAbsolutePath().equals(path)) return source;
+        }
+        return null;
     }
 
     static void invalidate(String videoId) {

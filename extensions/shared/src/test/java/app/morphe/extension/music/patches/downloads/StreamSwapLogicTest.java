@@ -116,6 +116,23 @@ public class StreamSwapLogicTest {
         assertFalse(StreamSwapLogic.isGuardedHost(null));
     }
 
+    @Test public void aVideoFileUrlKeepsTheLoopbackHostAndNamesThePathOnly() {
+        String url = StreamSwapLogic.videoFileUrl("/data/user/0/app/files/rvx_video/dQw4w9WgXcQ.mp4");
+
+        assertEquals("file://127.0.0.1/data/user/0/app/files/rvx_video/dQw4w9WgXcQ.mp4", url);
+        assertEquals("/data/user/0/app/files/rvx_video/dQw4w9WgXcQ.mp4",
+                StreamSwapLogic.videoFilePath("file", "127.0.0.1", "/data/user/0/app/files/rvx_video/dQw4w9WgXcQ.mp4"));
+        assertTrue(StreamSwapLogic.isGuardedHost("127.0.0.1"));
+    }
+
+    @Test public void onlyAFileUriWithTheLoopbackHostNamesAVideoFile() {
+        assertNull(StreamSwapLogic.videoFilePath("http", "127.0.0.1", "/x.mp4"));
+        assertNull(StreamSwapLogic.videoFilePath("file", "localhost", "/x.mp4"));
+        assertNull(StreamSwapLogic.videoFilePath("file", null, "/x.mp4"));
+        assertNull(StreamSwapLogic.videoFilePath("file", "127.0.0.1", null));
+        assertNull(StreamSwapLogic.videoFilePath("file", "127.0.0.1", ""));
+    }
+
     private static final String MP4 = "video/mp4; codecs=\"avc1.42001E, mp4a.40.2\"";
 
     private Format.Builder muxed() {

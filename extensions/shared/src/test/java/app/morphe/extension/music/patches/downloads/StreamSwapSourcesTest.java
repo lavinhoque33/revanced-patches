@@ -71,11 +71,11 @@ public class StreamSwapSourcesTest {
                 null, 18, "video/mp4", 1000, 123, 213_000, "digest");
     }
 
-    @Test public void aVideoCopyGetsATokenOfItsOwnKindThatTheAudioKindCannotBeConfusedWith() throws Exception {
+    @Test public void aVideoCopyIsAnnouncedByItsFileSoTheFrameworkPlayerOpensIt() throws Exception {
         VideoCopyFiles.Entry video = video();
         StreamSwapSources.Source source = StreamSwapSources.issueVideo("clip00000000", video, null);
 
-        assertTrue(source.token.startsWith("http://127.0.0.1:1/rvx?v=clip00000000&i=18&m=video&t="));
+        assertEquals("file://127.0.0.1" + video.file().getAbsolutePath(), source.token);
         assertSame(source, StreamSwapSources.lookup(source.key));
         assertSame(source, StreamSwapSources.issueVideo("clip00000000", video, null));
         assertEquals(StreamSwapSources.KIND_VIDEO, source.served.kind());

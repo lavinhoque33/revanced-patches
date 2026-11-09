@@ -60,6 +60,22 @@ final class StreamSwapLogic {
         }
     }
 
+    /**
+     * The url a video copy is announced with: the file itself, with the loopback host. The progressive muxed format is
+     * played by the framework {@code MediaPlayer} (stock {@code AndroidFrameworkPlayerWrapper}), which opens a
+     * {@code file} uri from its path; a loopback host keeps stock from wrapping the url in its own cache proxy,
+     * which only tokens of the loopback kind skip. The path is the file's, never a query.
+     */
+    static String videoFileUrl(String absolutePath) {
+        return "file://127.0.0.1" + absolutePath;
+    }
+
+    /** Whether a uri has the shape {@link #videoFileUrl} gives; the path it names, or null. */
+    static String videoFilePath(String scheme, String host, String path) {
+        if (!"file".equals(scheme) || !"127.0.0.1".equals(host) || path == null || path.isEmpty()) return null;
+        return path;
+    }
+
     /** Stock's exact host predicate, not a general loopback-address test. */
     static boolean isGuardedHost(String host) {
         return "127.0.0.1".equals(host) || "localhost".equals(host);

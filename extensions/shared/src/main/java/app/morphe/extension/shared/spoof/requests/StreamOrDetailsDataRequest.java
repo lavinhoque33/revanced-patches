@@ -11,7 +11,7 @@
  *
  * See the included NOTICE file for GPLv3 §7(b) and §7(c) terms that apply to Morphe contributions.
  *
- * Modified by lavinhoque33, 2026-10-24
+ * Modified by lavinhoque33, 2026-11-09
  */
 
 package app.morphe.extension.shared.spoof.requests;
@@ -344,6 +344,26 @@ public class StreamOrDetailsDataRequest {
         return new StreamOrDetailsDataRequest(null, videoId, false, headers, clientOrder, true);
     }
 
+    /**
+     * TEMPORARY (S44 video probe, REMOVE with it): how the last download request of a video to a client ended,
+     * as one short phrase: "OK", an HTTP status, a playability status, or why it was skipped.
+     */
+    private static final Map<String, String> downloadOutcomes = Collections.synchronizedMap(
+            Utils.createSizeRestrictedMap(40));
+
+    private static void noteDownloadOutcome(boolean forDownload, @Nullable ClientType clientType,
+                                            @Nullable String videoId, String outcome) {
+        if (forDownload && clientType != null && videoId != null) {
+            downloadOutcomes.put(videoId + "/" + clientType.name(), outcome);
+        }
+    }
+
+    /** TEMPORARY (S44 video probe, REMOVE with it): see {@link #downloadOutcomes}; null when none was noted. */
+    @Nullable
+    public static String downloadOutcome(String videoId, ClientType clientType) {
+        return downloadOutcomes.get(videoId + "/" + clientType.name());
+    }
+
     @Nullable
     public static StreamOrDetailsDataRequest getStreamRequestForVideoId(String videoId) {
         return streamCache.get(videoId);
@@ -407,6 +427,7 @@ public class StreamOrDetailsDataRequest {
                 if (clientType.canLogin && clientType.requireLogin && !authHeadersIncludes) {
                     Logger.printDebug(() -> "Skipping client since user is not logged in: " + clientType
                             + ", videoId: " + videoId);
+                    noteDownloadOutcome(forDownload, clientType, videoId, "skipped, not logged in");
                     return null;
                 }
                 // If the Bearer token is compatible and the user is logged in, the header is set:
@@ -429,6 +450,7 @@ public class StreamOrDetailsDataRequest {
                     else {
                         Logger.printDebug(() -> "Skipping client since user is not signed in to " + clientType
                                 + ", videoId: " + videoId);
+                        noteDownloadOutcome(forDownload, clientType, videoId, "skipped, not signed in");
                         return null;
                     }
                 }
@@ -471,14 +493,19 @@ public class StreamOrDetailsDataRequest {
             final int responseCode = connection.getResponseCode();
             if (responseCode == HttpURLConnection.HTTP_OK) return connection;
 
+            noteDownloadOutcome(forDownload, clientType, videoId, "HTTP " + responseCode);
+
             if (isStream) {
                 handleConnectionError("Playback error " + clientType + ": " + responseCode + " " + connection.getResponseMessage(), null, showErrorToasts);
             }
         } catch (SocketTimeoutException ex) {
+            noteDownloadOutcome(forDownload, clientType, videoId, "timeout");
             handleConnectionError("Connection timeout", ex, showErrorToasts);
         } catch (IOException ex) {
+            noteDownloadOutcome(forDownload, clientType, videoId, "network error " + ex.getClass().getSimpleName());
             handleConnectionError("Network error", ex, showErrorToasts);
         } catch (Exception ex) {
+            noteDownloadOutcome(forDownload, clientType, videoId, "send failed " + ex.getClass().getSimpleName());
             Logger.printException(() -> "send failed", ex);
         }
 
@@ -506,6 +533,7 @@ public class StreamOrDetailsDataRequest {
                 && clientType != ClientType.SAVE_TO_WATCH_LATER;
 
         if (connection.getContentLength() == 0) {
+            noteDownloadOutcome(forDownload, clientType, videoId, "empty response");
             handleDebugToast(String.format("Debug: Ignoring empty %s client (%%s)", returnStreamObject ? "spoof stream" : "get details"), clientType);
             return null;
         }
@@ -525,16 +553,20 @@ public class StreamOrDetailsDataRequest {
                 String status = playabilityStatus.getStatus().name();
 
                 if (!"OK".equals(status)) {
+                    noteDownloadOutcome(forDownload, clientType, videoId, "playability " + status + " "
+                            + playabilityStatus.getReason());
                     return null;
                 }
 
                 PlayerResponse.Builder responseBuilder = playerResponse.toBuilder();
                 if (!playerResponse.hasStreamingData()) {
+                    noteDownloadOutcome(forDownload, clientType, videoId, "no streamingData");
                     return null;
                 }
 
                 StreamingData streamingData = playerResponse.getStreamingData();
                 if (streamingData.getAdaptiveFormatsCount() == 0) {
+                    noteDownloadOutcome(forDownload, clientType, videoId, "no adaptive formats");
                     return null;
                 }
 
@@ -559,6 +591,7 @@ public class StreamOrDetailsDataRequest {
 
                     var deobfuscatedStreamingData = getDeobfuscatedStreamingData(streamingData, poToken, !forDownload && clientType.requireSABR);
                     if (deobfuscatedStreamingData == null) {
+                        noteDownloadOutcome(forDownload, clientType, videoId, "deobfuscation failed");
                         return null;
                     }
                     responseBuilder.setStreamingData(deobfuscatedStreamingData);
@@ -628,6 +661,7 @@ public class StreamOrDetailsDataRequest {
                     playerConfigBuffer = playerConfigBuilder.build().toByteArray();
                 }
 
+                noteDownloadOutcome(forDownload, clientType, videoId, "OK");
                 return new StreamData(streamingDataBuffer, playerConfigBuffer, hasAndroidMedia, clientType);
             } else {
                 String response = new BufferedReader(new InputStreamReader(inputStream))

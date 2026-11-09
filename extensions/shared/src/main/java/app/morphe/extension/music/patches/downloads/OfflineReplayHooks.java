@@ -61,6 +61,17 @@ public final class OfflineReplayHooks {
         }
     }
 
+    /** Injection point: the browse controller starts loading a page. */
+    public static void onBrowseRequest(String browseId) {
+        if (!usable()) return;
+
+        try {
+            OfflineReplay.onBrowseRequest(browseId);
+        } catch (Throwable failure) {
+            disable("browse request", failure);
+        }
+    }
+
     /** Injection point: the success callback of the browse controller: a page the user opened. */
     public static void onBrowseResponse(String browseId, Object result) {
         if (!usable()) return;

@@ -65,7 +65,9 @@ public final class OfflineReplay {
     private static final String HOOK_NEXT = "next";
     private static final String HOOK_COMMAND = "command";
     private static final String HOOK_SEEK = "seek";
-    private static final String HOOK_BROWSE = "browse";
+    private static final String HOOK_BROWSE_CAPTURE = "browse-capture";
+    private static final String HOOK_BROWSE_REPLAY = "browse-replay";
+    private static final String HOOK_BROWSE_REQUEST = "browse-request";
     private static final String HOOK_GATE_FLAG = "gate-flag";
 
     private static final ConcurrentMap<String, Long> skipLoggedAt = new ConcurrentHashMap<>();
@@ -335,34 +337,58 @@ public final class OfflineReplay {
      * write run on a worker thread: the response is immutable.
      */
     static void onBrowseResponse(String browseId, Object result) {
-        if (!enabled() || browseId == null) return;
+        noteAlive(HOOK_BROWSE_CAPTURE);
+        String skipped = captureSkipReason(browseId, result);
+        logDecision(HOOK_BROWSE_CAPTURE, "seen id=" + browseId + " result="
+                + (result == null ? "null" : result.getClass().getSimpleName())
+                + " enabled=" + enabled() + " online=" + networkAvailable() + (skipped == null ? " recording"
+                : " skipped: " + skipped));
+        if (skipped != null) return;
 
-        if (!OfflineBrowsePagesLogic.recordable(browseId, OfflineCopyStore::hasSource)) return;
-
-        if (!networkAvailable()) return; // A replayed page is the recorded one: nothing new.
-
-        if (!(result instanceof OfflineBrowsePages.Bytes holder)) {
-            Logger.printWarn(() -> "OfflineReplay: the browse result of " + browseId + " has no bytes bridge");
-            return;
-        }
-
+        OfflineBrowsePages.Bytes holder = (OfflineBrowsePages.Bytes) result;
         String sourceId = OfflineReplayLogic.sourceOfBrowseId(browseId);
         Utils.runOnBackgroundThread(() -> {
             try {
                 byte[] response = holder.rvxBrowseBytes();
                 if (OfflineBrowsePagesLogic.isContinuation(response)) {
-                    logDecision(HOOK_BROWSE, "not recorded: " + browseId + " is a continuation");
+                    logDecision(HOOK_BROWSE_CAPTURE, "skipped: " + browseId + " is a continuation");
                     return;
                 }
 
                 int updates = OfflineBrowsePagesLogic.frameworkUpdatesSize(response);
                 int written = OfflineBrowsePages.write(sourceId, response);
-                logDecision(HOOK_BROWSE, "recorded " + browseId + " bytes=" + response.length + " frameworkUpdates="
-                        + updates + " stored=" + written + " fields=" + OfflineBrowsePagesLogic.fieldSizes(response));
+                logDecision(HOOK_BROWSE_CAPTURE, "recorded " + browseId + " bytes=" + response.length
+                        + " frameworkUpdates=" + updates + " stored=" + written + " fields="
+                        + OfflineBrowsePagesLogic.fieldSizes(response));
             } catch (Exception ex) {
                 Logger.printException(() -> "OfflineReplay: could not record the page of " + browseId, ex);
             }
         });
+    }
+
+    /**
+     * Injection point: the browse controller starts loading a page, on the main thread. Only says so, with the page's
+     * id: it shows which pages go through the controller whose success callback records them.
+     */
+    static void onBrowseRequest(String browseId) {
+        noteAlive(HOOK_BROWSE_REQUEST);
+        logDecision(HOOK_BROWSE_REQUEST, "load id=" + browseId);
+    }
+
+    /** Why the page the success callback saw is not recorded, or null when it is. */
+    @Nullable
+    private static String captureSkipReason(@Nullable String browseId, Object result) {
+        if (!enabled()) return "setting off";
+
+        if (browseId == null || browseId.isEmpty()) return "no browse id";
+
+        if (!OfflineBrowsePagesLogic.recordable(browseId, OfflineCopyStore::hasSource)) return "not a downloaded list";
+
+        if (!networkAvailable()) return "offline";
+
+        if (!(result instanceof OfflineBrowsePages.Bytes)) return "no bytes bridge on the result";
+
+        return null;
     }
 
     /**
@@ -373,18 +399,16 @@ public final class OfflineReplay {
      */
     @Nullable
     static byte[] answerBrowse(String browseId) {
-        if (!enabled() || browseId == null) return null;
-
-        if (networkAvailable()) return null;
-
-        String sourceId = OfflineReplayLogic.sourceOfBrowseId(browseId);
-        if (!OfflineBrowsePages.has(sourceId)) {
-            logDecision(HOOK_BROWSE, "no recorded page for " + browseId);
-            return null;
-        }
+        noteAlive(HOOK_BROWSE_REPLAY);
+        boolean online = networkAvailable();
+        String sourceId = browseId == null ? null : OfflineReplayLogic.sourceOfBrowseId(browseId);
+        boolean stored = sourceId != null && OfflineBrowsePages.has(sourceId);
+        logDecision(HOOK_BROWSE_REPLAY, "asked id=" + browseId + " enabled=" + enabled() + " online=" + online
+                + " stored=" + stored);
+        if (!enabled() || sourceId == null || online || !stored) return null;
 
         byte[] response = OfflineBrowsePages.read(sourceId);
-        logDecision(HOOK_BROWSE, "replay " + browseId + " bytes=" + (response == null ? -1 : response.length)
+        logDecision(HOOK_BROWSE_REPLAY, "replay " + browseId + " bytes=" + (response == null ? -1 : response.length)
                 + " thread=" + (Utils.isCurrentlyOnMainThread() ? "main" : "worker"));
         return response;
     }

@@ -12,6 +12,7 @@ import app.morphe.patcher.extensions.InstructionExtensions.addInstructionsWithLa
 import app.morphe.patcher.extensions.InstructionExtensions.getInstruction
 import app.morphe.patcher.patch.BytecodePatchContext
 import app.morphe.patcher.util.getReference
+import app.morphe.patcher.util.proxy.mutableTypes.MutableMethod
 import app.morphe.patcher.util.smali.ExternalLabel
 import app.morphe.patches.music.video.information.ModernVideoEndFingerprint
 import app.morphe.patches.shared.misc.fix.proto.parseByteArrayMethodRef
@@ -371,7 +372,10 @@ private fun BytecodePatchContext.serializerOf(message: String): String {
  *   the success callback start a refresh, which fails offline. Without one the stock body runs unchanged.
  *
  * The request class is the one the handler asks a boolean of; its browse id is its only no-argument string method,
- * read by both hooks, so a page is recorded and asked for under the same id. Every other name comes from the code the handler already runs for its placeholder.
+ * read by both hooks, so a page is recorded and asked for under the same id. Every other name comes from the code
+ * the handler already runs for its placeholder.
+ * A third, log-only call says which page the controller starts to load (the method that creates the success
+ * callback); a version where that method is not found goes without it.
  * Optional: a version where the shape is not found opens a downloaded list as before.
  */
 private fun BytecodePatchContext.prepareBrowsePages(): (() -> Unit)? {
@@ -500,6 +504,11 @@ private fun BytecodePatchContext.prepareBrowsePages(): (() -> Unit)? {
             modelFields.size == 1 -> "iget-object v0, p0, $responseType->${modelFields.single().name}:$modelType"
             else -> error("browse: the response holds ${modelGetters.size} getters and ${modelFields.size} fields")
         }
+        // Only for a log line, so a version where the loader is not found, or whose request register does not fit a
+        // four-bit operand or leaves no free local, goes without it.
+        val loader = loaderOf(callbackClass.type, requestType)?.takeIf {
+            it.implementation!!.registerCount - it.parameterTypes.size in 2..15
+        }
         val castRequest = if (callbackRequest.type == requestType) "" else "check-cast v0, $requestType"
         val stock = ExternalLabel("rvx_browse_stock", handler.getInstruction<Instruction>(0))
 
@@ -542,6 +551,11 @@ private fun BytecodePatchContext.prepareBrowsePages(): (() -> Unit)? {
                 invoke-direct {v2, v1, v0}, $resultType-><init>($modelType$metadataType)V
                 return-object v2
             """)
+            loader?.addInstructions(0, """
+                invoke-virtual {p1}, $requestType->$idName()$STRING
+                move-result-object v0
+                invoke-static {v0}, $REPLAY->onBrowseRequest($STRING)V
+            """)
             success.addInstruction(
                 castIndex + 1,
                 "invoke-virtual {p0, p1}, ${callbackClass.type}->rvxBrowseSeen($OBJECT)V",
@@ -563,6 +577,31 @@ private fun BytecodePatchContext.prepareBrowsePages(): (() -> Unit)? {
     } catch (ex: Exception) {
         printWarn("OfflineReplay: browse pages not hooked; a downloaded list opens as before: ${ex.message}")
         return null
+    }
+}
+
+/**
+ * The method of the browse controller that starts loading a page: the one that creates the success callback
+ * [callbackType] and takes the request of [requestType] and a number. Null when no one method does: it only serves a
+ * log line, so a version where it is not found goes without.
+ */
+private fun BytecodePatchContext.loaderOf(callbackType: String, requestType: String): MutableMethod? {
+    val found = mutableListOf<Pair<String, Method>>()
+    classDefForEach { owner ->
+        owner.methods.forEach { method ->
+            val creates = method.implementation?.instructions?.any {
+                it.opcode == Opcode.NEW_INSTANCE && it.getReference<TypeReference>()?.type == callbackType
+            } == true
+            val loads = !AccessFlags.STATIC.isSet(method.accessFlags) && method.returnType == "V" &&
+                method.parameterTypes.map(CharSequence::toString) == listOf(requestType, "I")
+            if (creates && loads) found.add(owner.type to method)
+        }
+    }
+    if (found.size != 1) return null
+
+    val (type, method) = found.single()
+    return mutableClassDefBy(type).methods.single {
+        it.name == method.name && it.parameterTypes == method.parameterTypes && it.returnType == method.returnType
     }
 }
 

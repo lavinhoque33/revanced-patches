@@ -28,8 +28,8 @@
 * **YouTube - Settings:** Move the About card into an About screen at the end of RVX settings.
 * **YouTube - Downloads:** Add Show download option icons, off by default. Turn it on to show icons beside Include
   subtitles and Include SponsorBlock in the built-in downloader.
-* **YouTube - Enable debug logging:** Add a Feature flags manager in Settings > Debugging, with Binary search to find
-  which YouTube feature flag causes a problem. Reset the overrides if the app repeatedly fails to start.
+* **YouTube - Enable debug logging:** Add a Feature flags manager in Miscellaneous > Debugging, with Binary search to
+  find which YouTube feature flag causes a problem. Reset the overrides if the app repeatedly fails to start.
 * **YouTube - Glass navigation bar:** Add a bottom spacing slider to the Glass navigation bar size dialog, to set how
   far the capsule floats above the bottom of the screen, and show the snackbars right above the navigation bar.
 * **YouTube - Watch later improvements:** Add a patch with options to widen the drag handles of the Watch later videos

@@ -2,6 +2,7 @@
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
  * Written by lavinhoque33, 2026-11-07.
+ * Modified by lavinhoque33, 2026-11-09.
  */
 package app.morphe.patches.music.interaction.downloads
 
@@ -50,6 +51,8 @@ private const val PILL_VIEW = $$"$${AUDIO_FIRST_PATH}QueueItems$PillView;"
 private const val ON_PILL_OWNER = "$QUEUE_ITEMS->onPillOwner(Ljava/lang/Object;)V"
 private const val START_POSITION = "$QUEUE_ITEMS->startPosition(Ljava/lang/Object;J)J"
 private const val ON_PILL_CLICK = "$QUEUE_ITEMS->onPillClick(Ljava/lang/Object;)Z"
+private const val PILL_GATE = $$"$${AUDIO_FIRST_PATH}PillAvailability$Gate;"
+private const val ON_PILL_STATE = "${AUDIO_FIRST_PATH}PillAvailability;->onPillState(Ljava/lang/Object;)V"
 private const val REGISTRY = "Lcom/google/protobuf/ExtensionRegistryLite;"
 private const val CAPTURE_HOLDER = "$AUDIO_FIRST->captureHolder(Ljava/lang/Object;)V"
 private const val OBJECT = "Ljava/lang/Object;"
@@ -234,6 +237,7 @@ private fun BytecodePatchContext.installQueueItemRetarget() {
         val installPill = preparePillClick(item, pill.method.name, pill.classDef.type)
         val installStart = prepareQueueStart()
         val installPosition = preparePillStartPosition()
+        val installAvailability = preparePillAvailability(pill.classDef.type)
 
         val renderer = mutableClassDefBy(rendererType)
         val defaultRenderer = renderer.fields.single {
@@ -279,6 +283,7 @@ private fun BytecodePatchContext.installQueueItemRetarget() {
         printInfo(installPill())
         printInfo(installStart())
         installPosition?.let { printInfo(it()) }
+        installAvailability?.let { printInfo(it()) }
     } catch (ex: Exception) {
         printWarn("Start downloaded songs in audio mode cannot keep the next songs of an album on their song " +
             "renderers on this Music version, so the queue items, the song/video pill and the start at the " +
@@ -351,6 +356,72 @@ private fun BytecodePatchContext.preparePillStartPosition(): (() -> String)? {
     } catch (ex: Exception) {
         printWarn("The Song/Video switch of the Music player cannot keep the playback position on this Music " +
             "version, so it starts at 0:00: ${ex.message}")
+        return null
+    }
+}
+
+/**
+ * Offline the pill stayed dim for a video with a video copy, and a press showed "Video not available" (the click
+ * listener lets a press through only when the pill is lit). The app lights it in its state method, which runs on
+ * every change of the playback, the queue item and the session, and ends in the method that sets the pill's look.
+ * At the end of the state method the extension is asked: when the pill is dim and the video has a copy, it lights it
+ * through a bridge that runs the app's own look method, which also keeps the flag the click listener tests.
+ *
+ * Added to the toggle's view: `rvxBright` (the look method, lit) and `rvxShown` (its flag). Resolved by shape, in the
+ * view class: the look method is the one `(Z)V` that sets the view's alpha and stores a boolean of its own; the state
+ * method is the one `()V` that calls the look method directly and one of the `(Z)V` methods that call it.
+ * `Lhvv.j` / `Lhvv.e` (9.40.51), `Lnkv.j` / `Lnkv.e` (9.15.51), `Lmxb.h` / `Lmxb.e` (8.30.54). Optional: a version
+ * where it is not found keeps the app's own pill, and the rest installs.
+ */
+private fun BytecodePatchContext.preparePillAvailability(viewType: String): (() -> String)? {
+    try {
+        val view = mutableClassDefBy(viewType)
+        val methods = view.methods.filter { !AccessFlags.STATIC.isSet(it.accessFlags) && it.implementation != null }
+        val look = methods.singleOrNull { method ->
+            method.parameterTypes.map(CharSequence::toString) == listOf("Z") && method.returnType == "V" &&
+                method.implementation!!.instructions.any { it.getReference<MethodReference>()?.name == "setAlpha" }
+        } ?: error("pill availability: no single look method")
+        val flag = look.implementation!!.instructions.filter { it.opcode == Opcode.IPUT_BOOLEAN }
+            .mapNotNull { it.getReference<FieldReference>() }.filter { it.definingClass == viewType }
+            .distinctBy { it.name }.singleOrNull() ?: error("pill availability: no single flag in ${look.name}")
+
+        fun Method.callsOwn(): List<MethodReference> = implementation!!.instructions
+            .mapNotNull { it.getReference<MethodReference>() }.filter { it.definingClass == viewType }
+        fun MethodReference.isMethod(method: Method) = name == method.name &&
+            parameterTypes.map(CharSequence::toString) == method.parameterTypes.map(CharSequence::toString)
+
+        val callers = methods.filter { it !== look && it.callsOwn().any { call -> call.isMethod(look) } }
+        val states = methods.filter { method ->
+            method.parameterTypes.isEmpty() && method.returnType == "V" &&
+                method.callsOwn().let { calls ->
+                    calls.any { it.isMethod(look) } && calls.any { call -> callers.any { call.isMethod(it) } }
+                }
+        }
+        val state = states.singleOrNull() ?: error("pill availability: ${states.size} state methods")
+
+        val call = if (AccessFlags.PRIVATE.isSet(look.accessFlags)) "invoke-direct" else "invoke-virtual"
+        return {
+            view.interfaces.add(PILL_GATE)
+            view.addDownloadsBridge("rvxBright", emptyList(), "V", 2, """
+                const/4 v0, 0x1
+                $call {p0, v0}, $viewType->${look.name}(Z)V
+                return-void
+            """)
+            view.addDownloadsBridge("rvxShown", emptyList(), "Z", 2, """
+                iget-boolean v0, p0, $viewType->${flag.name}:Z
+                return v0
+            """)
+
+            val builder = view.findMutableMethodOf(state)
+            builder.implementation!!.instructions.withIndex()
+                .filter { it.value.opcode == Opcode.RETURN_VOID }.map { it.index }.reversed()
+                .forEach { builder.addInstructions(it, "invoke-static/range {p0 .. p0}, $ON_PILL_STATE") }
+
+            "AudioFirst: pill availability $viewType->${state.name}, look ${look.name}, flag ${flag.name}"
+        }
+    } catch (ex: Exception) {
+        printWarn("The Song/Video pill of the Music player stays dim for a video with a video copy offline on this " +
+            "Music version: ${ex.message}")
         return null
     }
 }

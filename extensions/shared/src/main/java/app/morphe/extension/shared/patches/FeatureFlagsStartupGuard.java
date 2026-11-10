@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-10.
  * Written by lavinhoque33, 2026-11-10.
  */
 package app.morphe.extension.shared.patches;
@@ -34,6 +35,7 @@ public final class FeatureFlagsStartupGuard implements Application.ActivityLifec
     private static final String STARTS_KEY = "morphe_feature_flags_unconfirmed_starts";
     private static final String NOTICE_KEY = "morphe_feature_flags_startup_reset_notice";
     private static final long CONFIRM_DELAY_MILLIS = 5000;
+    private static volatile FeatureFlagsStartupGuard currentGuard;
 
     private final Application application;
     private final SharedPreferences preferences;
@@ -41,6 +43,8 @@ public final class FeatureFlagsStartupGuard implements Application.ActivityLifec
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final Runnable confirmation = this::confirmStartup;
     private WeakReference<Activity> resumedActivity = new WeakReference<>(null);
+    private WeakReference<Activity> mainActivity = new WeakReference<>(null);
+    private boolean watching;
 
     private FeatureFlagsStartupGuard(Application application, SharedPreferences preferences,
                                      FeatureFlagsStartupState.Start start) {
@@ -77,10 +81,7 @@ public final class FeatureFlagsStartupGuard implements Application.ActivityLifec
             }
 
             if (active || pendingNotice) {
-                FeatureFlagsStartupGuard guard = new FeatureFlagsStartupGuard(application, preferences, start);
-                if (!guard.handler.post(guard::watchMainActivity)) {
-                    throw new IllegalStateException("Could not watch startup on the main thread");
-                }
+                currentGuard = new FeatureFlagsStartupGuard(application, preferences, start);
             }
             return !start.resetOverrides;
         } catch (Throwable ex) {
@@ -127,12 +128,22 @@ public final class FeatureFlagsStartupGuard implements Application.ActivityLifec
         Log.w(TAG, "Feature flag overrides reset after two unconfirmed starts");
     }
 
-    private void watchMainActivity() {
+    /**
+     * Called synchronously at the start of the resolved main activity's onCreate.
+     * Register before its first resume, not from a posted callback that can miss that resume.
+     */
+    public static void onMainActivityCreated(Activity activity) {
+        FeatureFlagsStartupGuard guard = currentGuard;
+        if (guard == null) return;
+
         try {
-            application.registerActivityLifecycleCallbacks(this);
-            Activity activity = Utils.getActivity();
-            // Also handle first flag access occurring after the main activity already resumed.
-            if (activity != null && activity.hasWindowFocus()) onActivityResumed(activity);
+            guard.handler.removeCallbacks(guard.confirmation);
+            guard.resumedActivity.clear();
+            guard.mainActivity = new WeakReference<>(activity);
+            if (!guard.watching) {
+                guard.application.registerActivityLifecycleCallbacks(guard);
+                guard.watching = true;
+            }
         } catch (Throwable ex) {
             Log.w(TAG, "Could not watch feature flag startup", ex);
         }
@@ -141,7 +152,7 @@ public final class FeatureFlagsStartupGuard implements Application.ActivityLifec
     @Override
     public void onActivityResumed(Activity activity) {
         try {
-            if (activity != Utils.getActivity()) return;
+            if (activity != mainActivity.get()) return;
             resumedActivity = new WeakReference<>(activity);
             handler.removeCallbacks(confirmation);
             if (!handler.postDelayed(confirmation, CONFIRM_DELAY_MILLIS)) {
@@ -155,7 +166,7 @@ public final class FeatureFlagsStartupGuard implements Application.ActivityLifec
     private void confirmStartup() {
         try {
             Activity activity = resumedActivity.get();
-            if (activity == null || activity != Utils.getActivity() || activity.isFinishing()
+            if (activity == null || activity != mainActivity.get() || activity.isFinishing()
                     || activity.isDestroyed()) return;
 
             boolean pendingNotice = preferences.getBoolean(NOTICE_KEY, false);
@@ -169,6 +180,9 @@ public final class FeatureFlagsStartupGuard implements Application.ActivityLifec
             }
             Log.i(TAG, "Feature flag startup confirmed after 5 seconds resumed");
             application.unregisterActivityLifecycleCallbacks(this);
+            watching = false;
+            if (currentGuard == this) currentGuard = null;
+            mainActivity.clear();
             resumedActivity.clear();
         } catch (Throwable ex) {
             Log.w(TAG, "Could not confirm feature flag startup", ex);

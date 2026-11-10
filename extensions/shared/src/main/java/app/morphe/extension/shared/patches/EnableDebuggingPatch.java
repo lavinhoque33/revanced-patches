@@ -16,6 +16,8 @@ package app.morphe.extension.shared.patches;
 import static java.lang.Boolean.FALSE;
 import static java.lang.Boolean.TRUE;
 
+import android.app.Activity;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -65,6 +67,13 @@ public final class EnableDebuggingPatch {
         LOG_FEATURE_FLAGS = enabled;
         OVERRIDDEN_FEATURE_FLAGS = overrides;
         featureFlags = enabled ? new ConcurrentHashMap<>(3000, 0.5f, 1) : null;
+    }
+
+    /** Main activity entry hook; class initialization arms recovery before registering its first resume. */
+    public static void onMainActivityCreated(Activity activity) {
+        if (LOG_FEATURE_FLAGS) {
+            FeatureFlagsStartupGuard.onMainActivityCreated(activity);
+        }
     }
 
     private static Map<Long, Boolean> loadOverriddenFlags() {

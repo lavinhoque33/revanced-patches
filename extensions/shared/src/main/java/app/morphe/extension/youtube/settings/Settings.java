@@ -560,6 +560,8 @@ public class Settings extends SharedYouTubeSettings {
             "revanced_offline_audio_aac", TRUE, parent(IN_APP_DOWNLOADER));
     public static final BooleanSetting OFFLINE_SHOW_FORMAT_IDS = new BooleanSetting(
             "revanced_offline_show_format_ids", FALSE, parent(IN_APP_DOWNLOADER));
+    public static final BooleanSetting OFFLINE_SHOW_OPTION_ICONS = new BooleanSetting(
+            "revanced_offline_show_option_icons", TRUE, parent(IN_APP_DOWNLOADER));
     public static final IntegerSetting OFFLINE_MIN_HEIGHT = new IntegerSetting(
             "revanced_offline_min_height", 144, parent(IN_APP_DOWNLOADER));
     public static final IntegerSetting OFFLINE_MAX_HEIGHT = new IntegerSetting(

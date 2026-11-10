@@ -98,6 +98,10 @@
                     <SwitchPreference android:title="@string/revanced_offline_audio_opus_title" android:key="revanced_offline_audio_opus" android:summaryOn="@string/revanced_offline_audio_opus_summary_on" android:summaryOff="@string/revanced_offline_audio_opus_summary_off" />
                     <SwitchPreference android:title="@string/revanced_offline_audio_aac_title" android:key="revanced_offline_audio_aac" android:summaryOn="@string/revanced_offline_audio_aac_summary_on" android:summaryOff="@string/revanced_offline_audio_aac_summary_off" />
                     <SwitchPreference android:title="@string/revanced_offline_show_format_ids_title" android:key="revanced_offline_show_format_ids" android:summaryOn="@string/revanced_offline_show_format_ids_summary_on" android:summaryOff="@string/revanced_offline_show_format_ids_summary_off" />
+                    <SwitchPreference
+                        android:title="@string/revanced_offline_show_option_icons_title"
+                        android:key="revanced_offline_show_option_icons"
+                        android:summary="@string/revanced_offline_show_option_icons_summary" />
                 </PreferenceCategory>
                 <PreferenceCategory android:title="@string/revanced_offline_category_quality" android:layout="@layout/revanced_settings_preferences_category">
                     <app.morphe.extension.shared.settings.preference.CustomDialogListPreference android:title="@string/revanced_offline_min_height_title" android:key="revanced_offline_min_height" android:entries="@array/revanced_offline_height_entries" android:entryValues="@array/revanced_offline_height_entry_values" />
@@ -1580,5 +1584,9 @@
             </PreferenceCategory>
         </PreferenceScreen>
     </PreferenceScreen>
+
+    <PreferenceScreen
+        android:title="@string/revanced_preference_screen_about_title"
+        android:key="revanced_preference_screen_about" />
 
 </PreferenceScreen>

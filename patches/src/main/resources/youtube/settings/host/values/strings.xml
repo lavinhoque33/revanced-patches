@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="revanced_preference_screen_about_title">About</string>
     <string name="revanced_about_patches">RVX Patches %1$s</string>
     <string name="revanced_about_app">%1$s %2$s</string>
     <string name="revanced_about_patched">Patched %1$s</string>
@@ -2330,6 +2331,9 @@ Works with YTDLnis and YTindir as the video downloader</string>
     <string name="revanced_offline_show_format_ids_title">Show format IDs</string>
     <string name="revanced_offline_show_format_ids_summary_on">The quality picker shows the format ID of each stream</string>
     <string name="revanced_offline_show_format_ids_summary_off">Format IDs are hidden</string>
+    <string name="revanced_offline_show_option_icons_title">Show download option icons</string>
+    <string name="revanced_offline_show_option_icons_summary"
+        >Show icons beside Include subtitles and Include SponsorBlock in the built-in downloader</string>
     <string name="revanced_offline_min_height_title">Lowest quality</string>
     <string name="revanced_offline_max_height_title">Highest quality</string>
     <string name="revanced_offline_video_folder_title">Video folder</string>

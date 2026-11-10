@@ -5,7 +5,7 @@
  * https://github.com/anddea/revanced-patches
  *
  * Licensed under the GNU General Public License v3.0.
- * Modified by lavinhoque33, 2026-11-06.
+ * Modified by lavinhoque33, 2026-11-10.
  * Written by lavinhoque33, 2026-10-29
  *
  * ------------------------------------------------------------------------
@@ -68,6 +68,7 @@ internal val youtubeStockIcons = mapOf(
     "premium_early_access_browse_page_key" to "youtube",
     "privacy_key" to "lock",
     "revanced_preference_screen_account_menu" to "person_circle",
+    "revanced_preference_screen_about" to "info_circle",
     "revanced_preference_screen_ads" to "megaphone",
     "revanced_preference_screen_alt_thumbnails" to "image",
     "revanced_preference_screen_ambient_mode" to "ambient_mode",

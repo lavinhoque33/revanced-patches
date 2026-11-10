@@ -2,7 +2,7 @@
  * Copyright (C) 2026 lavinhoque33
  *
  * Licensed under the GNU General Public License v3.0.
- * Modified by lavinhoque33, 2026-11-06
+ * Modified by lavinhoque33, 2026-11-10
  * Written by lavinhoque33, 2026-11-06
  */
 
@@ -39,7 +39,7 @@ import app.morphe.extension.youtube.utils.ExtendedUtils;
 import app.morphe.extension.youtube.utils.ThemeUtils;
 
 /**
- * A root-only, keyless header, deliberately outside XML icon mapping and the settings search index.
+ * A keyless card for the About screen, deliberately outside XML icon mapping and the settings search index.
  * Child buttons remain focusable even though the preference row itself is not selectable.
  */
 @SuppressWarnings("deprecation")
@@ -52,9 +52,6 @@ public final class AboutPreference extends Preference {
 
         setSelectable(false);
         setPersistent(false);
-
-        // Framework comparison subtracts orders; MIN_VALUE overflows against positive root orders.
-        setOrder(-1000);
     }
 
     @Override

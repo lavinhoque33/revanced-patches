@@ -100,9 +100,9 @@ public class YouTubePreferenceFragment extends ToolbarPreferenceFragment {
             preferenceScreen = getPreferenceScreen();
             Utils.sortPreferenceGroups(preferenceScreen);
 
-            // Root rows retain XML order; the keyless header's finite negative order puts it first.
-            // Add after sorting so it has no icon slot or searchable setting.
-            preferenceScreen.addPreference(new AboutPreference(getActivity()));
+            // Keep the keyless card outside XML icon mapping.
+            PreferenceScreen aboutScreen = (PreferenceScreen) findPreference("revanced_preference_screen_about");
+            aboutScreen.addPreference(new AboutPreference(getActivity()));
             setPreferenceScreenToolbar(preferenceScreen);
 
             // Import / Export

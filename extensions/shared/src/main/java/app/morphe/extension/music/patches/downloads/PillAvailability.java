@@ -7,6 +7,8 @@ package app.morphe.extension.music.patches.downloads;
 
 import androidx.annotation.Nullable;
 
+import java.util.function.Supplier;
+
 import app.morphe.extension.music.shared.VideoInformation;
 import app.morphe.extension.shared.utils.Logger;
 
@@ -16,41 +18,128 @@ import app.morphe.extension.shared.utils.Logger;
  * <p>The app decides whether the pill is lit from the state of the player and of the queue item. While online the
  * decision is lit for a video the stream swap plays from a copy. Offline the stored answer reached the player but the
  * pill stayed dim, and a press showed "Video not available" instead of changing the display. The copy is the video:
- * whatever the app's gate says, the pill is lit for it, so a press changes the display as it does online.
+ * whatever the app's gate says, the pill is lit for it and a press toggles the display as it does online. Three
+ * places, all asked the same question, "does the video being played have a committed copy":
+ * <ul>
+ *   <li>the method that sets the pill's look ({@link #onPillLook}): a dim look becomes a lit one;
+ *   <li>the click listener ({@link #lightForClick}): a press on a dim pill lights it before the app's own check;
+ *   <li>the toggle's gate ({@link #onToggleGate}): a closed gate opens, so the press changes the display mode.
+ * </ul>
+ * Every entry is logged when its answer changes, so a device log says which of the app's checks was false.
  */
 @SuppressWarnings("unused")
 public final class PillAvailability {
     /** The toggle's view, by the two methods the patch adds to it. */
     public interface Gate {
-        /** Lights the pill, as the app's own state method does: the click listener lets a press through. */
+        /** Lights the pill, as the app's own look method does: the click listener lets a press through. */
         void rvxBright();
 
         /** Whether the app has the pill lit now. */
         boolean rvxShown();
     }
 
+    private static final Object logLock = new Object();
+    private static String lastLog = "";
+
     private PillAvailability() {}
 
     /**
-     * Injection point: the end of the method that computes the state of the pill, which runs when the playback, the
-     * queue item or the session changes.
-     *
-     * @param view The toggle's view, which the patch gave the {@link Gate} methods.
+     * Injection point: the start of the method that computes the state of the pill, which runs when the playback,
+     * the queue item or the session changes. Only logs, so a device log shows that the state was computed and for
+     * which video.
      */
     public static void onPillState(@Nullable Object view) {
         try {
-            if (!(view instanceof Gate gate) || !StreamSwap.enabled()) return;
-
-            String playing = VideoInformation.getVideoId();
-            String response = VideoInformation.getPlayerResponseVideoId();
-            boolean shown = gate.rvxShown();
-            if (!PillAvailabilityLogic.forcesBright(shown, playing, response, VideoCopyStore::has)) return;
-
-            gate.rvxBright();
-            Logger.printDebug(() -> "PillAvailability: pill was dim for a video with a copy, lit it v=" + playing
-                    + " response=" + response);
+            String copy = copyVideo();
+            boolean shown = view instanceof Gate gate && gate.rvxShown();
+            logChange("state", () -> "PillAvailability: state computed v=" + VideoInformation.getVideoId()
+                    + " response=" + VideoInformation.getPlayerResponseVideoId() + " copy="
+                    + (copy == null ? "none" : copy) + " shownBefore=" + shown);
         } catch (Exception ex) {
             Logger.printException(() -> "PillAvailability: pill state failure", ex);
         }
+    }
+
+    /**
+     * Injection point: the start of the method that sets the pill's look.
+     *
+     * @param requested The look the app asks for, true when lit.
+     * @return The look to apply: lit when the app asks for it, or when the video has a copy.
+     */
+    public static boolean onPillLook(@Nullable Object view, boolean requested) {
+        try {
+            String copy = copyVideo();
+            boolean look = PillAvailabilityLogic.opens(requested, copy != null);
+            logChange("look", () -> "PillAvailability: look requested=" + requested + " applied=" + look + " copy="
+                    + (copy == null ? "none" : copy) + (look && !requested ? " (forced)" : ""));
+            return look;
+        } catch (Exception ex) {
+            Logger.printException(() -> "PillAvailability: pill look failure", ex);
+            return requested;
+        }
+    }
+
+    /**
+     * Called by the click hook of {@link QueueItems} before the app's own check: a dim pill of a video with a copy is
+     * lit, so the app's listener goes on to its toggle.
+     *
+     * @return True if the pill was dim and has been lit.
+     */
+    static boolean lightForClick(@Nullable Object view) {
+        try {
+            if (!(view instanceof Gate gate)) return false;
+
+            boolean shown = gate.rvxShown();
+            String copy = copyVideo();
+            logChange("click", () -> "PillAvailability: click shown=" + shown + " copy="
+                    + (copy == null ? "none" : copy));
+            if (shown || copy == null) return false;
+
+            gate.rvxBright();
+            return true;
+        } catch (Exception ex) {
+            Logger.printException(() -> "PillAvailability: pill click failure", ex);
+            return false;
+        }
+    }
+
+    /**
+     * Injection point: the return of the toggle's gate, the check the toggle's press makes before it changes the
+     * display mode.
+     *
+     * @param open The app's answer.
+     * @return True when the app's answer is true, or when the video has a copy.
+     */
+    public static boolean onToggleGate(boolean open) {
+        try {
+            String copy = copyVideo();
+            boolean result = PillAvailabilityLogic.opens(open, copy != null);
+            logChange("gate", () -> "PillAvailability: toggle gate app=" + open + " applied=" + result + " copy="
+                    + (copy == null ? "none" : copy) + (result && !open ? " (forced)" : ""));
+            return result;
+        } catch (Exception ex) {
+            Logger.printException(() -> "PillAvailability: toggle gate failure", ex);
+            return open;
+        }
+    }
+
+    /** The id of the video being played, or of the last player response, that has a committed copy; else null. */
+    @Nullable
+    private static String copyVideo() {
+        if (!StreamSwap.enabled()) return null;
+
+        return PillAvailabilityLogic.videoWithCopy(VideoInformation.getVideoId(),
+                VideoInformation.getPlayerResponseVideoId(), VideoCopyStore::hasNow);
+    }
+
+    /** Logs a line unless the previous one of this kind said the same: states change rarely, calls come in bursts. */
+    private static void logChange(String kind, Supplier<String> line) {
+        String text = line.get();
+        synchronized (logLock) {
+            String entry = kind + text;
+            if (entry.equals(lastLog)) return;
+            lastLog = entry;
+        }
+        Logger.printDebug(() -> text);
     }
 }

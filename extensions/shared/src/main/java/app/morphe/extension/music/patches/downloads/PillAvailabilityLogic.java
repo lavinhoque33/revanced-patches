@@ -5,28 +5,38 @@
  */
 package app.morphe.extension.music.patches.downloads;
 
+import androidx.annotation.Nullable;
+
 import java.util.function.Predicate;
 
-/** When {@link PillAvailability} lights a dim pill. A pure rule, so it can be tested without Android. */
+/** What {@link PillAvailability} decides. Pure rules, so they can be tested without Android. */
 final class PillAvailabilityLogic {
     private PillAvailabilityLogic() {}
 
     /**
-     * A dim pill is lit when the video being played, or the one the last player response was for, has a video copy.
-     * A lit pill is the app's own and is left alone, as is every video without a copy.
+     * The video that has a video copy: the one being played, else the one the last player response was for.
      *
-     * @param shown      Whether the app has the pill lit.
-     * @param playing    The id of the video being played, empty when none.
-     * @param response   The id of the last player response, empty when none.
-     * @param hasCopy    Whether a video id has a committed video copy.
+     * @param playing  The id of the video being played, empty when none.
+     * @param response The id of the last player response, empty when none.
+     * @param hasCopy  Whether a video id has a committed video copy.
+     * @return The id, or null when neither has a copy.
      */
-    static boolean forcesBright(boolean shown, String playing, String response, Predicate<String> hasCopy) {
-        if (shown) return false;
+    @Nullable
+    static String videoWithCopy(@Nullable String playing, @Nullable String response, Predicate<String> hasCopy) {
+        if (namesCopy(playing, hasCopy)) return playing;
 
-        return namesCopy(playing, hasCopy) || namesCopy(response, hasCopy);
+        return namesCopy(response, hasCopy) ? response : null;
     }
 
-    private static boolean namesCopy(String videoId, Predicate<String> hasCopy) {
+    /**
+     * An answer of the app's own checks, true for available, stays true; a false one is overruled for a video with a
+     * copy and only for it.
+     */
+    static boolean opens(boolean appsAnswer, boolean videoHasCopy) {
+        return appsAnswer || videoHasCopy;
+    }
+
+    private static boolean namesCopy(@Nullable String videoId, Predicate<String> hasCopy) {
         return videoId != null && !videoId.isEmpty() && hasCopy.test(videoId);
     }
 }

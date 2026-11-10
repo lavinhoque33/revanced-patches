@@ -15,20 +15,16 @@ import java.util.function.Predicate;
 public class PillAvailabilityLogicTest {
     private static final Predicate<String> COPIES = Set.of("video-1")::contains;
 
-    @Test public void aDimPillIsLitForTheVideoBeingPlayedThatHasACopy() {
-        assertTrue(PillAvailabilityLogic.forcesBright(false, "video-1", "", COPIES));
+    @Test public void theVideoBeingPlayedThatHasACopyIsTheOne() {
+        assertEquals("video-1", PillAvailabilityLogic.videoWithCopy("video-1", "", COPIES));
     }
 
-    @Test public void aDimPillIsLitForTheVideoOfTheLastPlayerResponseThatHasACopy() {
-        assertTrue(PillAvailabilityLogic.forcesBright(false, "song-1", "video-1", COPIES));
+    @Test public void theVideoOfTheLastPlayerResponseCountsWhenTheOneBeingPlayedHasNoCopy() {
+        assertEquals("video-1", PillAvailabilityLogic.videoWithCopy("song-1", "video-1", COPIES));
     }
 
-    @Test public void aLitPillIsTheAppsOwn() {
-        assertFalse(PillAvailabilityLogic.forcesBright(true, "video-1", "video-1", COPIES));
-    }
-
-    @Test public void aVideoWithoutACopyKeepsTheAppsDimPill() {
-        assertFalse(PillAvailabilityLogic.forcesBright(false, "video-2", "video-3", COPIES));
+    @Test public void aVideoWithoutACopyIsNone() {
+        assertNull(PillAvailabilityLogic.videoWithCopy("video-2", "video-3", COPIES));
     }
 
     @Test public void noVideoAsksNothingOfTheStore() {
@@ -36,7 +32,17 @@ public class PillAvailabilityLogicTest {
             throw new AssertionError("asked for " + id);
         };
 
-        assertFalse(PillAvailabilityLogic.forcesBright(false, "", "", never));
-        assertFalse(PillAvailabilityLogic.forcesBright(false, null, null, never));
+        assertNull(PillAvailabilityLogic.videoWithCopy("", "", never));
+        assertNull(PillAvailabilityLogic.videoWithCopy(null, null, never));
+    }
+
+    @Test public void anAnswerOfTheAppThatIsTrueIsKept() {
+        assertTrue(PillAvailabilityLogic.opens(true, false));
+        assertTrue(PillAvailabilityLogic.opens(true, true));
+    }
+
+    @Test public void aFalseAnswerIsOverruledOnlyForAVideoWithACopy() {
+        assertTrue(PillAvailabilityLogic.opens(false, true));
+        assertFalse(PillAvailabilityLogic.opens(false, false));
     }
 }

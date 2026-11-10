@@ -44,6 +44,16 @@ final class VideoCopyStore {
         return Storage.files.has(videoId);
     }
 
+    /**
+     * Whether the video has a video copy, loaded now if it is not yet: the answer is never a "not loaded yet" false.
+     * For the few main-thread checks that must not miss (the Song/Video pill); the load reads the commit records of
+     * the few copies there are, once.
+     */
+    static boolean hasNow(String videoId) {
+        Storage.files.ensureLoaded();
+        return Storage.files.has(videoId);
+    }
+
     /** The copy that may be played, or null. Hashes the file the first time. */
     @Nullable
     static VideoCopyFiles.Entry find(String videoId) {

@@ -176,6 +176,8 @@ public final class QueueItems {
      */
     public static boolean onPillClick(@Nullable Object view) {
         try {
+            // A dim pill of a video with a copy is lit first, so the app's check that follows lets the press through.
+            boolean lit = PillAvailability.lightForClick(view);
             if (!(view instanceof PillView pill) || !AudioFirst.supported()) return false;
             if (!tracksItems()) {
                 releaseTrackedItems();
@@ -198,7 +200,7 @@ public final class QueueItems {
             Object owner = pill.rvxOwner();
             String was = AudioFirst.liveMode();
             if (item == null || !(owner instanceof PillOwner)) {
-                logClick(entry, via, current, was, "stock");
+                logClick(entry, via, current, was, lit ? "stock:copy-lit" : "stock");
                 return false;
             }
 

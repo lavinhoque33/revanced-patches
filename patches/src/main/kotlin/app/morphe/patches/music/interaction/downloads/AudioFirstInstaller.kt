@@ -53,6 +53,8 @@ private const val START_POSITION = "$QUEUE_ITEMS->startPosition(Ljava/lang/Objec
 private const val ON_PILL_CLICK = "$QUEUE_ITEMS->onPillClick(Ljava/lang/Object;)Z"
 private const val PILL_GATE = $$"$${AUDIO_FIRST_PATH}PillAvailability$Gate;"
 private const val ON_PILL_STATE = "${AUDIO_FIRST_PATH}PillAvailability;->onPillState(Ljava/lang/Object;)V"
+private const val ON_PILL_LOOK = "${AUDIO_FIRST_PATH}PillAvailability;->onPillLook(Ljava/lang/Object;Z)Z"
+private const val ON_TOGGLE_GATE = "${AUDIO_FIRST_PATH}PillAvailability;->onToggleGate(Z)Z"
 private const val REGISTRY = "Lcom/google/protobuf/ExtensionRegistryLite;"
 private const val CAPTURE_HOLDER = "$AUDIO_FIRST->captureHolder(Ljava/lang/Object;)V"
 private const val OBJECT = "Ljava/lang/Object;"
@@ -238,6 +240,7 @@ private fun BytecodePatchContext.installQueueItemRetarget() {
         val installStart = prepareQueueStart()
         val installPosition = preparePillStartPosition()
         val installAvailability = preparePillAvailability(pill.classDef.type)
+        val installToggleGate = preparePillToggleGate()
 
         val renderer = mutableClassDefBy(rendererType)
         val defaultRenderer = renderer.fields.single {
@@ -284,6 +287,7 @@ private fun BytecodePatchContext.installQueueItemRetarget() {
         printInfo(installStart())
         installPosition?.let { printInfo(it()) }
         installAvailability?.let { printInfo(it()) }
+        installToggleGate?.let { printInfo(it()) }
     } catch (ex: Exception) {
         printWarn("Start downloaded songs in audio mode cannot keep the next songs of an album on their song " +
             "renderers on this Music version, so the queue items, the song/video pill and the start at the " +
@@ -363,13 +367,16 @@ private fun BytecodePatchContext.preparePillStartPosition(): (() -> String)? {
 /**
  * Offline the pill stayed dim for a video with a video copy, and a press showed "Video not available" (the click
  * listener lets a press through only when the pill is lit). The app lights it in its state method, which runs on
- * every change of the playback, the queue item and the session, and ends in the method that sets the pill's look.
- * At the end of the state method the extension is asked: when the pill is dim and the video has a copy, it lights it
- * through a bridge that runs the app's own look method, which also keeps the flag the click listener tests.
+ * every change of the playback, the queue item and the session, and sets the pill's look in the one look method. The
+ * state method has several exits (a kill switch and two branches jump straight to its return) and reuses its first
+ * register for another value before the end, so a hook at its end sees neither every run nor the view: the extension
+ * is asked at the START of the look method instead, which every path but the kill switch reaches with the view in its
+ * first register: it may turn a dim look into a lit one for a video with a copy. The state method's start only logs.
  *
- * Added to the toggle's view: `rvxBright` (the look method, lit) and `rvxShown` (its flag). Resolved by shape, in the
- * view class: the look method is the one `(Z)V` that sets the view's alpha and stores a boolean of its own; the state
- * method is the one `()V` that calls the look method directly and one of the `(Z)V` methods that call it.
+ * Added to the toggle's view: `rvxBright` (the look method, lit) and `rvxShown` (its flag), which the click hook of
+ * [preparePillClick] uses to light a dim pill before the listener's own check. Resolved by shape, in the view class:
+ * the look method is the one `(Z)V` that sets the view's alpha and stores a boolean of its own; the state method is
+ * the one `()V` that calls the look method directly and one of the `(Z)V` methods that call it.
  * `Lhvv.j` / `Lhvv.e` (9.40.51), `Lnkv.j` / `Lnkv.e` (9.15.51), `Lmxb.h` / `Lmxb.e` (8.30.54). Optional: a version
  * where it is not found keeps the app's own pill, and the rest installs.
  */
@@ -412,16 +419,59 @@ private fun BytecodePatchContext.preparePillAvailability(viewType: String): (() 
                 return v0
             """)
 
-            val builder = view.findMutableMethodOf(state)
-            builder.implementation!!.instructions.withIndex()
-                .filter { it.value.opcode == Opcode.RETURN_VOID }.map { it.index }.reversed()
-                .forEach { builder.addInstructions(it, "invoke-static/range {p0 .. p0}, $ON_PILL_STATE") }
+            view.findMutableMethodOf(look).addInstructions(0, """
+                invoke-static/range {p0 .. p1}, $ON_PILL_LOOK
+                move-result p1
+            """)
+            view.findMutableMethodOf(state).addInstructions(0, "invoke-static/range {p0 .. p0}, $ON_PILL_STATE")
 
             "AudioFirst: pill availability $viewType->${state.name}, look ${look.name}, flag ${flag.name}"
         }
     } catch (ex: Exception) {
         printWarn("The Song/Video pill of the Music player stays dim for a video with a video copy offline on this " +
             "Music version: ${ex.message}")
+        return null
+    }
+}
+
+/**
+ * A press of the pill that the listener lets through runs the owner's press method, which asks its gate first: the
+ * display mode is switched only when the gate is open (a per-video flag of the app, or a user setting), else the
+ * press shows the app's own message or follows an endpoint. For a video with a copy the gate is opened: the
+ * extension may turn the gate's `false` into `true`, before each of its returns.
+ *
+ * Resolved by shape: the gate is the owner's own `()Z` method that the press method calls first, the same press
+ * method [preparePillClick] resolves. `Lhvr.g` (9.40.51), `Lnjz.i` (9.15.51), `Lmwg.h` (8.30.54). Optional: a
+ * version where it is not found keeps the app's own gate, and the rest installs.
+ */
+private fun BytecodePatchContext.preparePillToggleGate(): (() -> String)? {
+    try {
+        val press = pillPressFingerprint.matchSingle()
+        val owner = mutableClassDefBy(press.classDef.type)
+        val first = press.method.implementation!!.instructions.firstOrNull()?.getReference<MethodReference>()
+            ?: error("toggle gate: the press method starts with no call")
+        val gate = owner.methods.singleOrNull {
+            !AccessFlags.STATIC.isSet(it.accessFlags) && it.name == first.name && it.returnType == "Z" &&
+                it.parameterTypes.isEmpty() && it.implementation != null && first.definingClass == owner.type
+        } ?: error("toggle gate: the press method does not start with a boolean method of its own class")
+
+        return {
+            val builder = owner.findMutableMethodOf(gate)
+            builder.implementation!!.instructions.withIndex()
+                .filter { it.value.opcode == Opcode.RETURN }.map { it.index to it.value }.reversed()
+                .forEach { (index, instruction) ->
+                    val register = builder.registerName((instruction as OneRegisterInstruction).registerA)
+                    builder.addInstructions(index, """
+                        invoke-static/range {$register .. $register}, $ON_TOGGLE_GATE
+                        move-result $register
+                    """)
+                }
+
+            "AudioFirst: toggle gate ${owner.type}->${gate.name}"
+        }
+    } catch (ex: Exception) {
+        printWarn("The Song/Video pill of the Music player cannot open its toggle for a video with a video copy on " +
+            "this Music version: ${ex.message}")
         return null
     }
 }

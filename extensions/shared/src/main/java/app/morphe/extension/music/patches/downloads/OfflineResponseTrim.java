@@ -93,7 +93,7 @@ final class OfflineResponseTrim {
     static byte[] fromVideoDownload(PlayerResponse response, VideoCopyLogic.Selection selection) {
         PlayerResponse.Builder stored = PlayerResponse.newBuilder()
                 .setPlayabilityStatus(PlayabilityStatus.newBuilder().setStatus(Status.OK))
-                .setVideoDetails(response.getVideoDetails());
+                .setVideoDetails(asMusicVideo(response.getVideoDetails()));
         StreamingData.Builder streaming = StreamingData.newBuilder()
                 .setExpiresInSeconds(DEFAULT_EXPIRES_SECONDS)
                 .addAdaptiveFormats(withoutUrl(selection.video()))
@@ -105,6 +105,40 @@ final class OfflineResponseTrim {
             stored.setPlayerConfig(PlayerConfig.newBuilder().setAudioConfig(config.getAudioConfig()));
         }
         return stored.build().toByteArray();
+    }
+
+    /**
+     * The details of a music video as the Song/Video pill reads them: type OMV and not live content. The pill stays
+     * dim for an audio-track type (ATV, a privately owned track) or live content, and a response fetched for the
+     * saving, not for the app's own playback, is not guaranteed to say OMV for the video's id.
+     */
+    static VideoDetails asMusicVideo(VideoDetails details) {
+        return details.toBuilder().setMusicVideoType(CommandRewrite.TYPE_OMV).clearIsLiveContent().build();
+    }
+
+    /**
+     * What the Song/Video pill reads of a stored response, for the log: the music video type, the live flag and the
+     * formats with a video mime (the pill is offered only for a type that is not an audio track and a response
+     * with at least one).
+     */
+    static String gateFacts(byte[] response) {
+        try {
+            PlayerResponse parsed = PlayerResponse.parseFrom(response);
+            VideoDetails details = parsed.getVideoDetails();
+            StreamingData streaming = parsed.getStreamingData();
+            int video = 0;
+            for (Format format : streaming.getFormatsList()) {
+                if (format.getMimeType().startsWith("video")) video++;
+            }
+            for (Format format : streaming.getAdaptiveFormatsList()) {
+                if (format.getMimeType().startsWith("video")) video++;
+            }
+            return "type=" + (details.hasMusicVideoType() ? details.getMusicVideoType() : "none")
+                    + " live=" + details.getIsLiveContent() + " muxed=" + streaming.getFormatsCount()
+                    + " adaptive=" + streaming.getAdaptiveFormatsCount() + " videoMimes=" + video;
+        } catch (IOException ex) {
+            return "unreadable";
+        }
     }
 
     private static Format withoutUrl(Format format) {

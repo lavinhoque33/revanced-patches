@@ -530,7 +530,7 @@ public final class OfflineReplay {
 
             byte[] prepared = OfflineReplayResponse.prepare(stored);
             Logger.printWarn(() -> "OfflineReplay: player v=" + videoId + " stock failed, answering from the copy"
-                    + " stored=" + prepared.length + "B");
+                    + " stored=" + prepared.length + "B " + OfflineResponseTrim.gateFacts(prepared));
             logDecision(HOOK_PLAYER, "lookup answered v=" + videoId);
             return prepared;
         } catch (Exception ex) {

@@ -229,7 +229,10 @@ final class VideoCopyDownloader {
             Logger.printWarn(() -> "VideoCopy: v=" + videoId + " song=" + pair.songId() + " client=" + client
                     + " video=" + selection.video().getItag() + ":" + selection.video().getContentLength()
                     + " audio=" + selection.audio().getItag() + ":" + selection.audio().getContentLength()
-                    + " muxed=" + (selection.muxed() != null) + " ms=" + (System.currentTimeMillis() - start)
+                    + " muxed=" + (selection.muxed() != null) + " served-type="
+                    + (response.getVideoDetails().hasMusicVideoType()
+                    ? response.getVideoDetails().getMusicVideoType() : "none")
+                    + " ms=" + (System.currentTimeMillis() - start)
                     + " kept=" + kept);
             return kept;
         } finally {

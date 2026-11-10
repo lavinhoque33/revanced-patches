@@ -209,6 +209,41 @@ public class OfflineResponseTrimTest {
         assertEquals(OfflineResponseTrim.DEFAULT_EXPIRES_SECONDS, stored.getStreamingData().getExpiresInSeconds());
     }
 
+    @Test public void aVideoCopyIsStoredAsAMusicVideoWhateverTheFetchSaid() throws Exception {
+        Format video = Format.newBuilder().setItag(134).setUrl("u").build();
+        Format audio = Format.newBuilder().setItag(251).setUrl("u").build();
+        VideoCopyLogic.Selection selection = new VideoCopyLogic.Selection(video, audio, null);
+
+        for (VideoDetails fetched : new VideoDetails[]{
+                VideoDetails.newBuilder().setVideoId("clip").setMusicVideoType(1).setIsLiveContent(true).build(),
+                VideoDetails.newBuilder().setVideoId("clip").build()}) {
+            VideoDetails stored = PlayerResponse.parseFrom(OfflineResponseTrim.fromVideoDownload(
+                    PlayerResponse.newBuilder().setVideoDetails(fetched).build(), selection)).getVideoDetails();
+
+            assertEquals(2, stored.getMusicVideoType());
+            assertFalse(stored.getIsLiveContent());
+            assertEquals("clip", stored.getVideoId());
+        }
+    }
+
+    @Test public void theMusicVideoTypeIsTheAppsOwnFieldFortyAndLiveFortyThree() throws Exception {
+        byte[] wire = VideoDetails.newBuilder().setMusicVideoType(2).setIsLiveContent(true).build().toByteArray();
+        assertEquals(new TreeSet<>(Set.of(40, 43)), topLevelFields(wire));
+    }
+
+    @Test public void theGateFactsNameTheTypeTheLiveFlagAndTheVideoMimes() throws Exception {
+        Format video = Format.newBuilder().setItag(134).setMimeType("video/mp4; codecs=\"avc1\"").build();
+        Format audio = Format.newBuilder().setItag(251).setMimeType("audio/webm").build();
+        Format muxed = Format.newBuilder().setItag(18).setMimeType("video/mp4").build();
+        byte[] stored = OfflineResponseTrim.fromVideoDownload(PlayerResponse.getDefaultInstance(),
+                new VideoCopyLogic.Selection(video, audio, muxed));
+
+        assertEquals("type=2 live=false muxed=1 adaptive=2 videoMimes=2", OfflineResponseTrim.gateFacts(stored));
+        assertEquals("type=none live=false muxed=0 adaptive=0 videoMimes=0",
+                OfflineResponseTrim.gateFacts(new byte[0]));
+        assertEquals("unreadable", OfflineResponseTrim.gateFacts(new byte[]{(byte) 0xff}));
+    }
+
     @Test public void aVideoCopysResponseWithoutAMuxedFormatKeepsNone() throws Exception {
         Format video = Format.newBuilder().setItag(134).setUrl("u").build();
         Format audio = Format.newBuilder().setItag(251).setUrl("u").build();

@@ -2,7 +2,7 @@
  * Original author(s):
  * - anddea (https://github.com/anddea)
  * - COOLak (https://github.com/COOLak)
- * Modified by lavinhoque33, 2026-11-06
+ * Modified by lavinhoque33, 2026-11-10
  */
 
 package app.morphe.extension.youtube.settings.preference;
@@ -138,6 +138,11 @@ public class YouTubePreferenceFragment extends ToolbarPreferenceFragment {
             if (applySettingToPreference) {
                 navigationBarOrderPreference.updateSummary();
             }
+            return;
+        }
+
+        if (pref instanceof GlassNavigationBarPreference) {
+            // The dialog reads and saves its settings directly, so there is no UI value to sync.
             return;
         }
 

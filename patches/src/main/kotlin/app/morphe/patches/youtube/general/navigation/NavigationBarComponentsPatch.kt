@@ -13,7 +13,7 @@
  *
  * See the included NOTICE file for GPLv3 §7(b) and §7(c) terms that apply to Morphe contributions.
  *
- * Modified by lavinhoque33, 2026-11-06.
+ * Modified by lavinhoque33, 2026-11-10.
  */
 
 package app.morphe.patches.youtube.general.navigation
@@ -217,6 +217,15 @@ val navigationBarComponentsPatch = bytecodePatch(
             "SETTINGS: HIDE_NAVIGATION_COMPONENTS",
             "SETTINGS: REORDER_NAVIGATION_BAR"
         )
+
+        // Show the snackbars right above the navigation bar and the miniplayer. A target without
+        // the hook only keeps the default snackbar position.
+        BottomUiContainerOnLayoutFingerprint.matchOrNull()?.let {
+            it.method.addInstruction(
+                it.instructionMatches.first().index + 1,
+                "invoke-static { p0 }, $GENERAL_PATH/SnackBarPatch;->removeExtraBottomRoom(Landroid/widget/FrameLayout;)V"
+            )
+        } ?: printWarn("Snackbar room above the glass navigation bar is not supported in this version.")
 
         // region patch for translucent navigation and status bars
 

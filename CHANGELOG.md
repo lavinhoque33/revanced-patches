@@ -2,6 +2,25 @@
 
 ### Features
 
+* **Sync with anddea/revanced-patches dev:** Merge the changes up to v4.4.0-dev.6 (anddea dev, b2f29faa6) into this
+  fork.
+* **YouTube - Glass navigation bar:** Add a bottom spacing slider to the Glass navigation bar size dialog, to set how far
+  the capsule floats above the bottom of the screen, and show the snackbars right above the navigation bar.
+* **YouTube - Navigation bar:** Fix the navigation buttons sitting too high, with a black strip below them, with the
+  Translucent or Transparent navigation bar style and gesture navigation, also when Glass navigation bar is off.
+* **YouTube - Watch later improvements:** Add a patch with options to widen the drag handles of the Watch later videos
+  and to hide the snackbar shown after removing a video.
+* **YouTube - Post buttons:** Add a Post buttons screen to hide the like, share and comment buttons of posts, and an
+  option to give every post the same grouped layout of buttons.
+* **YouTube - Captions:** Show captions in stable blocks and as two languages at once, on YouTube 21.15 and newer.
+* **YouTube - Toolbar:** Fix the Create button of the toolbar so it opens the upload menu again.
+* **YouTube - Spoof video streams:** Fetch the streams of a video sooner, so videos start faster, and keep inline
+  previews in the feed muted.
+* **YouTube Music - Lyrics:** Add a dynamic background to the lyrics, and show the reading of each Japanese word
+  above the text (furigana).
+* **YouTube Music - Downloads:** Add Mark downloaded songs, off by default, a child of Download in app, to mark songs
+  saved as files. The green checkmarks of Play downloads locally keep marking only the stream copies.
+
 * **YouTube Music - Downloads:** Add Play downloads locally, off by default, to play downloaded songs from a private
   copy of the audio; radio, lyrics and the queue stay online while there is a connection. It is independent of
   Download in app: on its own it saves only that copy, which is kept inside the app and is not shown in Device files

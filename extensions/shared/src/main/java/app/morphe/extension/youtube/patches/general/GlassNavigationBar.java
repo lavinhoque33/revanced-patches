@@ -1,6 +1,6 @@
 /*
  * Copyright 2026 Morphe.
- * Modified by lavinhoque33, 2026-11-06.
+ * Modified by lavinhoque33, 2026-11-10.
  * https://github.com/MorpheApp/morphe-patches/pull/4338
  *
  * See the included NOTICE file for GPLv3 Section 7 terms that apply to this code.
@@ -116,9 +116,11 @@ public final class GlassNavigationBar {
 
     /**
      * The least room between the bottom of the capsule and the bottom of the bar,
-     * so the capsule floats above the bottom of the screen.
+     * so the capsule floats above the bottom of the screen, from the bottom spacing slider.
+     * The room for the system navigation buttons is kept when it is larger than this room.
      */
-    private static final int FLOATING_ROOM = Dim.dp10;
+    private static final int FLOATING_ROOM =
+            Dim.dp(SeekBarPreference.clampToRange(Settings.NAVIGATION_BAR_GLASS_BOTTOM_SPACING));
 
     /**
      * The most alpha of the tint the app draws over its blurred background.
@@ -358,6 +360,22 @@ public final class GlassNavigationBar {
             Logger.printException(() -> "getTranslationY failure", ex);
             return translationY;
         }
+    }
+
+    /**
+     * Called from {@link SnackBarPatch}. The app lays the snackbars out above the height it
+     * gives the navigation bar, so they would overlap the room added to it.
+     *
+     * @return The room added to the height of the navigation bar on screen.
+     */
+    static int getAddedRoomOnScreen() {
+        if (!ENABLED) return 0;
+
+        View pivotBar = currentPivotBar.get();
+        if (pivotBar == null || !pivotBar.isShown()) return 0;
+
+        ViewGroup.LayoutParams params = pivotBar.getLayoutParams();
+        return params != null && params.height > 0 ? getAddedRoom(pivotBar, params.height) : 0;
     }
 
     /**

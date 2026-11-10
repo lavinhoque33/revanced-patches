@@ -725,8 +725,8 @@ public class FeatureFlagsManagerPreference extends Preference {
     }
 
     /**
-     * Applies exported text. Lines that are only flag IDs are treated as blocked flags,
-     * so the output of the copy button can be pasted as well.
+     * Stages exported text until the manager's Save button is pressed.
+     * Lines containing only flag IDs are treated as blocked flags, so copied IDs can also be pasted.
      */
     private void importText(String text) {
         try {
@@ -756,10 +756,14 @@ public class FeatureFlagsManagerPreference extends Preference {
                 return;
             }
 
-            SharedYouTubeSettings.DISABLED_FEATURE_FLAGS.save(EnableDebuggingPatch.serializeFlags(blocked));
-            SharedYouTubeSettings.FORCED_FEATURE_FLAGS.save(EnableDebuggingPatch.serializeFlags(forced));
-
-            loadFlagStates();
+            // Import edits the same draft as the state buttons. Cancel must discard both.
+            flagStates.replaceAll((flag, state) -> FlagState.AUTO);
+            for (Long flag : forced) {
+                flagStates.put(flag, FlagState.FORCED);
+            }
+            for (Long flag : blocked) {
+                flagStates.put(flag, FlagState.BLOCKED);
+            }
 
             listView.clearChoices();
             adapter.refresh();

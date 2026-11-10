@@ -67,7 +67,6 @@ public class VideoCopyLogicTest {
         assertEquals(8_390_921 + 3_433_755, all.bytes());
         assertEquals(243, VideoCopyLogic.select(response(av1, vp9, audio)).video().getItag());
         assertEquals(396, VideoCopyLogic.select(response(av1, audio)).video().getItag());
-        assertEquals(18, all.muxed().getItag());
     }
 
     @Test public void aCopyNeedsBothStreamsWithPlainUrlsLengthsAndRanges() {
@@ -87,18 +86,19 @@ public class VideoCopyLogicTest {
         assertNotNull(VideoCopyLogic.select(response(avc, audio)));
     }
 
-    @Test public void theMuxedFormatIsOnlyCarriedAlongAndNeverFromAdaptiveFormats() {
+    @Test public void theMuxedFormatOfAResponseIsNeitherSelectedNorTakenFromTheAdaptiveFormats() {
         Format audio = adaptive(251, OPUS, 100).build();
         Format avc = adaptive(134, AVC, 100).build();
-        PlayerResponse adaptiveOnly = PlayerResponse.newBuilder().setStreamingData(
-                StreamingData.newBuilder().addAdaptiveFormats(avc).addAdaptiveFormats(audio)).build();
 
-        assertNull(VideoCopyLogic.muxed(adaptiveOnly));
-        assertNull(VideoCopyLogic.select(adaptiveOnly).muxed());
-        assertNotNull(VideoCopyLogic.muxed(response(avc, audio)));
+        VideoCopyLogic.Selection withMuxed = VideoCopyLogic.select(response(avc, audio));
+
+        assertEquals(avc, withMuxed.video());
+        assertEquals(audio, withMuxed.audio());
+        assertEquals(withMuxed, VideoCopyLogic.select(PlayerResponse.newBuilder().setStreamingData(
+                StreamingData.newBuilder().addAdaptiveFormats(avc).addAdaptiveFormats(audio)).build()));
     }
 
-    @Test public void aStoredCopyYieldsItsTwoFormatsByItagAndItsMuxedFormat() {
+    @Test public void aStoredCopyYieldsItsTwoFormatsByItag() {
         Format audio = adaptive(251, OPUS, 100).clearUrl().build();
         Format avc = adaptive(134, AVC, 200).clearUrl().build();
         PlayerResponse stored = response(avc, adaptive(140, "audio/mp4", 5).build(), audio);
@@ -107,14 +107,7 @@ public class VideoCopyLogicTest {
 
         assertEquals(avc, formats.video());
         assertEquals(audio, formats.audio());
-        assertNotNull(formats.muxed());
         assertNull(VideoCopyLogic.stored(stored, 243, 251));
-    }
-
-    @Test public void theVideoSwitchNeedsAVideoFormatInTheMuxedList() {
-        assertTrue(VideoCopyLogic.hasVideoFormat(response().getStreamingData().getFormatsList()));
-        assertFalse(VideoCopyLogic.hasVideoFormat(java.util.List.of()));
-        assertFalse(VideoCopyLogic.hasVideoFormat(java.util.List.of(adaptive(251, OPUS, 1).build())));
     }
 
     @Test public void theOnlineUrlIsAFallbackOnlyForTheSameStream() {
@@ -173,5 +166,11 @@ public class VideoCopyLogicTest {
     @Test public void aListIsAlreadySavedOnlyWhenNeitherAudioNorVideoWasSavedNow() {
         assertEquals("morphe_music_playlist_stream_already_saved", VideoCopyLogic.completionKey(0, 0, 0));
         assertEquals("morphe_music_playlist_stream_already_saved_videos", VideoCopyLogic.completionKey(0, 0, 3));
+    }
+
+    @Test public void onlyTheFormatThisBuildStoresIsCurrent() {
+        assertTrue(VideoCopyLogic.currentFormat(VideoCopyLogic.COPY_FORMAT));
+        assertFalse(VideoCopyLogic.currentFormat(0));
+        assertFalse(VideoCopyLogic.currentFormat(VideoCopyLogic.COPY_FORMAT - 1));
     }
 }

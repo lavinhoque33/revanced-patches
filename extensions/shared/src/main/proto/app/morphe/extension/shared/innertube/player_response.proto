@@ -133,6 +133,8 @@ message ByteRange {
 
 message PlayerConfig {
   optional AudioConfig audioConfig = 55405814;
+  // Music 9.40.51 Laolg.f (Lakrx): its first field is the bool the app's ExoPlayer engine requires (Lyvb.S).
+  optional ExoPlayerConfig exoPlayerConfig = 57825011;
   optional AndroidMedialibConfig androidMedialibConfig = 78958444;
   // Dex-verified on the three supported Music versions; preserve unrelated config when stripping SABR.
   optional MediaCommonConfig mediaCommonConfig = 215771584;
@@ -157,6 +159,12 @@ message PlaybackRoutingConfig {
 
 message AudioConfig {
   optional bool muteOnStart = 4;
+  // Music 9.40.51 Lajdb.i (read by Lwdx.aR): opens the itag check of the ExoPlayer engine for video formats too.
+  optional bool exoAudioGate = 5;
+}
+
+message ExoPlayerConfig {
+  optional bool useExoPlayer = 1;
 }
 
 message AndroidMedialibConfig {

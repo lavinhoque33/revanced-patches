@@ -120,7 +120,6 @@ public class StreamSwapLogicTest {
     @Test public void aTokenUrlKeepsTheLoopbackHostAndNamesTheStream() {
         assertEquals("http://127.0.0.1:1/rvx?v=clip&i=134&m=video&t=key",
                 StreamSwapLogic.tokenUrl("clip", 134, "video", "key"));
-        assertEquals("http://127.0.0.1:1/rvx?v=clip&i=18&m=muxed&t=none", StreamSwapLogic.unplayableMuxedUrl("clip"));
         assertTrue(StreamSwapLogic.isGuardedHost("127.0.0.1"));
     }
 
@@ -154,43 +153,25 @@ public class StreamSwapLogicTest {
         return audio().setUrl("http://127.0.0.1:1/rvx?v=clip&i=251&m=vaudio&t=b");
     }
 
-    @Test public void theVideoResponseExposesExactlyTheTwoStreamsOfTheCopy() {
+    @Test public void theVideoResponseExposesExactlyTheTwoStreamsOfTheCopyAndNoMuxedFormat() {
         PlayerResponse online = sabrVideo().toBuilder().setStreamingData(sabrVideo().getStreamingData().toBuilder()
                 .addFormats(muxed())).build();
 
-        PlayerResponse swapped = StreamSwapLogic.replacePair(online, video().build(), videoAudio().build(), null);
+        PlayerResponse swapped = StreamSwapLogic.replacePair(online, video().build(), videoAudio().build());
 
         StreamingData streaming = swapped.getStreamingData();
         assertEquals(2, streaming.getAdaptiveFormatsCount());
         assertEquals(134, streaming.getAdaptiveFormats(0).getItag());
         assertEquals(251, streaming.getAdaptiveFormats(1).getItag());
         assertEquals("video/mp4; codecs=\"avc1.4D401E\"", streaming.getAdaptiveFormats(0).getMimeType());
-        assertEquals(1, streaming.getFormatsCount());
-        assertEquals(18, streaming.getFormats(0).getItag());
+        assertEquals(0, streaming.getFormatsCount());
         assertFalse(streaming.hasServerAbrStreamingUrl());
         assertFalse(streaming.hasHlsManifestUrl());
         assertEquals(21_540, streaming.getExpiresInSeconds());
     }
 
-    @Test public void theMuxedFormatStandsInOnlyWhenTheResponseHasNoVideoFormatInFormats() {
-        Format standIn = muxed().setUrl(StreamSwapLogic.unplayableMuxedUrl("clip")).build();
-
-        PlayerResponse without = StreamSwapLogic.replacePair(sabrVideo(), video().build(), videoAudio().build(),
-                standIn);
-        assertEquals(1, without.getStreamingData().getFormatsCount());
-        assertEquals(StreamSwapLogic.unplayableMuxedUrl("clip"), without.getStreamingData().getFormats(0).getUrl());
-
-        PlayerResponse online = sabrVideo().toBuilder().setStreamingData(sabrVideo().getStreamingData().toBuilder()
-                .addFormats(muxed().setUrl("https://example.invalid/own"))).build();
-        PlayerResponse with = StreamSwapLogic.replacePair(online, video().build(), videoAudio().build(), standIn);
-        assertEquals("https://example.invalid/own", with.getStreamingData().getFormats(0).getUrl());
-
-        PlayerResponse none = StreamSwapLogic.replacePair(sabrVideo(), video().build(), videoAudio().build(), null);
-        assertEquals(0, none.getStreamingData().getFormatsCount());
-    }
-
     @Test public void theVideoResponseDropsTheRequestHintsThatForceSabrAndKeepsTheRest() {
-        PlayerResponse swapped = StreamSwapLogic.replacePair(sabrVideo(), video().build(), videoAudio().build(), null);
+        PlayerResponse swapped = StreamSwapLogic.replacePair(sabrVideo(), video().build(), videoAudio().build());
 
         assertFalse(swapped.getPlayerConfig().hasMediaCommonConfig());
         assertFalse(swapped.getPlayerConfig().hasPlaybackRoutingConfig());
@@ -198,17 +179,20 @@ public class StreamSwapLogicTest {
         assertEquals(213, swapped.getVideoDetails().getLengthSeconds());
     }
 
-    @Test public void aStoredVideoResponseWithoutAPlayerConfigIsSwappedToo() {
+    @Test public void aStoredVideoResponseKeepsItsEngineFlagsThroughTheSwap() {
         PlayerResponse stored = PlayerResponse.newBuilder()
                 .setVideoDetails(VideoDetails.newBuilder().setVideoId("clip"))
                 .setStreamingData(StreamingData.newBuilder().addAdaptiveFormats(video().clearUrl())
-                        .addAdaptiveFormats(audio())).build();
+                        .addAdaptiveFormats(audio()))
+                .setPlayerConfig(OfflineResponseTrim.forExoPlayer(PlayerConfig.getDefaultInstance())).build();
 
-        PlayerResponse swapped = StreamSwapLogic.replacePair(stored, video().build(), videoAudio().build(), null);
+        PlayerResponse swapped = StreamSwapLogic.replacePair(stored, video().build(), videoAudio().build());
 
         assertEquals("http://127.0.0.1:1/rvx?v=clip&i=134&m=video&t=a",
                 swapped.getStreamingData().getAdaptiveFormats(0).getUrl());
-        assertFalse(swapped.hasPlayerConfig());
+        assertEquals(0, swapped.getStreamingData().getFormatsCount());
+        assertTrue(swapped.getPlayerConfig().getExoPlayerConfig().getUseExoPlayer());
+        assertTrue(swapped.getPlayerConfig().getAudioConfig().getExoAudioGate());
     }
 
     @Test public void theAudioSwapStillKeepsTheFormatsOutOfTheVideoField() {

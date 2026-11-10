@@ -30,8 +30,8 @@ import java.util.concurrent.ConcurrentHashMap;
  * {@code <video>.resp} (the stored player response of the video) and {@code <video>.json}, the commit record, which
  * names the song, the itag, mime, length and checksum of each stream and the length of the response, and is
  * published last. The pairs (video to song) are the commit records, read into memory once by {@link #ensureLoaded},
- * so that {@link #has} never touches the disk. All other disk access belongs to a worker thread. A record of the
- * earlier format (one muxed mp4) is no copy.
+ * so that {@link #has} never touches the disk. All other disk access belongs to a worker thread. A record of an
+ * earlier format ({@link VideoCopyLogic#COPY_FORMAT}) is no copy.
  */
 final class VideoCopyFiles {
     /** One stream file of a copy, as its commit records it. */
@@ -128,6 +128,7 @@ final class VideoCopyFiles {
         JSONObject commit = new JSONObject()
                 .put("video", streamJson(video, digest(videoTemporary)))
                 .put("audio", streamJson(audio, digest(audioTemporary)))
+                .put("format", VideoCopyLogic.COPY_FORMAT)
                 .put("durationMs", download.durationMs()).put("songId", songId)
                 .put("responseBytes", response.length);
         if (sourceId != null) commit.put("sourceId", sourceId);
@@ -234,6 +235,8 @@ final class VideoCopyFiles {
 
         JSONObject commit = new JSONObject(new String(Files.readAllBytes(commitFile.toPath()),
                 StandardCharsets.UTF_8));
+        if (!VideoCopyLogic.currentFormat(commit.optInt("format"))) return null;
+
         String songId = commit.getString("songId");
         long responseBytes = commit.getLong("responseBytes");
         Part video = part(videoId, VIDEO, commit.getJSONObject("video"));

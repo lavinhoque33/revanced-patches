@@ -170,9 +170,7 @@ public final class StreamSwap {
                 copy.durationMs());
         Format localAudio = VideoCopyLogic.local(formats.audio(), audio.token, copy.audio().length(),
                 copy.durationMs());
-        Format placeholder = formats.muxed() == null ? null : formats.muxed().toBuilder()
-                .setUrl(StreamSwapLogic.unplayableMuxedUrl(videoId)).build();
-        PlayerResponse replacement = StreamSwapLogic.replacePair(online, localVideo, localAudio, placeholder);
+        PlayerResponse replacement = StreamSwapLogic.replacePair(online, localVideo, localAudio);
         Object result = adapter.rvxWithBytes(replacement.toByteArray(), true);
         if (result == null || result == original) return unchanged(original, videoId, "stock adapter declined", stored);
 

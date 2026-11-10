@@ -20,13 +20,26 @@ import app.morphe.extension.shared.innertube.PlayerResponseOuterClass.PlayerResp
  * Android code.
  */
 final class VideoCopyLogic {
-    static final int MUXED_ITAG = 18;
     /** The video-only formats a copy may hold, in the order they are preferred: avc1, vp9 and av1 at 360p. */
     private static final int[] VIDEO_ITAGS = {134, 243, 396};
     /** Room that must stay free on the device after the copy is written. */
     static final long MIN_FREE_BYTES_AFTER = 200L * 1024 * 1024;
 
+    /**
+     * The format of what a copy stores, recorded in its commit. Raise it whenever the stored response or the way
+     * the files are served changes, so a copy of an earlier format counts as no copy and the next save replaces it.
+     * A commit without the field is the first adaptive pair (a minimal response with a muxed format and no player
+     * configuration, which the app's framework player took offline); 2 stores the response of
+     * {@link OfflineResponseTrim#fromVideoDownload}.
+     */
+    static final int COPY_FORMAT = 2;
+
     private VideoCopyLogic() {}
+
+    /** Whether a commit records the format this build stores; a commit without the field is the oldest format. */
+    static boolean currentFormat(int recorded) {
+        return recorded == COPY_FORMAT;
+    }
 
     /** One stored stream: the format's itag and mime string verbatim, the file's length, the format's lmt. */
     record Stream(int itag, String mime, long length, long modified) {
@@ -39,15 +52,15 @@ final class VideoCopyLogic {
     /** A finished video download: both streams, the duration of the copy and the response stored with them. */
     record Download(Stream video, Stream audio, long durationMs, byte[] response) {}
 
-    /** What a response offers for a copy: the two streams to save and the muxed format that keeps the pill lit. */
-    record Selection(Format video, Format audio, @Nullable Format muxed) {
+    /** What a response offers for a copy: the two streams to save. */
+    record Selection(Format video, Format audio) {
         long bytes() {
             return video.getContentLength() + audio.getContentLength();
         }
     }
 
     /** The two stored formats of a copy, read from its stored response. */
-    record Stored(Format video, Format audio, @Nullable Format muxed) {}
+    record Stored(Format video, Format audio) {}
 
     static boolean supportedVideo(int itag, @Nullable String mime) {
         if (mime == null) return false;
@@ -74,8 +87,8 @@ final class VideoCopyLogic {
 
     /**
      * The streams to save out of a response: the preferred 360p video-only format that has everything a download
-     * needs, and the opus audio, or null when either is missing. The muxed format is only carried along, never
-     * downloaded: it keeps the Video switch available, as in the app's own responses.
+     * needs, and the opus audio, or null when either is missing. The muxed format of the response is neither
+     * downloaded nor kept, see {@link OfflineResponseTrim#fromVideoDownload}.
      */
     @Nullable
     static Selection select(PlayerResponse response) {
@@ -99,27 +112,10 @@ final class VideoCopyLogic {
         }
         if (video == null || audio == null) return null;
 
-        return new Selection(video, audio, muxed(response));
+        return new Selection(video, audio);
     }
 
-    /** The muxed itag 18 of a response's {@code formats}, or null. */
-    @Nullable
-    static Format muxed(PlayerResponse response) {
-        for (Format format : response.getStreamingData().getFormatsList()) {
-            if (format.getItag() == MUXED_ITAG && format.getMimeType().startsWith("video/mp4")) return format;
-        }
-        return null;
-    }
-
-    /** Whether a format list has a video format: what makes the app offer the Video switch. */
-    static boolean hasVideoFormat(List<Format> formats) {
-        for (Format format : formats) {
-            if (format.getMimeType().startsWith("video/")) return true;
-        }
-        return false;
-    }
-
-    /** The stored formats of a copy: its two adaptive formats by itag, and the muxed one if it was stored. */
+    /** The stored formats of a copy: its two adaptive formats by itag. */
     @Nullable
     static Stored stored(PlayerResponse response, int videoItag, int audioItag) {
         Format storedVideo = null;
@@ -130,7 +126,7 @@ final class VideoCopyLogic {
         }
         if (storedVideo == null || storedAudio == null) return null;
 
-        return new Stored(storedVideo, storedAudio, muxed(response));
+        return new Stored(storedVideo, storedAudio);
     }
 
     /**

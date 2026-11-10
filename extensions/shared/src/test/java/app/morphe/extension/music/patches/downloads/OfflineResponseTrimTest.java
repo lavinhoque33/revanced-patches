@@ -24,6 +24,7 @@ import app.morphe.extension.shared.innertube.PlayerResponseOuterClass.ByteRange;
 import app.morphe.extension.shared.innertube.PlayerResponseOuterClass.CaptionTrack;
 import app.morphe.extension.shared.innertube.PlayerResponseOuterClass.CaptionTrackList;
 import app.morphe.extension.shared.innertube.PlayerResponseOuterClass.Captions;
+import app.morphe.extension.shared.innertube.PlayerResponseOuterClass.ExoPlayerConfig;
 import app.morphe.extension.shared.innertube.PlayerResponseOuterClass.Format;
 import app.morphe.extension.shared.innertube.PlayerResponseOuterClass.MediaCommonConfig;
 import app.morphe.extension.shared.innertube.PlayerResponseOuterClass.MediaUstreamerRequestConfig;
@@ -172,7 +173,7 @@ public class OfflineResponseTrimTest {
         assertEquals(new TreeSet<>(Set.of(2, 4, 11)), topLevelFields(built.toByteArray()));
     }
 
-    @Test public void aVideoCopysResponseKeepsTheTwoAdaptiveFormatsWithoutUrlsAndTheMuxedOne() throws Exception {
+    @Test public void aVideoCopysResponseKeepsTheTwoAdaptiveFormatsWithoutUrlsAndNoMuxedOne() throws Exception {
         Format video = Format.newBuilder().setItag(134).setMimeType("video/mp4; codecs=\"avc1.4D401E\"")
                 .setUrl("https://example.invalid/v").setSignatureCipher("cipher").setBitrate(450863)
                 .setContentLength(8_390_921).setLastModified(7)
@@ -180,15 +181,13 @@ public class OfflineResponseTrimTest {
                 .setIndexRange(ByteRange.newBuilder().setStart(741).setEnd(1228)).build();
         Format audio = Format.newBuilder().setItag(251).setMimeType("audio/webm; codecs=\"opus\"")
                 .setUrl("https://example.invalid/a").setContentLength(3_433_755).build();
-        Format muxed = Format.newBuilder().setItag(18).setMimeType("video/mp4; codecs=\"avc1.42001E, mp4a.40.2\"")
-                .setUrl("https://example.invalid/m").build();
         VideoDetails details = VideoDetails.newBuilder().setVideoId("clip").setLengthSeconds(213).build();
         PlayerResponse online = PlayerResponse.newBuilder().setVideoDetails(details)
                 .setPlayerConfig(PlayerConfig.newBuilder().setAudioConfig(AudioConfig.newBuilder()
                         .setMuteOnStart(false))).build();
 
         PlayerResponse stored = PlayerResponse.parseFrom(OfflineResponseTrim.fromVideoDownload(online,
-                new VideoCopyLogic.Selection(video, audio, muxed)));
+                new VideoCopyLogic.Selection(video, audio)));
 
         assertEquals(Status.OK, stored.getPlayabilityStatus().getStatus());
         assertEquals("clip", stored.getVideoDetails().getVideoId());
@@ -202,9 +201,7 @@ public class OfflineResponseTrimTest {
         assertEquals(1228, keptVideo.getIndexRange().getEnd());
         assertEquals(251, stored.getStreamingData().getAdaptiveFormats(1).getItag());
         assertEquals("", stored.getStreamingData().getAdaptiveFormats(1).getUrl());
-        assertEquals(1, stored.getStreamingData().getFormatsCount());
-        assertEquals(18, stored.getStreamingData().getFormats(0).getItag());
-        assertEquals("", stored.getStreamingData().getFormats(0).getUrl());
+        assertEquals(0, stored.getStreamingData().getFormatsCount());
         assertTrue(stored.getPlayerConfig().hasAudioConfig());
         assertEquals(OfflineResponseTrim.DEFAULT_EXPIRES_SECONDS, stored.getStreamingData().getExpiresInSeconds());
     }
@@ -212,7 +209,7 @@ public class OfflineResponseTrimTest {
     @Test public void aVideoCopyIsStoredAsAMusicVideoWhateverTheFetchSaid() throws Exception {
         Format video = Format.newBuilder().setItag(134).setUrl("u").build();
         Format audio = Format.newBuilder().setItag(251).setUrl("u").build();
-        VideoCopyLogic.Selection selection = new VideoCopyLogic.Selection(video, audio, null);
+        VideoCopyLogic.Selection selection = new VideoCopyLogic.Selection(video, audio);
 
         for (VideoDetails fetched : new VideoDetails[]{
                 VideoDetails.newBuilder().setVideoId("clip").setMusicVideoType(1).setIsLiveContent(true).build(),
@@ -234,24 +231,51 @@ public class OfflineResponseTrimTest {
     @Test public void theGateFactsNameTheTypeTheLiveFlagAndTheVideoMimes() throws Exception {
         Format video = Format.newBuilder().setItag(134).setMimeType("video/mp4; codecs=\"avc1\"").build();
         Format audio = Format.newBuilder().setItag(251).setMimeType("audio/webm").build();
-        Format muxed = Format.newBuilder().setItag(18).setMimeType("video/mp4").build();
         byte[] stored = OfflineResponseTrim.fromVideoDownload(PlayerResponse.getDefaultInstance(),
-                new VideoCopyLogic.Selection(video, audio, muxed));
+                new VideoCopyLogic.Selection(video, audio));
 
-        assertEquals("type=2 live=false muxed=1 adaptive=2 videoMimes=2", OfflineResponseTrim.gateFacts(stored));
-        assertEquals("type=none live=false muxed=0 adaptive=0 videoMimes=0",
+        assertEquals("type=2 live=false muxed=0 adaptive=2 videoMimes=1 exo=true gate=true",
+                OfflineResponseTrim.gateFacts(stored));
+        assertEquals("type=none live=false muxed=0 adaptive=0 videoMimes=0 exo=false gate=false",
                 OfflineResponseTrim.gateFacts(new byte[0]));
         assertEquals("unreadable", OfflineResponseTrim.gateFacts(new byte[]{(byte) 0xff}));
     }
 
-    @Test public void aVideoCopysResponseWithoutAMuxedFormatKeepsNone() throws Exception {
+    @Test public void aVideoCopysResponseHasNoMuxedFormatAndBothEngineFlagsWhateverTheFetchHad() throws Exception {
         Format video = Format.newBuilder().setItag(134).setUrl("u").build();
         Format audio = Format.newBuilder().setItag(251).setUrl("u").build();
+        PlayerResponse fetched = PlayerResponse.newBuilder().setStreamingData(StreamingData.newBuilder()
+                .addFormats(Format.newBuilder().setItag(18).setMimeType("video/mp4"))).build();
 
         PlayerResponse stored = PlayerResponse.parseFrom(OfflineResponseTrim.fromVideoDownload(
-                PlayerResponse.getDefaultInstance(), new VideoCopyLogic.Selection(video, audio, null)));
+                fetched, new VideoCopyLogic.Selection(video, audio)));
 
         assertEquals(0, stored.getStreamingData().getFormatsCount());
-        assertFalse(stored.hasPlayerConfig());
+        assertTrue(stored.getPlayerConfig().getExoPlayerConfig().getUseExoPlayer());
+        assertTrue(stored.getPlayerConfig().getAudioConfig().getExoAudioGate());
+        assertEquals(new TreeSet<>(Set.of(55405814, 57825011)),
+                topLevelFields(stored.getPlayerConfig().toByteArray()));
+    }
+
+    @Test public void theEngineFlagsAreTheFieldsTheAppReads() throws Exception {
+        assertEquals(new TreeSet<>(Set.of(1)), topLevelFields(
+                ExoPlayerConfig.newBuilder().setUseExoPlayer(true).build().toByteArray()));
+        assertEquals(new TreeSet<>(Set.of(4, 5)), topLevelFields(
+                AudioConfig.newBuilder().setMuteOnStart(true).setExoAudioGate(true).build().toByteArray()));
+        assertEquals(new TreeSet<>(Set.of(57825011)), topLevelFields(PlayerConfig.newBuilder()
+                .setExoPlayerConfig(ExoPlayerConfig.newBuilder().setUseExoPlayer(true)).build().toByteArray()));
+    }
+
+    @Test public void aVideoCopysResponseKeepsTheFetchedLoudnessConfigurationAndStaysSmall() throws Exception {
+        Format video = Format.newBuilder().setItag(134).setUrl("u").build();
+        Format audio = Format.newBuilder().setItag(251).setUrl("u").build();
+        PlayerConfig fetched = PlayerConfig.newBuilder().setAudioConfig(AudioConfig.newBuilder().setMuteOnStart(true))
+                .build();
+
+        byte[] stored = OfflineResponseTrim.fromVideoDownload(PlayerResponse.newBuilder().setPlayerConfig(fetched)
+                .build(), new VideoCopyLogic.Selection(video, audio));
+
+        assertTrue(PlayerResponse.parseFrom(stored).getPlayerConfig().getAudioConfig().getMuteOnStart());
+        assertTrue(stored.length < 100);
     }
 }

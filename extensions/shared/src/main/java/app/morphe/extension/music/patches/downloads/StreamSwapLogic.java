@@ -67,15 +67,6 @@ final class StreamSwapLogic {
         return "http://127.0.0.1:1/rvx?v=" + videoId + "&i=" + itag + "&m=" + kind + "&t=" + key;
     }
 
-    /**
-     * The url of the muxed format a video copy's response keeps so that the app still offers the Video switch: a
-     * token nothing was issued for, so the stock loopback guard refuses it if the player ever asks. The player plays
-     * the adaptive formats whenever a response has them.
-     */
-    static String unplayableMuxedUrl(String videoId) {
-        return tokenUrl(videoId, VideoCopyLogic.MUXED_ITAG, "muxed", "none");
-    }
-
     /** Stock's exact host predicate, not a general loopback-address test. */
     static boolean isGuardedHost(String host) {
         return "127.0.0.1".equals(host) || "localhost".equals(host);
@@ -91,16 +82,14 @@ final class StreamSwapLogic {
 
     /**
      * The response of a music video that has a video copy: its adaptive formats are exactly the copy's two streams,
-     * played from their files. The muxed formats stay, as the app's own responses have them, so the Video switch is
-     * offered; when the response has no video format in them, {@code muxed} stands in. No SABR route and no HLS
-     * manifest remains that the player could prefer to the pair.
+     * played from their files, and it has no muxed formats. Any muxed format would make the app's player selection
+     * hand the response to its framework player whenever the ExoPlayer engine declines it, and that player cannot
+     * play the loopback tokens; the Video switch needs only the video mime of the adaptive format. No SABR route
+     * and no HLS manifest remains that the player could prefer to the pair.
      */
-    static PlayerResponse replacePair(PlayerResponse online, Format video, Format audio, @Nullable Format muxed) {
-        var streaming = online.getStreamingData().toBuilder().clearAdaptiveFormats()
+    static PlayerResponse replacePair(PlayerResponse online, Format video, Format audio) {
+        var streaming = online.getStreamingData().toBuilder().clearFormats().clearAdaptiveFormats()
                 .addAdaptiveFormats(video).addAdaptiveFormats(audio).clearHlsManifestUrl();
-        if (muxed != null && !VideoCopyLogic.hasVideoFormat(online.getStreamingData().getFormatsList())) {
-            streaming.clearFormats().addFormats(muxed);
-        }
         streaming.clearServerAbrStreamingUrl();
         return withoutServerAbr(online, streaming);
     }

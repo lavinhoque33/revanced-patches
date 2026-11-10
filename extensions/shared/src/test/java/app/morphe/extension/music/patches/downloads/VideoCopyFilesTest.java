@@ -128,6 +128,22 @@ public class VideoCopyFilesTest {
         assertFalse(new File(directory, "omvOne00000.mp4").exists());
     }
 
+    @Test public void aCopyRecordedInAnEarlierFormatIsNoCopyUntilTheNextSaveReplacesIt() throws Exception {
+        retain("omvOne00000", "atvOne00000", 100);
+        File commit = new File(new File(temporary.getRoot(), "rvx_video"), "omvOne00000.json");
+        String recorded = new String(Files.readAllBytes(commit.toPath()));
+        assertTrue(recorded.contains("\"format\":" + VideoCopyLogic.COPY_FORMAT));
+        Files.write(commit.toPath(), recorded.replace("\"format\":" + VideoCopyLogic.COPY_FORMAT, "\"format\":1")
+                .getBytes());
+
+        VideoCopyFiles reopened = new VideoCopyFiles(new File(temporary.getRoot(), "rvx_video"));
+        reopened.ensureLoaded();
+
+        assertFalse(reopened.has("omvOne00000"));
+        assertNull(reopened.find("omvOne00000"));
+        assertEquals(0, reopened.stats().count());
+    }
+
     @Test public void aChangedFileIsNotPlayed() throws Exception {
         retain("omvOne00000", "atvOne00000", 100);
         File video = files.find("omvOne00000").video().file();

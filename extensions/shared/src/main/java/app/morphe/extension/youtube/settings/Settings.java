@@ -58,6 +58,8 @@ import app.morphe.extension.shared.settings.IntegerSetting;
 import app.morphe.extension.shared.settings.LongSetting;
 import app.morphe.extension.shared.settings.Setting;
 import app.morphe.extension.youtube.patches.PictureinPictureButtonPatch.PipButtonPatchAvailability;
+import app.morphe.extension.youtube.patches.LocalQueuePatch;
+import app.morphe.extension.youtube.patches.queue.QueuePatch;
 import app.morphe.extension.shared.settings.Setting.SliderConfig;
 import app.morphe.extension.shared.settings.SharedYouTubeSettings;
 import app.morphe.extension.shared.settings.StringSetting;
@@ -313,7 +315,8 @@ public class Settings extends SharedYouTubeSettings {
     public static final StringSetting LOCAL_QUEUE_ITEMS =
             new StringSetting("morphe_local_queue_items", "", false, false);
     public static final BooleanSetting QUEUE_OVERRIDE_FLYOUT_MENU =
-            new BooleanSetting("morphe_queue_override_flyout_menu", TRUE, true, parentInverted(LOCAL_QUEUE));
+            new BooleanSetting("morphe_queue_override_flyout_menu", TRUE, true,
+                    () -> !LocalQueuePatch.isEnabled() && !QueuePatch.isEnabled());
     public static final BooleanSetting QUEUE_ADD_FLYOUT_MENU =
             new BooleanSetting("morphe_queue_add_flyout_menu", TRUE, parentInverted(LOCAL_QUEUE));
 
@@ -1018,7 +1021,8 @@ public class Settings extends SharedYouTubeSettings {
     public static final BooleanSetting SHORTS_CUSTOM_ACTIONS_REPEAT_STATE = new BooleanSetting("revanced_shorts_custom_actions_repeat_state", FALSE, true);
 
     // PreferenceScreen: Player - Buttons
-    public static final BooleanSetting UNLOCK_QUEUE = new BooleanSetting("morphe_unlock_queue", TRUE);
+    public static final BooleanSetting UNLOCK_QUEUE = new BooleanSetting("morphe_unlock_queue", TRUE,
+            () -> !LocalQueuePatch.isEnabled());
     public static final BooleanSetting RELOAD_VIDEO = new BooleanSetting("morphe_reload_video", FALSE);
     public static final BooleanSetting VIDEO_DELAY_OVERLAY_BUTTON = new BooleanSetting("morphe_video_delay_button_overlay", FALSE);
     public static final BooleanSetting VIDEO_DELAY_FLYOUT_BUTTON = new BooleanSetting("morphe_video_delay_button_flyout", FALSE);

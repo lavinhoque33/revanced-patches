@@ -1,5 +1,11 @@
 ## Unreleased
 
+### Bug Fixes
+
+* **YouTube - Unlock queue:** Make Play next in queue in the feed menu use YouTube's own queue when Unlock queue is on.
+  Add to RVX queue still opens the RVX queue dialog. Turn Unlock queue off to override the feed queue button.
+  Premium-style queue takes priority when you turn it on, and keeps working for users who already use it.
+
 ### Features
 
 * **Sync with anddea/revanced-patches dev:** Merge the changes up to v4.4.0-dev.6 (anddea dev, b2f29faa6) into this

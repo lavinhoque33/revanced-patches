@@ -354,6 +354,8 @@ To fix this, turn on \'Spoof video streams\' and change the \'Default client\' t
     <string name="morphe_local_queue_sheet_title">Queue</string>
     <string name="morphe_local_queue_summary">"Replaces the RVX queue with one that lives on the device, plays through on its own, and can be reordered by dragging
 
+Takes priority over Unlock queue
+
 Info: The next queued video only starts while YouTube is on screen"</string>
     <string name="morphe_local_queue_title">Premium-style queue</string>
     <string name="morphe_local_queue_unavailable">Could not add this video to the queue</string>
@@ -469,7 +471,9 @@ To use this feature, turn off \'Spoof video streams\'"</string>
     <string name="morphe_queue_flyout_title">Add to RVX queue</string>
     <string name="morphe_queue_manager_check_failed_auth">Not logged in</string>
     <string name="morphe_queue_manager_check_failed_video_id">No video ID</string>
-    <string name="morphe_queue_override_flyout_menu_summary">Opens the RVX queue instead of the YouTube queue</string>
+    <string name="morphe_queue_override_flyout_menu_summary">"Opens the RVX queue instead of the YouTube queue
+
+Not used while Unlock queue or Premium-style queue is on"</string>
     <string name="morphe_queue_override_flyout_menu_title">Override feed flyout queue button</string>
     <string name="morphe_reload_video_summary_off">Reload video button is hidden</string>
     <string name="morphe_reload_video_summary_on">Reload video button is shown</string>
@@ -650,7 +654,9 @@ If you are a YouTube Premium user, this setting may not be required"</string>
     <string name="morphe_video_delay_dialog_input_hint">Delay in milliseconds</string>
     <string name="morphe_video_delay_summary">Delays the video to keep it in sync with laggy audio, such as Bluetooth headphones (0-5000 ms)</string>
     <string name="morphe_video_delay_title">Video delay</string>
-    <string name="morphe_unlock_queue_summary">Unlocks YouTube’s video queue</string>
+    <string name="morphe_unlock_queue_summary">"Unlocks YouTube’s video queue
+
+Turn off Premium-style queue to use Unlock queue"</string>
     <string name="morphe_unlock_queue_title">Unlock queue</string>
     <string name="morphe_video_quality_prioritize_dialog">If this setting is turned off, then older videos can show no video quality options</string>
     <string name="morphe_video_quality_prioritize_summary">Prioritizes the highest available video quality over codec efficiency</string>

@@ -79,12 +79,17 @@ public class OfflineReplayLogicTest {
         assertTrue(OfflineReplayLogic.dropsSeekSnap(true, false, 0));
     }
 
+    @Test public void aSnapOfMinusOneOfAVideoStreamIsDroppedOfflineToo() {
+        assertTrue(OfflineReplayLogic.dropsSeekSnap(true, false, -1));
+    }
+
     @Test public void aRealSnapOfflineIsKept() {
         assertFalse(OfflineReplayLogic.dropsSeekSnap(true, false, 12_000));
     }
 
     @Test public void theSnapOnlineIsAlwaysLeftAlone() {
         assertFalse(OfflineReplayLogic.dropsSeekSnap(true, true, 0));
+        assertFalse(OfflineReplayLogic.dropsSeekSnap(true, true, -1));
     }
 
     @Test public void theSnapIsLeftAloneWhileTheSettingIsOff() {

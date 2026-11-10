@@ -737,8 +737,9 @@ public final class OfflineReplay {
 
     /**
      * Injection point: the seek snap the player computed for a drag on the progress bar, in milliseconds. A song
-     * played from a copy has no span in the stream cache, so with no network the snap is 0 and the seek restarts the
-     * song; there an answer above any target makes the player seek to the dragged position.
+     * played from a copy has no span in the stream cache, so with no network the snap is 0 (the seek restarts the
+     * song) or, for a video stream, -1 (the seek is cancelled); there an answer above any target makes the player
+     * seek to the dragged position.
      */
     static long seekSnap(long snappedMillis) {
         try {

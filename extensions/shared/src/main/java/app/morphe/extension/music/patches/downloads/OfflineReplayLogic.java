@@ -87,12 +87,13 @@ final class OfflineReplayLogic {
 
     /**
      * Whether the seek snap of the player must be dropped. After a drag the player snaps the target to the start of
-     * the nearest span its stream cache holds; a copy played from a file has none, the lookup answers 0, and the
-     * seek would restart the song. A snap of 0 is dropped (the dragged position stands) with no network, while the
-     * offline replay is on; online the stock answer is left as it is.
+     * the nearest span its stream cache holds; a copy played from a file has none. The lookup then answers 0 for an
+     * audio stream (the seek would restart the song) and -1 for a video stream (the seek is cancelled and the bar
+     * does not move). Both are dropped (the dragged position stands) with no network, while the offline replay is on;
+     * online the stock answer is left as it is.
      */
     static boolean dropsSeekSnap(boolean enabled, boolean online, long snappedMillis) {
-        return enabled && !online && snappedMillis == 0;
+        return enabled && !online && snappedMillis <= 0;
     }
 
     /**

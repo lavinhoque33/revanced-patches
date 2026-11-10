@@ -79,7 +79,6 @@ public final class OfflineReplay {
     private static final String HOOK_GATE_FLAG = "gate-flag";
 
     private static final ConcurrentMap<String, Long> skipLoggedAt = new ConcurrentHashMap<>();
-    private static final ConcurrentMap<String, String> answerBases = new ConcurrentHashMap<>();
     private static final Set<String> aliveHooks = ConcurrentHashMap.newKeySet();
     private static volatile Captured captured;
     private static volatile boolean lastGateFlag;
@@ -136,7 +135,8 @@ public final class OfflineReplay {
      * app's player selection reads more of a response than the streaming data, and the response saved with the copy
      * (another client's) gave it no video track offline. The base is the app's online response of this video when
      * one was kept ({@link VideoCopyStore#keepLive}), else the app-generic part of the last online response of any
-     * copy ({@link LiveTemplate}), else the saved response alone.
+     * copy ({@link LiveTemplate}), else the saved response alone. The thumbnails are the song's, which the Song
+     * display can show with no network ({@link VideoCopyAnswer#withSongArtwork}).
      */
     @Nullable
     private static byte[] storedResponseOf(String videoId) throws IOException {
@@ -149,15 +149,18 @@ public final class OfflineReplay {
         byte[] live = VideoCopyStore.live(videoId);
         byte[] template = live == null ? LiveTemplate.get() : null;
         VideoCopyAnswer.Answer answer = VideoCopyAnswer.of(saved, live, template);
-        answerBases.put(videoId, answer.base());
+        byte[] artwork = withSongArtwork(videoId, answer.bytes());
         Logger.printDebug(() -> "OfflineReplay: video copy v=" + videoId + " base=" + answer.base() + " saved="
-                + saved.length + "B live=" + sizeOf(live) + " template=" + sizeOf(template));
-        return answer.bytes();
+                + saved.length + "B live=" + sizeOf(live) + " template=" + sizeOf(template) + " songArtwork="
+                + (artwork != answer.bytes()));
+        return artwork;
     }
 
-    /** The base the last offline answer of the video copy was made on, for the log; "none" when it has none. */
-    static String baseOf(String videoId) {
-        return answerBases.getOrDefault(videoId, "none");
+    /** The answer with the thumbnails of the song the video copy belongs to, or as it is when the song has none. */
+    private static byte[] withSongArtwork(String videoId, byte[] answer) throws IOException {
+        String songId = VideoCopyStore.pairs().get(videoId);
+        OfflineCopyFiles.Stored song = songId == null ? null : OfflineCopyStore.find(songId);
+        return song == null ? answer : VideoCopyAnswer.withSongArtwork(answer, song.response());
     }
 
     private static String sizeOf(@Nullable byte[] bytes) {
@@ -348,7 +351,8 @@ public final class OfflineReplay {
     }
 
     private static boolean takeOffline(byte[] command, @Nullable String browseId) {
-        OfflineReplayLogic.WatchTarget watch = browseId == null ? OfflineReplayLogic.onlineWatchOf(command) : null;
+        OfflineReplayLogic.WatchTarget watch = browseId == null ? OfflineReplayLogic.songTargetOf(
+                OfflineReplayLogic.onlineWatchOf(command), VideoCopyStore.pairsIfLoaded()) : null;
         if (browseId == null && watch == null) return false;
 
         Map<String, List<String>> tracks = OfflineCopyStore.tracksBySource();

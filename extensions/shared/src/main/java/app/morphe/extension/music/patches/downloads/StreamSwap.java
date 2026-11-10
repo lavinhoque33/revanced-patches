@@ -15,7 +15,6 @@ import androidx.annotation.Nullable;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.WeakHashMap;
 
 import app.morphe.extension.music.settings.Settings;
@@ -55,8 +54,6 @@ public final class StreamSwap {
     record OnlineDecision(String videoId, long at) {}
 
     private static volatile OnlineDecision lastOnline;
-
-    private static final Set<Integer> ANSWER_EXPANDED_FIELDS = Set.of(2, 4, 11, 15);
 
     private StreamSwap() {}
 
@@ -189,27 +186,11 @@ public final class StreamSwap {
                 + " onlineUrl=" + (video.online != null) + " stored=" + stored
                 + " onlineAdaptive=" + online.getStreamingData().getAdaptiveFormatsCount()
                 + " onlineSabr=" + online.getStreamingData().hasServerAbrStreamingUrl());
-        logAnswerShapes(videoId, stored, liveBytes, replacement);
         if (!stored) {
             VideoCopyStore.keepLive(videoId, liveBytes);
             LiveTemplate.rememberFrom(videoId, liveBytes, online);
         }
         return result;
-    }
-
-    /**
-     * The outline of the answer the app gets and of the response it was made from, so the live online answer and the
-     * stored one can be compared field by field in a device log (field numbers of the player response: 2 playability,
-     * 4 streaming data, 11 video details, 15 player configuration).
-     */
-    private static void logAnswerShapes(String videoId, boolean stored, byte[] source, PlayerResponse answer) {
-        Logger.printDebug(() -> {
-            String kind = stored ? "stored" : "online";
-            String base = stored ? OfflineReplay.baseOf(videoId) : "online";
-            return "StreamSwap: answer shape v=" + videoId + " kind=" + kind + " base=" + base + " source={"
-                    + ProtoShape.of(source, ANSWER_EXPANDED_FIELDS) + "} answer={"
-                    + ProtoShape.of(answer.toByteArray(), ANSWER_EXPANDED_FIELDS) + "}";
-        });
     }
 
     /** Whether the player shows the video of the file for the mode it holds: the Song display plays it unseen. */

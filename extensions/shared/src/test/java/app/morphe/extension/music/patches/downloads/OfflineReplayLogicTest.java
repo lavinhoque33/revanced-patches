@@ -311,6 +311,33 @@ public class OfflineReplayLogicTest {
                 route(false, null, OnlineWatchCommand.build("x", "PLother", 1), false));
     }
 
+    @Test public void aTapRetargetedToTheMusicVideoOfASongStillPlaysThatSongOfItsList() {
+        // The row tap of track "y" arrives with the id of its music video "yv", which no downloaded list names.
+        Map<String, String> videoToSong = Map.of("yv", "y");
+        byte[] command = OnlineWatchCommand.build("yv", "PLa", 1);
+        java.util.function.Predicate<String> hasCopy = id -> id.equals("x") || id.equals("y");
+        java.util.function.Function<OfflineReplayLogic.WatchTarget, String> source = watch ->
+                OfflineReplayLogic.sourceOfPlaylist(watch.playlistId(), watch.videoId(), TRACKS);
+
+        OfflineReplayLogic.WatchTarget target = OfflineReplayLogic.songTargetOf(
+                OfflineReplayLogic.onlineWatchOf(command), videoToSong);
+
+        assertEquals(new OfflineReplayLogic.WatchTarget("y", "PLa", 1), target);
+        assertEquals(new OfflineReplayLogic.Decision(OfflineReplayLogic.Route.PLAY_TRACK, "PLa", "y"),
+                OfflineReplayLogic.routeOf(false, null, target, "songs", TRACKS::containsKey, id -> false, hasCopy,
+                        source));
+        // Without the mapping the tapped video is no track of the list: the whole list starts at its first track.
+        assertEquals(new OfflineReplayLogic.Decision(OfflineReplayLogic.Route.PLAY_SOURCE, "PLa", null),
+                OfflineReplayLogic.routeOf(false, null, OfflineReplayLogic.onlineWatchOf(command), "songs",
+                        TRACKS::containsKey, id -> false, hasCopy, source));
+    }
+
+    @Test public void aWatchOfASongOrNoWatchIsLeftAsItIs() {
+        assertNull(OfflineReplayLogic.songTargetOf(null, Map.of("yv", "y")));
+        OfflineReplayLogic.WatchTarget plain = new OfflineReplayLogic.WatchTarget("y", "PLa", 2);
+        assertSame(plain, OfflineReplayLogic.songTargetOf(plain, Map.of("yv", "y")));
+    }
+
     // endregion
 
     private static List<OfflineWatchNext.Item> itemsOf(String... videoIds) {

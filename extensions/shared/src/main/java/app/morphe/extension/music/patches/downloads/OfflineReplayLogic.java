@@ -210,6 +210,19 @@ final class OfflineReplayLogic {
         }
     }
 
+    /**
+     * The watch target with the id of the song instead of the id of its music video. A song that has a video copy
+     * starts as its music video (the app's tap is retargeted before it is dispatched), which is not an id of the
+     * downloaded list: the list, the copy and the place of the song in it are all known by the song's id.
+     */
+    @Nullable
+    static WatchTarget songTargetOf(@Nullable WatchTarget watch, Map<String, String> videoToSong) {
+        if (watch == null) return null;
+
+        String songId = songOf(watch.videoId(), videoToSong);
+        return songId.equals(watch.videoId()) ? watch : new WatchTarget(songId, watch.playlistId(), watch.index());
+    }
+
     /** What the app's own command of a tap in the Downloads page, or of a recorded page, becomes when it runs. */
     enum Route {
         /** The app runs the command as it is. */

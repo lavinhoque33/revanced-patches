@@ -7,6 +7,8 @@ package app.morphe.extension.music.patches.downloads;
 
 import androidx.annotation.Nullable;
 
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
 
 import app.morphe.extension.music.shared.VideoInformation;
@@ -40,8 +42,7 @@ public final class PillAvailability {
         boolean rvxShown();
     }
 
-    private static final Object logLock = new Object();
-    private static String lastLog = "";
+    private static final Map<String, String> lastLogOfKind = new ConcurrentHashMap<>();
 
     private PillAvailability() {}
 
@@ -139,14 +140,11 @@ public final class PillAvailability {
                 VideoInformation.getPlayerResponseVideoId(), VideoCopyStore::hasNow);
     }
 
-    /** Logs a line unless the previous one of this kind said the same: states change rarely, calls come in bursts. */
+    /** Logs a line unless the previous one of its kind said the same: states change rarely, calls come in bursts. */
     private static void logChange(String kind, Supplier<String> line) {
         String text = line.get();
-        synchronized (logLock) {
-            String entry = kind + text;
-            if (entry.equals(lastLog)) return;
-            lastLog = entry;
-        }
+        if (text.equals(lastLogOfKind.put(kind, text))) return;
+
         Logger.printDebug(() -> text);
     }
 }

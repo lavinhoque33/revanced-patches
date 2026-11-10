@@ -163,7 +163,6 @@ val downloadsPatch = bytecodePatch(
         installStreamSwap()
         installDownloadedMarkers()
         installAudioFirst()
-        installTrackSelectionLog()
         command.interfaces.add(NATIVE_COMMAND)
         val defaultCommand = command.fields.single { it.type == command.type && AccessFlags.STATIC.isSet(it.accessFlags) }
         val parserOwner = parseByteArrayMethodRef.get()!!.definingClass

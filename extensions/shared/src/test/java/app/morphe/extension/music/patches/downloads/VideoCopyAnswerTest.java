@@ -7,10 +7,16 @@ package app.morphe.extension.music.patches.downloads;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertSame;
 
 import org.junit.Test;
 
 import java.util.List;
+
+import app.morphe.extension.shared.innertube.PlayerResponseOuterClass.PlayerResponse;
+import app.morphe.extension.shared.innertube.PlayerResponseOuterClass.ThumbnailEntry;
+import app.morphe.extension.shared.innertube.PlayerResponseOuterClass.ThumbnailList;
+import app.morphe.extension.shared.innertube.PlayerResponseOuterClass.VideoDetails;
 
 public class VideoCopyAnswerTest {
     private static byte[] bytes(int... values) {
@@ -81,5 +87,30 @@ public class VideoCopyAnswerTest {
 
         assertEquals(VideoCopyAnswer.SAVED, answer.base());
         assertArrayEquals(saved(), answer.bytes());
+    }
+
+    private static byte[] responseWithThumbnail(String title, String url) {
+        VideoDetails.Builder details = VideoDetails.newBuilder().setTitle(title);
+        if (url != null) {
+            details.setThumbnail(ThumbnailList.newBuilder().addThumbnails(ThumbnailEntry.newBuilder().setUrl(url)));
+        }
+        return PlayerResponse.newBuilder().setVideoDetails(details).build().toByteArray();
+    }
+
+    @Test public void theAnswerShowsTheSongsThumbnailsAndKeepsTheRestOfTheVideoDetails() throws Exception {
+        byte[] answer = responseWithThumbnail("Video", "https://video/thumb");
+
+        VideoDetails details = PlayerResponse.parseFrom(VideoCopyAnswer.withSongArtwork(answer,
+                responseWithThumbnail("Song", "https://album/cover"))).getVideoDetails();
+
+        assertEquals("Video", details.getTitle());
+        assertEquals(1, details.getThumbnail().getThumbnailsCount());
+        assertEquals("https://album/cover", details.getThumbnail().getThumbnails(0).getUrl());
+    }
+
+    @Test public void aSongWithoutThumbnailsLeavesTheAnswerAsItIs() throws Exception {
+        byte[] answer = responseWithThumbnail("Video", "https://video/thumb");
+
+        assertSame(answer, VideoCopyAnswer.withSongArtwork(answer, responseWithThumbnail("Song", null)));
     }
 }

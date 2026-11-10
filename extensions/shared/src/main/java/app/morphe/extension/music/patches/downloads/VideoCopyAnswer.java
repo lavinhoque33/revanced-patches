@@ -10,6 +10,9 @@ import androidx.annotation.Nullable;
 import java.io.IOException;
 import java.util.Set;
 
+import app.morphe.extension.shared.innertube.PlayerResponseOuterClass.PlayerResponse;
+import app.morphe.extension.shared.innertube.PlayerResponseOuterClass.ThumbnailList;
+
 /**
  * The player response the replay answers with for a video copy, in the shape of the response the app gets online:
  * the app's player selection selected no video track offline from the saved response of the saving client alone.
@@ -48,5 +51,21 @@ final class VideoCopyAnswer {
             return new Answer(ResponseFields.baseWithOwn(template, saved, OWN_OVER_TEMPLATE), TEMPLATE);
         }
         return new Answer(saved, SAVED);
+    }
+
+    /**
+     * The answer with the thumbnails of the song in its video details. The music video's own thumbnails are pictures
+     * of the video, which the app has never loaded when the copy was saved and which show black offline in the Song
+     * display; the song's cover (the one its audio copy knows, and the app has shown in the lists) loads from the
+     * app's image cache. The video display shows the video itself and does not read them. The answer is returned as
+     * it is when the song has no thumbnails.
+     */
+    static byte[] withSongArtwork(byte[] answer, byte[] songResponse) throws IOException {
+        ThumbnailList artwork = PlayerResponse.parseFrom(songResponse).getVideoDetails().getThumbnail();
+        if (artwork.getThumbnailsCount() == 0) return answer;
+
+        PlayerResponse parsed = PlayerResponse.parseFrom(answer);
+        return parsed.toBuilder()
+                .setVideoDetails(parsed.getVideoDetails().toBuilder().setThumbnail(artwork)).build().toByteArray();
     }
 }

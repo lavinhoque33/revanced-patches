@@ -49,10 +49,11 @@
   videos too.
 * **YouTube Music - Downloads:** A song with a saved video plays that saved stream in both display modes, online or
   offline, and the Song/Video switch is the app's own switch: it flips in place at once, with no reload, no gap in
-  the sound and no change of position, and the Song display plays the sound of the video itself. A tap on the song
-  in an album, a playlist or the Downloads view starts it that way, and Next and the end of a song go on in the
-  display you chose. Songs without a saved video keep their audio copy, and Android Auto keeps playing the audio
-  copies.
+  the sound and no change of position, and the Song display plays the sound of the video itself. A tap on any song
+  in an album, a playlist or the Downloads view starts that song that way, and Next and the end of a song go on in
+  the display you chose. Offline, the Song display shows the song's album cover. Songs without a saved video keep
+  their audio copy, and Android Auto keeps playing the audio copies. For the saved videos to play offline, play one
+  saved video online once after installing this version; the app then keeps the player settings the videos need.
 
 ## [1.33.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.32.2...v1.33.0) (2026-11-06)
 

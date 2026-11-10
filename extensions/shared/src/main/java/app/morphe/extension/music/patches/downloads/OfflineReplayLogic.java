@@ -289,39 +289,6 @@ final class OfflineReplayLogic {
         return browseId.startsWith("VL") ? browseId.substring(2) : browseId;
     }
 
-    private static final int MAX_NESTING = 3;
-
-    /**
-     * The offline watch of a command, which may hold the endpoint at any of the first few levels (the start
-     * descriptor of a playback holds the command it starts); null when it has none.
-     */
-    @Nullable
-    static WatchTarget offlineWatchIn(byte[] message) {
-        return offlineWatchIn(message, 0);
-    }
-
-    @Nullable
-    private static WatchTarget offlineWatchIn(byte[] message, int depth) {
-        WatchTarget here = offlineWatchOf(message);
-        if (here != null || depth >= MAX_NESTING) return here;
-
-        try {
-            CodedInputStream input = CodedInputStream.newInstance(message);
-            while (!input.isAtEnd()) {
-                int tag = input.readTag();
-                if (WireFormat.getTagWireType(tag) == WireFormat.WIRETYPE_LENGTH_DELIMITED) {
-                    WatchTarget nested = offlineWatchIn(input.readByteArray(), depth + 1);
-                    if (nested != null) return nested;
-                } else if (!input.skipField(tag)) {
-                    break;
-                }
-            }
-        } catch (IOException | RuntimeException notAMessage) {
-            // A string or bytes field, not a message.
-        }
-        return null;
-    }
-
     /** Whether the message has the field, of any wire type. */
     static boolean hasField(byte[] message, int number) {
         try {
@@ -380,6 +347,32 @@ final class OfflineReplayLogic {
             shown.add(video == null || video.equals(item.videoId()) ? item : item.showingVideo(video));
         }
         return shown;
+    }
+
+    /** The music video of a song that has a video copy, or null: the committed pairs read the other way. */
+    @Nullable
+    static String videoOf(String songId, Map<String, String> videoToSong) {
+        for (Map.Entry<String, String> pair : videoToSong.entrySet()) {
+            if (pair.getValue().equals(songId) && !pair.getKey().equals(songId)) return pair.getKey();
+        }
+        return null;
+    }
+
+    /**
+     * The music video type of the command that starts a song: its music video (OMV) when it has a video copy, which
+     * answers in every mode, else the song (ATV).
+     */
+    static int startTypeOf(String songId, Map<String, String> videoToSong) {
+        return videoOf(songId, videoToSong) == null ? CommandRewrite.TYPE_ATV : CommandRewrite.TYPE_OMV;
+    }
+
+    /**
+     * Whether a queue request is for the music video of a song that has a copy: only then the queue shows the videos
+     * of the songs that have one. A request for the song itself (a song without a video, or a start of another
+     * client, as Android Auto) keeps the songs.
+     */
+    static boolean showsVideos(String requestedId, Map<String, String> videoToSong) {
+        return !songOf(requestedId, videoToSong).equals(requestedId);
     }
 
     /**

@@ -129,18 +129,14 @@ public final class StreamSwap {
 
     /**
      * Answers a music video that has a video copy from its file: the response keeps everything of the online one and
-     * announces the muxed progressive format, whose url is a local token. Only a video mode asks for a video copy;
-     * any other request for the video (the start of an album in the audio mode, before the song is chosen) stays
-     * online, as it was before the copies existed. A failure here is a decline: the online response plays.
+     * announces the muxed progressive format, whose url is a local token. Every mode is answered: the Song display
+     * plays the same file with the video surface off, and the app's own switch flips between the two on the one
+     * stream. A failure here is a decline: the online response plays.
      */
     private static Object swapVideo(Object original, Response adapter, VideoCopyFiles.Entry video, boolean stored)
             throws Exception {
         String videoId = video.videoId();
         String mode = AudioFirst.liveMode();
-        if (!VideoCopyLogic.answersVideo(AudioFirst.supported(), mode)) {
-            return unchanged(original, videoId, "video copy, mode " + mode + " is not a video mode", stored);
-        }
-
         PlayerResponse online = PlayerResponse.parseFrom(adapter.rvxBytes());
         if (!online.hasStreamingData()) return unchanged(original, videoId, "no StreamingData", stored);
         if (!VideoCopyLogic.sameLength(online.getVideoDetails().getLengthSeconds(), video.durationMs())) {
@@ -162,14 +158,19 @@ public final class StreamSwap {
         replacements.put(result, new Replacement(original, source));
         Logger.printDebug(() -> "StreamSwap: source=FILE v=" + videoId + " kind=video itag=" + video.itag()
                 + " mode=path length=" + video.length());
-        // Like any answer for the video, the start correction of the audio-first mode looks at it.
-        if (!stored) lastOnline = new OnlineDecision(videoId, SystemClock.elapsedRealtime());
+        // The file goes to the framework player; the display decides whether its video surface is attached.
         Logger.printDebug(() -> "StreamSwap: decision=SWAP v=" + videoId + " itag=" + video.itag() + " kind=video"
-                + " song=" + video.songId() + " mode=" + mode + " length=" + video.length()
+                + " song=" + video.songId() + " mode=" + mode + " surface=" + surfaceOf(mode)
+                + " length=" + video.length()
                 + " onlineUrl=" + (source.online != null) + " stored=" + stored
                 + " onlineAdaptive=" + online.getStreamingData().getAdaptiveFormatsCount()
                 + " onlineSabr=" + online.getStreamingData().hasServerAbrStreamingUrl());
         return result;
+    }
+
+    /** Whether the player shows the video of the file for the mode it holds: the Song display plays it unseen. */
+    private static String surfaceOf(@Nullable String mode) {
+        return AudioFirstLogic.isVideoMode(mode) ? "on" : "off";
     }
 
     /**

@@ -47,15 +47,6 @@ final class VideoCopyLogic {
         return null;
     }
 
-    /**
-     * Whether a request for a music video is answered from its video copy: the player shows a video mode. Where the
-     * audio-first mode is not in effect (its hooks did not resolve) nothing could be corrected later, so any request
-     * is a video one. An unknown mode with the audio-first mode in effect is not answered.
-     */
-    static boolean answersVideo(boolean audioFirstSupported, @Nullable String mode) {
-        return !audioFirstSupported || AudioFirstLogic.isVideoMode(mode);
-    }
-
     /** How much the online response's length may differ from the stored copy's: the same cut, not another one. */
     static final long SAME_CUT_TOLERANCE_SECONDS = 3;
 

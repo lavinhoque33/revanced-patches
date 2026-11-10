@@ -2,6 +2,7 @@
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
  * Written by lavinhoque33, 2026-11-07.
+ * Modified by lavinhoque33, 2026-11-09.
  */
 package app.morphe.extension.music.patches.downloads;
 
@@ -122,12 +123,45 @@ final class AudioFirstLogic {
     }
 
     /**
+     * @param songPreferred The display the user or an audio-first start chose is the Song one, see
+     *                      {@link #songPreferredAfterMode} and {@link #songPreferredAfterTap}.
      * @return The mode the app should be set to: the audio mode in place of the video fallback the app chose for an
-     * armed tap, and every other mode as it is. The user-triggered modes are never changed.
+     * armed tap, or, while the Song display holds, for the next item of the queue (the app resets its mode on every
+     * item that is a music video, and a song with a video copy is one). Every other mode as it is. The user-triggered
+     * modes are never changed.
      */
-    static String decide(String stateName, @Nullable String armedId, long armedAt, long now, long ttl) {
+    static String decide(String stateName, @Nullable String armedId, long armedAt, long now, long ttl,
+                         boolean songPreferred) {
         if (!OMV_PREFERRED.equals(stateName)) return stateName;
-        return isLive(armedId, armedAt, now, ttl) ? ATV_PREFERRED : stateName;
+        return songPreferred || isLive(armedId, armedAt, now, ttl) ? ATV_PREFERRED : stateName;
+    }
+
+    /**
+     * Whether the Song display holds after the app set a mode: the user's Song press makes it hold, the user's Video
+     * press ends it, every other mode (the app's own resets, the data-saving override) leaves it as it was.
+     */
+    static boolean songPreferredAfterMode(boolean current, @Nullable String modeSet) {
+        if ("ATV_PREFERRED_USER_TRIGGERED".equals(modeSet)) return true;
+        if (OMV_PREFERRED_USER_TRIGGERED.equals(modeSet)) return false;
+        return current;
+    }
+
+    /**
+     * Whether the Song display holds after a watch command: a tap tied to a stream copy starts the Song display; a
+     * command for the video copy of a song (the queue moving on to its next item) leaves it as it was; any other
+     * (a song or video the user chose that has no copy) is a fresh selection that ends it, as stock's own reset.
+     */
+    static boolean songPreferredAfterTap(boolean current, boolean armed, boolean namesVideoCopy) {
+        if (armed) return true;
+        return namesVideoCopy && current;
+    }
+
+    /**
+     * Whether the item of a tapped row stays the music video the server listed: the id of the row is itself a video
+     * copy, which the video stream answers in every mode, so nothing is retargeted at the song.
+     */
+    static boolean keepsVideoItem(@Nullable String commandVideoId, Predicate<String> hasVideoCopy) {
+        return commandVideoId != null && hasVideoCopy.test(commandVideoId);
     }
 
     static boolean isVideoMode(@Nullable String stateName) {

@@ -371,24 +371,31 @@ public class OfflineReplayLogicTest {
         assertEquals(-1, OfflineReplayLogic.currentIndex(items, "vc", 2));
     }
 
-    private static byte[] watchWrapped(byte[] command, int levels) {
-        byte[] message = command;
-        for (int i = 0; i < levels; i++) message = new ProtoWriter().message(7, message).toByteArray();
-        return message;
+    @Test public void aSongWithAVideoCopyStartsAsItsMusicVideo() {
+        Map<String, String> videos = Map.of("vb", "b");
+
+        assertEquals("vb", OfflineReplayLogic.videoOf("b", videos));
+        assertNull(OfflineReplayLogic.videoOf("a", videos));
+        assertNull(OfflineReplayLogic.videoOf("b", Map.of("b", "b")));
+        assertEquals(2, OfflineReplayLogic.startTypeOf("b", videos));
+        assertEquals(1, OfflineReplayLogic.startTypeOf("a", videos));
+        assertEquals(1, OfflineReplayLogic.startTypeOf("a", Map.of()));
     }
 
-    @Test public void theOfflineWatchIsFoundInsideTheMessagesThatHoldTheCommand() {
-        byte[] command = OfflineWatchCommand.build("vid1", "PPSVrvx:PLabc", 4, 2);
+    @Test public void theQueueShowsVideosOnlyForARequestOfAMusicVideo() {
+        Map<String, String> videos = Map.of("vb", "b");
 
-        assertEquals(new OfflineReplayLogic.WatchTarget("vid1", "PPSVrvx:PLabc", 4),
-                OfflineReplayLogic.offlineWatchIn(command));
-        assertEquals(new OfflineReplayLogic.WatchTarget("vid1", "PPSVrvx:PLabc", 4),
-                OfflineReplayLogic.offlineWatchIn(watchWrapped(command, 2)));
+        assertTrue(OfflineReplayLogic.showsVideos("vb", videos));
+        assertFalse(OfflineReplayLogic.showsVideos("b", videos));
+        assertFalse(OfflineReplayLogic.showsVideos("a", videos));
+        assertFalse(OfflineReplayLogic.showsVideos("vb", Map.of()));
     }
 
-    @Test public void aCommandThatIsNotAnOfflineWatchHasNone() {
-        assertNull(OfflineReplayLogic.offlineWatchIn(new ProtoWriter().string(1, "text").toByteArray()));
-        assertNull(OfflineReplayLogic.offlineWatchIn(new byte[]{(byte) 0xff, 0x01}));
-        assertNull(OfflineReplayLogic.offlineWatchIn(new byte[0]));
+    @Test public void theOmvStartCommandNamesTheVideoAndItsType() {
+        byte[] command = OfflineWatchCommand.build("vb", "PPSVrvx:PLabc", 3, OfflineReplayLogic.startTypeOf("b",
+                Map.of("vb", "b")));
+
+        assertEquals(new OfflineReplayLogic.WatchTarget("vb", "PPSVrvx:PLabc", 3),
+                OfflineReplayLogic.offlineWatchOf(command));
     }
 }

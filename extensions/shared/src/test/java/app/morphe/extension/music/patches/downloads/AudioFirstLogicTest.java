@@ -2,6 +2,7 @@
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
  * Written by lavinhoque33, 2026-11-07.
+ * Modified by lavinhoque33, 2026-11-09.
  */
 package app.morphe.extension.music.patches.downloads;
 
@@ -16,30 +17,30 @@ public class AudioFirstLogicTest {
     private static final long TTL = AudioFirstLogic.ARM_TTL_MILLIS;
 
     @Test public void anArmedVideoFallbackBecomesTheAudioMode() {
-        assertEquals("ATV_PREFERRED", AudioFirstLogic.decide("OMV_PREFERRED", "dQw4w9WgXcQ", 1_000, 2_000, TTL));
+        assertEquals("ATV_PREFERRED", AudioFirstLogic.decide("OMV_PREFERRED", "dQw4w9WgXcQ", 1_000, 2_000, TTL, false));
     }
 
     @Test public void theUserTriggeredModesAreNeverChanged() {
         assertEquals("OMV_PREFERRED_USER_TRIGGERED",
-                AudioFirstLogic.decide(USER_VIDEO, "id", 1_000, 2_000, TTL));
+                AudioFirstLogic.decide(USER_VIDEO, "id", 1_000, 2_000, TTL, false));
         assertEquals("ATV_PREFERRED_USER_TRIGGERED",
-                AudioFirstLogic.decide("ATV_PREFERRED_USER_TRIGGERED", "id", 1_000, 2_000, TTL));
+                AudioFirstLogic.decide("ATV_PREFERRED_USER_TRIGGERED", "id", 1_000, 2_000, TTL, false));
     }
 
     @Test public void otherModesAreLeftAlone() {
-        assertEquals("ATV_PREFERRED", AudioFirstLogic.decide("ATV_PREFERRED", "id", 1_000, 2_000, TTL));
+        assertEquals("ATV_PREFERRED", AudioFirstLogic.decide("ATV_PREFERRED", "id", 1_000, 2_000, TTL, false));
         assertEquals("DONT_PLAY_VIDEO_OVERRIDE",
-                AudioFirstLogic.decide("DONT_PLAY_VIDEO_OVERRIDE", "id", 1_000, 2_000, TTL));
+                AudioFirstLogic.decide("DONT_PLAY_VIDEO_OVERRIDE", "id", 1_000, 2_000, TTL, false));
     }
 
     @Test public void withoutAnArmedTapNothingChanges() {
-        assertEquals("OMV_PREFERRED", AudioFirstLogic.decide("OMV_PREFERRED", null, 0, 2_000, TTL));
+        assertEquals("OMV_PREFERRED", AudioFirstLogic.decide("OMV_PREFERRED", null, 0, 2_000, TTL, false));
     }
 
     @Test public void theFlagExpiresAfterTenSeconds() {
         assertEquals(10_000, TTL);
-        assertEquals("ATV_PREFERRED", AudioFirstLogic.decide("OMV_PREFERRED", "id", 1_000, 11_000, TTL));
-        assertEquals("OMV_PREFERRED", AudioFirstLogic.decide("OMV_PREFERRED", "id", 1_000, 11_001, TTL));
+        assertEquals("ATV_PREFERRED", AudioFirstLogic.decide("OMV_PREFERRED", "id", 1_000, 11_000, TTL, false));
+        assertEquals("OMV_PREFERRED", AudioFirstLogic.decide("OMV_PREFERRED", "id", 1_000, 11_001, TTL, false));
     }
 
     @Test public void aClockBeforeTheTapNeverCounts() {
@@ -198,10 +199,10 @@ public class AudioFirstLogicTest {
     @Test public void thePillsOwnValuesAreNeverChangedByTheModeForce() {
         // The setter hook only forces the video fallback; the two user-triggered values pass through.
         for (String user : new String[]{"OMV_PREFERRED_USER_TRIGGERED", "ATV_PREFERRED_USER_TRIGGERED"}) {
-            assertEquals(user, AudioFirstLogic.decide(user, "id", 1_000, 1_500, TTL));
+            assertEquals(user, AudioFirstLogic.decide(user, "id", 1_000, 1_500, TTL, false));
         }
-        assertEquals("ATV_PREFERRED", AudioFirstLogic.decide("OMV_PREFERRED", "id", 1_000, 1_500, TTL));
-        assertEquals("OMV_PREFERRED", AudioFirstLogic.decide("OMV_PREFERRED", null, 1_000, 1_500, TTL));
+        assertEquals("ATV_PREFERRED", AudioFirstLogic.decide("OMV_PREFERRED", "id", 1_000, 1_500, TTL, false));
+        assertEquals("OMV_PREFERRED", AudioFirstLogic.decide("OMV_PREFERRED", null, 1_000, 1_500, TTL, false));
     }
 
     @Test public void theAudioModesAreTheOnesStockTreatsAsAudio() {
@@ -395,5 +396,39 @@ public class AudioFirstLogicTest {
         assertEquals("ATV_PREFERRED_USER_TRIGGERED", AudioFirstLogic.pillTarget("OMV_PREFERRED"));
         assertEquals("ATV_PREFERRED_USER_TRIGGERED", AudioFirstLogic.pillTarget("OMV_PREFERRED_USER_TRIGGERED"));
         assertEquals("ATV_PREFERRED_USER_TRIGGERED", AudioFirstLogic.pillTarget(null));
+    }
+
+    @Test public void theSongDisplayTurnsTheAppsVideoFallbackIntoTheSongMode() {
+        assertEquals("ATV_PREFERRED", AudioFirstLogic.decide("OMV_PREFERRED", null, 0, 99_000, TTL, true));
+        assertEquals("OMV_PREFERRED", AudioFirstLogic.decide("OMV_PREFERRED", null, 0, 99_000, TTL, false));
+        assertEquals("OMV_PREFERRED_USER_TRIGGERED",
+                AudioFirstLogic.decide("OMV_PREFERRED_USER_TRIGGERED", null, 0, 99_000, TTL, true));
+        assertEquals("ATV_PREFERRED_USER_TRIGGERED",
+                AudioFirstLogic.decide("ATV_PREFERRED_USER_TRIGGERED", null, 0, 99_000, TTL, true));
+    }
+
+    @Test public void theUsersPillPressDecidesWhetherTheSongDisplayHolds() {
+        assertTrue(AudioFirstLogic.songPreferredAfterMode(false, "ATV_PREFERRED_USER_TRIGGERED"));
+        assertFalse(AudioFirstLogic.songPreferredAfterMode(true, "OMV_PREFERRED_USER_TRIGGERED"));
+        // The app's own resets and the data-saving override neither start nor end it.
+        assertTrue(AudioFirstLogic.songPreferredAfterMode(true, "OMV_PREFERRED"));
+        assertFalse(AudioFirstLogic.songPreferredAfterMode(false, "ATV_PREFERRED"));
+        assertTrue(AudioFirstLogic.songPreferredAfterMode(true, "DONT_PLAY_VIDEO_OVERRIDE"));
+        assertTrue(AudioFirstLogic.songPreferredAfterMode(true, null));
+    }
+
+    @Test public void aTapTiedToACopyStartsTheSongDisplayAndAFreshOtherSelectionEndsIt() {
+        assertTrue(AudioFirstLogic.songPreferredAfterTap(false, true, false));
+        assertTrue(AudioFirstLogic.songPreferredAfterTap(false, true, true));
+        // The queue moving on to the next video copy keeps the display; with no Song display it starts none.
+        assertTrue(AudioFirstLogic.songPreferredAfterTap(true, false, true));
+        assertFalse(AudioFirstLogic.songPreferredAfterTap(false, false, true));
+        assertFalse(AudioFirstLogic.songPreferredAfterTap(true, false, false));
+    }
+
+    @Test public void aRowWhoseMusicVideoHasACopyKeepsItsItem() {
+        assertTrue(AudioFirstLogic.keepsVideoItem("omv", "omv"::equals));
+        assertFalse(AudioFirstLogic.keepsVideoItem("atv", "omv"::equals));
+        assertFalse(AudioFirstLogic.keepsVideoItem(null, id -> true));
     }
 }

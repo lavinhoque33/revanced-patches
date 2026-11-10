@@ -81,8 +81,6 @@ public final class OfflineReplay {
     private static final Set<String> aliveHooks = ConcurrentHashMap.newKeySet();
     private static volatile Captured captured;
     private static volatile boolean lastGateFlag;
-    /** The queue the last offline watch-next answered, for the Song/Video pill, which no queue item can serve. */
-    private static volatile OfflinePillLogic.Queue lastQueue;
 
     private OfflineReplay() {}
 
@@ -167,9 +165,9 @@ public final class OfflineReplay {
     static boolean play(String sourceId, int index) {
         if (!canDispatch()) return false;
 
-        // A tap is a fresh selection, so a video mode the last song left behind does not hold for it. The stream
-        // copy is audio only: offline, the video mode would ask for the video stream and the swap would decline.
-        if (!networkAvailable()) logDecision(HOOK_COMMAND, "audio mode: " + AudioFirst.startAudioMode());
+        // A tap is a fresh selection that starts in the Song display, offline or online: the video copy plays with its
+        // video surface off, and the app's own Song/Video switch flips it in place.
+        logDecision(HOOK_COMMAND, "audio mode: " + AudioFirst.startAudioMode());
 
         Utils.runOnBackgroundThread(() -> {
             try {
@@ -196,7 +194,7 @@ public final class OfflineReplay {
 
         Utils.runOnBackgroundThread(() -> {
             try {
-                dispatchCommand(onlineCommand(sourceId, videoId));
+                dispatchCommand(onlineCommand(sourceId, videoId, videoId));
             } catch (Exception ex) {
                 Logger.printException(() -> "OfflineReplay: could not start online " + videoId + " of " + sourceId, ex);
             }
@@ -204,23 +202,33 @@ public final class OfflineReplay {
         return true;
     }
 
+    /**
+     * The command a tap in the Downloads view starts. A song that has a video copy starts as its music video, which
+     * the video copy answers in either display; the rest start as the song, as before.
+     */
     @Nullable
     private static byte[] playCommand(String sourceId, int index) {
-        if (!networkAvailable()) return offlineCommand(sourceId, index);
-
         List<OfflineWatchNext.Item> items = queueOf(sourceId);
         if (index < 0 || index >= items.size()) return null;
 
-        return onlineCommand(sourceId, items.get(index).videoId());
+        String songId = items.get(index).videoId();
+        Map<String, String> videos = videoCopies();
+        String videoId = OfflineReplayLogic.videoOf(songId, videos);
+        if (!networkAvailable()) {
+            return OfflineWatchCommand.build(videoId == null ? songId : videoId, playlistId(sourceId), index,
+                    OfflineReplayLogic.startTypeOf(songId, videos));
+        }
+
+        return onlineCommand(sourceId, songId, videoId == null ? songId : videoId);
     }
 
     /**
      * The ordinary online watch command of a song tapped in a list: the playlist's id and the song's place in it
      * for a playlist or album, the song alone for the all-songs list, where the app builds the song's own radio.
      */
-    private static byte[] onlineCommand(String sourceId, String videoId) {
+    private static byte[] onlineCommand(String sourceId, String songId, String videoId) {
         return OnlineWatchCommand.build(videoId, OfflineReplayLogic.onlinePlaylistId(sourceId, SONGS),
-                indexInSource(sourceId, videoId));
+                indexInSource(sourceId, songId));
     }
 
     /** The place of the song in the whole downloaded list: the online playlist counts the tracks that are not here. */
@@ -229,12 +237,6 @@ public final class OfflineReplay {
             if (source.id().equals(sourceId)) return Math.max(0, source.videoIds().indexOf(videoId));
         }
         return 0;
-    }
-
-    /** The queue the replay answered last, or null when it has answered none. */
-    @Nullable
-    static OfflinePillLogic.Queue lastQueue() {
-        return lastQueue;
     }
 
     static boolean canDispatch() {
@@ -339,7 +341,8 @@ public final class OfflineReplay {
         Utils.runOnBackgroundThread(() -> {
             try {
                 List<OfflineWatchNext.Item> items = queueOf(sourceId);
-                int index = OfflineReplayLogic.currentIndex(items, videoId, -1);
+                int index = OfflineReplayLogic.currentIndex(items,
+                        OfflineReplayLogic.songOf(videoId, videoCopies()), -1);
                 byte[] command = index < 0 ? null : offlineCommand(sourceId, index);
                 if (command == null) {
                     Logger.printWarn(() -> "OfflineReplay: no stored song " + videoId + " in " + sourceId);
@@ -649,11 +652,9 @@ public final class OfflineReplay {
             current = 0;
         }
         String queueId = playlistId == null || playlistId.isEmpty() ? playlistId(SONGS) : playlistId;
-        lastQueue = new OfflinePillLogic.Queue(queueId, items.stream().map(OfflineWatchNext.Item::videoId).toList());
-        // A video mode shows the music video of every song that has a copy, as the queue of an online album does;
-        // every navigation asks for the queue again, so it is the mode of that moment that is shown.
-        boolean videoMode = AudioFirst.supported() && AudioFirstLogic.isVideoMode(AudioFirst.liveMode());
-        if (videoMode) items = OfflineReplayLogic.showingVideos(items, videos);
+        // A request for the music video of a song shows the music video of every song that has a copy, as the queue of
+        // an online album does; the video copy answers it in either display of the app's own Song/Video switch.
+        if (OfflineReplayLogic.showsVideos(videoId, videos)) items = OfflineReplayLogic.showingVideos(items, videos);
 
         byte[] response = OfflineWatchNext.build(queueId, items, current);
         int queued = items.size();

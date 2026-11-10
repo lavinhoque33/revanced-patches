@@ -2,6 +2,7 @@
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
  * Written by lavinhoque33, 2026-11-07.
+ * Modified by lavinhoque33, 2026-11-09.
  */
 package app.morphe.extension.music.patches.downloads;
 
@@ -48,6 +49,9 @@ public final class AudioFirst {
     private static long tapsLeftAloneUntil;
     private static final long PILL_NAVIGATION_MILLIS = 3_000;
     private static long armedEpoch;
+
+    /** The display the user or an audio-first start chose is the Song one, see {@link AudioFirstLogic#decide}. */
+    private static boolean songPreferred;
 
     private static final long COMMAND_LOG_INTERVAL_MILLIS = 300;
     private static long lastCommandLogAt;
@@ -131,6 +135,9 @@ public final class AudioFirst {
      * @return What was done, for the log.
      */
     static String startAudioMode() {
+        synchronized (lock) {
+            songPreferred = true;
+        }
         List<ModeHolder> live = liveHolders();
         if (live.isEmpty()) return "no mode holder known yet";
 
@@ -257,10 +264,12 @@ public final class AudioFirst {
                     () -> registry.sourceTracks(registry.findSource(bytes)), tap.index, tap.hasParams,
                     registry::isDownloaded);
 
+            boolean namesVideoCopy = tap.videoId != null && VideoCopyStore.has(tap.videoId);
             synchronized (lock) {
                 armedId = arm == null ? null : arm.videoId();
                 armedAt = SystemClock.elapsedRealtime();
                 armedEpoch = modeEpoch;
+                songPreferred = AudioFirstLogic.songPreferredAfterTap(songPreferred, arm != null, namesVideoCopy);
             }
             if (arm == null) return null;
             Logger.printDebug(() -> "AudioFirst: armed by " + arm.rule() + " v=" + arm.videoId());
@@ -271,6 +280,12 @@ public final class AudioFirst {
             Logger.printDebug(() -> "AudioFirst: mode set attempt: " + direct);
 
             if (!mayRewrite || !(command instanceof NativeDownloads.Command rebuildable)) return null;
+            // A row whose music video has a video copy stays that video: the copy answers it in either mode, and the
+            // app's own switch flips between Song and Video on the one stream.
+            if (AudioFirstLogic.keepsVideoItem(tap.videoId, VideoCopyStore::has)) {
+                Logger.printDebug(() -> "AudioFirst: command kept v=" + tap.videoId + " (it has a video copy)");
+                return null;
+            }
             if (!AudioFirstLogic.namesTheRow(arm.rule(), arm.videoId(), tap.videoId, registry::isDownloaded)) {
                 return null;
             }
@@ -315,27 +330,33 @@ public final class AudioFirst {
             synchronized (lock) {
                 modeEpoch++;
             }
-            String forced = null;
+            boolean forced = false;
+            String armedFor = null;
             Enum<?> result = mode;
             if (AudioFirstLogic.OMV_PREFERRED.equals(name) && Settings.START_DOWNLOADED_IN_AUDIO.get()) {
                 long now = SystemClock.elapsedRealtime();
                 synchronized (lock) {
                     String decided = AudioFirstLogic.decide(name, armedId, armedAt, now,
-                            AudioFirstLogic.ARM_TTL_MILLIS);
-                    if (!name.equals(decided)) {
-                        forced = armedId;
+                            AudioFirstLogic.ARM_TTL_MILLIS, songPreferred);
+                    forced = !name.equals(decided);
+                    if (forced) {
+                        armedFor = armedId;
                         armedId = null;
+                        result = constant(mode, decided);
                     }
-                    result = forced == null ? mode : constant(mode, decided);
                 }
-                String id = forced;
-                if (id != null) {
-                    Logger.printDebug(() -> "AudioFirst: forced ATV_PREFERRED for v=" + id);
+                String id = armedFor;
+                if (forced) {
+                    Logger.printDebug(() -> "AudioFirst: forced ATV_PREFERRED " + (id != null ? "for v=" + id
+                            : "(the Song display holds)"));
                 } else {
                     Logger.printDebug(() -> "AudioFirst: expired/not armed");
                 }
             }
             lastMode = result.name();
+            synchronized (lock) {
+                songPreferred = AudioFirstLogic.songPreferredAfterMode(songPreferred, lastMode);
+            }
             QueueItems.onMode(lastMode);
             return result;
         } catch (Exception ex) {

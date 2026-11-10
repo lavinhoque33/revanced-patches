@@ -73,15 +73,6 @@ public class VideoCopyLogicTest {
         assertEquals(213_400, local.getApproxDurationMs());
     }
 
-    @Test public void onlyAVideoModeAsksForTheVideoCopyWhenTheAudioFirstModeIsInEffect() {
-        assertTrue(VideoCopyLogic.answersVideo(true, AudioFirstLogic.OMV_PREFERRED_USER_TRIGGERED));
-        assertTrue(VideoCopyLogic.answersVideo(true, AudioFirstLogic.OMV_PREFERRED));
-        assertFalse(VideoCopyLogic.answersVideo(true, AudioFirstLogic.ATV_PREFERRED));
-        assertFalse(VideoCopyLogic.answersVideo(true, "DONT_PLAY_VIDEO_OVERRIDE"));
-        assertFalse(VideoCopyLogic.answersVideo(true, null));
-        assertTrue(VideoCopyLogic.answersVideo(false, null));
-    }
-
     @Test public void theOnlineLengthMustMatchTheCopyOrBeUnknown() {
         assertTrue(VideoCopyLogic.sameLength(213, 213_000));
         assertTrue(VideoCopyLogic.sameLength(216, 213_000));

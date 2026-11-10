@@ -230,35 +230,27 @@ val navigationBarComponentsPatch = bytecodePatch(
         // region patch for translucent navigation and status bars
 
         if (is_19_25_or_greater) {
-            // The layout flags must follow the window's edge-to-edge state, while the background
-            // style remains independent. Observe the account flag without changing it in this fork.
+            // Follow every use of a flag literal, including reads reused across layout branches.
             injectOnCreateMethodCall("$PATCHES_PATH/theme/StatusBarPatch;", "initialize")
             EdgeToEdgeTopBarFeatureFlagFingerprint.matchAll().forEach { match ->
                 match.method.apply {
-                    // Newer targets can read the flag more than once in the same method.
-                    implementation!!.instructions.mapIndexedNotNull { index, instruction ->
-                        index.takeIf { (instruction as? WideLiteralInstruction)?.wideLiteral == 45400535L }
-                    }.asReversed().forEach { index ->
-                        insertLiteralOverride(index, "$PATCHES_PATH/theme/StatusBarPatch;->useEdgeToEdgeTopBar(Z)Z")
-                    }
+                    overrideNavigationFeatureFlag(
+                        45400535L,
+                        "$PATCHES_PATH/theme/StatusBarPatch;->useEdgeToEdgeTopBar(Z)Z"
+                    )
                 }
             }
 
             TranslucentNavigationBarFeatureFlagsFingerprint.matchAll().forEach { match ->
                 match.method.apply {
-                    implementation!!.instructions.mapIndexedNotNull { index, instruction ->
-                        index.takeIf {
-                            (instruction as? WideLiteralInstruction)?.wideLiteral in TRANSLUCENT_NAVIGATION_BAR_FEATURE_FLAGS
-                        }
-                    }.asReversed().forEach { index ->
-                        val flag = getInstruction<WideLiteralInstruction>(index).wideLiteral
+                    TRANSLUCENT_NAVIGATION_BAR_FEATURE_FLAGS.forEach { flag ->
                         val override = when (flag) {
                             NAVIGATION_BAR_COVERS_SYSTEM_BUTTONS_FLAG -> "useTranslucentNavigationBar"
                             FEED_BEHIND_NAVIGATION_BAR_FLAG -> "useFeedBehindNavigationBar"
                             TRANSLUCENT_NAVIGATION_BAR_STYLE_FLAG -> "useTranslucentNavigationBarStyle"
                             else -> "useTranslucentNavigationBarBackground"
                         }
-                        insertLiteralOverride(index, "$EXTENSION_CLASS_DESCRIPTOR->$override(Z)Z")
+                        overrideNavigationFeatureFlag(flag, "$EXTENSION_CLASS_DESCRIPTOR->$override(Z)Z")
                     }
                 }
             }

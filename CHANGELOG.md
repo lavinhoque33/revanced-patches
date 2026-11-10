@@ -7,6 +7,7 @@
   Premium-style queue takes priority when you turn it on, and keeps working for users who already use it.
 * **YouTube - Navigation bar:** Fix the navigation buttons sitting too high, with a black strip below them, with the
   Translucent or Transparent navigation bar style and gesture navigation, also when Glass navigation bar is off.
+  Fix the extra space below the glass bar with system navigation buttons or a visible gesture indicator.
 * **YouTube - Navigation bar:** The blurred background of the Translucent navigation bar and of Glass navigation bar
   is now drawn only on Android 14 and newer. On Android 12 and 13 the bar keeps a plain translucent color, because the
   blur could crash the app while the player moves.

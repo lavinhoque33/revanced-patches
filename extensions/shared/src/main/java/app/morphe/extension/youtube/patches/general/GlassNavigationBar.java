@@ -519,12 +519,25 @@ public final class GlassNavigationBar {
                                 int[] location = new int[2];
                                 pivotBar.getLocationInWindow(location);
                                 View parent = (View) pivotBar.getParent();
+                                View rootLayout = pivotBar.getRootView().findViewById(ResourceUtils.getIdentifier(
+                                        ResourceType.ID, "navigation_bar_divider_frame"));
+                                int rootBottomMargin = rootLayout != null
+                                        && rootLayout.getLayoutParams() instanceof ViewGroup.MarginLayoutParams margins
+                                        ? margins.bottomMargin : -1;
                                 return "Glass navigation bar applied, height: " + pivotBar.getHeight()
                                         + " bottom padding: " + pivotBar.getPaddingBottom()
-                                        + " room below: " + (pivotBar.getRootView().getHeight() - location[1] - pivotBar.getHeight())
+                                        + " room below: "
+                                        + (pivotBar.getRootView().getHeight() - location[1] - pivotBar.getHeight())
+                                        + " root height: " + pivotBar.getRootView().getHeight()
+                                        + " bar top: " + location[1]
+                                        + " bar bottom: " + (location[1] + pivotBar.getHeight())
+                                        + " root bottom margin: " + rootBottomMargin
+                                        + " covers system buttons: "
+                                        + NavigationButtonsPatch.isNavigationBarCoveringSystemButtons()
                                         + " container height: " + parent.getHeight()
                                         + " container bottom padding: " + parent.getPaddingBottom()
-                                        + " app background: " + (background == null ? null : background.getClass().getName());
+                                        + " app background: "
+                                        + (background == null ? null : background.getClass().getName());
                             });
                         }
                     }

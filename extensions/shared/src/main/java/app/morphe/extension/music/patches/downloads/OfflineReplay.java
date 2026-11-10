@@ -134,7 +134,7 @@ public final class OfflineReplay {
      * player configuration ({@link PlayerConfigTemplate}); null when neither is stored.
      */
     @Nullable
-    private static byte[] storedResponseOf(String videoId) throws IOException {
+    static byte[] storedResponseOf(String videoId) throws IOException {
         OfflineCopyFiles.Stored stored = OfflineCopyStore.find(videoId);
         if (stored != null) return stored.response();
 

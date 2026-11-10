@@ -2,6 +2,7 @@
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
  * Written by lavinhoque33, 2026-11-08.
+ * Modified by lavinhoque33, 2026-11-09.
  */
 package app.morphe.extension.music.patches.downloads;
 
@@ -51,6 +52,15 @@ public class OfflineReplayResponseTest {
         byte[] marker = ProtoFields.one(prepared, 14);
         assertEquals(List.of(5), ProtoFields.numbers(marker));
         assertEquals(1, ProtoFields.varint(marker, 5));
+    }
+
+    @Test public void withoutTheMarkerOptionNoMarkerIsAddedButTheRestIsPrepared() throws Exception {
+        byte[] prepared = OfflineReplayResponse.prepare(stored(100), false);
+
+        assertTrue(ProtoFields.all(prepared, 14).isEmpty());
+        assertEquals(List.of(11, 4, 9, 777), ProtoFields.numbers(prepared));
+        assertEquals(OfflineResponseTrim.DEFAULT_EXPIRES_SECONDS,
+                ProtoFields.varint(ProtoFields.one(prepared, 4), 1));
     }
 
     @Test public void anExistingMarkerIsNotDoubled() throws Exception {

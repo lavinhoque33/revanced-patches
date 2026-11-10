@@ -2,6 +2,7 @@
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
  * Written by lavinhoque33, 2026-11-08.
+ * Modified by lavinhoque33, 2026-11-09.
  */
 package app.morphe.extension.music.patches.downloads;
 
@@ -36,16 +37,21 @@ final class OfflineReplayResponse {
 
     /** The bytes of {@code stored} ready for the app's parser. Throws {@link IllegalArgumentException} if malformed. */
     static byte[] prepare(byte[] stored) {
+        return prepare(stored, true);
+    }
+
+    /** {@link #prepare(byte[])}; without {@code marker} the offline marker is not added (debug aid). */
+    static byte[] prepare(byte[] stored, boolean marker) {
         try {
-            return rewrite(stored);
+            return rewrite(stored, marker);
         } catch (IOException ex) {
             throw new IllegalArgumentException("stored response is not a valid message", ex);
         }
     }
 
-    private static byte[] rewrite(byte[] stored) throws IOException {
+    private static byte[] rewrite(byte[] stored, boolean addMarker) throws IOException {
         ProtoWriter response = new ProtoWriter();
-        boolean hasMarker = false;
+        boolean hasMarker = !addMarker;
 
         CodedInputStream input = CodedInputStream.newInstance(stored);
         while (true) {

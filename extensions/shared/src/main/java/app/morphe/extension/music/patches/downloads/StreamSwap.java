@@ -100,7 +100,6 @@ public final class StreamSwap {
         String gate = StreamSwapLogic.gate(Settings.PLAY_DOWNLOADS_LOCALLY.get(), onMainThread());
         if (gate != null) return unchanged(original, "?", gate, stored);
         if (!(original instanceof Response adapter)) return original;
-        if (!stored) PlayerConfigTemplate.rememberFrom(adapter);
 
         String videoId = "?";
         try {
@@ -191,7 +190,10 @@ public final class StreamSwap {
                 + " onlineAdaptive=" + online.getStreamingData().getAdaptiveFormatsCount()
                 + " onlineSabr=" + online.getStreamingData().hasServerAbrStreamingUrl());
         logAnswerShapes(videoId, stored, liveBytes, replacement);
-        if (!stored) VideoCopyStore.keepLive(videoId, liveBytes);
+        if (!stored) {
+            VideoCopyStore.keepLive(videoId, liveBytes);
+            LiveTemplate.rememberFrom(videoId, liveBytes, online);
+        }
         return result;
     }
 
@@ -203,7 +205,8 @@ public final class StreamSwap {
     private static void logAnswerShapes(String videoId, boolean stored, byte[] source, PlayerResponse answer) {
         Logger.printDebug(() -> {
             String kind = stored ? "stored" : "online";
-            return "StreamSwap: answer shape v=" + videoId + " kind=" + kind + " source={"
+            String base = stored ? OfflineReplay.baseOf(videoId) : "online";
+            return "StreamSwap: answer shape v=" + videoId + " kind=" + kind + " base=" + base + " source={"
                     + ProtoShape.of(source, ANSWER_EXPANDED_FIELDS) + "} answer={"
                     + ProtoShape.of(answer.toByteArray(), ANSWER_EXPANDED_FIELDS) + "}";
         });

@@ -36,23 +36,23 @@ final class ResponseFields {
     }
 
     /**
-     * The response the app got online ({@code live}) with the fields numbered in {@code ownFields} taken from the
-     * response stored with the copy ({@code stored}) instead: the streaming data and the details of the copy. A
-     * field the live response lacks and the stored one has is kept.
+     * {@code base} (an online response of the app, or the app-generic part of one) with the fields numbered in
+     * {@code ownFields} taken from the response stored with the copy ({@code stored}) instead: the streaming data
+     * and the details of the copy. A field the base lacks and the stored response has is kept.
      */
-    static byte[] liveWithOwn(byte[] live, byte[] stored, Set<Integer> ownFields) throws IOException {
+    static byte[] baseWithOwn(byte[] base, byte[] stored, Set<Integer> ownFields) throws IOException {
         Set<Integer> storedNumbers = numbers(stored);
-        Set<Integer> liveNumbers = numbers(live);
+        Set<Integer> baseNumbers = numbers(base);
 
         Set<Integer> ownOfStored = new HashSet<>(storedNumbers);
         ownOfStored.retainAll(ownFields);
-        Set<Integer> liveHasToo = new HashSet<>(storedNumbers);
-        liveHasToo.retainAll(liveNumbers);
-        liveHasToo.removeAll(ownFields);
+        Set<Integer> baseHasToo = new HashSet<>(storedNumbers);
+        baseHasToo.retainAll(baseNumbers);
+        baseHasToo.removeAll(ownFields);
 
-        byte[] fromLive = without(live, ownOfStored);
-        byte[] fromStored = without(stored, liveHasToo);
-        return new ProtoWriter().raw(fromLive, 0, fromLive.length).raw(fromStored, 0, fromStored.length)
+        byte[] fromBase = without(base, ownOfStored);
+        byte[] fromStored = without(stored, baseHasToo);
+        return new ProtoWriter().raw(fromBase, 0, fromBase.length).raw(fromStored, 0, fromStored.length)
                 .toByteArray();
     }
 

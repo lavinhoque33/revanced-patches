@@ -18,9 +18,11 @@ import app.morphe.extension.shared.utils.Logger;
  * <p>The app decides whether the pill is lit from the state of the player and of the queue item. While online the
  * decision is lit for a video the stream swap plays from a copy. Offline the stored answer reached the player but the
  * pill stayed dim, and a press showed "Video not available" instead of changing the display. The copy is the video:
- * whatever the app's gate says, the pill is lit for it and a press toggles the display as it does online. Three
+ * whatever the app's gate says, the pill is lit for it and a press toggles the display as it does online. Four
  * places, all asked the same question, "does the video being played have a committed copy":
  * <ul>
+ *   <li>the methods that compute the pill's state ({@link #onPillState}): a dim pill is lit before the app compares
+ *   its state with the one shown, so the app does not stop before it sets the look;
  *   <li>the method that sets the pill's look ({@link #onPillLook}): a dim look becomes a lit one;
  *   <li>the click listener ({@link #lightForClick}): a press on a dim pill lights it before the app's own check;
  *   <li>the toggle's gate ({@link #onToggleGate}): a closed gate opens, so the press changes the display mode.
@@ -44,17 +46,22 @@ public final class PillAvailability {
     private PillAvailability() {}
 
     /**
-     * Injection point: the start of the method that computes the state of the pill, which runs when the playback,
-     * the queue item or the session changes. Only logs, so a device log shows that the state was computed and for
-     * which video.
+     * Injection point: the start of each method that computes the state of the pill, which runs when the playback,
+     * the queue item or the session changes. The app's state method returns without setting the look when the state
+     * it computed is the one the pill already shows (a dim pill stays dim and its look method is not reached), so a
+     * pill that is dim for a video with a copy is lit here, before the app compares: its computed state then
+     * differs from the lit one, the app sets the look, and the look hook keeps it lit.
      */
     public static void onPillState(@Nullable Object view) {
         try {
             String copy = copyVideo();
-            boolean shown = view instanceof Gate gate && gate.rvxShown();
+            if (copy == null || !(view instanceof Gate gate)) return;
+
+            boolean shown = gate.rvxShown();
+            if (!shown) gate.rvxBright();
             logChange("state", () -> "PillAvailability: state computed v=" + VideoInformation.getVideoId()
-                    + " response=" + VideoInformation.getPlayerResponseVideoId() + " copy="
-                    + (copy == null ? "none" : copy) + " shownBefore=" + shown);
+                    + " response=" + VideoInformation.getPlayerResponseVideoId() + " copy=" + copy
+                    + " shownBefore=" + shown);
         } catch (Exception ex) {
             Logger.printException(() -> "PillAvailability: pill state failure", ex);
         }

@@ -18,6 +18,7 @@ import androidx.annotation.Nullable;
 
 import com.google.common.util.concurrent.ListenableFuture;
 
+import java.io.IOException;
 import java.lang.ref.WeakReference;
 import java.util.Collections;
 import java.util.HashMap;
@@ -128,11 +129,17 @@ public final class OfflineReplay {
         return OfflineCopyStore.has(videoId) || VideoCopyStore.has(videoId);
     }
 
-    /** The stored player response of the song, or of the music video that has a video copy; null when neither. */
+    /**
+     * The stored player response of the song, or of the music video that has a video copy, which gets the app's own
+     * player configuration ({@link PlayerConfigTemplate}); null when neither is stored.
+     */
     @Nullable
-    private static byte[] storedResponseOf(String videoId) {
+    private static byte[] storedResponseOf(String videoId) throws IOException {
         OfflineCopyFiles.Stored stored = OfflineCopyStore.find(videoId);
-        return stored != null ? stored.response() : VideoCopyStore.response(videoId);
+        if (stored != null) return stored.response();
+
+        byte[] video = VideoCopyStore.response(videoId);
+        return video == null ? null : PlayerConfigTemplate.applyTo(video);
     }
 
     // region queue and commands

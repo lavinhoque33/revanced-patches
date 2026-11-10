@@ -366,19 +366,22 @@ private fun BytecodePatchContext.preparePillStartPosition(): (() -> String)? {
 
 /**
  * Offline the pill stayed dim for a video with a video copy, and a press showed "Video not available" (the click
- * listener lets a press through only when the pill is lit). The app lights it in its state method, which runs on
+ * listener lets a press through only when the pill is lit). The app lights it in its state methods, which run on
  * every change of the playback, the queue item and the session, and sets the pill's look in the one look method. The
- * state method has several exits (a kill switch and two branches jump straight to its return) and reuses its first
- * register for another value before the end, so a hook at its end sees neither every run nor the view: the extension
- * is asked at the START of the look method instead, which every path but the kill switch reaches with the view in its
- * first register: it may turn a dim look into a lit one for a video with a copy. The state method's start only logs.
+ * state methods have several exits (a kill switch and branches jump straight to their return) and the current one
+ * (9.40.51 `Lhvv.f`, behind a flag of the app) returns before the look method when the state it computed is the one
+ * the pill shows, so a dim pill stays dim and the look method is never reached. The extension is asked at the START
+ * of every state method, where it lights a dim pill for a video with a copy, so the app's comparison fails and sets
+ * the look; and at the START of the look method, which every path but the kill switch reaches with the view in its
+ * first register: it may turn a dim look into a lit one for a video with a copy.
  *
  * Added to the toggle's view: `rvxBright` (the look method, lit) and `rvxShown` (its flag), which the click hook of
  * [preparePillClick] uses to light a dim pill before the listener's own check. Resolved by shape, in the view class:
- * the look method is the one `(Z)V` that sets the view's alpha and stores a boolean of its own; the state method is
- * the one `()V` that calls the look method directly and one of the `(Z)V` methods that call it.
- * `Lhvv.j` / `Lhvv.e` (9.40.51), `Lnkv.j` / `Lnkv.e` (9.15.51), `Lmxb.h` / `Lmxb.e` (8.30.54). Optional: a version
- * where it is not found keeps the app's own pill, and the rest installs.
+ * the look method is the one `(Z)V` that sets the view's alpha and stores a boolean of its own; the state methods
+ * are the `()V` methods that call one of the methods that call the look method (the older one calls the look method
+ * itself, the current one only through them). `Lhvv.j` with `Lhvv.e` and `Lhvv.f` (9.40.51), `Lnkv.j` / `Lnkv.e`
+ * (9.15.51), `Lmxb.h` / `Lmxb.e` (8.30.54). Optional: a version where it is not found keeps the app's own pill, and
+ * the rest installs.
  */
 private fun BytecodePatchContext.preparePillAvailability(viewType: String): (() -> String)? {
     try {
@@ -400,11 +403,9 @@ private fun BytecodePatchContext.preparePillAvailability(viewType: String): (() 
         val callers = methods.filter { it !== look && it.callsOwn().any { call -> call.isMethod(look) } }
         val states = methods.filter { method ->
             method.parameterTypes.isEmpty() && method.returnType == "V" &&
-                method.callsOwn().let { calls ->
-                    calls.any { it.isMethod(look) } && calls.any { call -> callers.any { call.isMethod(it) } }
-                }
+                method.callsOwn().any { call -> callers.any { call.isMethod(it) } }
         }
-        val state = states.singleOrNull() ?: error("pill availability: ${states.size} state methods")
+        check(states.isNotEmpty()) { "pill availability: no state method" }
 
         val call = if (AccessFlags.PRIVATE.isSet(look.accessFlags)) "invoke-direct" else "invoke-virtual"
         return {
@@ -423,9 +424,12 @@ private fun BytecodePatchContext.preparePillAvailability(viewType: String): (() 
                 invoke-static/range {p0 .. p1}, $ON_PILL_LOOK
                 move-result p1
             """)
-            view.findMutableMethodOf(state).addInstructions(0, "invoke-static/range {p0 .. p0}, $ON_PILL_STATE")
+            states.forEach { state ->
+                view.findMutableMethodOf(state).addInstructions(0, "invoke-static/range {p0 .. p0}, $ON_PILL_STATE")
+            }
 
-            "AudioFirst: pill availability $viewType->${state.name}, look ${look.name}, flag ${flag.name}"
+            "AudioFirst: pill availability $viewType->${states.joinToString("/") { it.name }}, look ${look.name}, " +
+                "flag ${flag.name}"
         }
     } catch (ex: Exception) {
         printWarn("The Song/Video pill of the Music player stays dim for a video with a video copy offline on this " +

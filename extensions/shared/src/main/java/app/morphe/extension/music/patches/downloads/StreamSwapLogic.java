@@ -12,6 +12,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 
 import app.morphe.extension.shared.innertube.PlayerResponseOuterClass.Format;
+import app.morphe.extension.shared.innertube.PlayerResponseOuterClass.PlayerConfig;
 import app.morphe.extension.shared.innertube.PlayerResponseOuterClass.PlayerResponse;
 import app.morphe.extension.shared.innertube.PlayerResponseOuterClass.StreamingData;
 
@@ -99,12 +100,16 @@ final class StreamSwapLogic {
         var replacement = online.toBuilder().setStreamingData(streaming);
         if (!online.hasPlayerConfig()) return replacement.build();
 
-        var config = online.getPlayerConfig();
+        return replacement.setPlayerConfig(withoutServerAbr(online.getPlayerConfig())).build();
+    }
+
+    /** The player configuration without the request hints that force the player onto SABR; the rest is kept. */
+    static PlayerConfig withoutServerAbr(PlayerConfig config) {
         var common = config.getMediaCommonConfig();
         var routing = config.getPlaybackRoutingConfig();
         boolean stripCommon = common.hasMediaUstreamerRequestConfig() || common.hasEnableSabr();
         boolean stripForced = routing.getPreferredEngine() == 3;
-        if (!stripCommon && !stripForced) return replacement.build();
+        if (!stripCommon && !stripForced) return config;
 
         var player = config.toBuilder();
         if (stripCommon) {
@@ -124,7 +129,7 @@ final class StreamSwapLogic {
                 player.setPlaybackRoutingConfig(withoutForcedMode);
             }
         }
-        return replacement.setPlayerConfig(player).build();
+        return player.build();
     }
 
 }

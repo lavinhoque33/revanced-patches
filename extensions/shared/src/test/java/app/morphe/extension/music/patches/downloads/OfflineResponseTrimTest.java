@@ -234,9 +234,9 @@ public class OfflineResponseTrimTest {
         byte[] stored = OfflineResponseTrim.fromVideoDownload(PlayerResponse.getDefaultInstance(),
                 new VideoCopyLogic.Selection(video, audio));
 
-        assertEquals("type=2 live=false muxed=0 adaptive=2 videoMimes=1 exo=true gate=true",
+        assertEquals("type=2 live=false muxed=0 adaptive=2 videoMimes=1 exo=true gate=true config=16B",
                 OfflineResponseTrim.gateFacts(stored));
-        assertEquals("type=none live=false muxed=0 adaptive=0 videoMimes=0 exo=false gate=false",
+        assertEquals("type=none live=false muxed=0 adaptive=0 videoMimes=0 exo=false gate=false config=0B",
                 OfflineResponseTrim.gateFacts(new byte[0]));
         assertEquals("unreadable", OfflineResponseTrim.gateFacts(new byte[]{(byte) 0xff}));
     }

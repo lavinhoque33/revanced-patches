@@ -153,7 +153,8 @@ final class OfflineResponseTrim {
                     + " live=" + details.getIsLiveContent() + " muxed=" + streaming.getFormatsCount()
                     + " adaptive=" + streaming.getAdaptiveFormatsCount() + " videoMimes=" + video
                     + " exo=" + config.getExoPlayerConfig().getUseExoPlayer()
-                    + " gate=" + config.getAudioConfig().getExoAudioGate();
+                    + " gate=" + config.getAudioConfig().getExoAudioGate()
+                    + " config=" + config.getSerializedSize() + "B";
         } catch (IOException ex) {
             return "unreadable";
         }

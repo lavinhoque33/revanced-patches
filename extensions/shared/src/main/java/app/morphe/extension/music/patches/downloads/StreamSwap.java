@@ -97,6 +97,7 @@ public final class StreamSwap {
         String gate = StreamSwapLogic.gate(Settings.PLAY_DOWNLOADS_LOCALLY.get(), onMainThread());
         if (gate != null) return unchanged(original, "?", gate, stored);
         if (!(original instanceof Response adapter)) return original;
+        if (!stored) PlayerConfigTemplate.rememberFrom(adapter);
 
         String videoId = "?";
         try {

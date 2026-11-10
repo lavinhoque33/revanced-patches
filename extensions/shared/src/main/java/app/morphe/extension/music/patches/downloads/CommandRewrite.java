@@ -2,6 +2,7 @@
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
  * Written by lavinhoque33, 2026-11-07.
+ * Modified by lavinhoque33, 2026-11-09.
  */
 package app.morphe.extension.music.patches.downloads;
 
@@ -134,6 +135,17 @@ final class CommandRewrite {
      */
     @Nullable
     static Result retarget(byte[] command, String fromId, String toId, boolean setHint) {
+        return retarget(command, fromId, toId, setHint, TYPE_ATV);
+    }
+
+    /**
+     * As {@link #retarget(byte[], String, String, boolean)}, to a video of the given music video type: the type of the
+     * config changes only when it is the other one of the two, so a song (ATV) tapped for its music video (OMV) names
+     * the video as the app lists it. {@code type} says what happened ({@code "1->2"}, {@code "2->1"} or
+     * {@code "untouched"}).
+     */
+    @Nullable
+    static Result retarget(byte[] command, String fromId, String toId, boolean setHint, int toType) {
         if (fromId.length() != VIDEO_ID_LENGTH || !isVideoId(toId)) return null;
         try {
             Field watchField = first(parse(command), WATCH_ENDPOINT_FIELD, 2);
@@ -149,7 +161,7 @@ final class CommandRewrite {
             String type = "untouched";
             String hint = "none";
             try {
-                ConfigEdit edit = editSupportedConfig(newWatch, setHint);
+                ConfigEdit edit = editSupportedConfig(newWatch, setHint, toType);
                 if (edit != null) {
                     newWatch = edit.watch;
                     type = edit.type;
@@ -166,7 +178,7 @@ final class CommandRewrite {
 
     /** The watch endpoint with its music config edited, or null when it has no music config. */
     @Nullable
-    private static ConfigEdit editSupportedConfig(byte[] watch, boolean setHint) {
+    private static ConfigEdit editSupportedConfig(byte[] watch, boolean setHint, int toType) {
         Field supportedField = first(parse(watch), SUPPORTED_CONFIG_FIELD, 2);
         if (supportedField == null) return null;
         byte[] supported = payload(watch, supportedField);
@@ -192,11 +204,12 @@ final class CommandRewrite {
                 hint = "added";
                 hintWritten = true;
             }
+            int otherType = toType == TYPE_ATV ? TYPE_OMV : TYPE_ATV;
             if (field.number == MUSIC_VIDEO_TYPE_FIELD && field.wireType == 0
-                    && readVarint(music, new int[]{field.valueStart}) == TYPE_OMV) {
+                    && readVarint(music, new int[]{field.valueStart}) == otherType) {
                 out.write(music, field.start, field.valueStart - field.start);
-                writeVarint(out, TYPE_ATV);
-                type = TYPE_OMV + "->" + TYPE_ATV;
+                writeVarint(out, toType);
+                type = otherType + "->" + toType;
             } else if (setHint && field == hintField) {
                 boolean already = readVarint(music, new int[]{field.valueStart}) == HINT_ATV_PREFERRED;
                 if (already) {

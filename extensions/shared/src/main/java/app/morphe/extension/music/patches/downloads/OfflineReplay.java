@@ -202,24 +202,33 @@ public final class OfflineReplay {
         return true;
     }
 
-    /**
-     * The command a tap in the Downloads view starts. A song that has a video copy starts as its music video, which
-     * the video copy answers in either display; the rest start as the song, as before.
-     */
     @Nullable
     private static byte[] playCommand(String sourceId, int index) {
+        if (!networkAvailable()) return startCommand(sourceId, index);
+
+        List<OfflineWatchNext.Item> items = queueOf(sourceId);
+        if (index < 0 || index >= items.size()) return null;
+
+        String songId = items.get(index).videoId();
+        String videoId = OfflineReplayLogic.videoOf(songId, videoCopies());
+        return onlineCommand(sourceId, songId, videoId == null ? songId : videoId);
+    }
+
+    /**
+     * The offline command a tap in a list starts: a song that has a video copy starts as its music video, which the
+     * copy answers in either display of the app's own Song/Video switch; the rest start as the song. Unlike
+     * {@link #offlineCommand}, which Android Auto uses, so the car keeps the song ids. Off the main thread.
+     */
+    @Nullable
+    private static byte[] startCommand(String sourceId, int index) {
         List<OfflineWatchNext.Item> items = queueOf(sourceId);
         if (index < 0 || index >= items.size()) return null;
 
         String songId = items.get(index).videoId();
         Map<String, String> videos = videoCopies();
         String videoId = OfflineReplayLogic.videoOf(songId, videos);
-        if (!networkAvailable()) {
-            return OfflineWatchCommand.build(videoId == null ? songId : videoId, playlistId(sourceId), index,
-                    OfflineReplayLogic.startTypeOf(songId, videos));
-        }
-
-        return onlineCommand(sourceId, songId, videoId == null ? songId : videoId);
+        return OfflineWatchCommand.build(videoId == null ? songId : videoId, playlistId(sourceId), index,
+                OfflineReplayLogic.startTypeOf(songId, videos));
     }
 
     /**
@@ -343,7 +352,7 @@ public final class OfflineReplay {
                 List<OfflineWatchNext.Item> items = queueOf(sourceId);
                 int index = OfflineReplayLogic.currentIndex(items,
                         OfflineReplayLogic.songOf(videoId, videoCopies()), -1);
-                byte[] command = index < 0 ? null : offlineCommand(sourceId, index);
+                byte[] command = index < 0 ? null : startCommand(sourceId, index);
                 if (command == null) {
                     Logger.printWarn(() -> "OfflineReplay: no stored song " + videoId + " in " + sourceId);
                     return;

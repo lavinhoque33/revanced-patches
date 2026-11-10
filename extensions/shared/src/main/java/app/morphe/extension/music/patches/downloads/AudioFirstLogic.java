@@ -9,6 +9,7 @@ package app.morphe.extension.music.patches.downloads;
 import androidx.annotation.Nullable;
 
 import java.util.List;
+import java.util.Map;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
@@ -154,6 +155,26 @@ final class AudioFirstLogic {
     static boolean songPreferredAfterTap(boolean current, boolean armed, boolean namesVideoCopy) {
         if (armed) return true;
         return namesVideoCopy && current;
+    }
+
+    /** How long after an Android Auto play request a phone command is left to the app: the car keeps its ids. */
+    static final long ANDROID_AUTO_WINDOW_MILLIS = 3_000;
+
+    /**
+     * The music video a tapped song starts as, or null: the id the command carries is the song of a committed video
+     * copy, which plays the same song as the video the app lists in the queue, from the file, in either display. A
+     * music video id, or a song without a video copy, starts as it is.
+     *
+     * @param videoToSong The committed video copies, music video id to song id.
+     */
+    @Nullable
+    static String startItemFor(@Nullable String commandVideoId, Map<String, String> videoToSong) {
+        return commandVideoId == null ? null : OfflineReplayLogic.videoOf(commandVideoId, videoToSong);
+    }
+
+    /** Whether a tap came while an Android Auto play request was being resolved: the car stays on the song ids. */
+    static boolean duringAndroidAutoStart(long now, long androidAutoAt) {
+        return androidAutoAt > 0 && now >= androidAutoAt && now - androidAutoAt <= ANDROID_AUTO_WINDOW_MILLIS;
     }
 
     /**

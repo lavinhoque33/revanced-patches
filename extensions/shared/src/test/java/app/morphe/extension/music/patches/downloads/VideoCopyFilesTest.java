@@ -95,6 +95,8 @@ public class VideoCopyFilesTest {
         byte[] other = new byte[100];
         other[50] = 1;
         Files.write(video.toPath(), other);
+        // A file system with a coarse clock may give both writes one modification time, which is not what is tested.
+        assertTrue(video.setLastModified(video.lastModified() + 2_000));
         assertNull(files.find("omvOne00000"));
     }
 

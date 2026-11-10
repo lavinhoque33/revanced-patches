@@ -50,6 +50,9 @@ public final class AudioFirst {
     private static final long PILL_NAVIGATION_MILLIS = 3_000;
     private static long armedEpoch;
 
+    /** When the last Android Auto play request came, elapsed realtime, or 0. */
+    private static volatile long androidAutoAt;
+
     /** The display the user or an audio-first start chose is the Song one, see {@link AudioFirstLogic#decide}. */
     private static boolean songPreferred;
 
@@ -224,6 +227,11 @@ public final class AudioFirst {
         return mode != null ? mode : AudioFirstLogic.ATV_PREFERRED;
     }
 
+    /** Injection point of the Android Auto play request: the car's commands are not retargeted at a video copy. */
+    public static void onAndroidAutoStart() {
+        androidAutoAt = SystemClock.elapsedRealtime();
+    }
+
     /** Injection point where the app cannot rebuild a command: arms the start, never changes the command. */
     public static void onCommand(@Nullable Object command) {
         handle(command, false);
@@ -286,6 +294,13 @@ public final class AudioFirst {
                 Logger.printDebug(() -> "AudioFirst: command kept v=" + tap.videoId + " (it has a video copy)");
                 return null;
             }
+            // The song of a video copy starts as its music video, which the copy answers: the app's own switch then
+            // flips Song and Video on the one stream. The car keeps the song ids.
+            String video = AudioFirstLogic.startItemFor(tap.videoId, VideoCopyStore.pairsIfLoaded());
+            if (video != null && !AudioFirstLogic.duringAndroidAutoStart(SystemClock.elapsedRealtime(),
+                    androidAutoAt)) {
+                return retargetAtVideoCopy(rebuildable, bytes, tap.videoId, video, AudioFirstLogic.hintsIn(mode));
+            }
             if (!AudioFirstLogic.namesTheRow(arm.rule(), arm.videoId(), tap.videoId, registry::isDownloaded)) {
                 return null;
             }
@@ -305,6 +320,22 @@ public final class AudioFirst {
             Logger.printException(() -> "AudioFirst: command failure", ex);
             return null;
         }
+    }
+
+    /** The command retargeted at the music video of the song, or null when it cannot be: it plays as it is then. */
+    @Nullable
+    private static Object retargetAtVideoCopy(NativeDownloads.Command command, byte[] bytes, String songId,
+                                              String videoId, boolean hint) {
+        CommandRewrite.Result result = CommandRewrite.retarget(bytes, songId, videoId, hint, CommandRewrite.TYPE_OMV);
+        if (result == null) {
+            Logger.printDebug(() -> "AudioFirst: command not retargeted v=" + songId + " -> " + videoId
+                    + " (unreadable)");
+            return null;
+        }
+        Object rewritten = command.rvxWithBytes(result.command());
+        Logger.printDebug(() -> "AudioFirst: start item v=" + songId + " -> " + videoId + " (video copy) type="
+                + result.type() + " hint=" + result.hint());
+        return rewritten;
     }
 
     /** What the tap carried, which decides how it ties to a copy; at most once every 300 ms. */

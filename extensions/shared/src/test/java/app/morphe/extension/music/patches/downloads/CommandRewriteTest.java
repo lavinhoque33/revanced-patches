@@ -2,6 +2,7 @@
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
  * Written by lavinhoque33, 2026-11-07.
+ * Modified by lavinhoque33, 2026-11-09.
  */
 package app.morphe.extension.music.patches.downloads;
 
@@ -360,5 +361,42 @@ public class CommandRewriteTest {
     @Test public void aMalformedRendererOrAnIdThatIsNotOneIsRefused() {
         assertNull(CommandRewrite.retargetRenderer(new byte[]{0x3A, 0x7F, 1}, OMV, ATV, true));
         assertNull(CommandRewrite.retargetRenderer(renderer(OMV, omvRow()), OMV, "short", true));
+    }
+
+    private static byte[] atvRow() {
+        return command(watch(ATV, supportedConfig(CommandRewrite.TYPE_ATV)));
+    }
+
+    @Test public void aSongRowStartsAsItsMusicVideoWithTheAudioHint() throws Exception {
+        // The device's Downloads-view album row (S57): the song id, the album, the song type, no hint yet.
+        byte[] row = command(watch(ATV, supportedOf(albumMusic(CommandRewrite.TYPE_ATV))));
+        CommandRewrite.Result result = CommandRewrite.retarget(row, ATV, OMV, true, CommandRewrite.TYPE_OMV);
+
+        assertNotNull(result);
+        assertEquals("1->2", result.type());
+        assertEquals("added", result.hint());
+        TapCommand tap = TapCommand.parse(result.command());
+        assertEquals(OMV, tap.videoId);
+        assertEquals(ALBUM, tap.playlistId);
+        assertEquals(CommandRewrite.TYPE_OMV, type(result.command()));
+    }
+
+    @Test public void theSongToVideoRetargetIsTheReverseOfTheVideoToSongOne() {
+        byte[] omv = omvRow();
+        byte[] back = CommandRewrite.retarget(
+                CommandRewrite.retarget(omv, OMV, ATV, false).command(), ATV, OMV, false,
+                CommandRewrite.TYPE_OMV).command();
+
+        assertArrayEquals(omv, back);
+    }
+
+    @Test public void aRowThatIsAlreadyTheVideoKeepsItsTypeAndAnotherIdIsNotRetargeted() throws Exception {
+        CommandRewrite.Result same = CommandRewrite.retarget(omvRow(), OMV, "abcdefghijk", false,
+                CommandRewrite.TYPE_OMV);
+
+        assertNotNull(same);
+        assertEquals("untouched", same.type());
+        assertEquals(CommandRewrite.TYPE_OMV, type(same.command()));
+        assertNull(CommandRewrite.retarget(atvRow(), "abcdefghijk", OMV, false, CommandRewrite.TYPE_OMV));
     }
 }

@@ -57,6 +57,7 @@ import java.util.function.Consumer;
 
 import app.morphe.extension.music.patches.androidauto.AndroidAutoSearchResponseParser.ResultCategory;
 import app.morphe.extension.music.patches.androidauto.AndroidAutoSearchResponseParser.SearchResult;
+import app.morphe.extension.music.patches.downloads.AudioFirst;
 import app.morphe.extension.music.patches.downloads.OfflineStreamBrowse;
 import app.morphe.extension.shared.utils.Logger;
 import app.morphe.extension.shared.utils.ResourceUtils;
@@ -701,6 +702,7 @@ public final class AndroidAutoPatch {
 
     /** Injection point before stock's media-session callback decodes the requested command. No disk or network IO. */
     public static String onPlayFromMediaId(String mediaId) {
+        AudioFirst.onAndroidAutoStart();
         if (mediaId == null || !mediaId.startsWith(AndroidAutoDownloadsData.PREFIX)) return mediaId;
         var streamPlay = AndroidAutoStreamIds.parsePlay(mediaId);
         if (streamPlay != null) return onPlayStreamCopy(mediaId, streamPlay);

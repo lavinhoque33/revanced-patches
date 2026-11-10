@@ -431,4 +431,22 @@ public class AudioFirstLogicTest {
         assertFalse(AudioFirstLogic.keepsVideoItem("atv", "omv"::equals));
         assertFalse(AudioFirstLogic.keepsVideoItem(null, id -> true));
     }
+
+    @Test public void theSongOfAVideoCopyStartsAsItsMusicVideo() {
+        // The ids of the device album: song lYBUbBu4W08, music video dQw4w9WgXcQ; the others have no video copy.
+        java.util.Map<String, String> videos = java.util.Map.of("dQw4w9WgXcQ", "lYBUbBu4W08");
+
+        assertEquals("dQw4w9WgXcQ", AudioFirstLogic.startItemFor("lYBUbBu4W08", videos));
+        assertNull(AudioFirstLogic.startItemFor("dQw4w9WgXcQ", videos));
+        assertNull(AudioFirstLogic.startItemFor("h9ba3KgHguc", videos));
+        assertNull(AudioFirstLogic.startItemFor("lYBUbBu4W08", java.util.Map.of()));
+        assertNull(AudioFirstLogic.startItemFor(null, videos));
+    }
+
+    @Test public void aTapRightAfterAnAndroidAutoRequestIsLeftToTheCar() {
+        assertTrue(AudioFirstLogic.duringAndroidAutoStart(11_000, 10_000));
+        assertTrue(AudioFirstLogic.duringAndroidAutoStart(13_000, 10_000));
+        assertFalse(AudioFirstLogic.duringAndroidAutoStart(13_001, 10_000));
+        assertFalse(AudioFirstLogic.duringAndroidAutoStart(11_000, 0));
+    }
 }

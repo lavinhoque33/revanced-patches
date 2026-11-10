@@ -2,7 +2,7 @@
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
  * Written by lavinhoque33, 2026-11-07.
- * Modified by lavinhoque33, 2026-11-09.
+ * Modified by lavinhoque33, 2026-11-10
  */
 package app.morphe.extension.music.patches.downloads;
 
@@ -17,7 +17,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.WeakHashMap;
 
-import app.morphe.extension.music.settings.Settings;
 import app.morphe.extension.shared.innertube.PlayerResponseOuterClass.Format;
 import app.morphe.extension.shared.innertube.PlayerResponseOuterClass.PlayerResponse;
 import app.morphe.extension.shared.utils.Logger;
@@ -68,10 +67,6 @@ public final class StreamSwap {
         return false;
     }
 
-    static boolean enabled() {
-        return supported() && Settings.PLAY_DOWNLOADS_LOCALLY.get();
-    }
-
     public static Object swap(Object original) {
         return swap(original, false);
     }
@@ -90,11 +85,11 @@ public final class StreamSwap {
         Replacement cached = replacements.get(original);
         if (cached != null) {
             // A response cache may outlive the setting or downloaded file. This path never accesses storage.
-            if (!enabled() || !cached.available()) return cached.online();
+            if (!cached.available()) return cached.online();
             if (onMainThread()) return original;
             original = cached.online();
         }
-        String gate = StreamSwapLogic.gate(Settings.PLAY_DOWNLOADS_LOCALLY.get(), onMainThread());
+        String gate = StreamSwapLogic.gate(onMainThread());
         if (gate != null) return unchanged(original, "?", gate, stored);
         if (!(original instanceof Response adapter)) return original;
 

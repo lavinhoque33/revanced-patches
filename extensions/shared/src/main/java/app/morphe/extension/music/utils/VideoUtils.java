@@ -28,7 +28,7 @@ public class VideoUtils extends IntentUtils {
 
     public static void launchExternalDownloader(@NonNull String videoId) {
         try {
-            if (LocalDownloadManager.interceptsDownloads()) {
+            if (LocalDownloadManager.interceptsSongs()) {
                 LocalDownloadManager.enqueue(videoId);
                 return;
             }

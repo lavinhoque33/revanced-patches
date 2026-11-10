@@ -2,7 +2,7 @@
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
  * Written by lavinhoque33, 2026-11-07.
- * Modified by lavinhoque33, 2026-11-09.
+ * Modified by lavinhoque33, 2026-11-10
  */
 package app.morphe.extension.music.patches.downloads;
 
@@ -28,7 +28,7 @@ public final class StreamSwapDataSource {
     public static Uri route(Uri uri, long position, long length) throws IOException {
         StreamSwapSources.Source source = StreamSwapSources.find(uri);
         if (source == null) return null;
-        if (!StreamSwap.enabled() || StreamSwap.onMainThread() || !source.available) return fallback(source);
+        if (!StreamSwap.supported() || StreamSwap.onMainThread() || !source.available) return fallback(source);
         try {
             File file = source.served.file();
             long size = source.served.length();

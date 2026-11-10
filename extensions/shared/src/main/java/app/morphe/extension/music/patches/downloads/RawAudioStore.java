@@ -2,7 +2,7 @@
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
  * Written by lavinhoque33, 2026-11-07.
- * Modified by lavinhoque33, 2026-11-09.
+ * Modified by lavinhoque33, 2026-11-10
  */
 package app.morphe.extension.music.patches.downloads;
 
@@ -80,29 +80,21 @@ final class RawAudioStore {
     }
 
     /**
-     * Keeps the stream copy of a finished download. {@code nativeTrack} is the track written together with the
-     * copy, or null for a stream-only copy. Works only while Play downloads locally is on.
+     * Keeps the stream copy of a finished download: stream-only, with no native track.
      *
-     * @return Whether the copy now exists. False is never fatal for a download that also wrote a local file.
+     * @return Whether the copy now exists.
      */
-    static boolean retain(String videoId, File temporary, Format format, @Nullable Uri nativeTrack) {
+    static boolean retain(String videoId, File temporary, Format format) {
         try {
             Utils.verifyOffMainThread();
-            if (!StreamSwap.enabled()) return false;
+            if (!StreamSwap.supported()) return false;
             boolean kept = Storage.files.retain(videoId, temporary, format.getItag(), format.getMimeType(),
-                    format.getContentLength(), format.getLastModified(),
-                    nativeTrack == null ? null : nativeTrack.toString());
+                    format.getContentLength(), format.getLastModified(), null);
             if (!kept) return false;
 
-            // Switching off during a download must not leave a newly published extra copy.
-            if (!StreamSwap.enabled()) {
-                delete(videoId);
-                return false;
-            }
             DownloadedMarkers.onStreamCopyKept(videoId);
             return true;
         } catch (Exception ex) {
-            // A failed optional copy never turns a completed normal download into a failure.
             Logger.printException(() -> "StreamSwap: could not retain raw copy v=" + videoId, ex);
             return false;
         }

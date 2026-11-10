@@ -140,13 +140,6 @@ Pasos:
     <string name="morphe_music_downloads_starting">Iniciando descarga…</string>
     <string name="morphe_music_downloads_storage_permission">Permite el acceso al almacenamiento y luego pulsa de nuevo Descargar</string>
     <string name="morphe_music_downloads_unknown_track">No se pudo identificar la pista que descargar</string>
-    <string name="morphe_music_in_app_downloads_summary">Descarga el audio dentro de YouTube Music en lugar de abrir la aplicación de descarga externa</string>
-    <string name="morphe_music_in_app_downloads_title">Descargar en la aplicación</string>
-    <string name="morphe_music_in_app_downloads_user_dialog_message">"Las canciones y las listas de reproducción se guardan en Música/RVX y se reproducen mediante el reproductor nativo de archivos locales de YouTube Music. Permite el acceso al audio cuando Música te lo solicite
-
-La opción Descargas (en la Biblioteca o en el menú de la cuenta) abre la biblioteca nativa de archivos del dispositivo. Allí puedes elegir entre Canciones, Listas de reproducción, Álbumes o Artistas. Las pistas conservan su título, artista, álbum y portada. Las canciones descargadas que no están en ninguna lista de reproducción aparecen en la lista de reproducción fuera de cualquier lista de reproducción. Las descargas existentes en la aplicación se migran sin necesidad de volver a descargarlas
-
-Los archivos de audio permanecen tras desinstalar Música; la organización de las listas de reproducción forma parte de los datos de la aplicación. Al desactivar esta opción, se restaura la navegación predeterminada de Descargas. Las descargas Premium nunca se modifican"</string>
     <string name="morphe_music_lyrics_about_summary">"Las letras se emparejan por título e intérprete; metadatos inusuales pueden no encontrar nada o la versión incorrecta. Usa actualizar para cambiar de versiones. Los proveedores marcados con * requieren un token. No siempre se solicitan todos los proveedores habilitados en tu orden, pero responden según su velocidad
 
 Las letras provienen de servicios de terceros que no están afiliados, patrocinados ni respaldados por RVX. Cada uno se utiliza tal cual: las letras, su disponibilidad y su licenciamiento permanecen en esos servicios y sus licenciantes, y su uso puede estar sujeto a sus términos de servicio. Lo que llega a un servicio habilitado es solo la búsqueda que solicitaste: el título, el artista y, donde ese servicio lo necesite, el ID de video. El punto final opcional de IA y la transcripción QuickLRC solo se ejecutan después de configurarlos, y reciben el texto de las letras o la URL de video de la pista"</string>

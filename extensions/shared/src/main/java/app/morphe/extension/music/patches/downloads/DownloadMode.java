@@ -2,87 +2,83 @@
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
  * Written by lavinhoque33, 2026-11-07.
+ * Modified by lavinhoque33, 2026-11-10.
  */
 package app.morphe.extension.music.patches.downloads;
 
 import java.util.function.BooleanSupplier;
 
 /**
- * What a download does, from the two independent settings: local files (Download in app) and the private
- * stream copy (Play downloads locally). The mode is decided once when a download is requested; contains no
- * Android code.
+ * What a download request does, from the method chosen for its kind (a song or a playlist). The mode is decided once
+ * when a download is requested and is never a mix: a download writes a local file or keeps a stream copy, not both.
+ * Contains no Android code.
  */
 enum DownloadMode {
-    /** Neither setting: stock behaviour, nothing is intercepted. */
+    /** Not ours: the external app, or the stock behaviour, handles the request. */
     OFF,
-    /** Files in Music/RVX only; no stream copy. */
+    /** A file in Music/RVX, a MediaStore row and a playlist in Device files; no stream copy. */
     LOCAL_FILES,
     /** The private stream copy only: no file, no MediaStore row, no playlist rows. */
-    STREAM_COPY,
-    /** Both, from one network download per track. */
-    BOTH;
+    STREAM_COPY;
 
     /** What is left to do for one track. */
     enum Work {
         SKIP,
-        /** Write the local file; keep no stream copy. */
+        /** Write the local file. */
         LOCAL_FILE,
-        /** Keep the stream copy only. */
-        STREAM_COPY,
-        /** Write the local file and keep a stream copy tied to it. */
-        LOCAL_FILE_AND_STREAM_COPY,
-        /** The local file already exists: keep a stream copy tied to it, and do not write the file again. */
-        STREAM_COPY_FOR_EXISTING_FILE;
+        /** Keep the stream copy. */
+        STREAM_COPY;
 
         boolean writesLocalFile() {
-            return this == LOCAL_FILE || this == LOCAL_FILE_AND_STREAM_COPY;
+            return this == LOCAL_FILE;
         }
 
         boolean keepsStreamCopy() {
-            return this == STREAM_COPY || this == LOCAL_FILE_AND_STREAM_COPY
-                    || this == STREAM_COPY_FOR_EXISTING_FILE;
+            return this == STREAM_COPY;
         }
     }
 
-    static DownloadMode of(boolean localFiles, boolean streamCopy) {
-        if (localFiles) return streamCopy ? BOTH : LOCAL_FILES;
-        return streamCopy ? STREAM_COPY : OFF;
+    /**
+     * The mode of a song download. A stream copy needs the playback hooks of the stream swap: where they did not
+     * resolve ({@code streamSupported} false) the method behaves as if the app did the download itself.
+     */
+    static DownloadMode ofSong(SongDownloadMethod method, boolean streamSupported) {
+        return switch (method) {
+            case STREAM -> streamSupported ? STREAM_COPY : OFF;
+            case DEVICE_FILE -> LOCAL_FILES;
+            case EXTERNAL_APP -> OFF;
+        };
+    }
+
+    /** The mode of a playlist or album download, with the same rule for the stream copy as {@link #ofSong}. */
+    static DownloadMode ofPlaylist(PlaylistDownloadMethod method, boolean streamSupported) {
+        return switch (method) {
+            case STREAM -> streamSupported ? STREAM_COPY : OFF;
+            case DEVICE_FILES -> LOCAL_FILES;
+            case MUSIC_OWN -> OFF;
+        };
     }
 
     /** True when the mode writes local files (Music/RVX, MediaStore, playlists in Device files). */
     boolean localFiles() {
-        return this == LOCAL_FILES || this == BOTH;
+        return this == LOCAL_FILES;
     }
 
     /** True when the mode keeps a private stream copy. */
     boolean streamCopy() {
-        return this == STREAM_COPY || this == BOTH;
+        return this == STREAM_COPY;
     }
 
     /**
      * What a track still needs. The lookups are only asked for what the mode cares about, because both can be
-     * slow (a MediaStore query, hashing a stream copy).
-     *
-     * <ul>
-     * <li>Local files only: skipped when the native track exists.
-     * <li>Stream copy only: skipped when a valid stream copy exists.
-     * <li>Both: skipped when both exist; a missing stream copy of an existing file is made without writing the
-     * file again; a missing file is written, and a valid stream copy that already exists is left alone.
-     * </ul>
+     * slow (a MediaStore query, hashing a stream copy): a file download is skipped when the native track exists, a
+     * stream download when a valid stream copy exists.
      */
     Work plan(BooleanSupplier nativeTrackExists, BooleanSupplier streamCopyExists) {
-        switch (this) {
-            case LOCAL_FILES:
-                return nativeTrackExists.getAsBoolean() ? Work.SKIP : Work.LOCAL_FILE;
-            case STREAM_COPY:
-                return streamCopyExists.getAsBoolean() ? Work.SKIP : Work.STREAM_COPY;
-            case BOTH:
-                if (nativeTrackExists.getAsBoolean()) {
-                    return streamCopyExists.getAsBoolean() ? Work.SKIP : Work.STREAM_COPY_FOR_EXISTING_FILE;
-                }
-                return streamCopyExists.getAsBoolean() ? Work.LOCAL_FILE : Work.LOCAL_FILE_AND_STREAM_COPY;
-            default:
-                return Work.SKIP;
-        }
+        return switch (this) {
+            case LOCAL_FILES -> nativeTrackExists.getAsBoolean() ? Work.SKIP : Work.LOCAL_FILE;
+            case STREAM_COPY -> streamCopyExists.getAsBoolean() ? Work.SKIP : Work.STREAM_COPY;
+            case OFF -> Work.SKIP;
+        };
     }
 }

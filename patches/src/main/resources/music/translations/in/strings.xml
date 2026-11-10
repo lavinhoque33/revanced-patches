@@ -140,13 +140,6 @@ Langkah-langkah:
     <string name="morphe_music_downloads_starting">Memulai pengunduhan…</string>
     <string name="morphe_music_downloads_storage_permission">Izinkan akses penyimpanan, lalu ketuk Download lagi</string>
     <string name="morphe_music_downloads_unknown_track">Tidak dapat mengidentifikasi lagu untuk diunduh</string>
-    <string name="morphe_music_in_app_downloads_summary">Mengunduh audio di dalam YouTube Music daripada membuka aplikasi pengunduh eksternal</string>
-    <string name="morphe_music_in_app_downloads_title">Unduh dalam aplikasi</string>
-    <string name="morphe_music_in_app_downloads_user_dialog_message">"Lagu dan daftar putar disimpan ke dalam folder Music/RVX dan diputar menggunakan pemutar file lokal bawaan YouTube Music. Berikan izin akses audio saat aplikasi Music memintanya
-
-Download (di bagian Koleksi atau menu akun) akan membuka pustaka file lokal perangkat Anda. Di sana, Anda dapat memilih Lagu, Daftar Putar, Album, atau Artis. Informasi mengenai judul lagu, artis, album, dan sampul akan tetap terjaga. Lagu yang diunduh namun tidak dimasukkan ke dalam daftar putar mana pun akan tercantum dalam daftar putar berjudul “Tidak dalam daftar putar”. Unduhan yang sudah ada di dalam aplikasi akan dipindahkan secara otomatis tanpa perlu diunduh ulang
-
-File audio akan tetap tersimpan meskipun aplikasi Music dihapus; pengaturan daftar putar merupakan bagian dari data aplikasi. Jika setelan ini dinonaktifkan, navigasi Unduhan akan kembali seperti semula (bawaan aplikasi). Unduhan dari layanan Premium tidak akan mengalami perubahan apa pun"</string>
     <string name="morphe_music_lyrics_about_summary">"Lirik dicocokkan berdasarkan judul dan artis, metadata yang tidak biasa mungkin tidak menemukan apa-apa atau versi yang salah. Gunakan refresh untuk beralih versi. Penyedia yang ditandai * memerlukan token. Tidak semua penyedia yang diaktifkan selalu diminta sesuai urutan Anda, tetapi merespons berdasarkan kecepatan mereka
 
 Lirik berasal dari layanan pihak ketiga yang tidak berafiliasi, disponsori, atau didukung oleh RVX. Masing-masing digunakan apa adanya: lirik, ketersediaan, dan lisensinya tetap berada di layanan tersebut dan pemberi lisensi, serta menggunakannya dapat tunduk pada syarat layanan mereka. Yang dikirim ke layanan yang diaktifkan hanyalah lookup yang Anda minta - yaitu judul, artis, dan, dimana layanan itu memerlukannya, ID video. Titik akhir AI opsional dan transkripsi QuickLRC hanya berjalan setelah Anda mengkonfigurasinya, dan menerima teks lirik atau URL video trek"</string>

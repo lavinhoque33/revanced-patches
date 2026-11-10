@@ -5,7 +5,7 @@
  * See the included NOTICE file for GPLv3 Section 7 terms that apply to this code.
  *
  * Modified by lavinhoque33, 2026-11-07.
- * Modified by lavinhoque33, 2026-11-09.
+ * Modified by lavinhoque33, 2026-11-10
  */
 
 package app.morphe.extension.music.patches.downloads;
@@ -101,17 +101,36 @@ public final class LocalDownloadManager {
     private LocalDownloadManager() {
     }
 
-    /**
-     * What a download does now: files for Download in app, a private stream copy for Play downloads locally, both
-     * when both are on. The stream copy counts only where the swap is supported.
-     */
-    static DownloadMode currentMode() {
-        return DownloadMode.of(Settings.IN_APP_DOWNLOADS.get(), StreamSwap.enabled());
+    /** What a song download does now: the song method, with a stream copy only where the swap is supported. */
+    static DownloadMode songMode() {
+        return DownloadMode.ofSong(Settings.SONG_DOWNLOAD_METHOD.get(), StreamSwap.supported());
     }
 
-    /** True when either kind of download is on, i.e. the download command is ours and not the stock one. */
-    public static boolean interceptsDownloads() {
-        return currentMode() != DownloadMode.OFF;
+    /** What a playlist or album download does now, from the playlist method. */
+    static DownloadMode playlistMode() {
+        return DownloadMode.ofPlaylist(Settings.PLAYLIST_DOWNLOAD_METHOD.get(), StreamSwap.supported());
+    }
+
+    /** True when the song method makes the Download of a song ours and not the external app or stock command. */
+    public static boolean interceptsSongs() {
+        return songMode() != DownloadMode.OFF;
+    }
+
+    /** True when the playlist method makes the header Download ours and not the stock command. */
+    public static boolean interceptsPlaylists() {
+        return playlistMode() != DownloadMode.OFF;
+    }
+
+    /** Who handles the Download of the player button; it has its own external downloader switch. */
+    public static SongDownloadRoute playerButtonRoute() {
+        return SongDownloadRoute.of(Settings.SONG_DOWNLOAD_METHOD.get(), StreamSwap.supported(),
+                Settings.EXTERNAL_DOWNLOADER_ACTION_BUTTON.get());
+    }
+
+    /** Who handles the Download of a song menu; it has its own external downloader switch. */
+    public static SongDownloadRoute menuRoute() {
+        return SongDownloadRoute.of(Settings.SONG_DOWNLOAD_METHOD.get(), StreamSwap.supported(),
+                Settings.EXTERNAL_DOWNLOADER_FLYOUT_MENU.get());
     }
 
     /** One finished track: its native track when a local file exists, and whether the network was used. */
@@ -120,7 +139,7 @@ public final class LocalDownloadManager {
 
     /** Must be called from the main thread. Resolution and downloading happen in background. */
     public static void enqueue(String videoId) {
-        DownloadMode mode = currentMode();
+        DownloadMode mode = songMode();
         if (mode == DownloadMode.OFF) return;
         if (!VIDEO_ID.matcher(videoId).matches()) {
             Utils.showToastShort(str("morphe_music_downloads_unknown_track"));
@@ -166,10 +185,7 @@ public final class LocalDownloadManager {
         }
     }
 
-    /**
-     * Brings one track to what the mode asks for: one network download feeds the local file, the stream copy or
-     * both. Returns at once when there is nothing left to do.
-     */
+    /** Brings one track to what the mode asks for: its local file or its stream copy. Returns at once when done. */
     static Saved download(String videoId, DownloadMode mode) throws Exception {
         Utils.verifyOffMainThread();
         if (!VIDEO_ID.matcher(videoId).matches()) throw new IOException("Invalid video id");
@@ -213,7 +229,7 @@ public final class LocalDownloadManager {
     }
 
     // the stream is downloaded to a private temporary file; then it is published with embedded tags as a local
-    // file, since Music's device-files library reads metadata only from the file, and/or moved to the stream copy.
+    // file, since Music's device-files library reads metadata only from the file, or moved to the stream copy.
     private static Saved downloadBlocking(String videoId, DownloadMode mode, String title, String artist)
             throws Exception {
         NativeAudioStore.Destination destination = null;
@@ -258,15 +274,11 @@ public final class LocalDownloadManager {
                 }
                 uri = NativeAudioStore.finish(videoId, destination);
                 destination = null;
-            } else if (mode.localFiles()) {
-                uri = NativeAudioStore.find(videoId);
-            }
-
-            if (work.keepsStreamCopy()) {
-                boolean kept = RawAudioStore.retain(videoId, temporary, format, uri);
-                if (kept) OfflineCopyStore.storeDownloaded(videoId, format, resolved.details(), tags);
-                // The stream copy is the whole point of a stream-only download; beside a local file it is optional.
-                if (!kept && !mode.localFiles()) throw new IOException("Could not keep the stream copy");
+            } else if (work.keepsStreamCopy()) {
+                if (!RawAudioStore.retain(videoId, temporary, format)) {
+                    throw new IOException("Could not keep the stream copy");
+                }
+                OfflineCopyStore.storeDownloaded(videoId, format, resolved.details(), tags);
             }
             awaitNotificationSlot();
             showDownloadNotification(videoId, title, 100, false, str(mode.localFiles()

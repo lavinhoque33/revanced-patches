@@ -2,7 +2,7 @@
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
  * Written by lavinhoque33, 2026-11-07.
- * Modified by lavinhoque33, 2026-11-09.
+ * Modified by lavinhoque33, 2026-11-10
  */
 package app.morphe.extension.music.patches.downloads;
 
@@ -576,7 +576,7 @@ public final class QueueItems {
 
     /** Whether new items are tracked and shown as songs: the setting is on and the stream copies are in effect. */
     private static boolean tracksItems() {
-        return AudioFirstLogic.tracksItems(Settings.START_DOWNLOADED_IN_AUDIO.get(), StreamSwap.enabled());
+        return AudioFirstLogic.tracksItems(Settings.START_DOWNLOADED_IN_AUDIO.get(), StreamSwap.supported());
     }
 
     @Nullable

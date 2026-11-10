@@ -77,6 +77,7 @@ import java.util.regex.Pattern;
 
 import app.morphe.extension.music.patches.actionbar.ActionBarPatch;
 import app.morphe.extension.music.patches.downloads.LocalDownloadManager;
+import app.morphe.extension.music.patches.downloads.SongDownloadRoute;
 import app.morphe.extension.music.settings.Settings;
 import app.morphe.extension.music.shared.VideoInformation;
 import app.morphe.extension.music.shared.VideoType;
@@ -147,7 +148,7 @@ public class FlyoutPatch {
     }
 
     private static boolean isFlyoutMenuOverridden() {
-        return LocalDownloadManager.interceptsDownloads() || Settings.EXTERNAL_DOWNLOADER_FLYOUT_MENU.get();
+        return LocalDownloadManager.menuRoute() != SongDownloadRoute.STOCK;
     }
 
     /**

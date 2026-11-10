@@ -2,7 +2,7 @@
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
  * Written by lavinhoque33, 2026-11-07.
- * Modified by lavinhoque33, 2026-11-09.
+ * Modified by lavinhoque33, 2026-11-10
  */
 package app.morphe.extension.music.patches.downloads;
 
@@ -144,7 +144,7 @@ final class OfflineCopyStore {
      * them in their recorded track order; {@link #fillHeader} gives them their title once there is a network.
      */
     private static void adoptEarlierSources() {
-        if (!StreamSwap.enabled()) return;
+        if (!StreamSwap.supported()) return;
 
         try {
             Map<String, List<String>> adoptable = OfflineSourceStore.adoptable(DownloadedMarkers.savedTrackLists(),
@@ -307,7 +307,7 @@ final class OfflineCopyStore {
      * Play downloads locally is off, so a file-only download writes no stream data.
      */
     static void rememberSource(String sourceId, @Nullable SourceHeader header, List<String> videoIds) {
-        if (!StreamSwap.enabled()) return;
+        if (!StreamSwap.supported()) return;
         try {
             Utils.verifyOffMainThread();
             Storage.sources.remember(sourceId, header, videoIds, System.currentTimeMillis());

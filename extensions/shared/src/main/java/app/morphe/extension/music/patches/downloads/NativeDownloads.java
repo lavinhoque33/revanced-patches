@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
- * Modified by lavinhoque33, 2026-11-07.
+ * Modified by lavinhoque33, 2026-11-10.
  */
 package app.morphe.extension.music.patches.downloads;
 
@@ -79,14 +79,21 @@ public final class NativeDownloads {
         return rewriteDownloadCommand(original, context);
     }
 
+    private static boolean deviceLibrary() {
+        return DownloadMethods.deviceLibrary(Settings.SONG_DOWNLOAD_METHOD.get(), Settings.PLAYLIST_DOWNLOAD_METHOD.get());
+    }
+
     private static Object rewriteDownloadCommand(Object original, java.util.Map<?, ?> context) {
-        // Either kind of download takes over the download command; neither leaves the stock command alone.
-        if (!LocalDownloadManager.interceptsDownloads() || !(original instanceof Command command)) return original;
+        // The playlist method takes over the header Download; with Music's own download the command stays stock,
+        // but navigation to the device files library may still be ours.
+        if (!(original instanceof Command command)) return original;
+        boolean playlists = LocalDownloadManager.interceptsPlaylists();
+        if (!playlists && !deviceLibrary()) return original;
         try {
             // signed-in non-Premium accounts receive an upsell batch without a playlist id.
-            String headerPlaylist = playlistFromHeaderUpsell(command.toByteArray(), context);
+            String headerPlaylist = playlists ? playlistFromHeaderUpsell(command.toByteArray(), context) : null;
             if (headerPlaylist != null) {
-                PlaylistDownloads.enqueue(headerPlaylist);
+                PlaylistDownloads.onDownloadButton(headerPlaylist);
                 return null;
             }
         } catch (Exception ex) {
@@ -104,16 +111,16 @@ public final class NativeDownloads {
                     byte[] endpoint = input.readByteArray();
                     String playlistId = number == OFFLINE_PLAYLIST_ENDPOINT
                             ? playlistFromDownload(endpoint) : playlistFromUpsell(endpoint);
-                    if (playlistId != null && !playlistId.isEmpty()) {
+                    if (playlists && playlistId != null && !playlistId.isEmpty()) {
                         if (playlistId.startsWith("VL")) playlistId = playlistId.substring(2);
-                        PlaylistDownloads.enqueue(playlistId);
+                        PlaylistDownloads.onDownloadButton(playlistId);
                         return null; // The patch consumes only this concrete playlist-download intent.
                     }
                     continue;
                 }
-                // Navigation to Downloads is the device-files library: only local files own it, a stream copy
-                // is private and leaves the stock navigation alone.
-                if (Settings.IN_APP_DOWNLOADS.get() && WireFormat.getTagFieldNumber(tag) == BROWSE_ENDPOINT
+                // Navigation to Downloads is the device-files library only while that is what the methods save to;
+                // a stream copy is private and leaves the stock navigation (and our Downloads chip) alone.
+                if (deviceLibrary() && WireFormat.getTagFieldNumber(tag) == BROWSE_ENDPOINT
                         && WireFormat.getTagWireType(tag) == WireFormat.WIRETYPE_LENGTH_DELIMITED) {
                     byte[] endpoint = input.readByteArray();
                     byte[] rewritten = rewriteBrowse(endpoint);

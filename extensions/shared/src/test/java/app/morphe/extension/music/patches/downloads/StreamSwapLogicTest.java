@@ -2,7 +2,7 @@
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
  * Written by lavinhoque33, 2026-11-07.
- * Modified by lavinhoque33, 2026-11-09.
+ * Modified by lavinhoque33, 2026-11-10
  */
 package app.morphe.extension.music.patches.downloads;
 
@@ -39,12 +39,9 @@ public class StreamSwapLogicTest {
                 .setStreamingData(StreamingData.newBuilder().addAdaptiveFormats(audio()));
     }
 
-    @Test public void onlyPlayDownloadsLocallyAndAWorkerAreRequired() {
-        // Download in app is not part of the gate: a stream-only download is played without it.
-        assertNull(StreamSwapLogic.gate(true, false));
-        assertNotNull(StreamSwapLogic.gate(true, true));
-        assertNotNull(StreamSwapLogic.gate(false, false));
-        assertNotNull(StreamSwapLogic.gate(false, true));
+    @Test public void onlyAWorkerThreadIsRequired() {
+        assertNull(StreamSwapLogic.gate(false));
+        assertNotNull(StreamSwapLogic.gate(true));
     }
 
     @Test public void exactOriginalStreamCanSwap() {

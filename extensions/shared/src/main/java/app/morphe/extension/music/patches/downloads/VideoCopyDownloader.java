@@ -2,7 +2,7 @@
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
  * Written by lavinhoque33, 2026-11-09.
- * Modified by lavinhoque33, 2026-11-09.
+ * Modified by lavinhoque33, 2026-11-10
  */
 package app.morphe.extension.music.patches.downloads;
 
@@ -67,7 +67,7 @@ final class VideoCopyDownloader {
     static Outcome ensure(String sourceId, String title, List<String> songIds) {
         try {
             Utils.verifyOffMainThread();
-            if (!StreamSwap.enabled() || songIds.isEmpty()) return Outcome.NONE;
+            if (!StreamSwap.supported() || songIds.isEmpty()) return Outcome.NONE;
 
             VideoPairingLogic.Result pairing = VideoPairingLogic.pair(songsOf(songIds),
                     queueOf(sourceId, songIds.get(0), songIds.size()));

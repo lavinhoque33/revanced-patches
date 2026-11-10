@@ -2,6 +2,7 @@
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
  * Written by lavinhoque33, 2026-11-07.
+ * Modified by lavinhoque33, 2026-11-10
  */
 package app.morphe.extension.music.patches.downloads;
 
@@ -74,7 +75,7 @@ public final class DownloadedMarkers {
     private DownloadedMarkers() {}
 
     static boolean enabled() {
-        return StreamSwap.enabled() && Settings.DOWNLOADED_CHECKMARKS.get();
+        return StreamSwap.supported() && Settings.DOWNLOADED_CHECKMARKS.get();
     }
 
     /** Starts the background load of the stream copy ids, if it has not started. */

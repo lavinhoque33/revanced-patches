@@ -2,7 +2,7 @@
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
  * Written by lavinhoque33, 2026-11-07.
- * Modified by lavinhoque33, 2026-11-09.
+ * Modified by lavinhoque33, 2026-11-10
  */
 package app.morphe.extension.music.patches.downloads;
 
@@ -251,7 +251,7 @@ public final class AudioFirst {
     private static Object handle(@Nullable Object command, boolean mayRewrite) {
         try {
             if (!supported() || !(command instanceof MessageLite message)) return null;
-            if (!Settings.START_DOWNLOADED_IN_AUDIO.get() || !StreamSwap.enabled()) return null;
+            if (!Settings.START_DOWNLOADED_IN_AUDIO.get() || !StreamSwap.supported()) return null;
             if (tapsLeftAlone()) return null;
 
             DownloadedMarkers.warmUp();

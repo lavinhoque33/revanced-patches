@@ -2,7 +2,7 @@
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
  * Modified by lavinhoque33, 2026-11-07.
- * Modified by lavinhoque33, 2026-11-09.
+ * Modified by lavinhoque33, 2026-11-10
  */
 package app.morphe.extension.music.patches.downloads;
 
@@ -29,9 +29,14 @@ public final class PlaylistDownloads {
 
     private PlaylistDownloads() {}
 
+    /** The header Download of a playlist or album. */
+    static void onDownloadButton(String playlistId) {
+        enqueue(playlistId);
+    }
+
     public static void enqueue(String playlistId) {
         // Decided once for the whole playlist, so a setting changed mid-way cannot split it between modes.
-        DownloadMode mode = LocalDownloadManager.currentMode();
+        DownloadMode mode = LocalDownloadManager.playlistMode();
         if (mode == DownloadMode.OFF) return;
         if (mode.localFiles() && !NativeDownloads.ensureStoragePermission()) return;
         if (!active.add(playlistId)) {

@@ -1700,8 +1700,8 @@ private val rvxPreferenceKey = mapOf(
         "-16.92 v -224.39 H 800 v 224.39 q 0 23.05 -16.16 39.22 Q 767.67 800 744.62 800 H 215.38 Z m 171.24 " +
         "-204.38 -22 -22.24 382.61 -382.61 H 541.31 V 160 H 800 v 258.69 h -30.77 V 213 L 386.62 595.62 Z",
     "morphe_dark_theme_custom_color" to "revanced_custom_navigation_bar_color_value",
-    "morphe_music_in_app_downloads" to "morphe_music_jam_download",
-    "morphe_music_play_downloads_locally" to "morphe_music_jam_download",
+    "morphe_music_song_download_method" to "morphe_music_jam_download",
+    "morphe_music_playlist_download_method" to "morphe_music_jam_download",
     "morphe_music_downloaded_checkmarks" to "morphe_music_jam_download",
     "morphe_music_start_downloaded_in_audio" to "morphe_music_jam_download",
     "morphe_music_open_downloads" to "morphe_music_jam_download",

@@ -2,6 +2,7 @@
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
  * Written by lavinhoque33, 2026-11-01.
+ * Modified by lavinhoque33, 2026-11-10
  */
 package app.morphe.extension.music.patches.androidauto;
 
@@ -23,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.StringJoiner;
 
+import app.morphe.extension.music.patches.downloads.DownloadMethods;
 import app.morphe.extension.music.patches.downloads.OfflineStreamBrowse;
 import app.morphe.extension.music.settings.Settings;
 import app.morphe.extension.shared.utils.ResourceUtils;
@@ -36,13 +38,14 @@ final class AndroidAutoDownloadsFolder {
 
     private AndroidAutoDownloadsFolder() {}
 
-    /** The device-file playlists are the fork's own downloads: they need Download in app. */
+    /** The device-file playlists are the fork's own downloads: they need a device files download method. */
     static boolean deviceFilesEnabled() {
         return AndroidAutoPatch.downloadedPlaylistsSupported()
-                && Settings.IN_APP_DOWNLOADS.get() && Settings.ANDROID_AUTO_DOWNLOADED_PLAYLISTS.get();
+                && DownloadMethods.filesChosen(Settings.SONG_DOWNLOAD_METHOD.get(), Settings.PLAYLIST_DOWNLOAD_METHOD.get())
+                && Settings.ANDROID_AUTO_DOWNLOADED_PLAYLISTS.get();
     }
 
-    /** The stream copies are played by the offline replay: they need Play downloads locally, not Download in app. */
+    /** The stream copies are played by the offline replay, whatever the download methods are now. */
     static boolean streamEnabled() {
         return AndroidAutoPatch.downloadedPlaylistsSupported()
                 && Settings.ANDROID_AUTO_DOWNLOADED_PLAYLISTS.get() && OfflineStreamBrowse.enabled();

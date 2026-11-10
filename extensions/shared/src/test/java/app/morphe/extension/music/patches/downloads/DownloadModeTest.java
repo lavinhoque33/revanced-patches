@@ -2,14 +2,13 @@
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
  * Written by lavinhoque33, 2026-11-07.
+ * Modified by lavinhoque33, 2026-11-10.
  */
 package app.morphe.extension.music.patches.downloads;
 
 import static app.morphe.extension.music.patches.downloads.DownloadMode.Work.LOCAL_FILE;
-import static app.morphe.extension.music.patches.downloads.DownloadMode.Work.LOCAL_FILE_AND_STREAM_COPY;
 import static app.morphe.extension.music.patches.downloads.DownloadMode.Work.SKIP;
 import static app.morphe.extension.music.patches.downloads.DownloadMode.Work.STREAM_COPY;
-import static app.morphe.extension.music.patches.downloads.DownloadMode.Work.STREAM_COPY_FOR_EXISTING_FILE;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -20,22 +19,32 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class DownloadModeTest {
-    @Test public void theTwoSettingsAreIndependent() {
-        assertEquals(DownloadMode.OFF, DownloadMode.of(false, false));
-        assertEquals(DownloadMode.LOCAL_FILES, DownloadMode.of(true, false));
-        assertEquals(DownloadMode.STREAM_COPY, DownloadMode.of(false, true));
-        assertEquals(DownloadMode.BOTH, DownloadMode.of(true, true));
+    @Test public void aSongMethodMapsToOneMode() {
+        assertEquals(DownloadMode.STREAM_COPY, DownloadMode.ofSong(SongDownloadMethod.STREAM, true));
+        assertEquals(DownloadMode.LOCAL_FILES, DownloadMode.ofSong(SongDownloadMethod.DEVICE_FILE, true));
+        assertEquals(DownloadMode.OFF, DownloadMode.ofSong(SongDownloadMethod.EXTERNAL_APP, true));
     }
 
-    @Test public void eachModeSaysWhichKindsOfDownloadItMakes() {
+    @Test public void aPlaylistMethodMapsToOneMode() {
+        assertEquals(DownloadMode.STREAM_COPY, DownloadMode.ofPlaylist(PlaylistDownloadMethod.STREAM, true));
+        assertEquals(DownloadMode.LOCAL_FILES, DownloadMode.ofPlaylist(PlaylistDownloadMethod.DEVICE_FILES, true));
+        assertEquals(DownloadMode.OFF, DownloadMode.ofPlaylist(PlaylistDownloadMethod.MUSIC_OWN, true));
+    }
+
+    @Test public void theStreamMethodNeedsTheSwapHooksAndLeavesTheDownloadToTheAppWithoutThem() {
+        assertEquals(DownloadMode.OFF, DownloadMode.ofSong(SongDownloadMethod.STREAM, false));
+        assertEquals(DownloadMode.OFF, DownloadMode.ofPlaylist(PlaylistDownloadMethod.STREAM, false));
+        assertEquals(DownloadMode.LOCAL_FILES, DownloadMode.ofSong(SongDownloadMethod.DEVICE_FILE, false));
+    }
+
+    @Test public void noModeMakesBothKindsOfDownload() {
+        for (DownloadMode mode : DownloadMode.values()) {
+            assertFalse(mode.toString(), mode.localFiles() && mode.streamCopy());
+        }
+        assertTrue(DownloadMode.LOCAL_FILES.localFiles());
+        assertTrue(DownloadMode.STREAM_COPY.streamCopy());
         assertFalse(DownloadMode.OFF.localFiles());
         assertFalse(DownloadMode.OFF.streamCopy());
-        assertTrue(DownloadMode.LOCAL_FILES.localFiles());
-        assertFalse(DownloadMode.LOCAL_FILES.streamCopy());
-        assertFalse(DownloadMode.STREAM_COPY.localFiles());
-        assertTrue(DownloadMode.STREAM_COPY.streamCopy());
-        assertTrue(DownloadMode.BOTH.localFiles());
-        assertTrue(DownloadMode.BOTH.streamCopy());
     }
 
     @Test public void workSaysWhatItWritesAndKeeps() {
@@ -45,13 +54,9 @@ public class DownloadModeTest {
         assertFalse(LOCAL_FILE.keepsStreamCopy());
         assertFalse(STREAM_COPY.writesLocalFile());
         assertTrue(STREAM_COPY.keepsStreamCopy());
-        assertTrue(LOCAL_FILE_AND_STREAM_COPY.writesLocalFile());
-        assertTrue(LOCAL_FILE_AND_STREAM_COPY.keepsStreamCopy());
-        assertFalse(STREAM_COPY_FOR_EXISTING_FILE.writesLocalFile());
-        assertTrue(STREAM_COPY_FOR_EXISTING_FILE.keepsStreamCopy());
     }
 
-    @Test public void neitherSettingDownloadsNothing() {
+    @Test public void offDownloadsNothing() {
         for (boolean nativeTrack : new boolean[]{false, true}) {
             for (boolean copy : new boolean[]{false, true}) {
                 assertEquals(SKIP, DownloadMode.OFF.plan(() -> nativeTrack, () -> copy));
@@ -59,42 +64,17 @@ public class DownloadModeTest {
         }
     }
 
-    @Test public void localFilesOnlyIgnoresStreamCopiesAndSkipsOnTheNativeTrack() {
+    @Test public void localFilesIgnoreStreamCopiesAndSkipOnTheNativeTrack() {
         for (boolean copy : new boolean[]{false, true}) {
             assertEquals(LOCAL_FILE, DownloadMode.LOCAL_FILES.plan(() -> false, () -> copy));
             assertEquals(SKIP, DownloadMode.LOCAL_FILES.plan(() -> true, () -> copy));
         }
     }
 
-    @Test public void streamCopyOnlyIgnoresLocalFilesAndSkipsOnAValidCopy() {
+    @Test public void streamCopyIgnoresLocalFilesAndSkipsOnAValidCopy() {
         for (boolean nativeTrack : new boolean[]{false, true}) {
             assertEquals(STREAM_COPY, DownloadMode.STREAM_COPY.plan(() -> nativeTrack, () -> false));
             assertEquals(SKIP, DownloadMode.STREAM_COPY.plan(() -> nativeTrack, () -> true));
-        }
-    }
-
-    @Test public void bothDownloadsOnceForWhatIsMissing() {
-        assertEquals(LOCAL_FILE_AND_STREAM_COPY, DownloadMode.BOTH.plan(() -> false, () -> false));
-        // The file exists (saved with Download in app only): only the stream copy is made, never a second file.
-        assertEquals(STREAM_COPY_FOR_EXISTING_FILE, DownloadMode.BOTH.plan(() -> true, () -> false));
-        // The stream copy exists (saved with Play downloads locally only): only the file is written.
-        assertEquals(LOCAL_FILE, DownloadMode.BOTH.plan(() -> false, () -> true));
-        assertEquals(SKIP, DownloadMode.BOTH.plan(() -> true, () -> true));
-    }
-
-    @Test public void everyPlanThatDownloadsWritesWhatTheModeAsksFor() {
-        for (DownloadMode mode : DownloadMode.values()) {
-            for (boolean nativeTrack : new boolean[]{false, true}) {
-                for (boolean copy : new boolean[]{false, true}) {
-                    DownloadMode.Work work = mode.plan(() -> nativeTrack, () -> copy);
-                    if (!mode.localFiles()) assertFalse(mode + " " + work, work.writesLocalFile());
-                    if (!mode.streamCopy()) assertFalse(mode + " " + work, work.keepsStreamCopy());
-                    if (mode.localFiles() && !nativeTrack) assertTrue(mode + " " + work, work.writesLocalFile());
-                    if (mode.streamCopy() && !copy && work != SKIP) {
-                        assertTrue(mode + " " + work, work.keepsStreamCopy());
-                    }
-                }
-            }
         }
     }
 

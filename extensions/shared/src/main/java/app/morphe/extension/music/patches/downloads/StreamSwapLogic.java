@@ -2,7 +2,7 @@
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
  * Written by lavinhoque33, 2026-11-07.
- * Modified by lavinhoque33, 2026-11-09.
+ * Modified by lavinhoque33, 2026-11-10
  */
 package app.morphe.extension.music.patches.downloads;
 
@@ -20,8 +20,7 @@ import app.morphe.extension.shared.innertube.PlayerResponseOuterClass.StreamingD
 final class StreamSwapLogic {
     private StreamSwapLogic() {}
 
-    static String gate(boolean localPlayback, boolean mainThread) {
-        if (!localPlayback) return "setting off";
+    static String gate(boolean mainThread) {
         return mainThread ? "main thread" : null;
     }
 

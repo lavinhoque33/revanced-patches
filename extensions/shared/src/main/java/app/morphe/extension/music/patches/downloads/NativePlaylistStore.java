@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
- * Modified by lavinhoque33, 2026-11-07.
+ * Modified by lavinhoque33, 2026-11-10
  */
 package app.morphe.extension.music.patches.downloads;
 
@@ -119,9 +119,13 @@ public final class NativePlaylistStore {
         return playlists;
     }
 
+    private static boolean filesChosen() {
+        return DownloadMethods.filesChosen(Settings.SONG_DOWNLOAD_METHOD.get(), Settings.PLAYLIST_DOWNLOAD_METHOD.get());
+    }
+
     /** Refreshes "Not in a playlist" in the background; requests made while one is queued are merged. */
     static void refreshUnsortedLater() {
-        if (!Settings.IN_APP_DOWNLOADS.get() || !refreshQueued.compareAndSet(false, true)) return;
+        if (!filesChosen() || !refreshQueued.compareAndSet(false, true)) return;
         Utils.submitOnBackgroundThread(() -> {
             refreshQueued.set(false);
             try {

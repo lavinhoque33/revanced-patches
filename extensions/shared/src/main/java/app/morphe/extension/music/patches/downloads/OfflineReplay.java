@@ -26,7 +26,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 import app.morphe.extension.music.patches.downloads.NativeDownloads.Command;
-import app.morphe.extension.music.settings.Settings;
 import app.morphe.extension.shared.utils.Logger;
 import app.morphe.extension.shared.utils.Utils;
 
@@ -83,7 +82,7 @@ public final class OfflineReplay {
     private OfflineReplay() {}
 
     static boolean enabled() {
-        return OfflineReplayHooks.usable() && Settings.PLAY_DOWNLOADS_LOCALLY.get();
+        return OfflineReplayHooks.usable();
     }
 
     static String playlistId(String sourceId) {

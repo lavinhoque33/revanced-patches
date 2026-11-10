@@ -2,6 +2,7 @@
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
  * Written by lavinhoque33, 2026-11-09.
+ * Modified by lavinhoque33, 2026-11-10
  */
 package app.morphe.extension.music.patches.downloads;
 
@@ -134,7 +135,7 @@ public final class PillAvailability {
     /** The id of the video being played, or of the last player response, that has a committed copy; else null. */
     @Nullable
     private static String copyVideo() {
-        if (!StreamSwap.enabled()) return null;
+        if (!StreamSwap.supported()) return null;
 
         return PillAvailabilityLogic.videoWithCopy(VideoInformation.getVideoId(),
                 VideoInformation.getPlayerResponseVideoId(), VideoCopyStore::hasNow);

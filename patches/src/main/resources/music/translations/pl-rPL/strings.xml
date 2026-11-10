@@ -140,14 +140,6 @@ Kroki:
     <string name="morphe_music_downloads_starting">Rozpoczynanie pobierania…</string>
     <string name="morphe_music_downloads_storage_permission">Zezwól na dostęp do pamięci masowej, a następnie ponownie dotknij opcji Pobierz</string>
     <string name="morphe_music_downloads_unknown_track">Nie udało się zidentyfikować utworu do pobrania</string>
-    <string name="morphe_music_in_app_downloads_summary">Pobiera dźwięk wewnątrz YouTube Music, zamiast otwierać zewnętrzną aplikację do pobierania</string>
-    <string name="morphe_music_in_app_downloads_title">Pobierz w aplikacji</string>
-    <string name="morphe_music_in_app_downloads_user_dialog_message">"Utwory i playlisty są zapisywane w folderze Muzyka/RVX i odtwarzane przez natywny odtwarzacz plików lokalnych YouTube Music. Zezwól na dostęp do dźwięku, gdy Muzyka poprosi o to
-
-Pobrane (w Bibliotece lub menu konta) otwiera natywną bibliotekę plików urządzenia. Wybierz Utwory, Listy odtwarzania, Albumy lub Wykonawcy. Utwory zachowują swój tytuł, wykonawcę, album i okładkę
-Pobrane utwory, które nie znajdują się na żadnej playliście, są wyświetlane na liście „Nie ma na playliście”. Istniejące utwory pobrane w aplikacji są migrowane bez ponownego pobierania
-
-Pliki audio pozostają po odinstalowaniu Muzyki; organizacja playlisty to dane aplikacji. Wyłączenie tej opcji przywraca standardową nawigację w Pobieraniu. Pobieranie plików premium nigdy nie ulega zmianie"</string>
     <string name="morphe_music_lyrics_about_summary">"Teksty są dopasowywane według tytułu i wykonawcy, nietypowe metadane mogą skutkować brakiem wyników lub pobraniem niewłaściwej wersji. Użyj przycisku odświeżania, aby przełączać wersje. Dostawcy oznaczeni gwiazdką (*) wymagają tokenu. Włączeni dostawcy nie zawsze są odpytywani w ustalonej przez Ciebie kolejności, lecz odpowiadają zależnie od swojej szybkości
 
 Teksty pochodzą z zewnętrznych usług, które nie są powiązane z RVX, przez niego sponsorowane ani wspierane. Każda z nich jest używana w obecnym kształcie: same teksty, ich dostępność oraz licencje pozostają w gestii tych usług i ich licencjodawców, a korzystanie z nich może podlegać ich warunkom korzystania z usługi. Do włączonej usługi trafia wyłącznie zlecone przez Ciebie zapytanie: tytuł, wykonawca oraz, jeśli dana usługa tego wymaga, identyfikator filmu. Opcjonalny adres AI oraz transkrypcja QuickLRC działają tylko po ich skonfigurowaniu i otrzymują tekst piosenki lub adres filmu z utworem"</string>

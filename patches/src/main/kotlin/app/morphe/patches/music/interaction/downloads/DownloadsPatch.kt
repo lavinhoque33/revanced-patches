@@ -4,7 +4,7 @@
  *
  * See the included NOTICE file for GPLv3 Section 7 terms that apply to Morphe contributions.
  *
- * Modified by lavinhoque33, 2026-11-07.
+ * Modified by lavinhoque33, 2026-11-10.
  */
 
 package app.morphe.patches.music.interaction.downloads
@@ -27,6 +27,7 @@ import app.morphe.patches.music.utils.settings.CategoryType
 import app.morphe.patches.music.utils.settings.ResourceUtils.addPreferenceCategory
 import app.morphe.patches.music.utils.settings.ResourceUtils.updatePatchStatus
 import app.morphe.patches.music.utils.settings.addCustomPreference
+import app.morphe.patches.music.utils.settings.addListPreference
 import app.morphe.patches.music.utils.settings.addSwitchPreference
 import app.morphe.patches.music.utils.settings.settingsPatch
 import app.morphe.patches.shared.misc.fix.proto.fixProtoLibraryPatch
@@ -64,35 +65,21 @@ private val downloadsResourcePatch = resourcePatch {
     dependsOn(settingsPatch, actionBarComponentsPatch)
     execute {
         addPreferenceCategory(CategoryType.MISC.value)
-        addSwitchPreference(CategoryType.MISC, "morphe_music_in_app_downloads", "false", "revanced_external_downloader_action")
-        addSwitchPreference(
-            CategoryType.MISC,
-            "morphe_music_play_downloads_locally",
-            "false",
-            "revanced_external_downloader_action",
-        )
-        addSwitchPreference(
-            CategoryType.MISC,
-            "morphe_music_downloaded_checkmarks",
-            "true",
-            "morphe_music_play_downloads_locally",
-        )
-        addSwitchPreference(
-            CategoryType.MISC,
-            "morphe_music_start_downloaded_in_audio",
-            "true",
-            "morphe_music_play_downloads_locally",
-        )
+        // One method for songs and one for playlists and albums. The dependents below follow them in the extension
+        // (Settings availability), so no row is tied to the other by an XML dependency.
+        addListPreference(CategoryType.MISC, "morphe_music_song_download_method", "", false)
+        addListPreference(CategoryType.MISC, "morphe_music_playlist_download_method", "", false)
+        addSwitchPreference(CategoryType.MISC, "morphe_music_downloaded_checkmarks", "true")
+        addSwitchPreference(CategoryType.MISC, "morphe_music_start_downloaded_in_audio", "true")
         // The one way into the list that no page of the app has a say in: the offline home, the banner and the
         // Library tab differ by what was cached, this row does not.
         addCustomPreference(
             CategoryType.MISC,
             "morphe_music_open_downloads",
             "app.morphe.extension.music.settings.preference.OpenDownloadsPreference",
-            "morphe_music_play_downloads_locally",
         )
         // The stream copies are invisible in Device files, so they are managed here. No dependency: they can be
-        // deleted after Play downloads locally was turned off.
+        // deleted after the stream download method was left.
         addCustomPreference(
             CategoryType.MISC,
             "morphe_music_stream_downloads",

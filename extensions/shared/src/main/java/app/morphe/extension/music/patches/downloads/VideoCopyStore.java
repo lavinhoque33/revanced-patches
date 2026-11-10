@@ -2,7 +2,7 @@
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
  * Written by lavinhoque33, 2026-11-09.
- * Modified by lavinhoque33, 2026-11-09.
+ * Modified by lavinhoque33, 2026-11-10
  */
 package app.morphe.extension.music.patches.downloads;
 
@@ -135,14 +135,14 @@ final class VideoCopyStore {
         try {
             Utils.verifyOffMainThread();
             Storage.files.ensureLoaded();
-            if (!StreamSwap.enabled()) return false;
+            if (!StreamSwap.supported()) return false;
 
             boolean kept = Storage.files.retain(videoId, songId, sourceId, videoTemporary, audioTemporary,
                     download);
             if (!kept) return false;
 
             // Switching off during a download must not leave a newly published extra copy.
-            if (!StreamSwap.enabled()) {
+            if (!StreamSwap.supported()) {
                 delete(videoId);
                 return false;
             }

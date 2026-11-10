@@ -45,6 +45,9 @@ Restart the app, check if the behavior is present, then answer below"</string>
     <string name="morphe_debug_feature_flags_manager_import_file_success">Feature flags loaded, tap Save to apply</string>
     <string name="morphe_debug_feature_flags_manager_import_success">Imported %s feature flags</string>
     <string name="morphe_debug_feature_flags_manager_search_hint">Search feature flags…</string>
+    <string name="morphe_debug_feature_flags_manager_startup_reset">
+        Feature flag overrides were reset because the app failed to start. Any binary search was canceled
+    </string>
     <string name="morphe_debug_feature_flags_manager_summary">Manage boolean feature flags</string>
     <string name="morphe_debug_feature_flags_manager_title">Feature flags manager</string>
     <string name="morphe_debug_feature_flags_manager_toast_copied">Feature flags copied to clipboard</string>

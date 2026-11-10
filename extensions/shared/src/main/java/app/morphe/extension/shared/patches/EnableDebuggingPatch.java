@@ -51,7 +51,9 @@ public final class EnableDebuggingPatch {
         try {
             enabled = BaseSettings.DEBUG.get();
             if (enabled) {
-                overrides = loadOverriddenFlags();
+                if (FeatureFlagsStartupGuard.beforeOverrides()) {
+                    overrides = loadOverriddenFlags();
+                }
                 FeatureFlagsBisect.handleAppStartup();
             }
         } catch (Throwable ex) {

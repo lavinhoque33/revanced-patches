@@ -2,6 +2,7 @@
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
  * Written by lavinhoque33, 2026-11-08.
+ * Modified by lavinhoque33, 2026-11-10.
  */
 package app.morphe.extension.music.patches.downloads;
 
@@ -165,7 +166,7 @@ public final class DownloadsPage {
 
         /** The sections of the stream copies for the layout, by the network state when the page is built. */
         private List<byte[]> copySections() {
-            boolean online = OfflineReplay.networkAvailable();
+            boolean online = Utils.isInternetReachable();
             List<byte[]> items = DownloadsPageLogic.sections(layout, online, sourceRows(), songRows(), labels(),
                     TAPS, OfflineCopyStore::coverUrl);
             Logger.printDebug(() -> "DownloadsPage: online=" + online + " sections=" + items.size());

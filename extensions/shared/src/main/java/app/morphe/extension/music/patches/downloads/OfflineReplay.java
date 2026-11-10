@@ -2,7 +2,7 @@
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
  * Written by lavinhoque33, 2026-11-08.
- * Modified by lavinhoque33, 2026-11-09.
+ * Modified by lavinhoque33, 2026-11-10.
  */
 package app.morphe.extension.music.patches.downloads;
 
@@ -10,9 +10,6 @@ import static app.morphe.extension.shared.utils.StringRef.str;
 
 import android.app.Activity;
 import android.content.Context;
-import android.net.ConnectivityManager;
-import android.net.Network;
-import android.net.NetworkCapabilities;
 
 import androidx.annotation.Nullable;
 
@@ -87,32 +84,6 @@ public final class OfflineReplay {
 
     static boolean enabled() {
         return OfflineReplayHooks.usable() && Settings.PLAY_DOWNLOADS_LOCALLY.get();
-    }
-
-    /**
-     * Whether the device has a network that reaches the internet. An unknown state counts as online, so the stock
-     * behavior stays when this cannot tell; no network at all counts as offline.
-     */
-    static boolean networkAvailable() {
-        try {
-            Context context = Utils.getContext();
-            if (context == null || !(context.getSystemService(Context.CONNECTIVITY_SERVICE)
-                    instanceof ConnectivityManager manager)) {
-                return true;
-            }
-
-            Network active = manager.getActiveNetwork();
-            if (active == null) return false;
-
-            NetworkCapabilities capabilities = manager.getNetworkCapabilities(active);
-            if (capabilities == null) return false;
-
-            return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
-                    && capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED);
-        } catch (Exception ex) {
-            Logger.printDebug(() -> "OfflineReplay: network state unknown, counted as online", ex);
-            return true;
-        }
     }
 
     static String playlistId(String sourceId) {
@@ -236,7 +207,7 @@ public final class OfflineReplay {
 
     @Nullable
     private static byte[] playCommand(String sourceId, int index) {
-        if (!networkAvailable()) return startCommand(sourceId, index);
+        if (!Utils.isInternetReachable()) return startCommand(sourceId, index);
 
         List<OfflineWatchNext.Item> items = queueOf(sourceId);
         if (index < 0 || index >= items.size()) return null;
@@ -356,7 +327,7 @@ public final class OfflineReplay {
         if (browseId == null && watch == null) return false;
 
         Map<String, List<String>> tracks = OfflineCopyStore.tracksBySource();
-        OfflineReplayLogic.Decision decision = OfflineReplayLogic.routeOf(networkAvailable(), browseId, watch, SONGS,
+        OfflineReplayLogic.Decision decision = OfflineReplayLogic.routeOf(Utils.isInternetReachable(), browseId, watch, SONGS,
                 tracks::containsKey, OfflineBrowsePages::has, OfflineCopyStore::has,
                 target -> OfflineReplayLogic.sourceOfPlaylist(target.playlistId(), target.videoId(), tracks));
         switch (decision.route()) {
@@ -459,7 +430,7 @@ public final class OfflineReplay {
             return REASON_NOT_A_LIST;
         }
 
-        if (!networkAvailable()) return REASON_OFFLINE;
+        if (!Utils.isInternetReachable()) return REASON_OFFLINE;
 
         if (!(result instanceof OfflineBrowsePages.Bytes)) return "no bytes bridge on the result";
 
@@ -475,7 +446,7 @@ public final class OfflineReplay {
     @Nullable
     static byte[] answerBrowse(String browseId, Throwable failure) {
         noteAlive(HOOK_BROWSE_REPLAY);
-        boolean online = networkAvailable();
+        boolean online = Utils.isInternetReachable();
         String sourceId = browseId == null ? null : OfflineReplayLogic.sourceOfBrowseId(browseId);
         boolean stored = sourceId != null && OfflineBrowsePages.has(sourceId);
         logDecision(HOOK_BROWSE_REPLAY, "asked id=" + browseId + " online=" + online + " stored=" + stored
@@ -526,7 +497,7 @@ public final class OfflineReplay {
             noteAlive(HOOK_GATE);
             boolean ours = videoId != null && holds(videoId);
             boolean enabled = enabled();
-            boolean offline = enabled && !networkAvailable();
+            boolean offline = enabled && !Utils.isInternetReachable();
             String reason = OfflineReplayLogic.skipReason(enabled, offline, ours, true);
             if (reason != null) {
                 logDecision(HOOK_GATE, "declined:" + reason + " v=" + videoId + " ours=" + ours);
@@ -744,8 +715,8 @@ public final class OfflineReplay {
     static long seekSnap(long snappedMillis) {
         try {
             noteAlive(HOOK_SEEK);
-            boolean drop = OfflineReplayLogic.dropsSeekSnap(enabled(), networkAvailable(), snappedMillis);
-            logDecision(HOOK_SEEK, "snap=" + snappedMillis + " online=" + networkAvailable()
+            boolean drop = OfflineReplayLogic.dropsSeekSnap(enabled(), Utils.isInternetReachable(), snappedMillis);
+            logDecision(HOOK_SEEK, "snap=" + snappedMillis + " online=" + Utils.isInternetReachable()
                     + (drop ? " dropped, seeking to the dragged position" : " kept"));
             return drop ? KEEP_TARGET : snappedMillis;
         } catch (Exception ex) {
@@ -764,6 +735,6 @@ public final class OfflineReplay {
         if (!aliveHooks.add(hook)) return;
 
         Logger.printDebug(() -> "OfflineReplay: hook alive hook=" + hook + " enabled=" + enabled()
-                + " network=" + (networkAvailable() ? "online" : "offline"));
+                + " network=" + (Utils.isInternetReachable() ? "online" : "offline"));
     }
 }

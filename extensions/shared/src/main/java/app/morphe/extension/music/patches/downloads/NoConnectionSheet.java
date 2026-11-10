@@ -2,6 +2,7 @@
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
  * Written by lavinhoque33, 2026-11-08.
+ * Modified by lavinhoque33, 2026-11-10.
  */
 package app.morphe.extension.music.patches.downloads;
 
@@ -35,14 +36,14 @@ public final class NoConnectionSheet {
 
         controller = new WeakReference<>(found);
         if (OfflineReplayLogic.dismissesSheetShownLater(replayedVideoId, VideoInformation.getVideoId(),
-                OfflineReplay.networkAvailable())) {
+                Utils.isInternetReachable())) {
             dismiss(found);
         }
     }
 
     /** A copy was answered for the player while the device is offline: nothing is left for the sheet to say. */
     static void onCopyReplayed(String videoId) {
-        if (OfflineReplay.networkAvailable()) return;
+        if (Utils.isInternetReachable()) return;
 
         replayedVideoId = videoId;
         Controller found = controller.get();

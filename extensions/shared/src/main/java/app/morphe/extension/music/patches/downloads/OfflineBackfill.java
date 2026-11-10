@@ -2,6 +2,7 @@
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
  * Written by lavinhoque33, 2026-11-08.
+ * Modified by lavinhoque33, 2026-11-10.
  */
 package app.morphe.extension.music.patches.downloads;
 
@@ -40,7 +41,7 @@ final class OfflineBackfill {
 
     /** Starts a run when none is going and the setting and the network allow it. Returns at once. */
     static void kick() {
-        if (OfflineBackfillLogic.blockedReason(OfflineReplay.enabled(), OfflineReplay.networkAvailable()) != null) {
+        if (OfflineBackfillLogic.blockedReason(OfflineReplay.enabled(), Utils.isInternetReachable()) != null) {
             return;
         }
         if (!OfflineBackfillLogic.mayStartAgain(idleUntil, SystemClock.elapsedRealtime())) return;
@@ -55,7 +56,7 @@ final class OfflineBackfill {
         try {
             while (true) {
                 String blocked = OfflineBackfillLogic.blockedReason(OfflineReplay.enabled(),
-                        OfflineReplay.networkAvailable());
+                        Utils.isInternetReachable());
                 if (blocked != null) {
                     Logger.printInfo(() -> "Backfill: paused, " + blocked);
                     break;
@@ -76,7 +77,7 @@ final class OfflineBackfill {
                 if (failure == null) {
                     step.succeeded(stepId);
                     if (id != null) stored++;
-                } else if (OfflineReplay.networkAvailable()) {
+                } else if (Utils.isInternetReachable()) {
                     step.failed(stepId, SystemClock.elapsedRealtime());
                     failed++;
                 }

@@ -398,6 +398,12 @@ public class SpoofVideoStreamsPatch {
         if (offline != null) return offline;
         if (SPOOF_VIDEO_STREAMS) {
             try {
+                // modified by lavinhoque33, 2026-11-10: with no internet the app's own response, which can be
+                // a stored copy, is kept. A fetch could not succeed, and the player would wait for it.
+                if (!Utils.isInternetReachable()) {
+                    Logger.printDebug(() -> "SpoofVideoStreams: No internet, keeping the streams of: " + videoId);
+                    return null;
+                }
                 StreamOrDetailsDataRequest request = StreamOrDetailsDataRequest.getOrFetchRequest(videoId);
                 var buffers = request == null ? null
                         : (StreamOrDetailsDataRequest.StreamData) request.getStreamDetails();
@@ -432,6 +438,10 @@ public class SpoofVideoStreamsPatch {
         if (OfflineStreamSource.isServing(videoId)) return null;
         if (SPOOF_VIDEO_STREAMS) {
             try {
+                // modified by lavinhoque33, 2026-11-10: the streams were not replaced with no internet, so
+                // neither is the config that goes with them (a stored copy has its own).
+                if (!Utils.isInternetReachable()) return null;
+
                 StreamOrDetailsDataRequest request = StreamOrDetailsDataRequest.getStreamRequestForVideoId(videoId);
                 if (request != null) {
                     var buffers = (StreamOrDetailsDataRequest.StreamData) request.getStreamDetails();

@@ -26,8 +26,8 @@
 * **Sync with anddea/revanced-patches dev:** Merge the changes up to v4.4.0-dev.6 (anddea dev, b2f29faa6) into this
   fork.
 * **YouTube - Settings:** Move the About card into an About screen at the end of RVX settings.
-* **YouTube - Downloads:** Add Show download option icons, on by default, to hide the icons beside Include subtitles
-  and Include SponsorBlock in the built-in downloader.
+* **YouTube - Downloads:** Add Show download option icons, off by default. Turn it on to show icons beside Include
+  subtitles and Include SponsorBlock in the built-in downloader.
 * **YouTube - Enable debug logging:** Add a Feature flags manager in Settings > Debugging, with Binary search to find
   which YouTube feature flag causes a problem.
 * **YouTube - Glass navigation bar:** Add a bottom spacing slider to the Glass navigation bar size dialog, to set how

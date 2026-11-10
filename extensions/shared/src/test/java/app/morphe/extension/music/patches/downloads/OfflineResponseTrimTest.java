@@ -278,4 +278,31 @@ public class OfflineResponseTrimTest {
         assertTrue(PlayerResponse.parseFrom(stored).getPlayerConfig().getAudioConfig().getMuteOnStart());
         assertTrue(stored.length < 100);
     }
+
+    @Test public void aVideoCopysResponseKeepsEveryFieldTheFetchReturnedKnownOrUnknown() throws Exception {
+        Format video = Format.newBuilder().setItag(134).setUrl("u").build();
+        Format audio = Format.newBuilder().setItag(251).setUrl("u").build();
+        byte[] unknown = new ProtoWriter().message(1, new byte[]{8, 1}).message(9, new byte[]{4})
+                .message(16, new byte[]{5, 6}).message(21, new byte[]{7}).message(69, new byte[]{8})
+                .message(71, new byte[]{9}).toByteArray();
+        PlayerResponse fetched = PlayerResponse.newBuilder()
+                .setPlayabilityStatus(PlayabilityStatus.newBuilder().setStatus(Status.LOGIN_REQUIRED).setReason("no"))
+                .setVideoDetails(VideoDetails.newBuilder().setVideoId("clip").setTitle("Title"))
+                .setStreamingData(StreamingData.newBuilder().setServerAbrStreamingUrl("https://sabr.invalid/"))
+                .setPlayerConfig(PlayerConfig.newBuilder()
+                        .setAudioConfig(AudioConfig.newBuilder().setMuteOnStart(true)))
+                .mergeFrom(unknown).build();
+
+        byte[] stored = OfflineResponseTrim.fromVideoDownload(fetched, new VideoCopyLogic.Selection(video, audio));
+
+        for (int field : new int[]{1, 9, 16, 21, 69, 71}) {
+            assertArrayEquals("field " + field, ProtoFields.one(unknown, field), ProtoFields.one(stored, field));
+        }
+        PlayerResponse parsed = PlayerResponse.parseFrom(stored);
+        assertEquals(Status.OK, parsed.getPlayabilityStatus().getStatus());
+        assertEquals("", parsed.getPlayabilityStatus().getReason());
+        assertEquals("Title", parsed.getVideoDetails().getTitle());
+        assertFalse(parsed.getStreamingData().hasServerAbrStreamingUrl());
+        assertEquals(2, parsed.getStreamingData().getAdaptiveFormatsCount());
+    }
 }

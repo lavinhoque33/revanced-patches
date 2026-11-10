@@ -144,6 +144,32 @@ public class VideoCopyFilesTest {
         assertEquals(0, reopened.stats().count());
     }
 
+    @Test public void theOnlineResponseKeptBesideACopyIsReadBackAndGoesWithTheCopy() throws Exception {
+        assertFalse(files.keepLive("omvOne00000", new byte[]{9, 9}));
+        retain("omvOne00000", "atvOne00000", 100);
+        assertNull(files.live("omvOne00000"));
+
+        assertTrue(files.keepLive("omvOne00000", new byte[]{9, 9}));
+        assertArrayEquals(new byte[]{9, 9}, files.live("omvOne00000"));
+        assertTrue(files.keepLive("omvOne00000", new byte[]{7}));
+        assertArrayEquals(new byte[]{7}, files.live("omvOne00000"));
+        assertNotNull(files.find("omvOne00000"));
+
+        files.retainOnly(Set.of("atvOne00000"), System.currentTimeMillis() + 60_000);
+        assertArrayEquals(new byte[]{7}, files.live("omvOne00000"));
+
+        files.delete("omvOne00000");
+        assertFalse(new File(new File(temporary.getRoot(), "rvx_video"), "omvOne00000.live").exists());
+    }
+
+    @Test public void aWholeFetchedResponseOfTensOfKilobytesIsRetained() throws Exception {
+        VideoCopyLogic.Download whole = new VideoCopyLogic.Download(new VideoCopyLogic.Stream(134, MP4, 10, 1),
+                new VideoCopyLogic.Stream(251, OPUS, 5, 1), 1, new byte[100 * 1024]);
+
+        assertTrue(files.retain("omvOne00000", "atvOne00000", null, download(10), download(5), whole));
+        assertEquals(100 * 1024, files.response("omvOne00000").length);
+    }
+
     @Test public void aChangedFileIsNotPlayed() throws Exception {
         retain("omvOne00000", "atvOne00000", 100);
         File video = files.find("omvOne00000").video().file();

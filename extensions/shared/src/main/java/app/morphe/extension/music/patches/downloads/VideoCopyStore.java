@@ -11,6 +11,7 @@ import androidx.annotation.Nullable;
 import java.io.File;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import app.morphe.extension.shared.utils.Logger;
@@ -28,6 +29,10 @@ final class VideoCopyStore {
     }
 
     private static final AtomicBoolean loadStarted = new AtomicBoolean();
+    /** The videos whose online response was kept in this run. */
+    private static final Set<String> liveKept = ConcurrentHashMap.newKeySet();
+    /** Player response fields the copy never uses: 4 streaming data, 7 ad placements. */
+    private static final Set<Integer> LIVE_DROPPED_FIELDS = Set.of(4, 7);
 
     private VideoCopyStore() {}
 
@@ -68,6 +73,35 @@ final class VideoCopyStore {
         Utils.verifyOffMainThread();
         Storage.files.ensureLoaded();
         return Storage.files.response(videoId);
+    }
+
+    /** The response the app itself got online for a video copy (see {@link #keepLive}), or null. */
+    @Nullable
+    static byte[] live(String videoId) {
+        Utils.verifyOffMainThread();
+        Storage.files.ensureLoaded();
+        return Storage.files.live(videoId);
+    }
+
+    /**
+     * Keeps the response the app got online for the video of a copy, once per run: without the streaming data and
+     * the ad placements, which the copy never uses. The replay answers offline with the shape of this response, so
+     * the app's player selection sees what it sees online. Never fails the caller; a failure is only logged.
+     */
+    static void keepLive(String videoId, byte[] onlineResponse) {
+        Utils.verifyOffMainThread();
+        if (liveKept.contains(videoId)) return;
+
+        try {
+            Storage.files.ensureLoaded();
+            byte[] live = ResponseFields.without(onlineResponse, LIVE_DROPPED_FIELDS);
+            boolean kept = Storage.files.keepLive(videoId, live);
+            if (kept) liveKept.add(videoId);
+            Logger.printDebug(() -> "VideoCopyStore: online response of v=" + videoId + " kept=" + kept + " "
+                    + live.length + "B");
+        } catch (Exception ex) {
+            Logger.printException(() -> "VideoCopyStore: could not keep the online response of v=" + videoId, ex);
+        }
     }
 
     /** The id of the video copy that belongs to the song, or null. */

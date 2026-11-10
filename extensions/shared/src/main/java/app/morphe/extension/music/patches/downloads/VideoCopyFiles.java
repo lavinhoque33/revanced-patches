@@ -48,11 +48,13 @@ final class VideoCopyFiles {
     private record Candidate(Entry entry, long videoFileLength, long videoFileModified, long audioFileLength,
                              long audioFileModified) {}
 
-    static final int MAX_RESPONSE_BYTES = OfflineCopyFiles.MAX_RESPONSE_BYTES;
+    /** A whole response of the saving request is tens of kilobytes; the limit only keeps a wrong file out. */
+    static final int MAX_RESPONSE_BYTES = 256 * 1024;
 
     private static final String VIDEO = ".video";
     private static final String AUDIO = ".audio";
     private static final String RESPONSE = ".resp";
+    private static final String LIVE = ".live";
     private static final String COMMIT = ".json";
     private static final String PENDING = ".part";
     private static final long MAX_COMMIT_BYTES = 8192;
@@ -217,6 +219,43 @@ final class VideoCopyFiles {
         }
     }
 
+    /**
+     * The response the app itself got online for the video, without its streaming data and ad placements, or null
+     * when none was kept ({@link #keepLive}). Only for a committed copy.
+     */
+    @Nullable
+    byte[] live(String videoId) {
+        try {
+            if (committed(videoId) == null) return null;
+
+            File live = file(videoId, LIVE);
+            return live.isFile() && live.length() <= MAX_RESPONSE_BYTES ? Files.readAllBytes(live.toPath()) : null;
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    /**
+     * Keeps the response the app got online for the video of a committed copy, replacing what was kept. Written
+     * beside the copy and never part of its commit: a copy works without it, and the replay lays it over the stored
+     * response when it answers offline.
+     *
+     * @return Whether the response was kept.
+     */
+    synchronized boolean keepLive(String videoId, byte[] live) throws Exception {
+        if (live.length == 0 || live.length > MAX_RESPONSE_BYTES || committed(videoId) == null) return false;
+
+        File target = file(videoId, LIVE);
+        File pending = file(videoId, LIVE + PENDING);
+        try {
+            Files.write(pending.toPath(), live);
+            Files.move(pending.toPath(), target.toPath(), StandardCopyOption.REPLACE_EXISTING);
+        } finally {
+            Files.deleteIfExists(pending.toPath());
+        }
+        return true;
+    }
+
     private Candidate candidate(String videoId) throws Exception {
         Entry entry = committed(videoId);
         if (entry == null) return null;
@@ -343,7 +382,8 @@ final class VideoCopyFiles {
     }
 
     private static boolean isCopyFile(String name) {
-        return name.endsWith(VIDEO) || name.endsWith(AUDIO) || name.endsWith(RESPONSE) || name.endsWith(COMMIT);
+        return name.endsWith(VIDEO) || name.endsWith(AUDIO) || name.endsWith(RESPONSE) || name.endsWith(LIVE)
+                || name.endsWith(COMMIT);
     }
 
     private static String idOf(String fileName) {

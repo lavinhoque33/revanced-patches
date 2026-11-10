@@ -156,8 +156,7 @@ public final class StreamSwap {
         String videoId = copy.videoId();
         String mode = AudioFirst.liveMode();
         byte[] liveBytes = adapter.rvxBytes();
-        byte[] debugAnswer = stored ? null : DebugStoredAnswer.answerFor(videoId);
-        PlayerResponse online = PlayerResponse.parseFrom(debugAnswer != null ? debugAnswer : liveBytes);
+        PlayerResponse online = PlayerResponse.parseFrom(liveBytes);
         if (!online.hasStreamingData()) return unchanged(original, videoId, "no StreamingData", stored);
         if (!VideoCopyLogic.sameLength(online.getVideoDetails().getLengthSeconds(), copy.durationMs())) {
             return unchanged(original, videoId, "video length differs", stored);
@@ -191,7 +190,8 @@ public final class StreamSwap {
                 + " onlineUrl=" + (video.online != null) + " stored=" + stored
                 + " onlineAdaptive=" + online.getStreamingData().getAdaptiveFormatsCount()
                 + " onlineSabr=" + online.getStreamingData().hasServerAbrStreamingUrl());
-        logAnswerShapes(videoId, stored, debugAnswer != null, liveBytes, replacement);
+        logAnswerShapes(videoId, stored, liveBytes, replacement);
+        if (!stored) VideoCopyStore.keepLive(videoId, liveBytes);
         return result;
     }
 
@@ -200,10 +200,9 @@ public final class StreamSwap {
      * stored one can be compared field by field in a device log (field numbers of the player response: 2 playability,
      * 4 streaming data, 11 video details, 15 player configuration).
      */
-    private static void logAnswerShapes(String videoId, boolean stored, boolean debugStored, byte[] source,
-                                        PlayerResponse answer) {
+    private static void logAnswerShapes(String videoId, boolean stored, byte[] source, PlayerResponse answer) {
         Logger.printDebug(() -> {
-            String kind = stored ? "stored" : debugStored ? "online-from-stored-bytes" : "online";
+            String kind = stored ? "stored" : "online";
             return "StreamSwap: answer shape v=" + videoId + " kind=" + kind + " source={"
                     + ProtoShape.of(source, ANSWER_EXPANDED_FIELDS) + "} answer={"
                     + ProtoShape.of(answer.toByteArray(), ANSWER_EXPANDED_FIELDS) + "}";

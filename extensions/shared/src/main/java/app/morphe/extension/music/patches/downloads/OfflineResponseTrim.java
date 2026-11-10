@@ -14,7 +14,6 @@ import com.google.protobuf.CodedOutputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 
-import app.morphe.extension.shared.innertube.PlayerResponseOuterClass.ExoPlayerConfig;
 import app.morphe.extension.shared.innertube.PlayerResponseOuterClass.Format;
 import app.morphe.extension.shared.innertube.PlayerResponseOuterClass.PlayabilityStatus;
 import app.morphe.extension.shared.innertube.PlayerResponseOuterClass.PlayerConfig;
@@ -86,17 +85,24 @@ final class OfflineResponseTrim {
     }
 
     /**
-     * The response stored with a video copy: the details of the music video, the two adaptive formats of the copy
-     * without urls (the replay puts its own local tokens there), and the player configuration the app's ExoPlayer
-     * engine asks for. The adaptive formats keep their init and index ranges, lengths and mime strings exactly,
-     * which is what the player reads the files by. There is no muxed format: the app hands a response that has one
-     * to its framework player when the ExoPlayer engine declines it (see {@link #forExoPlayer}), and that player
-     * cannot play what the replay serves. The Video switch needs no muxed format, it only needs a format with a
-     * video mime, which the adaptive video format is.
+     * The response stored with a video copy: the whole response the saving request returned (every field of it, the
+     * known ones and the unknown ones, so the replay has the shape of the app's own online response: the player
+     * selection of the app reads more than the streaming data, and a response cut down to the details, the pair and
+     * two flags gave it no video track offline), with only what must change replaced:
+     * <ul>
+     *   <li>the streaming data holds the two adaptive formats of the copy without urls (the replay puts its own local
+     *   tokens there), with their init and index ranges, lengths and mime strings exactly, which is what the player
+     *   reads the files by, and no SABR, HLS or DASH url. There is no muxed format: the app hands a response that has
+     *   one to its framework player when the ExoPlayer engine declines it (see {@link #forExoPlayer}), and that
+     *   player cannot play what the replay serves;
+     *   <li>the details are those of a music video ({@link #asMusicVideo});
+     *   <li>the playability status keeps its fields and says OK;
+     *   <li>the player configuration keeps its fields and gets the ExoPlayer flags ({@link #forExoPlayer}).
+     * </ul>
      */
     static byte[] fromVideoDownload(PlayerResponse response, VideoCopyLogic.Selection selection) {
-        return PlayerResponse.newBuilder()
-                .setPlayabilityStatus(PlayabilityStatus.newBuilder().setStatus(Status.OK))
+        return response.toBuilder()
+                .setPlayabilityStatus(response.getPlayabilityStatus().toBuilder().setStatus(Status.OK).clearReason())
                 .setVideoDetails(asMusicVideo(response.getVideoDetails()))
                 .setStreamingData(StreamingData.newBuilder()
                         .setExpiresInSeconds(DEFAULT_EXPIRES_SECONDS)
@@ -112,12 +118,12 @@ final class OfflineResponseTrim {
      * {@code playerConfig.exoPlayerConfig.useExoPlayer} (the app's own responses carry it, a response fetched by
      * another client does not), and then its framework player ({@code Lyqw.S}) takes any response that has a
      * muxed format. {@code audioConfig.exoAudioGate} (read by {@code Lwdx.aR}) opens the itag check of the
-     * ExoPlayer engine for a video format as well. The fetched loudness configuration is kept.
+     * ExoPlayer engine for a video format as well. The fetched configuration is kept with the two flags set.
      */
     static PlayerConfig forExoPlayer(PlayerConfig fetched) {
-        return PlayerConfig.newBuilder()
+        return fetched.toBuilder()
                 .setAudioConfig(fetched.getAudioConfig().toBuilder().setExoAudioGate(true))
-                .setExoPlayerConfig(ExoPlayerConfig.newBuilder().setUseExoPlayer(true))
+                .setExoPlayerConfig(fetched.getExoPlayerConfig().toBuilder().setUseExoPlayer(true))
                 .build();
     }
 

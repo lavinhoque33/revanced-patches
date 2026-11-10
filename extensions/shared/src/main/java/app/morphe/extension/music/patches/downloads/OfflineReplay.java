@@ -73,6 +73,8 @@ public final class OfflineReplay {
     private static final String REASON_NO_ID = "no browse id";
     private static final String REASON_NOT_A_LIST = "not a downloaded list";
     private static final String REASON_OFFLINE = "offline";
+    /** Fields a video copy keeps of its own in the online shape: 4 streaming data, 11 details. */
+    private static final Set<Integer> VIDEO_COPY_OWN_FIELDS = Set.of(4, 11);
     /** The reasons that are the normal case of nearly every page: never said. */
     private static final Set<String> QUIET_CAPTURE_SKIPS =
             Set.of(REASON_SETTING_OFF, REASON_NO_ID, REASON_NOT_A_LIST, REASON_OFFLINE);
@@ -130,16 +132,26 @@ public final class OfflineReplay {
     }
 
     /**
-     * The stored player response of the song, or of the music video that has a video copy, which gets the app's own
-     * player configuration ({@link PlayerConfigTemplate}); null when neither is stored.
+     * The stored player response of the song, or of the music video that has a video copy; null when neither is
+     * stored. A video copy answers with the shape of the response the app itself got online for the video, when
+     * one was kept ({@link VideoCopyStore#keepLive}): the app's player selection reads more of a response than the
+     * streaming data, and a response without those fields gave it no video track offline. The copy's own streaming
+     * data and details stay. With none kept the response stored with the copy is used, with the app's own player
+     * configuration ({@link PlayerConfigTemplate}) under its own.
      */
     @Nullable
-    static byte[] storedResponseOf(String videoId) throws IOException {
+    private static byte[] storedResponseOf(String videoId) throws IOException {
         OfflineCopyFiles.Stored stored = OfflineCopyStore.find(videoId);
         if (stored != null) return stored.response();
 
         byte[] video = VideoCopyStore.response(videoId);
-        return video == null ? null : PlayerConfigTemplate.applyTo(video);
+        if (video == null) return null;
+
+        byte[] live = VideoCopyStore.live(videoId);
+        Logger.printDebug(() -> "OfflineReplay: video copy v=" + videoId + " saved=" + video.length + "B online="
+                + (live == null ? "none" : live.length + "B"));
+        return live == null ? PlayerConfigTemplate.applyTo(video)
+                : ResponseFields.liveWithOwn(live, video, VIDEO_COPY_OWN_FIELDS);
     }
 
     // region queue and commands

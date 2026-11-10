@@ -30,9 +30,11 @@ final class VideoCopyLogic {
      * the files are served changes, so a copy of an earlier format counts as no copy and the next save replaces it.
      * A commit without the field is the first adaptive pair (a minimal response with a muxed format and no player
      * configuration, which the app's framework player took offline); 2 stores the response of
-     * {@link OfflineResponseTrim#fromVideoDownload}.
+     * {@link OfflineResponseTrim#fromVideoDownload} cut down to the details, the pair and two flags, which the app's
+     * player selection did not select a video track from offline; 3 stores that response whole (every field the
+     * saving request returned), with only the streaming data, the details' type and the ExoPlayer flags replaced.
      */
-    static final int COPY_FORMAT = 2;
+    static final int COPY_FORMAT = 3;
 
     private VideoCopyLogic() {}
 

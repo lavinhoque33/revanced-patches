@@ -17,6 +17,18 @@
   the capsule floats above the bottom of the screen, and show the snackbars right above the navigation bar.
 * **YouTube - Navigation bar:** Fix the navigation buttons sitting too high, with a black strip below them, with the
   Translucent or Transparent navigation bar style and gesture navigation, also when Glass navigation bar is off.
+* **YouTube - Navigation bar:** The blurred background of the Translucent navigation bar and of Glass navigation bar
+  is now drawn only on Android 14 and newer. On Android 12 and 13 the bar keeps a plain translucent color, because the
+  blur could crash the app while the player moves.
+* **YouTube - Feed card layout:** Fix the cards with some accounts, where the thumbnails had black gutters on both
+  sides, the corners were not rounded, the cards looked small, and an inline preview broke the layout of the cards
+  around it. The margins and the corners now follow the screen density, also after it changes, and the cards of
+  grids, such as the channel pages, are clipped in their own columns. The dynamic colors tint the whole card below the
+  thumbnail also on these accounts.
+* **YouTube - Feed card layout:** Add the fixes of Morphe for the cards: playlists, mixes and podcasts of the feed
+  and of the channel home use the Classic layout or the card background like the videos, the Classic layout keeps the
+  Save to Watch later and Save to playlist items in the menu, mixes and the movie shelf keep their own layout when
+  they are hidden, and the cards keep their layout while the app updates its templates.
 * **YouTube - Watch later improvements:** Add a patch with options to widen the drag handles of the Watch later videos
   and to hide the snackbar shown after removing a video.
 * **YouTube - Post buttons:** Add a Post buttons screen to hide the like, share and comment buttons of posts, and an

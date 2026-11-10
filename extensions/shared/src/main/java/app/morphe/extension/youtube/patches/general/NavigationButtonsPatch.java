@@ -563,15 +563,16 @@ public final class NavigationButtonsPatch {
      * positions to the surface from two threads at the same time, and the app crashes while
      * the player moves, such as when it is slowly dragged down to the miniplayer
      * (<a href="https://github.com/MorpheApp/morphe-patches/pull/3684#issuecomment-6322984709">...</a>).
+     * So the blur is always left out on Android 12 and 13, and the bar keeps its translucent color.
      * With {@link NavigationBarStyle#TRANSPARENT} and {@link NavigationBarStyle#OPAQUE} the copy
-     * is not drawn, so the bar keeps its translucent color, without the blur.
+     * is not drawn either, so the bar keeps its translucent color, without the blur.
      *
      * @param hardwareAccelerated If the canvas is hardware accelerated, which the blur is drawn for.
      */
     public static boolean useNavigationBarBlur(boolean hardwareAccelerated) {
-        return hardwareAccelerated && !(translucentNavigationBarBackgroundForced
-                && (NAVIGATION_BAR_STYLE == NavigationBarStyle.TRANSPARENT
-                || NAVIGATION_BAR_STYLE == NavigationBarStyle.OPAQUE));
+        return NavigationBarRoom.useBlur(Build.VERSION.SDK_INT, hardwareAccelerated,
+                translucentNavigationBarBackgroundForced && (NAVIGATION_BAR_STYLE == NavigationBarStyle.TRANSPARENT
+                        || NAVIGATION_BAR_STYLE == NavigationBarStyle.OPAQUE));
     }
 
     private static boolean isGlassRoomEnabled() {

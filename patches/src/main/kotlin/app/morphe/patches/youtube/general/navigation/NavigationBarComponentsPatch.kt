@@ -264,8 +264,8 @@ val navigationBarComponentsPatch = bytecodePatch(
             }
 
             // The blurred background of the translucent navigation bar is drawn only if the canvas is
-            // hardware accelerated. The transparent and opaque styles leave it out, as it can crash
-            // the app on Android 12 and 13.
+            // hardware accelerated. It's always left out on Android 12 and 13, where it can crash the app
+            // while the player moves, and the transparent and opaque styles always leave it out.
             NavigationBarBlurDrawFingerprint.let {
                 it.method.apply {
                     val index = it.instructionMatches[1].index

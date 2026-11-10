@@ -133,8 +133,6 @@ Adımlar:
     <string name="morphe_music_downloads_already_saved">Zaten indirildi</string>
     <string name="morphe_music_downloads_complete">İndirme tamamlandı</string>
     <string name="morphe_music_downloads_failed">İndirme başarısız oldu</string>
-    <string name="morphe_music_downloads_mark_summary">Zaten indirilmiş olan şarkılar; çalma listelerinde, albümlerde ve arama sonuçlarında detaylarından önce bir işaretle gösterilir</string>
-    <string name="morphe_music_downloads_mark_title">İndirilen şarkıları işaretle</string>
     <string name="morphe_music_downloads_notification_channel">Ses indirmeleri</string>
     <string name="morphe_music_downloads_progress">İndiriliyor: %s%%</string>
     <string name="morphe_music_downloads_sort">Sırala</string>

@@ -133,8 +133,6 @@
     <string name="morphe_music_downloads_already_saved">Вже завантажено</string>
     <string name="morphe_music_downloads_complete">Завантаження завершено</string>
     <string name="morphe_music_downloads_failed">Помилка завантаження</string>
-    <string name="morphe_music_downloads_mark_summary">Пісні, які вже завантажено, мають позначку перед відомостями у списках відтворення, альбомах і результатах пошуку</string>
-    <string name="morphe_music_downloads_mark_title">Позначати завантажені пісні</string>
     <string name="morphe_music_downloads_notification_channel">Аудіозавантаження</string>
     <string name="morphe_music_downloads_progress">Завантаження %s%%</string>
     <string name="morphe_music_downloads_sort">Сортувати</string>

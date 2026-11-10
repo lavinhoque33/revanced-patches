@@ -126,8 +126,6 @@ SABR 播放（影片串流模擬已關閉）"</string>
     <string name="morphe_music_downloads_already_saved">已經下載了</string>
     <string name="morphe_music_downloads_complete">下載完成</string>
     <string name="morphe_music_downloads_failed">下載失敗</string>
-    <string name="morphe_music_downloads_mark_summary">已下載的歌曲在播放清單、專輯和搜尋結果的詳細資訊前會顯示標記</string>
-    <string name="morphe_music_downloads_mark_title">標記已下載歌曲</string>
     <string name="morphe_music_downloads_notification_channel">音訊下載</string>
     <string name="morphe_music_downloads_progress">正在下載%s%%</string>
     <string name="morphe_music_downloads_sort">排序</string>

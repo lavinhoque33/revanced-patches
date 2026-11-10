@@ -126,8 +126,6 @@ SABR再生（動画ストリームのスプーフがオフ）"</string>
     <string name="morphe_music_downloads_already_saved">すでにダウンロード済みです</string>
     <string name="morphe_music_downloads_complete">ダウンロード完了</string>
     <string name="morphe_music_downloads_failed">ダウンロードに失敗しました</string>
-    <string name="morphe_music_downloads_mark_summary">ダウンロード済みの曲は、プレイリスト、アルバム、検索結果の詳細の前にマークが表示されます</string>
-    <string name="morphe_music_downloads_mark_title">ダウンロード済みの曲にマークを付ける</string>
     <string name="morphe_music_downloads_notification_channel">音声ダウンロード</string>
     <string name="morphe_music_downloads_progress">ダウンロード中: %s%%</string>
     <string name="morphe_music_downloads_sort">並べ替え</string>

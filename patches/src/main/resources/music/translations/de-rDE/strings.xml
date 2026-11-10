@@ -127,8 +127,6 @@ Schritte:
     <string name="morphe_music_downloads_already_saved">Bereits heruntergeladen</string>
     <string name="morphe_music_downloads_complete">Download abgeschlossen</string>
     <string name="morphe_music_downloads_failed">Download fehlgeschlagen</string>
-    <string name="morphe_music_downloads_mark_summary">Bereits heruntergeladene Songs zeigen in Playlists, Alben und Suchergebnissen eine Markierung vor ihren Details an</string>
-    <string name="morphe_music_downloads_mark_title">Heruntergeladene Songs markieren</string>
     <string name="morphe_music_downloads_notification_channel">Audio-Downloads</string>
     <string name="morphe_music_downloads_progress">Wird heruntergeladen: %s%%</string>
     <string name="morphe_music_downloads_sort">Sortieren</string>

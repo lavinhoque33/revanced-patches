@@ -141,8 +141,6 @@ YouTube Music 8.x - crossfade only runs on 9.x and newer"</string>
     <string name="morphe_music_downloads_already_saved">Already downloaded</string>
     <string name="morphe_music_downloads_complete">Download complete</string>
     <string name="morphe_music_downloads_failed">Download failed</string>
-    <string name="morphe_music_downloads_mark_summary">Songs already downloaded show a mark before their details in playlists, albums and search results</string>
-    <string name="morphe_music_downloads_mark_title">Mark downloaded songs</string>
     <string name="morphe_music_downloads_notification_channel">Audio downloads</string>
     <string name="morphe_music_downloads_progress">Downloading %s%%</string>
     <string name="morphe_music_downloads_sort">Sort</string>

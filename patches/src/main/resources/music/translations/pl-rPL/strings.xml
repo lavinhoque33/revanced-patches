@@ -133,8 +133,6 @@ Kroki:
     <string name="morphe_music_downloads_already_saved">Już pobrano</string>
     <string name="morphe_music_downloads_complete">Pobieranie ukończone</string>
     <string name="morphe_music_downloads_failed">Pobieranie nie powiodło się</string>
-    <string name="morphe_music_downloads_mark_summary">Pobrane już utwory mają wyświetlane oznaczenie przed szczegółami na playlistach, w albumach oraz wynikach wyszukiwania</string>
-    <string name="morphe_music_downloads_mark_title">Oznacz pobrane utwory</string>
     <string name="morphe_music_downloads_notification_channel">Pobieranie muzyki</string>
     <string name="morphe_music_downloads_progress">Pobieranie: %s%%</string>
     <string name="morphe_music_downloads_sort">Sortuj</string>

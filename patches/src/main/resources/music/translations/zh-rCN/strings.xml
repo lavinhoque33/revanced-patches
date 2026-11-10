@@ -126,8 +126,6 @@ SABR 播放（模拟视频流已关闭）"</string>
     <string name="morphe_music_downloads_already_saved">已下载</string>
     <string name="morphe_music_downloads_complete">下载完成</string>
     <string name="morphe_music_downloads_failed">下载失败</string>
-    <string name="morphe_music_downloads_mark_summary">已下载的歌曲在播放列表、专辑和搜索结果的详情前会显示一个标记</string>
-    <string name="morphe_music_downloads_mark_title">标记已下载歌曲</string>
     <string name="morphe_music_downloads_notification_channel">音频下载</string>
     <string name="morphe_music_downloads_progress">正在下载 %s%%</string>
     <string name="morphe_music_downloads_sort">排序</string>

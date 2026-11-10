@@ -133,8 +133,6 @@ Langkah-langkah:
     <string name="morphe_music_downloads_already_saved">Sudah diunduh</string>
     <string name="morphe_music_downloads_complete">Pengunduhan selesai</string>
     <string name="morphe_music_downloads_failed">Pengunduhan gagal</string>
-    <string name="morphe_music_downloads_mark_summary">Lagu yang sudah diunduh menampilkan tanda sebelum detailnya di daftar putar, album, dan hasil pencarian</string>
-    <string name="morphe_music_downloads_mark_title">Tandai lagu yang diunduh</string>
     <string name="morphe_music_downloads_notification_channel">Unduhan audio</string>
     <string name="morphe_music_downloads_progress">Mengunduh %s%%</string>
     <string name="morphe_music_downloads_sort">Urutkan</string>

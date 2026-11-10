@@ -430,9 +430,6 @@ public class Settings extends SharedYouTubeSettings {
     public static final BooleanSetting ANDROID_AUTO_DOWNLOADED_PLAYLISTS = new BooleanSetting(
             "morphe_music_android_auto_downloaded_playlists", TRUE, false,
             parentsAny(IN_APP_DOWNLOADS, PLAY_DOWNLOADS_LOCALLY));
-    // Marks the songs saved as files by Download in app. Off by default: the green check of Play downloads locally
-    // marks stream copies only, and the two kinds of download are not mixed in one indicator.
-    public static final BooleanSetting DOWNLOADS_MARK = new BooleanSetting("morphe_music_downloads_mark", FALSE, parent(IN_APP_DOWNLOADS));
     public static final StringSetting DOWNLOADS_SORT = new StringSetting("morphe_music_downloads_sort", "ARTIST", false, false);
     public static final BooleanSetting SETTINGS_IMPORT_EXPORT = new BooleanSetting("revanced_settings_import_export", FALSE, false);
     public static final BooleanSetting SPOOF_VIDEO_STREAMS_SIGN_IN_ANDROID_VR_ABOUT =

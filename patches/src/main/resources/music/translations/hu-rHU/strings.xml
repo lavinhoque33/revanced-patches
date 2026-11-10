@@ -126,8 +126,6 @@ Lépések:
     <string name="morphe_music_downloads_already_saved">Már letöltve</string>
     <string name="morphe_music_downloads_complete">Letöltés befejezve</string>
     <string name="morphe_music_downloads_failed">Letöltés sikertelen</string>
-    <string name="morphe_music_downloads_mark_summary">A már letöltött dalok előtt egy jelzés jelenik meg a lejátszási listákban, albumokban és a keresési eredményekben</string>
-    <string name="morphe_music_downloads_mark_title">Letöltött dalok jelölése</string>
     <string name="morphe_music_downloads_notification_channel">Audió-letöltések</string>
     <string name="morphe_music_downloads_progress">Letöltés: %s%%</string>
     <string name="morphe_music_downloads_sort">Rendezés</string>

@@ -133,8 +133,6 @@ Etapas:
     <string name="morphe_music_downloads_already_saved">Já baixado</string>
     <string name="morphe_music_downloads_complete">Download concluído</string>
     <string name="morphe_music_downloads_failed">Falha no download</string>
-    <string name="morphe_music_downloads_mark_summary">Músicas já baixadas exibem uma marca antes de seus detalhes em playlists, álbuns e resultados de pesquisa</string>
-    <string name="morphe_music_downloads_mark_title">Marcar músicas baixadas</string>
     <string name="morphe_music_downloads_notification_channel">Downloads de áudio</string>
     <string name="morphe_music_downloads_progress">Baixando %s%%</string>
     <string name="morphe_music_downloads_sort">Ordenar</string>

@@ -41,8 +41,6 @@
   previews in the feed muted.
 * **YouTube Music - Lyrics:** Add a dynamic background to the lyrics, and show the reading of each Japanese word
   above the text (furigana).
-* **YouTube Music - Downloads:** Add Mark downloaded songs, off by default, a child of Download in app, to mark songs
-  saved as files. The green checkmarks of Play downloads locally keep marking only the stream copies.
 * **YouTube Music - Downloads:** Add Play downloads locally, off by default, to play downloaded songs from a private
   copy of the audio; radio, lyrics and the queue stay online while there is a connection. It is independent of
   Download in app: on its own it saves only that copy, which is kept inside the app and is not shown in Device files

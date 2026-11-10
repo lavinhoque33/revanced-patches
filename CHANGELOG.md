@@ -5,18 +5,6 @@
 * **YouTube - Unlock queue:** Make Play next in queue in the feed menu use YouTube's own queue when Unlock queue is on.
   Add to RVX queue still opens the RVX queue dialog. Turn Unlock queue off to override the feed queue button.
   Premium-style queue takes priority when you turn it on, and keeps working for users who already use it.
-
-### Features
-
-* **YouTube - Settings:** Move the About card into an About screen at the end of RVX settings.
-* **YouTube - Downloads:** Add Show download option icons, on by default, to hide the icons beside Include subtitles
-  and Include SponsorBlock in the built-in downloader.
-* **YouTube - Enable debug logging:** Add a Feature flags manager in Settings > Debugging, with Binary search to find
-  which YouTube feature flag causes a problem.
-* **Sync with anddea/revanced-patches dev:** Merge the changes up to v4.4.0-dev.6 (anddea dev, b2f29faa6) into this
-  fork.
-* **YouTube - Glass navigation bar:** Add a bottom spacing slider to the Glass navigation bar size dialog, to set how far
-  the capsule floats above the bottom of the screen, and show the snackbars right above the navigation bar.
 * **YouTube - Navigation bar:** Fix the navigation buttons sitting too high, with a black strip below them, with the
   Translucent or Transparent navigation bar style and gesture navigation, also when Glass navigation bar is off.
 * **YouTube - Navigation bar:** The blurred background of the Translucent navigation bar and of Glass navigation bar
@@ -31,19 +19,30 @@
   and of the channel home use the Classic layout or the card background like the videos, the Classic layout keeps the
   Save to Watch later and Save to playlist items in the menu, mixes and the movie shelf keep their own layout when
   they are hidden, and the cards keep their layout while the app updates its templates.
+* **YouTube - Toolbar:** Fix the Create button of the toolbar so it opens the upload menu again.
+
+### Features
+
+* **Sync with anddea/revanced-patches dev:** Merge the changes up to v4.4.0-dev.6 (anddea dev, b2f29faa6) into this
+  fork.
+* **YouTube - Settings:** Move the About card into an About screen at the end of RVX settings.
+* **YouTube - Downloads:** Add Show download option icons, on by default, to hide the icons beside Include subtitles
+  and Include SponsorBlock in the built-in downloader.
+* **YouTube - Enable debug logging:** Add a Feature flags manager in Settings > Debugging, with Binary search to find
+  which YouTube feature flag causes a problem.
+* **YouTube - Glass navigation bar:** Add a bottom spacing slider to the Glass navigation bar size dialog, to set how
+  far the capsule floats above the bottom of the screen, and show the snackbars right above the navigation bar.
 * **YouTube - Watch later improvements:** Add a patch with options to widen the drag handles of the Watch later videos
   and to hide the snackbar shown after removing a video.
 * **YouTube - Post buttons:** Add a Post buttons screen to hide the like, share and comment buttons of posts, and an
   option to give every post the same grouped layout of buttons.
 * **YouTube - Captions:** Show captions in stable blocks and as two languages at once, on YouTube 21.15 and newer.
-* **YouTube - Toolbar:** Fix the Create button of the toolbar so it opens the upload menu again.
 * **YouTube - Spoof video streams:** Fetch the streams of a video sooner, so videos start faster, and keep inline
   previews in the feed muted.
 * **YouTube Music - Lyrics:** Add a dynamic background to the lyrics, and show the reading of each Japanese word
   above the text (furigana).
 * **YouTube Music - Downloads:** Add Mark downloaded songs, off by default, a child of Download in app, to mark songs
   saved as files. The green checkmarks of Play downloads locally keep marking only the stream copies.
-
 * **YouTube Music - Downloads:** Add Play downloads locally, off by default, to play downloaded songs from a private
   copy of the audio; radio, lyrics and the queue stay online while there is a connection. It is independent of
   Download in app: on its own it saves only that copy, which is kept inside the app and is not shown in Device files

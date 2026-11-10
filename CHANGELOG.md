@@ -38,18 +38,21 @@
   private or blocked songs, shown greyed out) instead of failing the whole download. The finished message says how
   many were skipped, the Download button's check turns on when every available track has a copy, and a failed
   download now names the reason in a one-line message.
-* **YouTube Music - Downloads:** Songs that have a music video also save its 360p video (about 7 MB, next to the
-  song's audio copy of about 3.4 MB), so the Video switch plays from the device. The videos are found and saved when
-  an album is downloaded, one at a time after the songs: each song is matched to the video with the same title, or
-  with about the same length, and a song with no certain match saves none. A song downloaded on its own saves no
-  video, and a playlist whose songs the server does not link to a music video saves none either. A video that cannot
-  be saved never fails the song or the list. The finished message and the Stream downloads action count the videos
-  and their size (for example "49 songs and 10 videos saved for local playback, 236.4 MB"), tapping Download on a
-  saved list fetches the videos it is missing, and deleting the stream downloads deletes the videos too.
-* **YouTube Music - Downloads:** Play the saved video in the Video mode, online or offline: the Song/Video switch,
-  Next and the end of a song all play a saved video from the device and continue where you were, and switching back
-  to Song resumes the audio copy at the same position. With no connection the Song/Video switch works for the songs
-  that have a saved video; for the others it stays as it was.
+* **YouTube Music - Downloads:** Songs that have a music video also save that video's stream: its 360p picture and
+  its own audio, about 10 to 12 MB for the pair, next to the song's audio copy of about 3.4 MB. The videos are found
+  and saved when an album is downloaded, one at a time after the songs: each song is matched to the video with the
+  same title, or with about the same length, and a song with no certain match saves none. A song downloaded on its
+  own saves no video, and a playlist whose songs the server does not link to a music video saves none either. A
+  video that cannot be saved never fails the song or the list. The finished message and the Stream downloads action
+  count the videos and their size (for example "49 songs and 10 videos saved for local playback, 236.4 MB"),
+  tapping Download on a saved list fetches the videos it is missing, and deleting the stream downloads deletes the
+  videos too.
+* **YouTube Music - Downloads:** A song with a saved video plays that saved stream in both display modes, online or
+  offline, and the Song/Video switch is the app's own switch: it flips in place at once, with no reload, no gap in
+  the sound and no change of position, and the Song display plays the sound of the video itself. A tap on the song
+  in an album, a playlist or the Downloads view starts it that way, and Next and the end of a song go on in the
+  display you chose. Songs without a saved video keep their audio copy, and Android Auto keeps playing the audio
+  copies.
 
 ## [1.33.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.32.2...v1.33.0) (2026-11-06)
 

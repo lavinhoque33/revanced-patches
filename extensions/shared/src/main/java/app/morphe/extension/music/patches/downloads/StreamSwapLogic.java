@@ -6,6 +6,8 @@
  */
 package app.morphe.extension.music.patches.downloads;
 
+import androidx.annotation.Nullable;
+
 import java.net.URI;
 import java.net.URISyntaxException;
 
@@ -60,20 +62,18 @@ final class StreamSwapLogic {
         }
     }
 
-    /**
-     * The url a video copy is announced with: the file itself, with the loopback host. The progressive muxed format is
-     * played by the framework {@code MediaPlayer} (stock {@code AndroidFrameworkPlayerWrapper}), which opens a
-     * {@code file} uri from its path; a loopback host keeps stock from wrapping the url in its own cache proxy,
-     * which only tokens of the loopback kind skip. The path is the file's, never a query.
-     */
-    static String videoFileUrl(String absolutePath) {
-        return "file://127.0.0.1" + absolutePath;
+    /** The loopback url a served stream is announced with; the data source finds the file by its token. */
+    static String tokenUrl(String videoId, int itag, String kind, String key) {
+        return "http://127.0.0.1:1/rvx?v=" + videoId + "&i=" + itag + "&m=" + kind + "&t=" + key;
     }
 
-    /** Whether a uri has the shape {@link #videoFileUrl} gives; the path it names, or null. */
-    static String videoFilePath(String scheme, String host, String path) {
-        if (!"file".equals(scheme) || !"127.0.0.1".equals(host) || path == null || path.isEmpty()) return null;
-        return path;
+    /**
+     * The url of the muxed format a video copy's response keeps so that the app still offers the Video switch: a
+     * token nothing was issued for, so the stock loopback guard refuses it if the player ever asks. The player plays
+     * the adaptive formats whenever a response has them.
+     */
+    static String unplayableMuxedUrl(String videoId) {
+        return tokenUrl(videoId, VideoCopyLogic.MUXED_ITAG, "muxed", "none");
     }
 
     /** Stock's exact host predicate, not a general loopback-address test. */
@@ -90,12 +90,17 @@ final class StreamSwapLogic {
     }
 
     /**
-     * The response of a music video that has a video copy: its only format is the muxed progressive one, played from
-     * the file. No adaptive format, no SABR route and no HLS manifest remains that the player could prefer to it.
+     * The response of a music video that has a video copy: its adaptive formats are exactly the copy's two streams,
+     * played from their files. The muxed formats stay, as the app's own responses have them, so the Video switch is
+     * offered; when the response has no video format in them, {@code muxed} stands in. No SABR route and no HLS
+     * manifest remains that the player could prefer to the pair.
      */
-    static PlayerResponse replaceVideo(PlayerResponse online, Format muxed) {
-        var streaming = online.getStreamingData().toBuilder().clearFormats().clearAdaptiveFormats()
-                .addFormats(muxed).clearHlsManifestUrl();
+    static PlayerResponse replacePair(PlayerResponse online, Format video, Format audio, @Nullable Format muxed) {
+        var streaming = online.getStreamingData().toBuilder().clearAdaptiveFormats()
+                .addAdaptiveFormats(video).addAdaptiveFormats(audio).clearHlsManifestUrl();
+        if (muxed != null && !VideoCopyLogic.hasVideoFormat(online.getStreamingData().getFormatsList())) {
+            streaming.clearFormats().addFormats(muxed);
+        }
         streaming.clearServerAbrStreamingUrl();
         return withoutServerAbr(online, streaming);
     }

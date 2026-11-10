@@ -2,6 +2,7 @@
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
  * Written by lavinhoque33, 2026-11-09.
+ * Modified by lavinhoque33, 2026-11-09.
  */
 package app.morphe.extension.music.patches.downloads;
 
@@ -13,58 +14,132 @@ import static org.junit.Assert.assertTrue;
 
 import org.junit.Test;
 
+import app.morphe.extension.shared.innertube.PlayerResponseOuterClass.ByteRange;
 import app.morphe.extension.shared.innertube.PlayerResponseOuterClass.Format;
 import app.morphe.extension.shared.innertube.PlayerResponseOuterClass.PlayerResponse;
 import app.morphe.extension.shared.innertube.PlayerResponseOuterClass.StreamingData;
 
 public class VideoCopyLogicTest {
     private static final String MP4 = "video/mp4; codecs=\"avc1.42001E, mp4a.40.2\"";
+    private static final String AVC = "video/mp4; codecs=\"avc1.4D401E\"";
+    private static final String VP9 = "video/webm; codecs=\"vp9\"";
+    private static final String AV1 = "video/mp4; codecs=\"av01.0.01M.08\"";
+    private static final String OPUS = "audio/webm; codecs=\"opus\"";
 
     private static Format.Builder muxed() {
         return Format.newBuilder().setItag(18).setMimeType(MP4).setUrl("https://example.invalid/v").setBitrate(444226);
     }
 
-    private static PlayerResponse response(Format... formats) {
-        StreamingData.Builder streaming = StreamingData.newBuilder();
-        for (Format format : formats) streaming.addFormats(format);
+    /** A downloadable adaptive format: a plain url, a length, an lmt and the init and index ranges. */
+    private static Format.Builder adaptive(int itag, String mime, long length) {
+        return Format.newBuilder().setItag(itag).setMimeType(mime).setUrl("https://example.invalid/" + itag)
+                .setContentLength(length).setLastModified(1_766_960_771_651_324L)
+                .setInitRange(ByteRange.newBuilder().setStart(0).setEnd(9))
+                .setIndexRange(ByteRange.newBuilder().setStart(10).setEnd(19));
+    }
+
+    private static PlayerResponse response(Format... adaptive) {
+        StreamingData.Builder streaming = StreamingData.newBuilder().addFormats(muxed());
+        for (Format format : adaptive) streaming.addAdaptiveFormats(format);
         return PlayerResponse.newBuilder().setStreamingData(streaming).build();
     }
 
-    @Test public void onlyTheMuxedMp4OfItag18IsTheVideoCopy() {
-        assertTrue(VideoCopyLogic.supportedVideo(18, MP4));
-        assertFalse(VideoCopyLogic.supportedVideo(137, "video/mp4; codecs=\"avc1.640028\""));
-        assertFalse(VideoCopyLogic.supportedVideo(313, "video/webm; codecs=\"vp9\""));
-        assertFalse(VideoCopyLogic.supportedVideo(18, "video/webm"));
-        assertFalse(VideoCopyLogic.supportedVideo(18, null));
+    @Test public void theSupportedVideoStreamsAreTheThree360pOnesOfTheirContainer() {
+        assertTrue(VideoCopyLogic.supportedVideo(134, AVC));
+        assertTrue(VideoCopyLogic.supportedVideo(243, VP9));
+        assertTrue(VideoCopyLogic.supportedVideo(396, AV1));
+        assertFalse(VideoCopyLogic.supportedVideo(134, VP9));
+        assertFalse(VideoCopyLogic.supportedVideo(243, AVC));
+        assertFalse(VideoCopyLogic.supportedVideo(137, AVC));
+        assertFalse(VideoCopyLogic.supportedVideo(18, MP4));
+        assertFalse(VideoCopyLogic.supportedVideo(134, null));
     }
 
-    @Test public void theMuxedFormatIsTakenFromFormatsAndNeverFromAdaptiveFormats() {
-        Format video = Format.newBuilder().setItag(137).setMimeType("video/mp4").setUrl("https://example.invalid/a")
-                .build();
+    @Test public void theAvcStreamIsPreferredThenVp9ThenAv1AndTheAudioIsOpus251() {
+        Format audio = adaptive(251, OPUS, 3_433_755).build();
+        Format avc = adaptive(134, AVC, 8_390_921).build();
+        Format vp9 = adaptive(243, VP9, 6_014_765).build();
+        Format av1 = adaptive(396, AV1, 5_685_561).build();
+
+        VideoCopyLogic.Selection all = VideoCopyLogic.select(response(av1, vp9, avc, audio));
+        assertEquals(134, all.video().getItag());
+        assertEquals(251, all.audio().getItag());
+        assertEquals(8_390_921 + 3_433_755, all.bytes());
+        assertEquals(243, VideoCopyLogic.select(response(av1, vp9, audio)).video().getItag());
+        assertEquals(396, VideoCopyLogic.select(response(av1, audio)).video().getItag());
+        assertEquals(18, all.muxed().getItag());
+    }
+
+    @Test public void aCopyNeedsBothStreamsWithPlainUrlsLengthsAndRanges() {
+        Format audio = adaptive(251, OPUS, 100).build();
+        Format avc = adaptive(134, AVC, 100).build();
+
+        assertNull(VideoCopyLogic.select(response(avc)));
+        assertNull(VideoCopyLogic.select(response(audio)));
+        assertNull(VideoCopyLogic.select(response(adaptive(134, AVC, 100).clearUrl().build(), audio)));
+        assertNull(VideoCopyLogic.select(response(adaptive(134, AVC, 0).build(), audio)));
+        assertNull(VideoCopyLogic.select(response(adaptive(134, AVC, 100).clearInitRange().build(), audio)));
+        assertNull(VideoCopyLogic.select(response(adaptive(134, AVC, 100).setIndexRange(
+                ByteRange.newBuilder().setStart(50).setEnd(100)).build(), audio)));
+        assertNull(VideoCopyLogic.select(response(avc, adaptive(251, OPUS, 100).clearUrl().build())));
+        assertNull(VideoCopyLogic.select(response(avc, adaptive(140, "audio/mp4; codecs=\"mp4a.40.2\"", 100)
+                .build())));
+        assertNotNull(VideoCopyLogic.select(response(avc, audio)));
+    }
+
+    @Test public void theMuxedFormatIsOnlyCarriedAlongAndNeverFromAdaptiveFormats() {
+        Format audio = adaptive(251, OPUS, 100).build();
+        Format avc = adaptive(134, AVC, 100).build();
         PlayerResponse adaptiveOnly = PlayerResponse.newBuilder().setStreamingData(
-                StreamingData.newBuilder().addAdaptiveFormats(muxed()).addAdaptiveFormats(video)).build();
+                StreamingData.newBuilder().addAdaptiveFormats(avc).addAdaptiveFormats(audio)).build();
 
         assertNull(VideoCopyLogic.muxed(adaptiveOnly));
-        assertNull(VideoCopyLogic.muxed(response(video)));
-        assertNotNull(VideoCopyLogic.muxed(response(video, muxed().build())));
+        assertNull(VideoCopyLogic.select(adaptiveOnly).muxed());
+        assertNotNull(VideoCopyLogic.muxed(response(avc, audio)));
     }
 
-    @Test public void aMuxedFormatWithoutAPlainUrlIsNotDownloadableButIsTheStoredOne() {
-        PlayerResponse withoutUrl = response(muxed().clearUrl().build());
+    @Test public void aStoredCopyYieldsItsTwoFormatsByItagAndItsMuxedFormat() {
+        Format audio = adaptive(251, OPUS, 100).clearUrl().build();
+        Format avc = adaptive(134, AVC, 200).clearUrl().build();
+        PlayerResponse stored = response(avc, adaptive(140, "audio/mp4", 5).build(), audio);
 
-        assertNull(VideoCopyLogic.muxed(withoutUrl));
-        assertNotNull(VideoCopyLogic.stored(withoutUrl));
+        VideoCopyLogic.Stored formats = VideoCopyLogic.stored(stored, 134, 251);
+
+        assertEquals(avc, formats.video());
+        assertEquals(audio, formats.audio());
+        assertNotNull(formats.muxed());
+        assertNull(VideoCopyLogic.stored(stored, 243, 251));
+    }
+
+    @Test public void theVideoSwitchNeedsAVideoFormatInTheMuxedList() {
+        assertTrue(VideoCopyLogic.hasVideoFormat(response().getStreamingData().getFormatsList()));
+        assertFalse(VideoCopyLogic.hasVideoFormat(java.util.List.of()));
+        assertFalse(VideoCopyLogic.hasVideoFormat(java.util.List.of(adaptive(251, OPUS, 1).build())));
+    }
+
+    @Test public void theOnlineUrlIsAFallbackOnlyForTheSameStream() {
+        Format stored = adaptive(134, AVC, 100).clearUrl().build();
+
+        assertEquals("https://example.invalid/134",
+                VideoCopyLogic.fallbackUrl(stored, adaptive(134, AVC, 100).build()));
+        assertNull(VideoCopyLogic.fallbackUrl(stored, adaptive(134, AVC, 101).build()));
+        assertNull(VideoCopyLogic.fallbackUrl(stored, adaptive(134, AVC, 100).setLastModified(5).build()));
+        assertNull(VideoCopyLogic.fallbackUrl(stored, adaptive(243, VP9, 100).build()));
+        assertNull(VideoCopyLogic.fallbackUrl(stored, adaptive(134, AVC, 100).clearUrl().build()));
+        assertNull(VideoCopyLogic.fallbackUrl(stored, null));
     }
 
     @Test public void theCopyIsAnnouncedWithTheLocalTokenTheRealLengthAndTheCopysDuration() {
-        Format local = VideoCopyLogic.local(muxed().clearUrl().setContentLength(1).build(), "http://127.0.0.1:1/rvx",
-                11_829_048, 213_000);
+        Format local = VideoCopyLogic.local(adaptive(134, AVC, 1).clearUrl().build(), "http://127.0.0.1:1/rvx",
+                8_390_921, 213_000);
 
         assertEquals("http://127.0.0.1:1/rvx", local.getUrl());
-        assertEquals(11_829_048, local.getContentLength());
+        assertEquals(8_390_921, local.getContentLength());
         assertEquals(213_000, local.getApproxDurationMs());
-        assertEquals(18, local.getItag());
-        assertEquals(444226, local.getBitrate());
+        assertEquals(134, local.getItag());
+        assertEquals(AVC, local.getMimeType());
+        assertEquals(9, local.getInitRange().getEnd());
+        assertEquals(19, local.getIndexRange().getEnd());
     }
 
     @Test public void aDurationTheFormatAlreadyHasIsKept() {
@@ -84,8 +159,8 @@ public class VideoCopyLogicTest {
     @Test public void theCopyNeedsItsLengthPlusTheReserveFree() {
         long reserve = VideoCopyLogic.MIN_FREE_BYTES_AFTER;
 
-        assertTrue(VideoCopyLogic.hasRoomFor(reserve + 11_829_048, 11_829_048));
-        assertFalse(VideoCopyLogic.hasRoomFor(reserve + 11_829_047, 11_829_048));
+        assertTrue(VideoCopyLogic.hasRoomFor(reserve + 11_824_676, 11_824_676));
+        assertFalse(VideoCopyLogic.hasRoomFor(reserve + 11_824_675, 11_824_676));
     }
 
     @Test public void theFinishedTextNamesTheVideosOnlyWhenTheListHasSome() {

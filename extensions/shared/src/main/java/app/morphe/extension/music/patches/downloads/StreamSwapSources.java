@@ -19,21 +19,29 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * Loopback URLs are opaque engine-routing tokens, never HTTP endpoints; no listener or socket is needed. A video copy
- * is announced by its file's loopback {@code file} uri instead, because the framework player cannot be hooked.
+ * Loopback URLs are opaque engine-routing tokens, never HTTP endpoints; no listener or socket is needed. The raw
+ * audio copy of a song and the two streams of a video copy (its video-only stream and its own audio) are announced
+ * alike, one token each.
  */
 final class StreamSwapSources {
     static final String KIND_RAW = "raw";
+    /** The video-only stream of a video copy. */
     static final String KIND_VIDEO = "video";
+    /** The audio stream of a video copy, the music video's own. */
+    static final String KIND_VIDEO_AUDIO = "vaudio";
 
-    /** What a token serves: a file of a kind (the raw audio copy or the video copy), its itag and its length. */
+    /** What a token serves: a file of a kind (the raw audio copy or a stream of a video copy), itag and length. */
     record Served(String kind, File file, int itag, long length) {
         static Served of(RawAudioFiles.Entry raw) {
             return new Served(KIND_RAW, raw.file(), raw.itag(), raw.length());
         }
 
-        static Served of(VideoCopyFiles.Entry video) {
-            return new Served(KIND_VIDEO, video.file(), video.itag(), video.length());
+        static Served video(VideoCopyFiles.Entry copy) {
+            return new Served(KIND_VIDEO, copy.video().file(), copy.video().itag(), copy.video().length());
+        }
+
+        static Served audio(VideoCopyFiles.Entry copy) {
+            return new Served(KIND_VIDEO_AUDIO, copy.audio().file(), copy.audio().itag(), copy.audio().length());
         }
     }
 
@@ -68,9 +76,9 @@ final class StreamSwapSources {
     private static final AtomicLong sequence = new AtomicLong();
     private static final ConcurrentHashMap<String, Source> sources = new ConcurrentHashMap<>();
     private static final ConcurrentHashMap<String, Source> latest = new ConcurrentHashMap<>();
-    /** Tokens of one track stay valid for in-flight responses; older ones are dropped beyond this many. */
+    /** Tokens of one stream of a track stay valid for in-flight responses; older ones are dropped beyond this many. */
     static final int TOKENS_PER_VIDEO = 4;
-    /** Issue order per track, guarded by the class monitor; the maps above stay readable without it. */
+    /** Issue order per stream (id and kind), guarded by the class monitor; the maps above stay readable without it. */
     private static final Map<String, ArrayDeque<Source>> issued = new HashMap<>();
 
     private StreamSwapSources() {}
@@ -80,24 +88,33 @@ final class StreamSwapSources {
         return issue(videoId, Served.of(raw), formatUrl);
     }
 
-    /** The source of a music video's video copy, {@code videoId} being the id of the music video. */
-    static Source issueVideo(String videoId, VideoCopyFiles.Entry video, String formatUrl) {
-        return issue(videoId, Served.of(video), formatUrl);
+    /** The source of the video-only stream of a music video's copy, {@code videoId} being the music video's id. */
+    static Source issueVideo(String videoId, VideoCopyFiles.Entry copy, String formatUrl) {
+        return issue(videoId, Served.video(copy), formatUrl);
+    }
+
+    /** The source of the audio stream of a music video's copy. */
+    static Source issueVideoAudio(String videoId, VideoCopyFiles.Entry copy, String formatUrl) {
+        return issue(videoId, Served.audio(copy), formatUrl);
+    }
+
+    private static String streamKey(String videoId, String kind) {
+        return videoId + "/" + kind;
     }
 
     private static synchronized Source issue(String videoId, Served served, String formatUrl) {
         String onlineUrl = StreamSwapLogic.onlineUrl(formatUrl);
-        Source previous = latest.get(videoId);
+        String streamKey = streamKey(videoId, served.kind());
+        Source previous = latest.get(streamKey);
         if (previous != null && previous.available && previous.served.equals(served)
                 && Objects.equals(previous.online, onlineUrl)) return previous;
 
         String key = SESSION + "-" + sequence.incrementAndGet();
-        String uri = KIND_VIDEO.equals(served.kind()) ? StreamSwapLogic.videoFileUrl(served.file().getAbsolutePath())
-                : "http://127.0.0.1:1/rvx?v=" + videoId + "&i=" + served.itag() + "&m=" + served.kind() + "&t=" + key;
+        String uri = StreamSwapLogic.tokenUrl(videoId, served.itag(), served.kind(), key);
         Source source = new Source(videoId, served, onlineUrl, key, uri);
         sources.put(key, source);
-        latest.put(videoId, source);
-        ArrayDeque<Source> history = issued.computeIfAbsent(videoId, id -> new ArrayDeque<>());
+        latest.put(streamKey, source);
+        ArrayDeque<Source> history = issued.computeIfAbsent(streamKey, id -> new ArrayDeque<>());
         history.addLast(source);
         while (history.size() > TOKENS_PER_VIDEO) sources.remove(history.removeFirst().key);
         return source;
@@ -120,25 +137,11 @@ final class StreamSwapSources {
         return source;
     }
 
-    /** The issued video source whose file a {@link StreamSwapLogic#videoFileUrl} uri names, or null. */
-    static Source findVideoFile(Uri uri) {
-        if (uri == null) return null;
-
-        String path = StreamSwapLogic.videoFilePath(uri.getScheme(), uri.getHost(), uri.getPath());
-        if (path == null) return null;
-
-        for (Source source : sources.values()) {
-            if (source.available && KIND_VIDEO.equals(source.served.kind())
-                    && source.served.file().getAbsolutePath().equals(path)) return source;
-        }
-        return null;
-    }
-
     static void invalidate(String videoId) {
         for (Source source : sources.values()) {
             if (source.videoId.equals(videoId)) source.available = false;
         }
-        latest.remove(videoId);
+        latest.values().removeIf(source -> source.videoId.equals(videoId));
     }
 
     /** Every stream copy was deleted: no issued source may serve from a file again. */
@@ -151,7 +154,7 @@ final class StreamSwapSources {
         for (Source source : sources.values()) {
             if (!source.served.file().isFile() || source.served.file().length() != source.served.length()) {
                 source.available = false;
-                latest.remove(source.videoId, source);
+                latest.values().remove(source);
             }
         }
     }

@@ -2,6 +2,7 @@
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
  * Written by lavinhoque33, 2026-11-09.
+ * Modified by lavinhoque33, 2026-11-09.
  */
 package app.morphe.extension.music.patches.downloads;
 
@@ -21,7 +22,8 @@ import java.nio.file.Files;
 import java.util.Set;
 
 public class VideoCopyFilesTest {
-    private static final String MP4 = "video/mp4; codecs=\"avc1.42001E, mp4a.40.2\"";
+    private static final String MP4 = "video/mp4; codecs=\"avc1.4D401E\"";
+    private static final String OPUS = "audio/webm; codecs=\"opus\"";
     private static final byte[] RESPONSE = {1, 2, 3, 4};
 
     @Rule public TemporaryFolder temporary = new TemporaryFolder();
@@ -37,8 +39,14 @@ public class VideoCopyFilesTest {
         return file;
     }
 
+    /** A copy whose video file has {@code length} bytes and whose audio file has half as many. */
     private boolean retain(String video, String song, int length) throws Exception {
-        return files.retain(video, song, "PLlist", download(length), 18, MP4, length, 123, 213_000, RESPONSE);
+        return files.retain(video, song, "PLlist", download(length), download(length / 2), copy(length, length / 2));
+    }
+
+    private static VideoCopyLogic.Download copy(int videoLength, int audioLength) {
+        return new VideoCopyLogic.Download(new VideoCopyLogic.Stream(134, MP4, videoLength, 123),
+                new VideoCopyLogic.Stream(251, OPUS, audioLength, 456), 213_000, RESPONSE);
     }
 
     @Test public void aRetainedCopyIsFoundWithItsPairAndItsStoredResponse() throws Exception {
@@ -48,14 +56,17 @@ public class VideoCopyFilesTest {
         assertNotNull(entry);
         assertEquals("atvOne00000", entry.songId());
         assertEquals("PLlist", entry.sourceId());
-        assertEquals(100, entry.length());
+        assertEquals(100, entry.video().length());
+        assertEquals(50, entry.audio().length());
         assertEquals(213_000, entry.durationMs());
-        assertEquals(18, entry.itag());
+        assertEquals(134, entry.video().itag());
+        assertEquals(251, entry.audio().itag());
+        assertEquals(MP4, entry.video().mime());
         assertArrayEquals(RESPONSE, files.response("omvOne00000"));
         assertEquals("omvOne00000", files.videoOf("atvOne00000"));
         assertTrue(files.has("omvOne00000"));
         assertEquals(1, files.stats().count());
-        assertEquals(100, files.stats().bytes());
+        assertEquals(150, files.stats().bytes());
     }
 
     private static void assertArrayEquals(byte[] expected, byte[] actual) {
@@ -73,21 +84,53 @@ public class VideoCopyFilesTest {
         assertEquals("atvOne00000", reopened.pairs().get("omvOne00000"));
     }
 
-    @Test public void aCopyThatIsNotAnMp4OfItag18IsRefused() throws Exception {
-        assertFalse(files.retain("omvOne00000", "atvOne00000", null, download(10), 137, MP4, 10, 1, 1, RESPONSE));
-        assertFalse(files.retain("omvOne00000", "atvOne00000", null, download(10), 18, "video/webm", 10, 1, 1,
-                RESPONSE));
+    @Test public void aCopyThatIsNotAnAdaptivePairOfTheSupportedStreamsIsRefused() throws Exception {
+        VideoCopyLogic.Stream audio = new VideoCopyLogic.Stream(251, OPUS, 10, 1);
+        assertFalse(files.retain("omvOne00000", "atvOne00000", null, download(10), download(10),
+                new VideoCopyLogic.Download(new VideoCopyLogic.Stream(137, MP4, 10, 1), audio, 1, RESPONSE)));
+        assertFalse(files.retain("omvOne00000", "atvOne00000", null, download(10), download(10),
+                new VideoCopyLogic.Download(new VideoCopyLogic.Stream(18, MP4, 10, 1), audio, 1, RESPONSE)));
+        assertFalse(files.retain("omvOne00000", "atvOne00000", null, download(10), download(10),
+                new VideoCopyLogic.Download(new VideoCopyLogic.Stream(134, MP4, 10, 1),
+                        new VideoCopyLogic.Stream(140, "audio/mp4", 10, 1), 1, RESPONSE)));
         assertFalse(files.has("omvOne00000"));
     }
 
     @Test public void aFileOfAnotherLengthThanTheRecordedOneIsRefused() throws Exception {
-        assertFalse(files.retain("omvOne00000", "atvOne00000", null, download(10), 18, MP4, 11, 1, 1, RESPONSE));
-        assertFalse(files.retain("omvOne00000", "atvOne00000", null, download(10), 18, MP4, 10, 1, 1, new byte[0]));
+        VideoCopyLogic.Stream video = new VideoCopyLogic.Stream(134, MP4, 10, 1);
+        VideoCopyLogic.Stream audio = new VideoCopyLogic.Stream(251, OPUS, 10, 1);
+        assertFalse(files.retain("omvOne00000", "atvOne00000", null, download(11), download(10),
+                new VideoCopyLogic.Download(video, audio, 1, RESPONSE)));
+        assertFalse(files.retain("omvOne00000", "atvOne00000", null, download(10), download(9),
+                new VideoCopyLogic.Download(video, audio, 1, RESPONSE)));
+        assertFalse(files.retain("omvOne00000", "atvOne00000", null, download(10), download(10),
+                new VideoCopyLogic.Download(video, audio, 1, new byte[0])));
+        assertFalse(files.has("omvOne00000"));
+    }
+
+    @Test public void aCopyOfTheEarlierMuxedFormatIsNoCopy() throws Exception {
+        File directory = new File(temporary.getRoot(), "rvx_video");
+        assertTrue(directory.mkdirs());
+        Files.write(new File(directory, "omvOne00000.mp4").toPath(), new byte[10]);
+        Files.write(new File(directory, "omvOne00000.resp").toPath(), RESPONSE);
+        Files.write(new File(directory, "omvOne00000.json").toPath(), ("{\"itag\":18,\"mime\":\"video/mp4\","
+                + "\"length\":10,\"songId\":\"atvOne00000\",\"responseBytes\":4,\"sha256\":\"x\"}").getBytes());
+
+        VideoCopyFiles reopened = new VideoCopyFiles(directory);
+        reopened.ensureLoaded();
+
+        assertFalse(reopened.has("omvOne00000"));
+        assertNull(reopened.find("omvOne00000"));
+        assertEquals(0, reopened.stats().count());
+
+        // The cleanup of orphans takes the old files away, so a new download starts clean.
+        reopened.retainOnly(Set.of("atvOne00000"), System.currentTimeMillis() + 60_000);
+        assertFalse(new File(directory, "omvOne00000.mp4").exists());
     }
 
     @Test public void aChangedFileIsNotPlayed() throws Exception {
         retain("omvOne00000", "atvOne00000", 100);
-        File video = files.find("omvOne00000").file();
+        File video = files.find("omvOne00000").video().file();
 
         Files.write(video.toPath(), new byte[100]);
         assertNotNull(files.find("omvOne00000"));
@@ -100,9 +143,21 @@ public class VideoCopyFilesTest {
         assertNull(files.find("omvOne00000"));
     }
 
+    @Test public void aChangedAudioFileIsNotPlayedEither() throws Exception {
+        retain("omvOne00000", "atvOne00000", 100);
+        File audio = files.find("omvOne00000").audio().file();
+
+        byte[] other = new byte[50];
+        other[7] = 1;
+        Files.write(audio.toPath(), other);
+        assertTrue(audio.setLastModified(audio.lastModified() + 2_000));
+
+        assertNull(files.find("omvOne00000"));
+    }
+
     @Test public void aTruncatedFileIsNoCopy() throws Exception {
         retain("omvOne00000", "atvOne00000", 100);
-        File video = files.find("omvOne00000").file();
+        File video = files.find("omvOne00000").video().file();
 
         Files.write(video.toPath(), new byte[40]);
 
@@ -162,6 +217,6 @@ public class VideoCopyFilesTest {
 
         assertEquals("atvTwo00000", files.find("omvOne00000").songId());
         assertNull(files.videoOf("atvOne00000"));
-        assertEquals(120, files.stats().bytes());
+        assertEquals(180, files.stats().bytes());
     }
 }

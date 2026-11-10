@@ -85,18 +85,30 @@ final class OfflineResponseTrim {
     }
 
     /**
-     * The response stored with a video copy: the details of the music video and the muxed progressive format, whose
-     * url is empty (the replay puts its own local token there) and whose length is the stored file's.
+     * The response stored with a video copy: the details of the music video, the loudness configuration, the two
+     * adaptive formats of the copy and the muxed format that keeps the Video switch offered, all without urls (the
+     * replay puts its own local tokens there). The adaptive formats keep their init and index ranges, lengths and
+     * mime strings exactly, which is what the player reads the files by.
      */
-    static byte[] fromVideoDownload(Format muxed, VideoDetails details, long length) {
-        Format local = muxed.toBuilder().clearUrl().clearSignatureCipher().setContentLength(length).build();
-        return PlayerResponse.newBuilder()
+    static byte[] fromVideoDownload(PlayerResponse response, VideoCopyLogic.Selection selection) {
+        PlayerResponse.Builder stored = PlayerResponse.newBuilder()
                 .setPlayabilityStatus(PlayabilityStatus.newBuilder().setStatus(Status.OK))
-                .setVideoDetails(details)
-                .setStreamingData(StreamingData.newBuilder()
-                        .setExpiresInSeconds(DEFAULT_EXPIRES_SECONDS)
-                        .addFormats(local))
-                .build().toByteArray();
+                .setVideoDetails(response.getVideoDetails());
+        StreamingData.Builder streaming = StreamingData.newBuilder()
+                .setExpiresInSeconds(DEFAULT_EXPIRES_SECONDS)
+                .addAdaptiveFormats(withoutUrl(selection.video()))
+                .addAdaptiveFormats(withoutUrl(selection.audio()));
+        if (selection.muxed() != null) streaming.addFormats(withoutUrl(selection.muxed()));
+        stored.setStreamingData(streaming);
+        PlayerConfig config = response.getPlayerConfig();
+        if (config.hasAudioConfig()) {
+            stored.setPlayerConfig(PlayerConfig.newBuilder().setAudioConfig(config.getAudioConfig()));
+        }
+        return stored.build().toByteArray();
+    }
+
+    private static Format withoutUrl(Format format) {
+        return format.toBuilder().clearUrl().clearSignatureCipher().build();
     }
 
     private static PlayerResponse assemble(PlayabilityStatus playability, VideoDetails details, Format audio,

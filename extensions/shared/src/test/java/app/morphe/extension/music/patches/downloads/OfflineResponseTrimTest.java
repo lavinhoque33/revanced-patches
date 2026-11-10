@@ -2,6 +2,7 @@
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
  * Written by lavinhoque33, 2026-11-07.
+ * Modified by lavinhoque33, 2026-11-09.
  */
 package app.morphe.extension.music.patches.downloads;
 
@@ -171,25 +172,51 @@ public class OfflineResponseTrimTest {
         assertEquals(new TreeSet<>(Set.of(2, 4, 11)), topLevelFields(built.toByteArray()));
     }
 
-    @Test public void aVideoCopysResponseKeepsTheMuxedFormatWithoutItsUrlAndTheRealLength() throws Exception {
+    @Test public void aVideoCopysResponseKeepsTheTwoAdaptiveFormatsWithoutUrlsAndTheMuxedOne() throws Exception {
+        Format video = Format.newBuilder().setItag(134).setMimeType("video/mp4; codecs=\"avc1.4D401E\"")
+                .setUrl("https://example.invalid/v").setSignatureCipher("cipher").setBitrate(450863)
+                .setContentLength(8_390_921).setLastModified(7)
+                .setInitRange(ByteRange.newBuilder().setStart(0).setEnd(740))
+                .setIndexRange(ByteRange.newBuilder().setStart(741).setEnd(1228)).build();
+        Format audio = Format.newBuilder().setItag(251).setMimeType("audio/webm; codecs=\"opus\"")
+                .setUrl("https://example.invalid/a").setContentLength(3_433_755).build();
         Format muxed = Format.newBuilder().setItag(18).setMimeType("video/mp4; codecs=\"avc1.42001E, mp4a.40.2\"")
-                .setUrl("https://example.invalid/v").setSignatureCipher("cipher").setBitrate(444226).build();
+                .setUrl("https://example.invalid/m").build();
         VideoDetails details = VideoDetails.newBuilder().setVideoId("clip").setLengthSeconds(213).build();
+        PlayerResponse online = PlayerResponse.newBuilder().setVideoDetails(details)
+                .setPlayerConfig(PlayerConfig.newBuilder().setAudioConfig(AudioConfig.newBuilder()
+                        .setMuteOnStart(false))).build();
 
-        PlayerResponse stored = PlayerResponse.parseFrom(OfflineResponseTrim.fromVideoDownload(muxed, details,
-                11_829_048));
+        PlayerResponse stored = PlayerResponse.parseFrom(OfflineResponseTrim.fromVideoDownload(online,
+                new VideoCopyLogic.Selection(video, audio, muxed)));
 
         assertEquals(Status.OK, stored.getPlayabilityStatus().getStatus());
         assertEquals("clip", stored.getVideoDetails().getVideoId());
-        assertEquals(0, stored.getStreamingData().getAdaptiveFormatsCount());
+        assertEquals(2, stored.getStreamingData().getAdaptiveFormatsCount());
+        Format keptVideo = stored.getStreamingData().getAdaptiveFormats(0);
+        assertEquals(134, keptVideo.getItag());
+        assertEquals("", keptVideo.getUrl());
+        assertEquals("", keptVideo.getSignatureCipher());
+        assertEquals(video.getMimeType(), keptVideo.getMimeType());
+        assertEquals(8_390_921, keptVideo.getContentLength());
+        assertEquals(1228, keptVideo.getIndexRange().getEnd());
+        assertEquals(251, stored.getStreamingData().getAdaptiveFormats(1).getItag());
+        assertEquals("", stored.getStreamingData().getAdaptiveFormats(1).getUrl());
         assertEquals(1, stored.getStreamingData().getFormatsCount());
-        Format kept = stored.getStreamingData().getFormats(0);
-        assertEquals(18, kept.getItag());
-        assertEquals("", kept.getUrl());
-        assertEquals("", kept.getSignatureCipher());
-        assertEquals(11_829_048, kept.getContentLength());
-        assertEquals(444226, kept.getBitrate());
+        assertEquals(18, stored.getStreamingData().getFormats(0).getItag());
+        assertEquals("", stored.getStreamingData().getFormats(0).getUrl());
+        assertTrue(stored.getPlayerConfig().hasAudioConfig());
         assertEquals(OfflineResponseTrim.DEFAULT_EXPIRES_SECONDS, stored.getStreamingData().getExpiresInSeconds());
-        assertTrue(VideoCopyLogic.stored(stored) != null);
+    }
+
+    @Test public void aVideoCopysResponseWithoutAMuxedFormatKeepsNone() throws Exception {
+        Format video = Format.newBuilder().setItag(134).setUrl("u").build();
+        Format audio = Format.newBuilder().setItag(251).setUrl("u").build();
+
+        PlayerResponse stored = PlayerResponse.parseFrom(OfflineResponseTrim.fromVideoDownload(
+                PlayerResponse.getDefaultInstance(), new VideoCopyLogic.Selection(video, audio, null)));
+
+        assertEquals(0, stored.getStreamingData().getFormatsCount());
+        assertFalse(stored.hasPlayerConfig());
     }
 }

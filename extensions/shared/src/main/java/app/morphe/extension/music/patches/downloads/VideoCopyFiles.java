@@ -2,6 +2,7 @@
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
  * Written by lavinhoque33, 2026-11-09.
+ * Modified by lavinhoque33, 2026-11-09.
  */
 package app.morphe.extension.music.patches.downloads;
 
@@ -23,27 +24,34 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * The video copies of songs, in a directory of their own beside the raw audio copies: the muxed 360p mp4 of the
- * song's music video, filed under the id of the music video and tied to the song (the downloaded audio copy) it
- * belongs to. A copy is {@code <video>.mp4}, {@code <video>.resp} (the stored player response of the video) and
- * {@code <video>.json}, the commit record, which names the song and the lengths and checksum of the other two and is
+ * The video copies of songs, in a directory of their own beside the raw audio copies: the adaptive pair of the song's
+ * music video (a 360p video-only stream and the video's own opus audio), filed under the id of the music video and
+ * tied to the song (the downloaded audio copy) it belongs to. A copy is {@code <video>.video}, {@code <video>.audio},
+ * {@code <video>.resp} (the stored player response of the video) and {@code <video>.json}, the commit record, which
+ * names the song, the itag, mime, length and checksum of each stream and the length of the response, and is
  * published last. The pairs (video to song) are the commit records, read into memory once by {@link #ensureLoaded},
- * so that {@link #has} never touches the disk. All other disk access belongs to a worker thread.
+ * so that {@link #has} never touches the disk. All other disk access belongs to a worker thread. A record of the
+ * earlier format (one muxed mp4) is no copy.
  */
 final class VideoCopyFiles {
+    /** One stream file of a copy, as its commit records it. */
+    record Part(File file, int itag, String mime, long length, long modified, String digest) {}
+
     /** A committed copy. {@code sourceId} is the playlist or album it was downloaded from, null when unknown. */
-    record Entry(File file, File response, String videoId, String songId, @Nullable String sourceId, int itag,
-                 String mime, long length, long modified, long durationMs, String digest) {}
+    record Entry(Part video, Part audio, File response, String videoId, String songId, @Nullable String sourceId,
+                 long durationMs) {}
 
     /** What the directory holds: committed copies and the bytes of their videos. */
     record Stats(int count, long bytes) {}
 
     /** A committed copy with the file state that was hashed: another length or mtime is hashed again. */
-    private record Candidate(Entry entry, long fileLength, long fileModified) {}
+    private record Candidate(Entry entry, long videoFileLength, long videoFileModified, long audioFileLength,
+                             long audioFileModified) {}
 
     static final int MAX_RESPONSE_BYTES = OfflineCopyFiles.MAX_RESPONSE_BYTES;
 
-    private static final String VIDEO = ".mp4";
+    private static final String VIDEO = ".video";
+    private static final String AUDIO = ".audio";
     private static final String RESPONSE = ".resp";
     private static final String COMMIT = ".json";
     private static final String PENDING = ".part";
@@ -100,35 +108,49 @@ final class VideoCopyFiles {
     }
 
     /**
-     * Publishes the copy, replacing what was stored. The temporary file is private to the download and is moved.
+     * Publishes the copy, replacing what was stored. The temporary files are private to the download and are moved.
      *
      * @return Whether the copy was published; false when the arguments cannot describe a playable copy.
      */
-    boolean retain(String videoId, String songId, @Nullable String sourceId, File temporary, int itag, String mime,
-                   long length, long modified, long durationMs, byte[] response) throws Exception {
+    boolean retain(String videoId, String songId, @Nullable String sourceId, File videoTemporary,
+                   File audioTemporary, VideoCopyLogic.Download download) throws Exception {
+        VideoCopyLogic.Stream video = download.video();
+        VideoCopyLogic.Stream audio = download.audio();
+        byte[] response = download.response();
         if (!RawAudioFiles.validId(videoId) || !RawAudioFiles.validId(songId)
-                || !VideoCopyLogic.supportedVideo(itag, mime) || length <= 0 || temporary.length() != length
+                || !VideoCopyLogic.supportedVideo(video.itag(), video.mime())
+                || !StreamSwapLogic.supportedAudio(audio.itag(), audio.mime())
+                || video.length() <= 0 || videoTemporary.length() != video.length()
+                || audio.length() <= 0 || audioTemporary.length() != audio.length()
                 || response.length == 0 || response.length > MAX_RESPONSE_BYTES) return false;
 
-        // Hash the private file before taking the monitor playback needs.
-        String digest = digest(temporary);
-        JSONObject commit = new JSONObject().put("itag", itag).put("mime", mime).put("length", length)
-                .put("lmt", modified).put("durationMs", durationMs).put("sha256", digest).put("songId", songId)
+        // Hash the private files before taking the monitor playback needs.
+        JSONObject commit = new JSONObject()
+                .put("video", streamJson(video, digest(videoTemporary)))
+                .put("audio", streamJson(audio, digest(audioTemporary)))
+                .put("durationMs", download.durationMs()).put("songId", songId)
                 .put("responseBytes", response.length);
         if (sourceId != null) commit.put("sourceId", sourceId);
         synchronized (this) {
-            publish(videoId, temporary, response, commit);
+            publish(videoId, videoTemporary, audioTemporary, response, commit);
             songOf.put(videoId, songId);
         }
         return true;
     }
 
-    private void publish(String videoId, File temporary, byte[] response, JSONObject commit) throws Exception {
+    private static JSONObject streamJson(VideoCopyLogic.Stream stream, String digest) throws Exception {
+        return new JSONObject().put("itag", stream.itag()).put("mime", stream.mime()).put("length", stream.length())
+                .put("lmt", stream.modified()).put("sha256", digest);
+    }
+
+    private void publish(String videoId, File videoTemporary, File audioTemporary, byte[] response,
+                         JSONObject commit) throws Exception {
         if (!directory.isDirectory() && !directory.mkdirs()) throw new IOException("No video copy directory");
 
         verified.remove(videoId);
         songOf.remove(videoId);
         File video = file(videoId, VIDEO);
+        File audio = file(videoId, AUDIO);
         File responseFile = file(videoId, RESPONSE);
         File commitFile = file(videoId, COMMIT);
         File pendingResponse = file(videoId, RESPONSE + PENDING);
@@ -138,11 +160,13 @@ final class VideoCopyFiles {
         try {
             Files.write(pendingResponse.toPath(), response);
             Files.write(pendingCommit.toPath(), commit.toString().getBytes(StandardCharsets.UTF_8));
-            Files.move(temporary.toPath(), video.toPath(), StandardCopyOption.REPLACE_EXISTING);
+            Files.move(videoTemporary.toPath(), video.toPath(), StandardCopyOption.REPLACE_EXISTING);
+            Files.move(audioTemporary.toPath(), audio.toPath(), StandardCopyOption.REPLACE_EXISTING);
             Files.move(pendingResponse.toPath(), responseFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
             Files.move(pendingCommit.toPath(), commitFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
         } catch (Exception ex) {
             Files.deleteIfExists(video.toPath());
+            Files.deleteIfExists(audio.toPath());
             Files.deleteIfExists(responseFile.toPath());
             throw ex;
         } finally {
@@ -165,10 +189,13 @@ final class VideoCopyFiles {
                 if (candidate.equals(verified.get(videoId))) return candidate.entry();
             }
 
-            String actual = digest(candidate.entry().file());
+            Entry hashed = candidate.entry();
+            String videoActual = digest(hashed.video().file());
+            String audioActual = digest(hashed.audio().file());
             synchronized (this) {
                 // A concurrent retain, delete or replacement while hashing makes this result stale.
-                if (!candidate.equals(candidate(videoId)) || !candidate.entry().digest().equals(actual)) return null;
+                if (!candidate.equals(candidate(videoId)) || !hashed.video().digest().equals(videoActual)
+                        || !hashed.audio().digest().equals(audioActual)) return null;
 
                 verified.put(videoId, candidate);
                 return candidate.entry();
@@ -193,7 +220,8 @@ final class VideoCopyFiles {
         Entry entry = committed(videoId);
         if (entry == null) return null;
 
-        return new Candidate(entry, entry.file().length(), entry.file().lastModified());
+        return new Candidate(entry, entry.video().file().length(), entry.video().file().lastModified(),
+                entry.audio().file().length(), entry.audio().file().lastModified());
     }
 
     /** The commit's claim, checked structurally: files of the recorded lengths exist. Never hashes. */
@@ -206,22 +234,29 @@ final class VideoCopyFiles {
 
         JSONObject commit = new JSONObject(new String(Files.readAllBytes(commitFile.toPath()),
                 StandardCharsets.UTF_8));
-        int itag = commit.getInt("itag");
-        String mime = commit.getString("mime");
-        long length = commit.getLong("length");
         String songId = commit.getString("songId");
         long responseBytes = commit.getLong("responseBytes");
-        File video = file(videoId, VIDEO);
+        Part video = part(videoId, VIDEO, commit.getJSONObject("video"));
+        Part audio = part(videoId, AUDIO, commit.getJSONObject("audio"));
         File response = file(videoId, RESPONSE);
-        if (!VideoCopyLogic.supportedVideo(itag, mime) || length <= 0 || !RawAudioFiles.validId(songId)
-                || !video.isFile() || video.length() != length || responseBytes <= 0
-                || response.length() != responseBytes) return null;
+        if (!VideoCopyLogic.supportedVideo(video.itag(), video.mime())
+                || !StreamSwapLogic.supportedAudio(audio.itag(), audio.mime())
+                || video.length() <= 0 || !video.file().isFile() || video.file().length() != video.length()
+                || audio.length() <= 0 || !audio.file().isFile() || audio.file().length() != audio.length()
+                || !RawAudioFiles.validId(songId) || responseBytes <= 0 || response.length() != responseBytes) {
+            return null;
+        }
 
-        return new Entry(video, response, videoId, songId, commit.optString("sourceId", null), itag, mime, length,
-                commit.optLong("lmt"), commit.optLong("durationMs"), commit.getString("sha256"));
+        return new Entry(video, audio, response, videoId, songId, commit.optString("sourceId", null),
+                commit.optLong("durationMs"));
     }
 
-    /** The committed copies and the bytes of their videos. */
+    private Part part(String videoId, String suffix, JSONObject json) throws Exception {
+        return new Part(file(videoId, suffix), json.getInt("itag"), json.getString("mime"), json.getLong("length"),
+                json.optLong("lmt"), json.getString("sha256"));
+    }
+
+    /** The committed copies and the bytes of their two streams. */
     Stats stats() {
         int count = 0;
         long bytes = 0;
@@ -236,7 +271,7 @@ final class VideoCopyFiles {
                 if (entry == null) continue;
 
                 count++;
-                bytes += entry.length();
+                bytes += entry.video().length() + entry.audio().length();
             } catch (Exception ignored) {
                 // A malformed commit is not a copy.
             }
@@ -305,7 +340,7 @@ final class VideoCopyFiles {
     }
 
     private static boolean isCopyFile(String name) {
-        return name.endsWith(VIDEO) || name.endsWith(RESPONSE) || name.endsWith(COMMIT);
+        return name.endsWith(VIDEO) || name.endsWith(AUDIO) || name.endsWith(RESPONSE) || name.endsWith(COMMIT);
     }
 
     private static String idOf(String fileName) {

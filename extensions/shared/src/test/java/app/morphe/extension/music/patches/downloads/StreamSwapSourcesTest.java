@@ -2,6 +2,7 @@
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
  * Written by lavinhoque33, 2026-11-07.
+ * Modified by lavinhoque33, 2026-11-09.
  */
 package app.morphe.extension.music.patches.downloads;
 
@@ -66,20 +67,42 @@ public class StreamSwapSourcesTest {
                 "https://example.invalid/" + (issued.length - 1)));
     }
 
-    private VideoCopyFiles.Entry video() throws Exception {
-        return new VideoCopyFiles.Entry(temporary.newFile(), temporary.newFile(), "clip00000000", "song0000000",
-                null, 18, "video/mp4", 1000, 123, 213_000, "digest");
+    private VideoCopyFiles.Entry copy() throws Exception {
+        return new VideoCopyFiles.Entry(
+                new VideoCopyFiles.Part(temporary.newFile(), 134, "video/mp4; codecs=\"avc1.4D401E\"", 1000, 123, "d1"),
+                new VideoCopyFiles.Part(temporary.newFile(), 251, "audio/webm; codecs=\"opus\"", 400, 456, "d2"),
+                temporary.newFile(), "clip00000000", "song0000000", null, 213_000);
     }
 
-    @Test public void aVideoCopyIsAnnouncedByItsFileSoTheFrameworkPlayerOpensIt() throws Exception {
-        VideoCopyFiles.Entry video = video();
-        StreamSwapSources.Source source = StreamSwapSources.issueVideo("clip00000000", video, null);
+    @Test public void aVideoCopyIssuesOneTokenPerStreamAndEachResolvesToItsOwnFile() throws Exception {
+        VideoCopyFiles.Entry copy = copy();
+        StreamSwapSources.Source video = StreamSwapSources.issueVideo("clip00000000", copy, null);
+        StreamSwapSources.Source audio = StreamSwapSources.issueVideoAudio("clip00000000", copy, null);
 
-        assertEquals("file://127.0.0.1" + video.file().getAbsolutePath(), source.token);
-        assertSame(source, StreamSwapSources.lookup(source.key));
-        assertSame(source, StreamSwapSources.issueVideo("clip00000000", video, null));
-        assertEquals(StreamSwapSources.KIND_VIDEO, source.served.kind());
-        assertEquals(video.file(), source.served.file());
-        assertEquals(1000, source.served.length());
+        assertTrue(video.token.startsWith("http://127.0.0.1:1/rvx?v=clip00000000&i=134&m=video&t="));
+        assertTrue(audio.token.startsWith("http://127.0.0.1:1/rvx?v=clip00000000&i=251&m=vaudio&t="));
+        assertNotSame(video, audio);
+        assertSame(video, StreamSwapSources.lookup(video.key));
+        assertSame(audio, StreamSwapSources.lookup(audio.key));
+        assertSame(video, StreamSwapSources.issueVideo("clip00000000", copy, null));
+        assertSame(audio, StreamSwapSources.issueVideoAudio("clip00000000", copy, null));
+        assertEquals(StreamSwapSources.KIND_VIDEO, video.served.kind());
+        assertEquals(copy.video().file(), video.served.file());
+        assertEquals(1000, video.served.length());
+        assertEquals(StreamSwapSources.KIND_VIDEO_AUDIO, audio.served.kind());
+        assertEquals(copy.audio().file(), audio.served.file());
+        assertEquals(400, audio.served.length());
+    }
+
+    @Test public void invalidatingAVideoDropsBothStreamsOfItsCopy() throws Exception {
+        VideoCopyFiles.Entry copy = copy();
+        StreamSwapSources.Source video = StreamSwapSources.issueVideo("gone00000000", copy, null);
+        StreamSwapSources.Source audio = StreamSwapSources.issueVideoAudio("gone00000000", copy, null);
+
+        StreamSwapSources.invalidate("gone00000000");
+
+        assertFalse(video.available);
+        assertFalse(audio.available);
+        assertNotSame(video, StreamSwapSources.issueVideo("gone00000000", copy, null));
     }
 }

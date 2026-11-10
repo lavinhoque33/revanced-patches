@@ -13,6 +13,7 @@ import android.os.SystemClock;
 import androidx.annotation.Nullable;
 
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.WeakHashMap;
 
@@ -34,7 +35,19 @@ public final class StreamSwap {
         Object rvxWithBytes(byte[] bytes, boolean localStream);
     }
 
-    private record Replacement(Object online, StreamSwapSources.Source source) {}
+    /** The response that answered, the online one it replaced and the sources whose files it plays. */
+    private record Replacement(Object online, List<StreamSwapSources.Source> sources) {
+        Replacement(Object online, StreamSwapSources.Source... sources) {
+            this(online, List.of(sources));
+        }
+
+        boolean available() {
+            for (StreamSwapSources.Source source : sources) {
+                if (!source.available) return false;
+            }
+            return true;
+        }
+    }
     private static final Map<Object, Replacement> replacements = Collections.synchronizedMap(new WeakHashMap<>());
 
     /** The player request that was answered online last: its video id and when. */
@@ -77,7 +90,7 @@ public final class StreamSwap {
         Replacement cached = replacements.get(original);
         if (cached != null) {
             // A response cache may outlive the setting or downloaded file. This path never accesses storage.
-            if (!enabled() || !cached.source().available) return cached.online();
+            if (!enabled() || !cached.available()) return cached.online();
             if (onMainThread()) return original;
             original = cached.online();
         }
@@ -128,41 +141,50 @@ public final class StreamSwap {
     }
 
     /**
-     * Answers a music video that has a video copy from its file: the response keeps everything of the online one and
-     * announces the muxed progressive format, whose url is a local token. Every mode is answered: the Song display
-     * plays the same file with the video surface off, and the app's own switch flips between the two on the one
-     * stream. A failure here is a decline: the online response plays.
+     * Answers a music video that has a video copy from its files: the response keeps everything of the online one,
+     * but its adaptive formats are exactly the copy's video-only stream and its own audio, each announced by a local
+     * token, so the app's own player plays and switches them. Every mode is answered: the Song display plays the
+     * audio stream alone, and the app's own switch flips between the two on the same streams. A failure here is a
+     * decline: the online response plays.
      */
-    private static Object swapVideo(Object original, Response adapter, VideoCopyFiles.Entry video, boolean stored)
+    private static Object swapVideo(Object original, Response adapter, VideoCopyFiles.Entry copy, boolean stored)
             throws Exception {
-        String videoId = video.videoId();
+        String videoId = copy.videoId();
         String mode = AudioFirst.liveMode();
         PlayerResponse online = PlayerResponse.parseFrom(adapter.rvxBytes());
         if (!online.hasStreamingData()) return unchanged(original, videoId, "no StreamingData", stored);
-        if (!VideoCopyLogic.sameLength(online.getVideoDetails().getLengthSeconds(), video.durationMs())) {
+        if (!VideoCopyLogic.sameLength(online.getVideoDetails().getLengthSeconds(), copy.durationMs())) {
             return unchanged(original, videoId, "video length differs", stored);
         }
 
         byte[] storedBytes = VideoCopyStore.response(videoId);
-        Format format = storedBytes == null ? null : VideoCopyLogic.stored(PlayerResponse.parseFrom(storedBytes));
-        if (format == null) return unchanged(original, videoId, "video copy has no stored format", stored);
+        VideoCopyLogic.Stored formats = storedBytes == null ? null : VideoCopyLogic.stored(
+                PlayerResponse.parseFrom(storedBytes), copy.video().itag(), copy.audio().itag());
+        if (formats == null) return unchanged(original, videoId, "video copy has no stored formats", stored);
 
-        Format onlineFormat = VideoCopyLogic.muxed(online);
-        StreamSwapSources.Source source = StreamSwapSources.issueVideo(videoId, video,
-                onlineFormat == null ? null : onlineFormat.getUrl());
-        Format local = VideoCopyLogic.local(format, source.token, video.length(), video.durationMs());
-        PlayerResponse replacement = StreamSwapLogic.replaceVideo(online, local);
+        StreamSwapSources.Source video = StreamSwapSources.issueVideo(videoId, copy, VideoCopyLogic.fallbackUrl(
+                formats.video(), VideoCopyLogic.adaptiveOf(online, copy.video().itag())));
+        StreamSwapSources.Source audio = StreamSwapSources.issueVideoAudio(videoId, copy, VideoCopyLogic.fallbackUrl(
+                formats.audio(), VideoCopyLogic.adaptiveOf(online, copy.audio().itag())));
+        Format localVideo = VideoCopyLogic.local(formats.video(), video.token, copy.video().length(),
+                copy.durationMs());
+        Format localAudio = VideoCopyLogic.local(formats.audio(), audio.token, copy.audio().length(),
+                copy.durationMs());
+        Format placeholder = formats.muxed() == null ? null : formats.muxed().toBuilder()
+                .setUrl(StreamSwapLogic.unplayableMuxedUrl(videoId)).build();
+        PlayerResponse replacement = StreamSwapLogic.replacePair(online, localVideo, localAudio, placeholder);
         Object result = adapter.rvxWithBytes(replacement.toByteArray(), true);
         if (result == null || result == original) return unchanged(original, videoId, "stock adapter declined", stored);
 
-        replacements.put(result, new Replacement(original, source));
-        Logger.printDebug(() -> "StreamSwap: source=FILE v=" + videoId + " kind=video itag=" + video.itag()
-                + " mode=path length=" + video.length());
-        // The file goes to the framework player; the display decides whether its video surface is attached.
-        Logger.printDebug(() -> "StreamSwap: decision=SWAP v=" + videoId + " itag=" + video.itag() + " kind=video"
-                + " song=" + video.songId() + " mode=" + mode + " surface=" + surfaceOf(mode)
-                + " length=" + video.length()
-                + " onlineUrl=" + (source.online != null) + " stored=" + stored
+        replacements.put(result, new Replacement(original, video, audio));
+        Logger.printDebug(() -> "StreamSwap: source=FILE v=" + videoId + " kind=video itag=" + copy.video().itag()
+                + " length=" + copy.video().length() + " audioItag=" + copy.audio().itag()
+                + " audioLength=" + copy.audio().length());
+        // The files go to the app's own player; the display decides whether its video renderer is enabled.
+        Logger.printDebug(() -> "StreamSwap: decision=SWAP v=" + videoId + " itag=" + copy.video().itag()
+                + "+" + copy.audio().itag() + " kind=video song=" + copy.songId() + " mode=" + mode
+                + " surface=" + surfaceOf(mode) + " formats=" + replacement.getStreamingData().getFormatsCount()
+                + " onlineUrl=" + (video.online != null) + " stored=" + stored
                 + " onlineAdaptive=" + online.getStreamingData().getAdaptiveFormatsCount()
                 + " onlineSabr=" + online.getStreamingData().hasServerAbrStreamingUrl());
         return result;
@@ -202,7 +224,7 @@ public final class StreamSwap {
     public static boolean blocksLoopback(Uri uri) {
         if (!StreamSwapLogic.isGuardedHost(uri.getHost())) return false;
         try {
-            return StreamSwapSources.find(uri) == null && StreamSwapSources.findVideoFile(uri) == null;
+            return StreamSwapSources.find(uri) == null;
         } catch (Exception ex) {
             return true;
         }

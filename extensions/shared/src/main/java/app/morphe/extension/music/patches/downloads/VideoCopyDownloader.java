@@ -2,6 +2,7 @@
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
  * Written by lavinhoque33, 2026-11-09.
+ * Modified by lavinhoque33, 2026-11-09.
  */
 package app.morphe.extension.music.patches.downloads;
 
@@ -26,8 +27,9 @@ import app.morphe.extension.shared.utils.Logger;
 import app.morphe.extension.shared.utils.Utils;
 
 /**
- * Saves the video copies of a downloaded playlist or album: for every song that has a music video, the muxed 360p
- * mp4 of that video. Runs after the audio copies of the list. The music video of each song is found from the queue
+ * Saves the video copies of a downloaded playlist or album: for every song that has a music video, the adaptive pair
+ * of that video, its 360p video-only stream and its own opus audio, the two streams the app's own player flips
+ * between. Runs after the audio copies of the list. The music video of each song is found from the queue
  * the server lists for the list ({@link VideoPairingLogic}); each video is then downloaded on its own, one at a time,
  * with the downloader's own ranged, retried download. A video that cannot be saved is only counted: it never fails
  * the song or the list. Videos are saved only here, never later in the background.
@@ -43,9 +45,8 @@ final class VideoCopyDownloader {
         }
     }
 
-    /** The clients that answer the muxed itag 18 with a plain url, in the order they are asked. */
-    private static final List<ClientType> CLIENTS = List.of(ClientType.ANDROID_MUSIC_NO_SDK,
-            ClientType.ANDROID_MUSIC_REEL);
+    /** The clients that answer the adaptive formats with plain urls, in the order they are asked. */
+    private static final List<ClientType> CLIENTS = List.of(ClientType.ANDROID_MUSIC_NO_SDK);
     /** More pages than any list needs; a queue that never ends is a radio, not the list. */
     private static final int MAX_QUEUE_PAGES = 12;
 
@@ -195,9 +196,10 @@ final class VideoCopyDownloader {
         }
 
         PlayerResponse response = PlayerResponse.parseFrom(stream.streamingData());
-        Format muxed = VideoCopyLogic.muxed(response);
-        if (muxed == null) {
-            Logger.printDebug(() -> "VideoCopy: v=" + videoId + " client=" + client + " has no muxed itag 18");
+        VideoCopyLogic.Selection selection = VideoCopyLogic.select(response);
+        if (selection == null) {
+            Logger.printDebug(() -> "VideoCopy: v=" + videoId + " client=" + client
+                    + " has no 360p video-only stream with the opus audio");
             return false;
         }
         if (!videoId.equals(response.getVideoDetails().getVideoId())) {
@@ -205,33 +207,40 @@ final class VideoCopyDownloader {
             return false;
         }
 
-        // The response lists no length for this format: the ranged answer's total is the file's.
-        long length = LocalDownloadManager.probeContentLength(muxed.getUrl());
-        if (length <= 0) return false;
-
+        long length = selection.bytes();
         long free = Utils.getContext().getFilesDir().getUsableSpace();
         if (!VideoCopyLogic.hasRoomFor(free, length)) {
             throw new NoRoomException("only " + free + " bytes free, " + length + " + "
                     + VideoCopyLogic.MIN_FREE_BYTES_AFTER + " are needed");
         }
 
-        File temporary = File.createTempFile("rvx-video-", ".part", Utils.getContext().getCacheDir());
+        File videoTemporary = File.createTempFile("rvx-video-", ".part", Utils.getContext().getCacheDir());
+        File audioTemporary = File.createTempFile("rvx-videoaudio-", ".part", Utils.getContext().getCacheDir());
         try {
             long start = System.currentTimeMillis();
             // The notification key is the song's: its progress joins the song's own.
-            LocalDownloadManager.downloadWithResume(pair.songId(), title, muxed.getUrl(),
-                    new NativeAudioStore.Destination(null, temporary, muxed.getMimeType()), length);
-            long durationMs = durationOf(muxed, response);
-            byte[] stored = OfflineResponseTrim.fromVideoDownload(muxed, response.getVideoDetails(), length);
-            boolean kept = VideoCopyStore.retain(videoId, pair.songId(), sourceId, temporary,
-                    new VideoCopyLogic.Download(muxed.getMimeType(), length, muxed.getLastModified(), durationMs,
-                            stored));
+            download(pair.songId(), title, selection.video(), videoTemporary);
+            download(pair.songId(), title, selection.audio(), audioTemporary);
+            long durationMs = durationOf(selection.video(), response);
+            byte[] stored = OfflineResponseTrim.fromVideoDownload(response, selection);
+            boolean kept = VideoCopyStore.retain(videoId, pair.songId(), sourceId, videoTemporary, audioTemporary,
+                    new VideoCopyLogic.Download(VideoCopyLogic.Stream.of(selection.video()),
+                            VideoCopyLogic.Stream.of(selection.audio()), durationMs, stored));
             Logger.printWarn(() -> "VideoCopy: v=" + videoId + " song=" + pair.songId() + " client=" + client
-                    + " bytes=" + length + " ms=" + (System.currentTimeMillis() - start) + " kept=" + kept);
+                    + " video=" + selection.video().getItag() + ":" + selection.video().getContentLength()
+                    + " audio=" + selection.audio().getItag() + ":" + selection.audio().getContentLength()
+                    + " muxed=" + (selection.muxed() != null) + " ms=" + (System.currentTimeMillis() - start)
+                    + " kept=" + kept);
             return kept;
         } finally {
-            temporary.delete();
+            videoTemporary.delete();
+            audioTemporary.delete();
         }
+    }
+
+    private static void download(String songId, String title, Format format, File temporary) throws Exception {
+        LocalDownloadManager.downloadWithResume(songId, title, format.getUrl(),
+                new NativeAudioStore.Destination(null, temporary, format.getMimeType()), format.getContentLength());
     }
 
     private static long durationOf(Format format, PlayerResponse response) {

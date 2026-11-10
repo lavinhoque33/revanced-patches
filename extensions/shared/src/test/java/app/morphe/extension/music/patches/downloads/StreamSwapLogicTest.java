@@ -2,6 +2,7 @@
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
  * Written by lavinhoque33, 2026-11-07.
+ * Modified by lavinhoque33, 2026-11-09.
  */
 package app.morphe.extension.music.patches.downloads;
 
@@ -116,21 +117,11 @@ public class StreamSwapLogicTest {
         assertFalse(StreamSwapLogic.isGuardedHost(null));
     }
 
-    @Test public void aVideoFileUrlKeepsTheLoopbackHostAndNamesThePathOnly() {
-        String url = StreamSwapLogic.videoFileUrl("/data/user/0/app/files/rvx_video/dQw4w9WgXcQ.mp4");
-
-        assertEquals("file://127.0.0.1/data/user/0/app/files/rvx_video/dQw4w9WgXcQ.mp4", url);
-        assertEquals("/data/user/0/app/files/rvx_video/dQw4w9WgXcQ.mp4",
-                StreamSwapLogic.videoFilePath("file", "127.0.0.1", "/data/user/0/app/files/rvx_video/dQw4w9WgXcQ.mp4"));
+    @Test public void aTokenUrlKeepsTheLoopbackHostAndNamesTheStream() {
+        assertEquals("http://127.0.0.1:1/rvx?v=clip&i=134&m=video&t=key",
+                StreamSwapLogic.tokenUrl("clip", 134, "video", "key"));
+        assertEquals("http://127.0.0.1:1/rvx?v=clip&i=18&m=muxed&t=none", StreamSwapLogic.unplayableMuxedUrl("clip"));
         assertTrue(StreamSwapLogic.isGuardedHost("127.0.0.1"));
-    }
-
-    @Test public void onlyAFileUriWithTheLoopbackHostNamesAVideoFile() {
-        assertNull(StreamSwapLogic.videoFilePath("http", "127.0.0.1", "/x.mp4"));
-        assertNull(StreamSwapLogic.videoFilePath("file", "localhost", "/x.mp4"));
-        assertNull(StreamSwapLogic.videoFilePath("file", null, "/x.mp4"));
-        assertNull(StreamSwapLogic.videoFilePath("file", "127.0.0.1", null));
-        assertNull(StreamSwapLogic.videoFilePath("file", "127.0.0.1", ""));
     }
 
     private static final String MP4 = "video/mp4; codecs=\"avc1.42001E, mp4a.40.2\"";
@@ -154,22 +145,52 @@ public class StreamSwapLogicTest {
                 .build();
     }
 
-    @Test public void theVideoResponseExposesOnlyTheMuxedProgressiveFormat() {
-        PlayerResponse swapped = StreamSwapLogic.replaceVideo(sabrVideo(), muxed().build());
+    private Format.Builder video() {
+        return Format.newBuilder().setItag(134).setMimeType("video/mp4; codecs=\"avc1.4D401E\"")
+                .setUrl("http://127.0.0.1:1/rvx?v=clip&i=134&m=video&t=a").setContentLength(8_390_921);
+    }
+
+    private Format.Builder videoAudio() {
+        return audio().setUrl("http://127.0.0.1:1/rvx?v=clip&i=251&m=vaudio&t=b");
+    }
+
+    @Test public void theVideoResponseExposesExactlyTheTwoStreamsOfTheCopy() {
+        PlayerResponse online = sabrVideo().toBuilder().setStreamingData(sabrVideo().getStreamingData().toBuilder()
+                .addFormats(muxed())).build();
+
+        PlayerResponse swapped = StreamSwapLogic.replacePair(online, video().build(), videoAudio().build(), null);
 
         StreamingData streaming = swapped.getStreamingData();
+        assertEquals(2, streaming.getAdaptiveFormatsCount());
+        assertEquals(134, streaming.getAdaptiveFormats(0).getItag());
+        assertEquals(251, streaming.getAdaptiveFormats(1).getItag());
+        assertEquals("video/mp4; codecs=\"avc1.4D401E\"", streaming.getAdaptiveFormats(0).getMimeType());
         assertEquals(1, streaming.getFormatsCount());
         assertEquals(18, streaming.getFormats(0).getItag());
-        assertEquals("http://127.0.0.1:1/rvx", streaming.getFormats(0).getUrl());
-        assertEquals(11_829_048, streaming.getFormats(0).getContentLength());
-        assertEquals(0, streaming.getAdaptiveFormatsCount());
         assertFalse(streaming.hasServerAbrStreamingUrl());
         assertFalse(streaming.hasHlsManifestUrl());
         assertEquals(21_540, streaming.getExpiresInSeconds());
     }
 
+    @Test public void theMuxedFormatStandsInOnlyWhenTheResponseHasNoVideoFormatInFormats() {
+        Format standIn = muxed().setUrl(StreamSwapLogic.unplayableMuxedUrl("clip")).build();
+
+        PlayerResponse without = StreamSwapLogic.replacePair(sabrVideo(), video().build(), videoAudio().build(),
+                standIn);
+        assertEquals(1, without.getStreamingData().getFormatsCount());
+        assertEquals(StreamSwapLogic.unplayableMuxedUrl("clip"), without.getStreamingData().getFormats(0).getUrl());
+
+        PlayerResponse online = sabrVideo().toBuilder().setStreamingData(sabrVideo().getStreamingData().toBuilder()
+                .addFormats(muxed().setUrl("https://example.invalid/own"))).build();
+        PlayerResponse with = StreamSwapLogic.replacePair(online, video().build(), videoAudio().build(), standIn);
+        assertEquals("https://example.invalid/own", with.getStreamingData().getFormats(0).getUrl());
+
+        PlayerResponse none = StreamSwapLogic.replacePair(sabrVideo(), video().build(), videoAudio().build(), null);
+        assertEquals(0, none.getStreamingData().getFormatsCount());
+    }
+
     @Test public void theVideoResponseDropsTheRequestHintsThatForceSabrAndKeepsTheRest() {
-        PlayerResponse swapped = StreamSwapLogic.replaceVideo(sabrVideo(), muxed().build());
+        PlayerResponse swapped = StreamSwapLogic.replacePair(sabrVideo(), video().build(), videoAudio().build(), null);
 
         assertFalse(swapped.getPlayerConfig().hasMediaCommonConfig());
         assertFalse(swapped.getPlayerConfig().hasPlaybackRoutingConfig());
@@ -180,11 +201,13 @@ public class StreamSwapLogicTest {
     @Test public void aStoredVideoResponseWithoutAPlayerConfigIsSwappedToo() {
         PlayerResponse stored = PlayerResponse.newBuilder()
                 .setVideoDetails(VideoDetails.newBuilder().setVideoId("clip"))
-                .setStreamingData(StreamingData.newBuilder().addFormats(muxed().clearUrl())).build();
+                .setStreamingData(StreamingData.newBuilder().addAdaptiveFormats(video().clearUrl())
+                        .addAdaptiveFormats(audio())).build();
 
-        PlayerResponse swapped = StreamSwapLogic.replaceVideo(stored, muxed().build());
+        PlayerResponse swapped = StreamSwapLogic.replacePair(stored, video().build(), videoAudio().build(), null);
 
-        assertEquals("http://127.0.0.1:1/rvx", swapped.getStreamingData().getFormats(0).getUrl());
+        assertEquals("http://127.0.0.1:1/rvx?v=clip&i=134&m=video&t=a",
+                swapped.getStreamingData().getAdaptiveFormats(0).getUrl());
         assertFalse(swapped.hasPlayerConfig());
     }
 

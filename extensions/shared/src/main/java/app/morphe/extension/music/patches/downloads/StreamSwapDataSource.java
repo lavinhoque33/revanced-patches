@@ -22,7 +22,7 @@ public final class StreamSwapDataSource {
     }
 
     /**
-     * Null for unrelated sources, the file URI of the audio or video copy while it is intact. Otherwise the format's
+     * Null for unrelated sources, the file URI of the audio copy, or of a stream of a video copy, while it is intact. Otherwise the format's
      * online URL, or an IOException (a failed file open, like stock) when a SABR response never had one.
      */
     public static Uri route(Uri uri, long position, long length) throws IOException {

@@ -2,6 +2,7 @@
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
  * Written by lavinhoque33, 2026-11-09.
+ * Modified by lavinhoque33, 2026-11-09.
  */
 package app.morphe.extension.music.patches.downloads;
 
@@ -85,16 +86,15 @@ final class VideoCopyStore {
      *
      * @return Whether the copy now exists. False is never fatal for the song or the list.
      */
-    static boolean retain(String videoId, String songId, @Nullable String sourceId, File temporary,
-                          VideoCopyLogic.Download download) {
+    static boolean retain(String videoId, String songId, @Nullable String sourceId, File videoTemporary,
+                          File audioTemporary, VideoCopyLogic.Download download) {
         try {
             Utils.verifyOffMainThread();
             Storage.files.ensureLoaded();
             if (!StreamSwap.enabled()) return false;
 
-            boolean kept = Storage.files.retain(videoId, songId, sourceId, temporary, VideoCopyLogic.MUXED_ITAG,
-                    download.mime(), download.length(), download.modified(), download.durationMs(),
-                    download.response());
+            boolean kept = Storage.files.retain(videoId, songId, sourceId, videoTemporary, audioTemporary,
+                    download);
             if (!kept) return false;
 
             // Switching off during a download must not leave a newly published extra copy.

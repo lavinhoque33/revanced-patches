@@ -128,7 +128,7 @@ internal enum class PatchList(
     ),
     ENABLE_DEBUG_LOGGING(
         "Enable debug logging",
-        "Adds an option for debugging and exporting RVX logs to the clipboard."
+        "Adds debugging, log export and a Feature flags manager with Binary search."
     ),
     ENABLE_GRADIENT_LOADING_SCREEN(
         "Enable gradient loading screen",

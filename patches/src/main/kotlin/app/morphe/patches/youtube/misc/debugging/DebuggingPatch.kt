@@ -84,6 +84,10 @@ val debuggingPatch = bytecodePatch(
             settingArray += "SETTINGS: WATCH_NEXT_PROCESSING_DELAY"
         }
 
+        if (hookFeatureFlags()) {
+            settingArray += "SETTINGS: FEATURE_FLAGS_MANAGER"
+        }
+
         // region add settings
 
         addPreference(

@@ -1380,6 +1380,16 @@
             <SwitchPreference android:title="@string/revanced_debug_protobuffer_title" android:key="revanced_debug_protobuffer" android:summaryOn="@string/revanced_debug_protobuffer_summary_on" android:summaryOff="@string/revanced_debug_protobuffer_summary_off" />
             <SwitchPreference android:title="@string/revanced_debug_spannable_title" android:key="revanced_debug_spannable" android:summaryOn="@string/revanced_debug_spannable_summary_on" android:summaryOff="@string/revanced_debug_spannable_summary_off" />
             <SwitchPreference android:title="@string/revanced_debug_toast_on_error_title" android:key="revanced_debug_toast_on_error" android:summaryOn="@string/revanced_debug_toast_on_error_summary_on" android:summaryOff="@string/revanced_debug_toast_on_error_summary_off" />
+            SETTINGS: DEBUGGING -->
+
+            <!-- SETTINGS: FEATURE_FLAGS_MANAGER
+            <app.morphe.extension.shared.settings.preference.FeatureFlagsManagerPreference
+                android:title="@string/morphe_debug_feature_flags_manager_title"
+                android:key="morphe_debug_feature_flags_manager"
+                android:summary="@string/morphe_debug_feature_flags_manager_summary" />
+            SETTINGS: FEATURE_FLAGS_MANAGER -->
+
+            <!-- SETTINGS: DEBUGGING
             <Preference android:title="@string/revanced_debug_export_logs_to_clipboard_title" android:key="revanced_debug_export_logs_to_clipboard" android:summary="@string/revanced_debug_export_logs_to_clipboard_summary" />
             <Preference android:title="@string/revanced_debug_export_logs_to_file_title" android:key="revanced_debug_export_logs_to_file" android:summary="@string/revanced_debug_export_logs_to_file_summary" />SETTINGS: DEBUGGING -->
 

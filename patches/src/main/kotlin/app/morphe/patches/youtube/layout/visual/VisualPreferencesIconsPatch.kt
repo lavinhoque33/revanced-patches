@@ -1072,6 +1072,7 @@ private val rvxPreferenceKey = mapOf(
     "revanced_debug_protobuffer" to "revanced_debug",
     "revanced_debug_spannable" to "revanced_debug",
     "revanced_debug_toast_on_error" to "revanced_debug",
+    "morphe_debug_feature_flags_manager" to "revanced_debug",
     "revanced_default_video_quality_mobile" to "revanced_default_video_quality_wifi",
     "revanced_default_video_quality_mobile_shorts" to "revanced_default_video_quality_wifi_shorts",
     "revanced_disable_default_playback_speed_music_type" to "revanced_disable_default_playback_speed_music",

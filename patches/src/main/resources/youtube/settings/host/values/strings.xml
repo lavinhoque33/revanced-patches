@@ -1,6 +1,59 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="revanced_preference_screen_about_title">About</string>
+    <string name="morphe_debug_feature_flags_manager_action_force_off">Block</string>
+    <string name="morphe_debug_feature_flags_manager_action_force_on">Force on</string>
+    <string name="morphe_debug_feature_flags_manager_action_remove">Remove</string>
+    <string name="morphe_debug_feature_flags_manager_bisect_absent">Behavior is not present</string>
+    <string name="morphe_debug_feature_flags_manager_bisect_cancel">Cancel binary search</string>
+    <string name="morphe_debug_feature_flags_manager_bisect_canceled">Binary search canceled</string>
+    <string name="morphe_debug_feature_flags_manager_bisect_exhausted">"Could not find a feature flag.
+
+The app behavior does not appear to be controlled by a feature flag"</string>
+    <string name="morphe_debug_feature_flags_manager_bisect_exhausted_multiple">"Could not find a single feature flag.
+
+The behavior went away earlier in the search, so more than one flag may be involved or one of the answers was wrong"</string>
+    <string name="morphe_debug_feature_flags_manager_bisect_found">"Feature flag %s causes the behavior.
+
+It is now blocked"</string>
+    <string name="morphe_debug_feature_flags_manager_bisect_in_progress">Feature flag search in progress</string>
+    <string name="morphe_debug_feature_flags_manager_bisect_no_candidates">"No feature flags to search.
+
+Only flags that the app has hit and are not currently forced on can be used in a binary search"</string>
+    <string name="morphe_debug_feature_flags_manager_bisect_present">Behavior is present</string>
+    <string name="morphe_debug_feature_flags_manager_bisect_start_button">Start</string>
+    <string name="morphe_debug_feature_flags_manager_bisect_start_message">"Finds which feature flag causes an app behavior.
+
+Half of the %s flags are blocked, and after each restart you tell if the behavior is still present.
+
+Reproduce the behavior once before starting, otherwise flags the app has not asked for yet are missing from the search"</string>
+    <string name="morphe_debug_feature_flags_manager_bisect_status">"Step %1$s
+
+%2$s flags left, %3$s of them blocked for this step.
+
+Restart the app, check if the behavior is present, then answer below"</string>
+    <string name="morphe_debug_feature_flags_manager_bisect_title">Binary search</string>
+    <string name="morphe_debug_feature_flags_manager_export_file_failed">Failed to export feature flags</string>
+    <string name="morphe_debug_feature_flags_manager_export_file_success">Feature flags exported successfully</string>
+    <string name="morphe_debug_feature_flags_manager_filter_active">Active (%s)</string>
+    <string name="morphe_debug_feature_flags_manager_filter_blocked">Blocked (%s)</string>
+    <string name="morphe_debug_feature_flags_manager_filter_forced">Forced (%s)</string>
+    <string name="morphe_debug_feature_flags_manager_filter_inactive">Not active (%s)</string>
+    <string name="morphe_debug_feature_flags_manager_import_export_title">Export and import</string>
+    <string name="morphe_debug_feature_flags_manager_import_failed">No feature flags found</string>
+    <string name="morphe_debug_feature_flags_manager_import_file_failed">Failed to read the file</string>
+    <string name="morphe_debug_feature_flags_manager_import_file_success">Feature flags loaded, tap Save to apply</string>
+    <string name="morphe_debug_feature_flags_manager_import_success">Imported %s feature flags</string>
+    <string name="morphe_debug_feature_flags_manager_search_hint">Search feature flags…</string>
+    <string name="morphe_debug_feature_flags_manager_summary">Manage boolean feature flags</string>
+    <string name="morphe_debug_feature_flags_manager_title">Feature flags manager</string>
+    <string name="morphe_debug_feature_flags_manager_toast_copied">Feature flags copied to clipboard</string>
+    <string name="morphe_debug_feature_flags_manager_toast_no_flags">Restart the app to use this setting</string>
+    <string name="morphe_debug_feature_flags_manager_toast_reset">Feature flags reset</string>
+    <string name="morphe_debug_feature_flags_manager_toast_saved">Feature flags saved</string>
+    <string name="morphe_settings_export_file">Export to file</string>
+    <string name="morphe_settings_import_file">Import from file</string>
+    <string name="morphe_settings_save">Save</string>
     <string name="revanced_about_patches">RVX Patches %1$s</string>
     <string name="revanced_about_app">%1$s %2$s</string>
     <string name="revanced_about_patched">Patched %1$s</string>

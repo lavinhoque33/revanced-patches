@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-10.
  */
 package app.morphe.extension.music.patches.downloads;
 
@@ -68,13 +69,36 @@ public final class NativeDownloads {
         });
     }
 
-    public static Object rewriteCommand(Object original, java.util.Map<?, ?> context) {
-        if (!Settings.IN_APP_DOWNLOADS.get() || !(original instanceof Command command)) return original;
+    /**
+     * Injection point: every command the app dispatches. The offline replay sees it first (it only remembers how to
+     * dispatch one); then either kind of download takes over the download command.
+     */
+    public static Object rewriteCommand(Object dispatcher, Object original, java.util.Map<?, ?> context) {
+        app.morphe.extension.music.patches.flyout.SongMenus.onCommand(original);
+        Object rewritten = rewriteDownloadCommand(original, context);
+        if (rewritten == null || OfflineReplayHooks.onCommand(dispatcher, rewritten, context)) return null;
+        return rewritten;
+    }
+
+    static boolean deviceLibrary() {
+        return Settings.DOWNLOAD_METHOD.get() == DownloadMethod.DEVICE_FILES;
+    }
+
+    /** Both native continuation consumers must choose the same library before constructing their request. */
+    public static String libraryContinuation(String token) {
+        return DownloadsPageLogic.libraryToken(Settings.DOWNLOAD_METHOD.get(), token);
+    }
+
+    private static Object rewriteDownloadCommand(Object original, java.util.Map<?, ?> context) {
+        // The global method handles all Download commands, or leaves them with stock/external delegation.
+        if (!(original instanceof Command command)) return original;
+        boolean playlists = LocalDownloadManager.interceptsPlaylists();
+        if (!playlists && !deviceLibrary()) return original;
         try {
             // signed-in non-Premium accounts receive an upsell batch without a playlist id.
-            String headerPlaylist = playlistFromHeaderUpsell(command.toByteArray(), context);
+            String headerPlaylist = playlists ? playlistFromHeaderUpsell(command.toByteArray(), context) : null;
             if (headerPlaylist != null) {
-                PlaylistDownloads.enqueue(headerPlaylist);
+                PlaylistDownloads.onDownloadButton(headerPlaylist);
                 return null;
             }
         } catch (Exception ex) {
@@ -92,14 +116,16 @@ public final class NativeDownloads {
                     byte[] endpoint = input.readByteArray();
                     String playlistId = number == OFFLINE_PLAYLIST_ENDPOINT
                             ? playlistFromDownload(endpoint) : playlistFromUpsell(endpoint);
-                    if (playlistId != null && !playlistId.isEmpty()) {
+                    if (playlists && playlistId != null && !playlistId.isEmpty()) {
                         if (playlistId.startsWith("VL")) playlistId = playlistId.substring(2);
-                        PlaylistDownloads.enqueue(playlistId);
+                        PlaylistDownloads.onDownloadButton(playlistId);
                         return null; // The patch consumes only this concrete playlist-download intent.
                     }
                     continue;
                 }
-                if (WireFormat.getTagFieldNumber(tag) == BROWSE_ENDPOINT
+                // Navigation to Downloads is the device-files library only while that is what the methods save to;
+                // a stream copy is private and leaves the stock navigation (and our Downloads chip) alone.
+                if (deviceLibrary() && WireFormat.getTagFieldNumber(tag) == BROWSE_ENDPOINT
                         && WireFormat.getTagWireType(tag) == WireFormat.WIRETYPE_LENGTH_DELIMITED) {
                     byte[] endpoint = input.readByteArray();
                     byte[] rewritten = rewriteBrowse(endpoint);
@@ -118,9 +144,6 @@ public final class NativeDownloads {
 
     private static final int COMMAND_EXECUTOR = 204158123;
     private static final int UPSELL_COMMAND = 443434441;
-    // Download-state entity types in the header button's key: playlists use 24, albums use 17 (id is the OLAK audio playlist id).
-    private static final int PLAYLIST_DOWNLOAD_ENTITY = 24;
-    private static final int ALBUM_DOWNLOAD_ENTITY = 17;
     private static final String ENDPOINT_TAG = "com.google.android.libraries.youtube.innertube.endpoint.tag";
 
     /**
@@ -177,17 +200,7 @@ public final class NativeDownloads {
     }
 
     private static String playlistFromEntityKey(byte[] value) {
-        try {
-            String text = new String(value, StandardCharsets.US_ASCII);
-            if (!text.matches("[A-Za-z0-9_%=+/-]{8,}")) return null;
-            byte[] key = Base64.decode(Uri.decode(text), Base64.URL_SAFE);
-            int entityType = fieldNumber(key, 4);
-            if (entityType != PLAYLIST_DOWNLOAD_ENTITY && entityType != ALBUM_DOWNLOAD_ENTITY) return null;
-            byte[] id = fieldBytes(key, 2);
-            return id == null ? null : new String(id, StandardCharsets.UTF_8);
-        } catch (IllegalArgumentException | IOException ex) {
-            return null;
-        }
+        return HeaderPlaylistId.playlistFromKey(value);
     }
 
     private static boolean containsField(byte[] message, int number, int depth) {
@@ -208,7 +221,7 @@ public final class NativeDownloads {
     }
 
     /** Returns the length-delimited fields of a well-formed message, or null when the bytes are not a message. */
-    private static java.util.List<byte[]> lengthDelimited(byte[] message) {
+    static java.util.List<byte[]> lengthDelimited(byte[] message) {
         java.util.List<byte[]> fields = new java.util.ArrayList<>();
         try {
             CodedInputStream input = CodedInputStream.newInstance(message);
@@ -278,7 +291,7 @@ public final class NativeDownloads {
         return id == null ? null : new String(id, StandardCharsets.UTF_8);
     }
 
-    private static byte[] fieldBytes(byte[] message, int number) throws IOException {
+    static byte[] fieldBytes(byte[] message, int number) throws IOException {
         CodedInputStream input = CodedInputStream.newInstance(message);
         while (!input.isAtEnd()) {
             int tag = input.readTag();
@@ -288,7 +301,7 @@ public final class NativeDownloads {
         return null;
     }
 
-    private static int fieldNumber(byte[] message, int number) throws IOException {
+    static int fieldNumber(byte[] message, int number) throws IOException {
         CodedInputStream input = CodedInputStream.newInstance(message);
         while (!input.isAtEnd()) {
             int tag = input.readTag();

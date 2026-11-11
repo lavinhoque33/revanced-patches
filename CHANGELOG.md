@@ -24,6 +24,22 @@
 
 ### Features
 
+* **Music - Stream download:** Stream download is now the main way to download in YouTube Music. A fresh install saves
+  a private copy of a song, playlist or album inside the app that plays with or without internet and keeps radio and
+  lyrics online. Song downloads and Playlist and album downloads each have one list to choose from: Stream download,
+  Device files or the downloader app, and YouTube Music's own download. Your earlier choices are kept, and changing
+  the list never deletes anything you already downloaded.
+* **Music - Stream download:** A song downloaded from the Video display, or from an album row that shows the music
+  video, is saved as the song's audio, so it plays and shows its green check everywhere. A failed song download now
+  says why.
+* **Music - Stream download:** Remove download. For a downloaded song the Download item of the menu and the player
+  Download button become Remove download with a confirmation, and so does the Download button of a downloaded
+  playlist or album. Songs that another downloaded list or your own download still needs are kept.
+* **Music - Stream download:** Songs you downloaded one by one and that are in no downloaded playlist or album are no
+  longer listed as songs in Library, Downloads. They are in one playlist called No Playlist, which plays in the shown
+  order from the song you tap, online and offline, and also appears in Android Auto in the downloaded playlists.
+* **Music - Stream download:** Album song lists show the green check for songs you downloaded one by one, even when the
+  album was never downloaded.
 * **Sync with anddea/revanced-patches dev:** Merge the changes up to v4.4.0-dev.6 (anddea dev, b2f29faa6) into this
   fork.
 * **YouTube - Settings:** Move the About card into an About screen at the end of RVX settings.

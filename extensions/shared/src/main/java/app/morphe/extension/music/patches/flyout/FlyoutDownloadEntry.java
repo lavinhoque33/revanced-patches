@@ -56,10 +56,20 @@ final class FlyoutDownloadEntry {
     /** The items with a Download item added after the Add to queue item, or the same list when none is needed. */
     static List<?> withDownloadItem(List<?> items) {
         try {
-            if (items.isEmpty() || LocalDownloadManager.menuRoute() == SongDownloadRoute.STOCK) return items;
-            if (!(items.get(0) instanceof FlyoutPatch.ItemFactory factory)) return items;
+            SongDownloadRoute route = LocalDownloadManager.menuRoute();
+            Logger.printDebug(() -> "FlyoutDownloadEntry: menu of " + items.size() + " items, route " + route);
+            if (items.isEmpty() || route == SongDownloadRoute.STOCK) return items;
+
+            FlyoutPatch.ItemFactory factory = firstFactory(items);
+            if (factory == null) {
+                Logger.printDebug(() -> "FlyoutDownloadEntry: no item can build a Download item, first is "
+                        + items.get(0).getClass().getName());
+                return items;
+            }
 
             Scan scan = scan(items);
+            Logger.printDebug(() -> "FlyoutDownloadEntry: song " + scan.songId() + ", has Download "
+                    + scan.hasDownload() + ", queue item " + scan.queueAddIndex());
             if (scan.hasDownload() || scan.songId() == null) return items;
 
             Object item = factory.rvxWithBytes(itemBytes(scan.songId()));
@@ -73,6 +83,14 @@ final class FlyoutDownloadEntry {
             Logger.printException(() -> "FlyoutDownloadEntry: could not add the Download item", ex);
             return items;
         }
+    }
+
+    @Nullable
+    private static FlyoutPatch.ItemFactory firstFactory(List<?> items) {
+        for (Object item : items) {
+            if (item instanceof FlyoutPatch.ItemFactory factory) return factory;
+        }
+        return null;
     }
 
     private static Scan scan(List<?> items) {

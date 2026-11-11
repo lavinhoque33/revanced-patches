@@ -2,6 +2,8 @@
 
 ### Bug Fixes
 
+* **Music - Track crossfade:** Keep the incoming track quiet until its fade starts and preserve its volume
+  normalization. Keep equalizers attached to the outgoing track until it finishes playing.
 * **YouTube - Unlock queue:** Make Play next in queue in the feed menu use YouTube's own queue when Unlock queue is on.
   Add to RVX queue still opens the RVX queue dialog. Turn Unlock queue off to override the feed queue button.
   Premium-style queue takes priority when you turn it on, and keeps working for users who already use it.
@@ -79,9 +81,12 @@
   album was never downloaded.
 * **Sync with anddea/revanced-patches dev:** Merge the changes up to v4.4.0-dev.6 (anddea dev, b2f29faa6) into this
   fork.
-* **YouTube - Settings:** Move the About card into an About screen at the end of RVX settings.
+* **YouTube - Settings:** Keep About at the end of RVX settings, with icon rows for app information, links, credits
+  and copying debug information.
 * **YouTube - Downloads:** Add Show download option icons, off by default. Turn it on to show icons beside Include
   subtitles and Include SponsorBlock in the built-in downloader.
+* **YouTube - Downloads:** Use rounded, sentence-case buttons in the playlist selection menu, with wrapping labels
+  and a full-width Download button. Keep selection controls and videos visible in landscape while options scroll.
 * **YouTube - Enable debug logging:** Add a Feature flags manager in Miscellaneous > Debugging, with Binary search to
   find which YouTube feature flag causes a problem. Reset the overrides if the app repeatedly fails to start.
 * **YouTube - Glass navigation bar:** Add a bottom spacing slider to the Glass navigation bar size dialog, to set how

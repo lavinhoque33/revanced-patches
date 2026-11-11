@@ -1597,6 +1597,45 @@
 
     <PreferenceScreen
         android:title="@string/revanced_preference_screen_about_title"
-        android:key="revanced_preference_screen_about" />
+        android:key="revanced_preference_screen_about">
+        <PreferenceCategory
+            android:title="@string/revanced_about_app_info"
+            android:layout="@layout/revanced_settings_preferences_category">
+            <app.morphe.extension.youtube.settings.preference.AboutPreference
+                android:key="revanced_about_patches"
+                android:title="@string/revanced_about_patches"
+                android:selectable="false" />
+            <app.morphe.extension.youtube.settings.preference.AboutPreference
+                android:key="revanced_about_app"
+                android:selectable="false" />
+            <app.morphe.extension.youtube.settings.preference.AboutPreference
+                android:key="revanced_about_patched"
+                android:title="@string/revanced_about_patched"
+                android:selectable="false" />
+        </PreferenceCategory>
+        <PreferenceCategory
+            android:title="@string/revanced_about_actions"
+            android:layout="@layout/revanced_settings_preferences_category">
+            <app.morphe.extension.youtube.settings.preference.AboutPreference
+                android:key="revanced_about_github"
+                android:title="@string/revanced_about_github" />
+            <app.morphe.extension.youtube.settings.preference.AboutPreference
+                android:key="revanced_about_report_issue"
+                android:title="@string/revanced_about_report_issue" />
+            <app.morphe.extension.youtube.settings.preference.AboutPreference
+                android:key="revanced_about_request_feature"
+                android:title="@string/revanced_about_request_feature" />
+        </PreferenceCategory>
+        <PreferenceCategory
+            android:title="@string/revanced_about_more"
+            android:layout="@layout/revanced_settings_preferences_category">
+            <app.morphe.extension.youtube.settings.preference.AboutPreference
+                android:key="revanced_about_credits"
+                android:title="@string/revanced_about_credits" />
+            <app.morphe.extension.youtube.settings.preference.AboutPreference
+                android:key="revanced_about_copy_debug"
+                android:title="@string/revanced_about_copy_debug" />
+        </PreferenceCategory>
+    </PreferenceScreen>
 
 </PreferenceScreen>

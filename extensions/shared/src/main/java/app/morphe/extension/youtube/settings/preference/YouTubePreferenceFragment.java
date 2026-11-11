@@ -2,7 +2,7 @@
  * Original author(s):
  * - anddea (https://github.com/anddea)
  * - COOLak (https://github.com/COOLak)
- * Modified by lavinhoque33, 2026-11-10
+ * Modified by lavinhoque33, 2026-11-11
  */
 
 package app.morphe.extension.youtube.settings.preference;
@@ -100,9 +100,6 @@ public class YouTubePreferenceFragment extends ToolbarPreferenceFragment {
             preferenceScreen = getPreferenceScreen();
             Utils.sortPreferenceGroups(preferenceScreen);
 
-            // Keep the keyless card outside XML icon mapping.
-            PreferenceScreen aboutScreen = (PreferenceScreen) findPreference("revanced_preference_screen_about");
-            aboutScreen.addPreference(new AboutPreference(getActivity()));
             setPreferenceScreenToolbar(preferenceScreen);
 
             // Import / Export

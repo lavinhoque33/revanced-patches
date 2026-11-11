@@ -8,7 +8,7 @@
  * - anddea (https://github.com/anddea)
  *
  * Licensed under the GNU General Public License v3.0.
- * Modified by lavinhoque33, 2026-11-10.
+ * Modified by lavinhoque33, 2026-11-11.
  *
  * ------------------------------------------------------------------------
  * GPLv3 Section 7 – Additional Terms & Attribution Requirements
@@ -99,9 +99,9 @@ val visualPreferencesIconsPatch = resourcePatch(
 
             True (default): also add icons to individual settings inside RVX sub-screens.
 
-            False: icons only on parent screens for Regular and Bold styles.
+            False: icons only on parent screens and About rows for Regular and Bold styles.
 
-            YouTube style always shows icons only on rows that open a settings screen.
+            YouTube style shows icons on rows that open a settings screen and on About rows.
             """.trimIndentMultiline(),
         required = true
     )
@@ -118,7 +118,7 @@ val visualPreferencesIconsPatch = resourcePatch(
         title = "Icon style",
         description = """
             The icon design, weight and size. YouTube uses the app's rounded settings icons at stock size
-            only on rows that open a settings screen, with rounded RVX fallbacks where unavailable.
+            on rows that open a settings screen and on About rows, with rounded RVX fallbacks where unavailable.
             Its RVX entry uses YouTube's magic wand when available.
 
             Individual setting icons in Regular and Bold styles require Apply to all settings menu = true.
@@ -322,6 +322,47 @@ private var preferenceKey = mutableMapOf(
 
     // RVX settings
     "revanced_preference_screen_about" to "about_key",
+    "revanced_about_patches" to
+        "M 200 240 L 390 240 L 390 200 A 90 90 0 0 1 570 200 L 570 240 L 760 240 " +
+        "L 760 430 L 800 430 A 90 90 0 0 1 800 610 L 760 610 L 760 800 L 570 800 " +
+        "L 570 760 A 90 90 0 0 0 390 760 L 390 800 L 200 800 L 200 610 L 240 610 " +
+        "A 90 90 0 0 0 240 430 L 200 430 Z",
+    "revanced_about_app" to
+        "M 240 220 L 720 220 Q 840 220 840 340 L 840 620 Q 840 740 720 740 L 240 740 " +
+        "Q 120 740 120 620 L 120 340 Q 120 220 240 220 Z M 400 340 L 400 620 L 640 480 Z",
+    "revanced_about_patched" to
+        "M 200 220 L 320 220 L 320 140 L 360 140 L 360 220 L 600 220 L 600 140 " +
+        "L 640 140 L 640 220 L 760 220 L 760 800 L 200 800 Z M 240 260 L 240 340 " +
+        "L 720 340 L 720 260 Z M 240 380 L 240 760 L 720 760 L 720 380 Z " +
+        "M 520 540 L 640 540 L 640 660 L 520 660 Z",
+    // GitHub mark from https://cdn.simpleicons.org/github (Simple Icons, CC0), scaled to the 960 viewport.
+    "revanced_about_github" to
+        "M 480 11.88 c -265.2 0 -480 214.92 -480 480 0 212.12 137.52 392 328.2 455.4 24 4.52 32.8 -10.32 " +
+        "32.8 -23.08 0 -11.4 -0.4 -41.6 -0.6 -81.6 -133.52 28.96 -161.68 -64.4 -161.68 -64.4 C 176.88 " +
+        "722.8 145.32 708 145.32 708 c -43.48 -29.76 3.36 -29.16 3.36 -29.16 48.2 3.36 73.52 49.44 73.52 " +
+        "49.44 42.8 73.4 112.36 52.2 139.8 39.92 4.32 -31.04 16.68 -52.2 30.4 -64.2 -106.6 -12 -218.64 " +
+        "-53.28 -218.64 -237.2 0 -52.4 18.6 -95.2 49.4 -128.8 -5.4 -12.12 -21.6 -60.92 4.2 -127.04 0 0 " +
+        "40.2 -12.88 132 49.2 38.4 -10.68 79.2 -15.96 120 -16.2 40.8 0.24 81.6 5.52 120 16.2 91.2 -62.08 " +
+        "131.4 -49.2 131.4 -49.2 25.8 66.12 9.6 114.92 4.8 127.04 30.6 33.6 49.2 76.4 49.2 128.8 0 184.4 " +
+        "-112.2 225 -219 236.8 16.8 14.4 32.4 43.84 32.4 88.8 0 64.24 -0.6 115.84 -0.6 131.44 0 12.6 8.4 " +
+        "27.6 33 22.8 C 822.6 883.68 960 703.68 960 491.88 c 0 -265.08 -214.92 -480 -480 -480",
+    "revanced_about_report_issue" to
+        "M 480 120 A 360 360 0 1 1 480 840 A 360 360 0 1 1 480 120 Z " +
+        "M 480 160 A 320 320 0 1 0 480 800 A 320 320 0 1 0 480 160 Z " +
+        "M 460 280 L 500 280 L 500 560 L 460 560 Z M 460 640 L 500 640 L 500 680 L 460 680 Z",
+    "revanced_about_request_feature" to
+        "M 480 120 L 580 350 L 840 380 L 640 550 L 700 810 L 480 670 " +
+        "L 260 810 L 320 550 L 120 380 L 380 350 Z",
+    "revanced_about_credits" to
+        "M 460 120 L 500 120 L 500 220 L 800 220 L 800 260 L 500 260 L 500 780 " +
+        "L 680 780 L 680 820 L 280 820 L 280 780 L 460 780 L 460 260 L 160 260 " +
+        "L 160 220 L 460 220 Z M 240 300 L 400 600 L 80 600 Z M 240 380 L 145 560 " +
+        "L 335 560 Z M 720 300 L 880 600 L 560 600 Z M 720 380 L 625 560 L 815 560 Z",
+    "revanced_about_copy_debug" to
+        "M 280 120 L 600 120 L 800 320 L 800 800 L 280 800 Z M 320 160 L 320 760 " +
+        "L 760 760 L 760 360 L 560 360 L 560 160 Z M 600 180 L 600 320 L 740 320 Z " +
+        "M 400 440 L 680 440 L 680 480 L 400 480 Z M 400 560 L 680 560 L 680 600 L 400 600 Z " +
+        "M 160 240 L 200 240 L 200 840 L 680 840 L 680 880 L 160 880 Z",
     "revanced_preference_screen_general" to "general_key",
     "revanced_preference_screen_ads" to "M 721.539 495.385 L 721.539 464.615 L 846.154 464.615 L 846.154 495.385 L 721.539 495.385 Z M 766.154 758.462 L 665.923 683.846 L 685 659.692 L 785.231 734.308 L 766.154 758.462 Z M 683.385 297 L 664.308 272.846 L 763.077 198.461 L 782.154 222.615 L 683.385 297 Z M 224.615 718.462 L 224.615 566.154 L 169.231 566.154 Q 146.788 566.154 130.317 549.683 Q 113.846 533.212 113.846 510.769 L 113.846 449.231 Q 113.846 426.788 130.317 410.317 Q 146.788 393.846 169.231 393.846 L 327.692 393.846 L 486.154 300 L 486.154 660 L 327.692 566.154 L 255.385 566.154 L 255.385 718.462 L 224.615 718.462 Z M 455.385 605.539 L 455.385 354.461 L 336 424.615 L 169.231 424.615 Q 160 424.615 152.308 432.308 Q 144.615 440 144.615 449.231 L 144.615 510.769 Q 144.615 520 152.308 527.692 Q 160 535.385 169.231 535.385 L 336 535.385 L 455.385 605.539 Z M 556.923 595.539 L 556.923 364.461 Q 577 383.077 589.269 413.346 Q 601.539 443.615 601.539 480 Q 601.539 516.385 589.269 546.654 Q 577 576.923 556.923 595.539 Z M 300 480 Z",
     "revanced_preference_screen_alt_thumbnails" to "M 175.384 760 Q 152.327 760 136.163 743.837 Q 120 727.673 120 704.616 L 120 255.384 Q 120 232.327 136.163 216.163 Q 152.327 200 175.384 200 L 784.616 200 Q 807.673 200 823.837 216.163 Q 840 232.327 840 255.384 L 840 704.616 Q 840 727.673 823.837 743.837 Q 807.673 760 784.616 760 L 175.384 760 Z M 175.384 729.231 L 784.616 729.231 Q 793.846 729.231 801.539 721.539 Q 809.231 713.846 809.231 704.616 L 809.231 312.461 L 150.769 312.461 L 150.769 704.616 Q 150.769 713.846 158.461 721.539 Q 166.154 729.231 175.384 729.231 Z",

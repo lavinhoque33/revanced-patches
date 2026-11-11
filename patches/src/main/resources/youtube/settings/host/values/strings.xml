@@ -57,9 +57,11 @@ Restart the app, check if the behavior is present, then answer below"</string>
     <string name="morphe_settings_export_file">Export to file</string>
     <string name="morphe_settings_import_file">Import from file</string>
     <string name="morphe_settings_save">Save</string>
-    <string name="revanced_about_patches">RVX Patches %1$s</string>
-    <string name="revanced_about_app">%1$s %2$s</string>
-    <string name="revanced_about_patched">Patched %1$s</string>
+    <string name="revanced_about_app_info">App info</string>
+    <string name="revanced_about_actions">Actions</string>
+    <string name="revanced_about_more">More</string>
+    <string name="revanced_about_patches">RVX Patches</string>
+    <string name="revanced_about_patched">Patched on</string>
     <string name="revanced_about_github">GitHub</string>
     <string name="revanced_about_report_issue">Report an issue</string>
     <string name="revanced_about_request_feature">Request a feature</string>

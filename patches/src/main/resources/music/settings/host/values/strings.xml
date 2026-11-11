@@ -106,7 +106,7 @@ The lock screen or notification can briefly show a stale state mid-transition"</
     <string name="morphe_music_crossfade_about_title">About</string>
     <string name="morphe_music_crossfade_about_unsupported_summary">"Casting or mirroring audio (Chromecast, screen or audio mirroring) - crossfade pauses because it's unstable there and may never be fixable
 
-YouTube Music 8.x - crossfade only runs on 9.x and newer"</string>
+YouTube Music older than 9.00"</string>
     <string name="morphe_music_crossfade_about_unsupported_title">Doesn\'t work at all</string>
     <string name="morphe_music_crossfade_cast_unstable_toast">Crossfade is paused while casting or mirroring audio. Crossfade over cast/mirror is unstable and may never be fixable</string>
     <string name="morphe_music_crossfade_curve_entry_ease_out_cubic">Subtle hold</string>

@@ -16,7 +16,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.regex.Pattern;
 
 import app.morphe.extension.music.patches.downloads.LocalDownloadManager;
 import app.morphe.extension.music.patches.downloads.SongDownloadRoute;
@@ -26,8 +25,8 @@ import app.morphe.extension.shared.utils.Logger;
  * Gives the menu of a song a Download item when the account's own menu has none (accounts without Premium get no
  * Download item from the server). The item is a menu service item whose endpoint is the offline upsell command with
  * the song's id: the command the existing Download hook already intercepts, so a tap reaches
- * {@link LocalDownloadManager#onDownloadTap}. A song menu is recognised by its Add to queue item, whose endpoint
- * names one video. A menu that has a Download item of its own, or that names no single video, is left as it is.
+ * {@link LocalDownloadManager#onDownloadTap}. A song menu is recognised by {@link FlyoutMenuScan}. A menu that has a
+ * Download item of its own, or that names no single video, is left as it is.
  */
 final class FlyoutDownloadEntry {
     private static final int MENU_SERVICE_ITEM = 66441155;
@@ -35,22 +34,14 @@ final class FlyoutDownloadEntry {
     private static final int SERVICE_ICON = 2;
     private static final int SERVICE_ENDPOINT = 3;
     private static final int OFFLINE_UPSELL_ENDPOINT = 133724106;
-    private static final int OFFLINE_VIDEO_ENDPOINT = 73080600;
-    private static final int QUEUE_ADD_ENDPOINT = 163162354;
-    private static final int QUEUE_TARGET = 1;
     /** Field of the runs of a text, and of the text of a run. */
     private static final int RUNS = 1;
     private static final int RUN_TEXT = 1;
     /** Wire value of the OFFLINE_DOWNLOAD icon. */
     private static final int OFFLINE_DOWNLOAD_ICON = 147;
     private static final int ICON_TYPE = 1;
-    private static final Pattern VIDEO_ID = Pattern.compile("[A-Za-z0-9_-]{11}");
 
     private FlyoutDownloadEntry() {
-    }
-
-    /** What the menu items name: the song, and whether an item already offers Download. */
-    private record Scan(@Nullable String songId, boolean hasDownload, int queueAddIndex) {
     }
 
     /** The items with a Download item added after the Add to queue item, or the same list when none is needed. */
@@ -67,16 +58,16 @@ final class FlyoutDownloadEntry {
                 return items;
             }
 
-            Scan scan = scan(items);
+            FlyoutMenuScan.Result scan = scan(items);
             Logger.printDebug(() -> "FlyoutDownloadEntry: song " + scan.songId() + ", has Download "
-                    + scan.hasDownload() + ", queue item " + scan.queueAddIndex());
+                    + scan.hasDownload() + ", queue item " + scan.insertAfter());
             if (scan.hasDownload() || scan.songId() == null) return items;
 
             Object item = factory.rvxWithBytes(itemBytes(scan.songId()));
             if (item == null) return items;
 
             List<Object> extended = new ArrayList<>(items);
-            extended.add(scan.queueAddIndex() + 1, item);
+            extended.add(scan.insertAfter() + 1, item);
             Logger.printDebug(() -> "FlyoutDownloadEntry: Download item added for " + scan.songId());
             return extended;
         } catch (Exception ex) {
@@ -93,39 +84,12 @@ final class FlyoutDownloadEntry {
         return null;
     }
 
-    private static Scan scan(List<?> items) {
-        String songId = null;
-        boolean hasDownload = false;
-        int queueAddIndex = -1;
-        for (int index = 0; index < items.size(); index++) {
-            if (!(items.get(index) instanceof MessageLite item)) continue;
-
-            ProtoMessage endpoint = endpointOf(item.toByteArray());
-            if (endpoint == null) continue;
-
-            hasDownload |= !endpoint.messageField(OFFLINE_UPSELL_ENDPOINT).isEmpty()
-                    || !endpoint.messageField(OFFLINE_VIDEO_ENDPOINT).isEmpty();
-            String queued = endpoint.messagePath(QUEUE_ADD_ENDPOINT, QUEUE_TARGET).stringField(1);
-            if (!VIDEO_ID.matcher(queued).matches()) continue;
-
-            // Two different videos in one menu: it is not the menu of one song.
-            if (songId != null && !songId.equals(queued)) return new Scan(null, hasDownload, -1);
-
-            songId = queued;
-            queueAddIndex = index;
+    private static FlyoutMenuScan.Result scan(List<?> items) {
+        List<byte[]> serialized = new ArrayList<>(items.size());
+        for (Object item : items) {
+            serialized.add(item instanceof MessageLite message ? message.toByteArray() : null);
         }
-        return new Scan(songId, hasDownload, queueAddIndex);
-    }
-
-    /** The service endpoint of a menu item, or null for an item that is not a service item. */
-    @Nullable
-    private static ProtoMessage endpointOf(byte[] item) {
-        try {
-            ProtoMessage service = new ProtoMessage(item).messageField(MENU_SERVICE_ITEM);
-            return service.isEmpty() ? null : service.messageField(SERVICE_ENDPOINT);
-        } catch (RuntimeException notAServiceItem) {
-            return null;
-        }
+        return FlyoutMenuScan.scan(serialized);
     }
 
     /** A menu service item: the Download text and icon, and the offline upsell command of the song. */

@@ -116,11 +116,11 @@ public final class OfflineReplayHooks {
      * Injection point: the callback of a request for a page of the Library's Downloads chips. The callback to ask
      * with: the app's own, or one that adds the stream copies to the page.
      */
-    public static Object wrapDownloadsPage(Object service, Object request, Object options, Object callback) {
+    public static Object wrapDownloadsPage(Object request, Object options, Object callback) {
         if (!usable()) return callback;
 
         try {
-            return DownloadsPage.wrap(service, request, options, callback);
+            return DownloadsPage.wrap(request, options, callback);
         } catch (Throwable failure) {
             disable("downloads page", failure);
             return callback;

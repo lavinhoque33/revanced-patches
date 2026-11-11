@@ -10,7 +10,6 @@ import static app.morphe.extension.shared.utils.StringRef.str;
 
 import androidx.annotation.Nullable;
 
-import java.lang.ref.WeakReference;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -39,13 +38,9 @@ public final class DownloadsPage {
         byte[] rvxRequestBytes();
     }
 
-    /**
-     * Added by the Downloads patch to the page service: refreshes the page on screen as a pull to refresh does.
-     *
-     * @return false when no Downloads page is attached to refresh.
-     */
-    public interface PageRefresh {
-        boolean rvxRefreshPage();
+    /** Added by the Downloads patch to the page fragment: refreshes it as a pull to refresh does. */
+    public interface PageHost {
+        void rvxRefreshPage();
     }
 
     /** Added by the Downloads patch to the page response: the section list it holds, and a response with another. */
@@ -61,11 +56,11 @@ public final class DownloadsPage {
         }
     };
 
-    /** How long after a change of the copies, or after the page is attached, it is refreshed if it is stale. */
+    /** How long after a change of the copies, or after the page starts, it is refreshed if it is stale. */
     private static final long REFRESH_DELAY_MS = 800;
 
     private static final PageGeneration generation = new PageGeneration();
-    private static volatile WeakReference<PageRefresh> service = new WeakReference<>(null);
+    private static final PageHosts hosts = new PageHosts();
 
     private DownloadsPage() {}
 
@@ -74,7 +69,7 @@ public final class DownloadsPage {
      *
      * @return the callback to ask with: the app's own for a page this does not touch, whatever goes wrong.
      */
-    static Object wrap(Object pageService, Object request, Object options, Object callback) {
+    static Object wrap(Object request, Object options, Object callback) {
         try {
             if (!OfflineReplay.enabled() || !(request instanceof PageRequest page)) return callback;
 
@@ -83,7 +78,7 @@ public final class DownloadsPage {
             Logger.printDebug(() -> "DownloadsPage: page token=" + token + " layout=" + layout);
             if (layout == Layout.NONE) return callback;
 
-            if (pageService instanceof PageRefresh refresh) service = new WeakReference<>(refresh);
+            hosts.downloadsLoaded();
             generation.built();
             OfflineCopyStore.warmUp();
             Class<?>[] interfaces = interfacesOf(callback.getClass()).toArray(new Class<?>[0]);
@@ -96,10 +91,10 @@ public final class DownloadsPage {
     }
 
     /**
-     * Called when the stream copies or the downloaded lists changed. A Downloads page that is attached is refreshed
-     * as a pull to refresh would; one that is not (a list page is on top of it) is refreshed when it is attached
-     * again. Not while a list downloads (its end calls again), and nothing for a page never opened since the app
-     * started, so a restart never opens Downloads.
+     * Called when the stream copies or the downloaded lists changed. A Downloads page that is on screen is refreshed
+     * as a pull to refresh would; one that is not (a list page is on top of it) is refreshed when it starts again.
+     * Not while a list downloads (its end calls again), and nothing for a page never opened since the app started,
+     * so a restart never opens Downloads.
      */
     static void onCopiesChanged() {
         generation.changed();
@@ -108,26 +103,36 @@ public final class DownloadsPage {
         Utils.runOnMainThreadDelayed(DownloadsPage::refreshIfStale, REFRESH_DELAY_MS);
     }
 
-    /** Injection point: a Downloads page was attached to its fragment, new or from the back stack. */
-    public static void onPageAttached() {
+    /** Injection point: a page fragment started, new or from the back stack. */
+    public static void onPageStarted(Object controller, Object host) {
         try {
+            hosts.started(controller, host);
             Utils.runOnMainThreadDelayed(DownloadsPage::refreshIfStale, REFRESH_DELAY_MS);
         } catch (Exception ex) {
-            Logger.printException(() -> "DownloadsPage: attach", ex);
+            Logger.printException(() -> "DownloadsPage: page start", ex);
+        }
+    }
+
+    /** Injection point: a page fragment stopped (another page covers it, or the app left the screen). */
+    public static void onPageStopped(Object controller) {
+        try {
+            hosts.stopped(controller);
+        } catch (Exception ex) {
+            Logger.printException(() -> "DownloadsPage: page stop", ex);
         }
     }
 
     private static void refreshIfStale() {
         if (!generation.isStale()) return;
 
-        PageRefresh refresh = service.get();
-        if (refresh == null) return;
+        Object page = hosts.startedDownloadsPage();
+        if (!(page instanceof PageHost host)) return;
 
         try {
-            // The refresh builds the page again through the wrap, which notes the page as current; when no page is
-            // attached nothing is refreshed and the page stays stale for the next attach.
-            boolean refreshed = refresh.rvxRefreshPage();
-            Logger.printDebug(() -> "DownloadsPage: refresh after a change, page attached=" + refreshed);
+            // The refresh builds the page again through the wrap, which notes it as current. A page that is not on
+            // screen is not refreshed: it is, when it starts again.
+            Logger.printDebug(() -> "DownloadsPage: refresh after a change");
+            host.rvxRefreshPage();
         } catch (Exception ex) {
             Logger.printException(() -> "DownloadsPage: could not refresh the page", ex);
         }

@@ -10,6 +10,8 @@ import static app.morphe.extension.shared.utils.StringRef.str;
 import android.app.Activity;
 import android.view.WindowManager;
 
+import androidx.annotation.Nullable;
+
 import app.morphe.extension.shared.ui.CustomDialog;
 import app.morphe.extension.shared.utils.Logger;
 import app.morphe.extension.shared.utils.Utils;
@@ -23,12 +25,17 @@ final class DownloadRemoval {
 
     /** Asks whether to remove the stream copy of a song, naming the downloaded lists that hold it. */
     static void confirmSong(String songId) {
+        confirmSong(songId, null);
+    }
+
+    /** As {@link #confirmSong(String)}; {@code afterRemoval} runs on the main thread once the copy is gone. */
+    static void confirmSong(String songId, @Nullable Runnable afterRemoval) {
         Utils.runOnBackgroundThread(() -> {
             int lists = CopyOwnership.listsHolding(songId, OfflineCopyStore.allTrackLists());
             String message = lists == 0 ? str("morphe_music_remove_song_message")
                     : str("morphe_music_remove_song_message_lists", lists);
             Utils.runOnMainThread(() -> confirm(str("morphe_music_remove_song_title"), message,
-                    () -> removeSong(songId)));
+                    () -> removeSong(songId, afterRemoval)));
         });
     }
 
@@ -52,12 +59,15 @@ final class DownloadRemoval {
         }
     }
 
-    private static void removeSong(String songId) {
+    private static void removeSong(String songId, @Nullable Runnable afterRemoval) {
         Utils.runOnBackgroundThread(() -> {
             try {
                 StreamDownloads.remove(songId);
                 Logger.printInfo(() -> "Removed the stream copy of " + songId);
-                Utils.runOnMainThread(() -> Utils.showToastShort(str("morphe_music_remove_song_done")));
+                Utils.runOnMainThread(() -> {
+                    Utils.showToastShort(str("morphe_music_remove_song_done"));
+                    if (afterRemoval != null) afterRemoval.run();
+                });
             } catch (Exception ex) {
                 failed(songId, ex);
             }

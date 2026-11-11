@@ -21,57 +21,53 @@ import com.android.tools.smali.dexlib2.iface.reference.FieldReference
 import com.android.tools.smali.dexlib2.iface.reference.MethodReference
 
 private const val PAGE_HOOKS = "Lapp/morphe/extension/music/patches/downloads/DownloadsPage;"
-private const val PAGE_SERVICE_REFRESH = $$"Lapp/morphe/extension/music/patches/downloads/DownloadsPage$PageRefresh;"
+private const val PAGE_HOST = $$"Lapp/morphe/extension/music/patches/downloads/DownloadsPage$PageHost;"
 
 /**
  * The controller of a Downloads page: the class that puts itself in a field of the page service when it is made, is
- * given the page fragment when the page is attached (the one method that takes the fragment and stores it first), and
- * whose fragment has the method a pull to refresh runs (no parameter, it calls its own method that takes a boolean
- * with true). The service reaches the fragment through it, so the page can be refreshed as the user would.
+ * given the page fragment when the fragment starts (the one method that takes the fragment and stores it first), is
+ * told when the fragment stops (the one method that ends with a call of a method of the service that takes
+ * nothing), and whose fragment has the method a pull to refresh runs (no parameter, it calls its own method that
+ * takes a boolean with true).
  */
 private class PageController(
     val type: String,
-    /** The field of the service that holds the controller, with the type that field has. */
-    val serviceField: FieldReference,
     val hostField: FieldReference,
     val attach: Method,
+    val stop: Method,
     val refreshOwner: String,
     val refreshName: String,
 )
 
 /**
- * Lets the extension refresh the Downloads page in place, as a pull to refresh does, when the stream copies changed
- * while the page was on screen or in the back stack. Found by shape in every version (9.40.51: the service `Lhtd`,
- * its controller `Lgmn`, the fragment `Lgoa` whose base class has `v()`; 9.15.51 `Lnck`, `Ljnm`, `Ljqt`, `Ljma.w()`;
- * 8.30.54 `Lmpe`, `Ljew`, `Ljid`, `Ljde.o()`). Optional: where the shape is not found the page keeps the copies it
- * was given until it is opened again.
+ * Lets the extension refresh the Downloads page that is on screen, as a pull to refresh does, when the stream copies
+ * changed: right away when the page is shown, or when the page starts again after another page was on top of it.
+ * Found by shape in every version (9.40.51: the service `Lhtd`, its controller `Lgmn` with `c(Lgoa;)` and `d()`, the
+ * fragment `Lgoa` whose base class has `v()`; 9.15.51 `Lnck`, `Ljnm` `f(Ljqt;)` `g()`, `Ljma.w()`; 8.30.54 `Lmpe`,
+ * `Ljew` `f(Ljid;)` `g()`, `Ljde.o()`). Optional: where the shape is not found the page keeps the copies it was
+ * given until it is opened again.
  *
  * @return the patch step to run, or null when the shape was not found.
  */
 internal fun BytecodePatchContext.prepareDownloadsPageRefresh(serviceType: String): (() -> Unit)? {
     try {
         val controller = findPageController(serviceType)
-        val service = mutableClassDefBy(serviceType)
         return {
-            service.interfaces.add(PAGE_SERVICE_REFRESH)
-            service.addDownloadsBridge("rvxRefreshPage", emptyList(), "Z", 2, """
-                iget-object v0, p0, $serviceType->${controller.serviceField.name}:${controller.serviceField.type}
-                if-eqz v0, :none
-                check-cast v0, ${controller.type}
-                iget-object v0, v0, ${controller.type}->${controller.hostField.name}:${controller.hostField.type}
-                if-eqz v0, :none
-                invoke-virtual {v0}, ${controller.refreshOwner}->${controller.refreshName}()V
-                const/4 v0, 0x1
-                return v0
-                :none
-                const/4 v0, 0x0
-                return v0
+            val host = mutableClassDefBy(controller.hostField.type)
+            host.interfaces.add(PAGE_HOST)
+            host.addDownloadsBridge("rvxRefreshPage", emptyList(), "V", 1, """
+                invoke-virtual {p0}, ${controller.refreshOwner}->${controller.refreshName}()V
+                return-void
             """)
 
-            val attach = mutableClassDefBy(controller.type).methods.single {
-                it.name == controller.attach.name && it.parameterTypes == controller.attach.parameterTypes
-            }
-            attach.addInstructions(0, "invoke-static {}, $PAGE_HOOKS->onPageAttached()V")
+            val type = mutableClassDefBy(controller.type)
+            val attach = type.methods.single { it.name == controller.attach.name &&
+                it.parameterTypes == controller.attach.parameterTypes }
+            attach.addInstructions(0, """
+                invoke-static {p0, p1}, $PAGE_HOOKS->onPageStarted(Ljava/lang/Object;Ljava/lang/Object;)V
+            """)
+            val stop = type.methods.single { it.name == controller.stop.name && it.parameterTypes.isEmpty() }
+            stop.addInstructions(0, "invoke-static {p0}, $PAGE_HOOKS->onPageStopped(Ljava/lang/Object;)V")
         }
     } catch (ex: Exception) {
         printWarn("OfflineReplay: the Downloads page cannot be refreshed, it keeps its copies: ${ex.message}")
@@ -82,20 +78,31 @@ internal fun BytecodePatchContext.prepareDownloadsPageRefresh(serviceType: Strin
 private fun BytecodePatchContext.findPageController(serviceType: String): PageController {
     val found = mutableListOf<PageController>()
     classDefForEach { cls ->
-        val serviceField = serviceFieldOf(cls, serviceType) ?: return@classDefForEach
+        if (!storesItselfIn(cls, serviceType)) return@classDefForEach
+
         val (attach, hostField) = attachOf(cls) ?: return@classDefForEach
+        val stop = stopOf(cls, serviceType) ?: return@classDefForEach
         val refresh = refreshOf(hostField.type) ?: return@classDefForEach
-        found.add(PageController(cls.type, serviceField, hostField, attach, refresh.first, refresh.second))
+        found.add(PageController(cls.type, hostField, attach, stop, refresh.first, refresh.second))
     }
     check(found.size == 1) { "page refresh: found ${found.map { it.type }} controllers" }
     return found.single()
 }
 
+/** The method that tells the service the page stopped: no parameter, it ends with a no parameter call of it. */
+private fun stopOf(cls: ClassDef, serviceType: String): Method? = cls.methods.singleOrNull { method ->
+    val steps = method.implementation?.instructions?.toList().orEmpty()
+    val call = steps.getOrNull(steps.size - 2)?.getReference<MethodReference>()
+    method.returnType == "V" && method.parameterTypes.isEmpty() && !AccessFlags.STATIC.isSet(method.accessFlags) &&
+        steps.lastOrNull()?.opcode == Opcode.RETURN_VOID && call != null && call.definingClass == serviceType &&
+        call.parameterTypes.isEmpty() && call.returnType == "V"
+}
+
 /** The register of `this` in a method that is not static. */
 private fun Method.thisRegister() = implementation!!.registerCount - parameterTypes.size - 1
 
-/** The field of the service the class stores itself in (in any of its methods), or null. */
-private fun serviceFieldOf(cls: ClassDef, serviceType: String): FieldReference? {
+/** Whether the class stores itself in a field of the service (in any of its methods). */
+private fun storesItselfIn(cls: ClassDef, serviceType: String): Boolean {
     for (method in cls.methods) {
         val steps = method.implementation?.instructions ?: continue
         if (AccessFlags.STATIC.isSet(method.accessFlags)) continue
@@ -105,10 +112,10 @@ private fun serviceFieldOf(cls: ClassDef, serviceType: String): FieldReference? 
 
             val field = step.getReference<FieldReference>() ?: continue
             val isItself = field.type == cls.type || field.type == cls.superclass || field.type in cls.interfaces
-            if (field.definingClass == serviceType && step.registerA == method.thisRegister() && isItself) return field
+            if (field.definingClass == serviceType && step.registerA == method.thisRegister() && isItself) return true
         }
     }
-    return null
+    return false
 }
 
 /** The method that takes the fragment and stores it first, with the field it stores it in, or null. */

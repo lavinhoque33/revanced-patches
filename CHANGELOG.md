@@ -41,8 +41,11 @@
   Online the songs are queued after the one you tap, so radio and lyrics stay, and the audio comes from your copies.
   It also appears in Android Auto in the downloaded playlists.
 * **Music - Stream download:** The Downloads chip refreshes itself the way a pull to refresh does after you download
-  or remove a song, an album or a playlist, so the rows and the No Playlist count are current when you open or return
-  to it. Nothing is opened by itself and the Library still opens first after a restart.
+  or remove a song, an album or a playlist, also when you come back to it with Back from a list or a player, so the
+  rows and the No Playlist count are current without pulling. Nothing is opened by itself and the Library still
+  opens first after a restart.
+* **Music - Stream download:** Each song on the No Playlist page has a three dot menu with Remove download, which asks
+  the same confirmation as the song menu and takes the song off the list. The green check stays at the right end.
 * **Music - Stream download:** A playlist or album download that was cut off, for example by closing the app, no longer
   leaves its songs in No Playlist and no longer counts as saved. Its Download button finishes the job and the green
   check and Remove download appear once every song is in.

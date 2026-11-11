@@ -154,9 +154,9 @@ private fun BytecodePatchContext.prepareDownloadsPage(): (() -> Unit)? {
             request()
             response()
             refresh?.invoke()
-            // this, request, options and the callback are consecutive parameter registers, so one local is enough.
+            // request, options and the callback are consecutive parameter registers, so one local is enough.
             method.addInstructions(0, """
-                invoke-static/range {p0 .. p3}, $REPLAY->wrapDownloadsPage($OBJECT$OBJECT$OBJECT$OBJECT)$OBJECT
+                invoke-static/range {p1 .. p3}, $REPLAY->wrapDownloadsPage($OBJECT$OBJECT$OBJECT)$OBJECT
                 move-result-object v0
                 check-cast v0, $callbackType
                 move-object/from16 p3, v0

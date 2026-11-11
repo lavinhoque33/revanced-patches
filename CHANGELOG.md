@@ -41,6 +41,8 @@
 * **Music - Stream download:** Accounts whose song menu has no Download item now get one, so a single song can be
   downloaded from any song menu. It reads Remove download once the song is saved.
 * **Music - Settings:** The download options are now together in a Downloads group of Miscellaneous.
+* **Music - Library:** After the app is restarted, the Library tab opens the Library again and not the Downloads view
+  that was selected last. The Downloads chip itself works as before.
 * **Music - Stream download:** Album song lists show the green check for songs you downloaded one by one, even when the
   album was never downloaded.
 * **Sync with anddea/revanced-patches dev:** Merge the changes up to v4.4.0-dev.6 (anddea dev, b2f29faa6) into this

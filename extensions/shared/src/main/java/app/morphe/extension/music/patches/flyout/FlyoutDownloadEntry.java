@@ -63,12 +63,13 @@ final class FlyoutDownloadEntry {
                     + scan.hasDownload() + ", queue item " + scan.insertAfter());
             if (scan.hasDownload() || scan.songId() == null) return items;
 
-            Object item = factory.rvxWithBytes(itemBytes(scan.songId()));
+            String label = labelOf(scan.songId());
+            Object item = factory.rvxWithBytes(itemBytes(scan.songId(), label));
             if (item == null) return items;
 
             List<Object> extended = new ArrayList<>(items);
             extended.add(scan.insertAfter() + 1, item);
-            Logger.printDebug(() -> "FlyoutDownloadEntry: Download item added for " + scan.songId());
+            Logger.printDebug(() -> "FlyoutDownloadEntry: item \"" + label + "\" added for " + scan.songId());
             return extended;
         } catch (Exception ex) {
             Logger.printException(() -> "FlyoutDownloadEntry: could not add the Download item", ex);
@@ -92,10 +93,14 @@ final class FlyoutDownloadEntry {
         return FlyoutMenuScan.scan(serialized);
     }
 
-    /** A menu service item: the Download text and icon, and the offline upsell command of the song. */
-    private static byte[] itemBytes(String songId) throws IOException {
-        String text = LocalDownloadManager.offersRemove(songId)
+    /** The text of the item: Remove download when the song has a stream copy, else Download. */
+    private static String labelOf(String songId) {
+        return LocalDownloadManager.offersRemove(songId)
                 ? str("morphe_music_remove_download") : str("morphe_music_download_item");
+    }
+
+    /** A menu service item: the Download text and icon, and the offline upsell command of the song. */
+    private static byte[] itemBytes(String songId, String text) throws IOException {
         byte[] service = concat(
                 message(SERVICE_TEXT, message(RUNS, string(RUN_TEXT, text))),
                 message(SERVICE_ICON, varint(ICON_TYPE, OFFLINE_DOWNLOAD_ICON)),

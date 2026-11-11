@@ -212,8 +212,10 @@ public final class OfflineReplay {
 
     @Nullable
     private static byte[] playCommand(String sourceId, int index) {
-        // The songs list has no online playlist: its queue is the list itself, from the copies, on any network.
-        if (!Utils.isInternetReachable() || SONGS.equals(sourceId)) return startCommand(sourceId, index);
+        // Online the app's own watch of the song runs: the offline watch command of a list is declined by the app
+        // while a network exists and ends in its Re-download question. The songs list has no playlist, so the
+        // song's own radio is the online queue; offline the list plays in its shown order.
+        if (!Utils.isInternetReachable()) return startCommand(sourceId, index);
 
         List<OfflineWatchNext.Item> items = queueOf(sourceId);
         if (index < 0 || index >= items.size()) return null;

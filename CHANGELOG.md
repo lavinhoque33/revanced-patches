@@ -1,5 +1,7 @@
 ## Unreleased
 
+## [1.34.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.33.0...v1.34.0) (2026-11-11)
+
 ### Bug Fixes
 
 * **Music - Track crossfade:** Keep the incoming track quiet until its fade starts and preserve its volume

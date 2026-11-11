@@ -2,21 +2,19 @@
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
  * Written by lavinhoque33, 2026-11-08.
+ * Modified by lavinhoque33, 2026-11-10
  */
 package app.morphe.extension.music.patches.downloads;
 
 import androidx.annotation.Nullable;
 
 import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 import java.util.function.Function;
 
 /**
  * The row models of the stream copies in the Downloads page, with no Android dependency: the downloaded albums and
- * playlists, the songs, and the bytes of the browse command of a page.
+ * playlists, the songs no list holds, and the bytes of the browse command of a page.
  */
 final class OfflineLibraryLogic {
     /** The Downloads page the Library tab, the account menu and the offline banner all navigate to. */
@@ -32,18 +30,6 @@ final class OfflineLibraryLogic {
      */
     record SourceRow(String sourceId, String title, int songCount, int availableCount,
                      @Nullable String coverVideoId, @Nullable String thumbnailUrl) {}
-
-    /**
-     * A song of a list. {@code queueIndex} is its position in the offline queue of the list, or -1 when it has no
-     * stored data and cannot play offline. {@code title} is empty for such a song: nothing is known of it but its id.
-     * {@code thumbnailUrl} is the recorded cover of the song, null when unknown.
-     */
-    record SongRow(String videoId, String title, String artist, long durationMs, int queueIndex,
-                   @Nullable String thumbnailUrl) {
-        boolean availableOffline() {
-            return queueIndex >= 0;
-        }
-    }
 
     private OfflineLibraryLogic() {}
 
@@ -79,39 +65,14 @@ final class OfflineLibraryLogic {
     }
 
     /**
-     * Every stream copy as a song: the ones with stored data by title, then the ones without, by id.
-     * {@code stored} may name a copy that is gone; it is not listed.
+     * The row of the songs no downloaded list holds (No Playlist): its id is the songs list's, {@code songCount}
+     * counts the songs that play offline, and its cover is the first of them. Null when there are none.
      */
-    static List<SongRow> songRows(List<OfflineCopyMetadata> stored, Set<String> copyIds, List<String> queueIds) {
-        List<OfflineCopyMetadata> present = new ArrayList<>();
-        Set<String> withData = new HashSet<>();
-        for (OfflineCopyMetadata metadata : stored) {
-            if (!copyIds.contains(metadata.videoId())) continue;
+    @Nullable
+    static SourceRow noPlaylistRow(String songsId, String title, List<OfflineWatchNext.Item> songs) {
+        if (songs.isEmpty()) return null;
 
-            present.add(metadata);
-            withData.add(metadata.videoId());
-        }
-        present.sort(Comparator.comparing(OfflineCopyMetadata::title, String.CASE_INSENSITIVE_ORDER)
-                .thenComparing(OfflineCopyMetadata::videoId));
-        List<SongRow> rows = new ArrayList<>();
-        for (OfflineCopyMetadata metadata : present) {
-            rows.add(songRow(metadata.videoId(), metadata, queueIds));
-        }
-
-        List<String> without = new ArrayList<>();
-        for (String id : copyIds) {
-            if (!withData.contains(id)) without.add(id);
-        }
-        without.sort(null);
-        for (String id : without) rows.add(songRow(id, null, queueIds));
-        return rows;
-    }
-
-    private static SongRow songRow(String videoId, @Nullable OfflineCopyMetadata stored, List<String> queueIds) {
-        if (stored == null) return new SongRow(videoId, "", "", 0, -1, null);
-
-        return new SongRow(videoId, stored.title(), stored.artist(), stored.durationMs(),
-                queueIds.indexOf(videoId), stored.thumbnailUrl());
+        return new SourceRow(songsId, title, songs.size(), songs.size(), songs.get(0).videoId(), null);
     }
 
     /** The artist and the duration of a song, whichever are known, joined by a dot. */

@@ -2,6 +2,7 @@
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
  * Written by lavinhoque33, 2026-11-07.
+ * Modified by lavinhoque33, 2026-11-10
  */
 package app.morphe.extension.music.patches.downloads;
 
@@ -163,6 +164,16 @@ final class OfflineSourceStore {
             if (copyIds.contains(videoId)) tracks.add(new Track(videoId, stored.apply(videoId)));
         }
         return tracks;
+    }
+
+    /** Forgets one source; its tracks are not touched. */
+    synchronized void remove(String sourceId) throws IOException, JSONException {
+        ensureLoaded();
+        if (!sources.containsKey(sourceId)) return;
+
+        Map<String, Source> next = new HashMap<>(sources);
+        next.remove(sourceId);
+        publish(next);
     }
 
     /** Forgets every source none of whose tracks has a stream copy any more. */

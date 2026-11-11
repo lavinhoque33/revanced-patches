@@ -2,6 +2,7 @@
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
  * Written by lavinhoque33, 2026-11-08.
+ * Modified by lavinhoque33, 2026-11-10
  */
 package app.morphe.extension.music.patches.downloads;
 
@@ -16,7 +17,7 @@ import java.util.List;
  * replay are package-private, so this is the one public door; it holds no state.
  */
 public final class OfflineStreamBrowse {
-    /** The id of the list of every song with stored data, next to the ids of the downloaded sources. */
+    /** The id of the list of the songs no downloaded list holds (No Playlist), next to the ids of the sources. */
     public static final String SONGS = OfflineReplay.SONGS;
 
     /** A downloaded list. {@code title} is empty for {@link #SONGS} and while the title is not known. */
@@ -38,20 +39,20 @@ public final class OfflineStreamBrowse {
     }
 
     /**
-     * The lists that have at least one song with stored data: every song first, then each downloaded album and
-     * playlist, the latest first. Reads the disk: for a worker thread.
+     * The lists that have at least one song with stored data: each downloaded album and playlist, the latest first,
+     * then the list of the songs no downloaded list holds (No Playlist) when there are any. Reads the disk: for a
+     * worker thread.
      */
     public static List<Source> sources() {
         List<Source> sources = new ArrayList<>();
-        List<OfflineWatchNext.Item> songs = OfflineReplay.queueOf(SONGS);
-        if (!songs.isEmpty()) sources.add(new Source(SONGS, "", songs.size(), songs.get(0).videoId()));
-
         for (OfflineLibraryLogic.SourceRow row : OfflineLibraryLogic.sourceRows(
                 OfflineCopyStore.sources(), OfflineCopyStore::tracksOf)) {
             if (row.availableCount() > 0) {
                 sources.add(new Source(row.sourceId(), row.title(), row.availableCount(), row.coverVideoId()));
             }
         }
+        List<OfflineWatchNext.Item> songs = OfflineReplay.queueOf(SONGS);
+        if (!songs.isEmpty()) sources.add(new Source(SONGS, "", songs.size(), songs.get(0).videoId()));
         return sources;
     }
 

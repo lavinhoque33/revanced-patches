@@ -137,6 +137,38 @@ public final class LocalDownloadManager {
     record Saved(@Nullable Uri nativeTrack, boolean downloaded) {
     }
 
+    /**
+     * The Download of a song (menu or player button) on the main thread. A song with a stream copy, or a music video
+     * saved as its song, offers Remove instead, so no copy is ever made twice; any other song is downloaded.
+     */
+    public static void onDownloadTap(String videoId) {
+        String songId = savedCopyOf(videoId);
+        if (songId != null) {
+            DownloadRemoval.confirmSong(songId);
+            return;
+        }
+        enqueue(videoId);
+    }
+
+    /** Whether the Download of the song offers Remove: the song has a stream copy and stream copies are in use. */
+    public static boolean offersRemove(String videoId) {
+        return savedCopyOf(videoId) != null;
+    }
+
+    /** The id the stream copy of the song or video is stored under, or null when it has none. */
+    @Nullable
+    private static String savedCopyOf(String videoId) {
+        if (!songMode().streamCopy()) return null;
+
+        DownloadedMarkers.warmUp();
+        DownloadedRegistry registry = DownloadedMarkers.loadedRegistry();
+        if (registry == null) return null;
+
+        // The video copy of a song is played as its music video, which is the id the player then shows.
+        String songId = registry.canonicalId(VideoCopyStore.pairsIfLoaded().getOrDefault(videoId, videoId));
+        return registry.hasOwnCopy(songId) ? songId : null;
+    }
+
     /** Must be called from the main thread. Resolution and downloading happen in background. */
     public static void enqueue(String videoId) {
         DownloadMode mode = songMode();

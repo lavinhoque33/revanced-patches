@@ -128,6 +128,10 @@ final class DownloadedRegistry {
         return true;
     }
 
+    void removeSource(String sourceId) {
+        sources.remove(sourceId);
+    }
+
     boolean hasSource(String sourceId) {
         return sources.containsKey(sourceId);
     }

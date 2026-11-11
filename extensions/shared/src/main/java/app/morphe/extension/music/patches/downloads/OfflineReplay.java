@@ -37,7 +37,10 @@ import app.morphe.extension.shared.utils.Utils;
  */
 @SuppressWarnings("unused")
 public final class OfflineReplay {
-    /** The id of the list of every stored song, next to the ids of the downloaded playlists and albums. */
+    /**
+     * The id of the list of the songs no downloaded list holds (No Playlist), next to the ids of the downloaded
+     * playlists and albums.
+     */
     public static final String SONGS = "songs";
 
     /** Added by the Downloads patch to the class that dispatches a command, so a command can be run again. */
@@ -141,10 +144,13 @@ public final class OfflineReplay {
 
     /**
      * The tracks of a list that can play with no network, in the order the list shows them. Off the main thread.
-     * The all-songs list is sorted by title.
+     * The songs list holds the loose songs, sorted by title.
      */
     static List<OfflineWatchNext.Item> queueOf(String sourceId) {
-        if (SONGS.equals(sourceId)) return OfflineReplayLogic.itemsOfSongs(OfflineCopyStore.copiesWithData());
+        if (SONGS.equals(sourceId)) {
+            Set<String> loose = CopyOwnership.looseSongs(RawAudioStore.copyIds(), OfflineCopyStore.allTrackLists());
+            return OfflineReplayLogic.itemsOfSongs(OfflineCopyStore.copiesWithData(), loose);
+        }
         return OfflineReplayLogic.itemsOfTracks(OfflineCopyStore.tracksOf(sourceId));
     }
 
@@ -206,7 +212,8 @@ public final class OfflineReplay {
 
     @Nullable
     private static byte[] playCommand(String sourceId, int index) {
-        if (!Utils.isInternetReachable()) return startCommand(sourceId, index);
+        // The songs list has no online playlist: its queue is the list itself, from the copies, on any network.
+        if (!Utils.isInternetReachable() || SONGS.equals(sourceId)) return startCommand(sourceId, index);
 
         List<OfflineWatchNext.Item> items = queueOf(sourceId);
         if (index < 0 || index >= items.size()) return null;
@@ -235,7 +242,7 @@ public final class OfflineReplay {
 
     /**
      * The ordinary online watch command of a song tapped in a list: the playlist's id and the song's place in it
-     * for a playlist or album, the song alone for the all-songs list, where the app builds the song's own radio.
+     * for a playlist or album, the song alone for a song of no list, where the app builds the song's own radio.
      */
     private static byte[] onlineCommand(String sourceId, String songId, String videoId) {
         return OnlineWatchCommand.build(videoId, OfflineReplayLogic.onlinePlaylistId(sourceId, SONGS),
@@ -328,10 +335,16 @@ public final class OfflineReplay {
         if (browseId == null && watch == null) return false;
 
         Map<String, List<String>> tracks = OfflineCopyStore.tracksBySource();
-        OfflineReplayLogic.Decision decision = OfflineReplayLogic.routeOf(Utils.isInternetReachable(), browseId, watch, SONGS,
-                tracks::containsKey, OfflineBrowsePages::has, OfflineCopyStore::has,
-                target -> OfflineReplayLogic.sourceOfPlaylist(target.playlistId(), target.videoId(), tracks));
+        OfflineReplayLogic.Decision decision = OfflineReplayLogic.routeOf(Utils.isInternetReachable(), browseId, watch,
+                SONGS, tracks::containsKey, OfflineBrowsePages::has, OfflineCopyStore::has,
+                target -> OfflineReplayLogic.sourceOfPlaylist(target.playlistId(), target.videoId(), tracks),
+                videoId -> OfflineReplayLogic.sourceHolding(videoId, tracks));
         switch (decision.route()) {
+            case OPEN_SONGS -> {
+                logDecision(HOOK_COMMAND, "browse of the songs list opens it");
+                NoPlaylistDialog.show();
+                return true;
+            }
             case PLAY_SOURCE -> {
                 logDecision(HOOK_COMMAND, "offline browse or watch of " + decision.sourceId() + " plays the list");
                 return play(decision.sourceId(), 0);

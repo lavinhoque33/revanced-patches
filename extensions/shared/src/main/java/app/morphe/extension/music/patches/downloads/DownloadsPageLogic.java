@@ -2,6 +2,7 @@
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
  * Written by lavinhoque33, 2026-11-08.
+ * Modified by lavinhoque33, 2026-11-10
  */
 package app.morphe.extension.music.patches.downloads;
 
@@ -15,13 +16,13 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.IntFunction;
 
-import app.morphe.extension.music.patches.downloads.OfflineLibraryLogic.SongRow;
 import app.morphe.extension.music.patches.downloads.OfflineLibraryLogic.SourceRow;
 
 /**
  * The page of the Library's Downloads chip with the stream copies in it, with no Android dependency. The app builds
- * that page itself from its own downloads and delivers it as a section list; the stream copies are added to those
- * bytes as shelves of rows, and the app's empty state ("Music and podcasts you download will appear here") is taken
+ * that page itself from its own downloads and delivers it as a section list; the downloaded albums and playlists of
+ * the stream copies are added to those bytes as a shelf of rows (with one more row, No Playlist, for the songs no
+ * downloaded list holds; a song is never listed as a song of its own), and the app's empty state ("Music and podcasts you download will appear here") is taken
  * out when it is the only thing the page has. Everything is wire level, so the same code serves every version: the
  * field numbers of these messages are the same in all of them.
  *
@@ -35,11 +36,9 @@ final class DownloadsPageLogic {
     enum Layout {
         /** The page stays as the app built it. */
         NONE,
-        /** The Downloads chip itself: the albums and playlists, then the songs. */
+        /** The Downloads chip itself: the albums and playlists, then No Playlist. */
         ALL,
-        /** The Songs chip. */
-        SONGS,
-        /** The Playlists chip. */
+        /** The Playlists chip: the playlists, then No Playlist. */
         PLAYLISTS,
         /** The Albums chip. */
         ALBUMS
@@ -47,13 +46,12 @@ final class DownloadsPageLogic {
 
     /** The commands the rows run when tapped; null leaves a row out. */
     interface Taps {
-        /** A downloaded album or playlist: its page while online, its songs from the first one while offline. */
+        /**
+         * A downloaded album or playlist: its page while online, its songs from the first one while offline. The
+         * songs list (No Playlist) opens our own list on any network.
+         */
         @Nullable
         byte[] source(SourceRow row);
-
-        /** A song: the song from the copy, online or offline. */
-        @Nullable
-        byte[] song(SongRow row);
     }
 
     /** The url of a cover: the song's cover file when it has one, else the url recorded for it. */
@@ -62,9 +60,8 @@ final class DownloadsPageLogic {
         String of(@Nullable String videoId, @Nullable String recordedUrl);
     }
 
-    /** The texts of the shelves and rows; {@code songCount} formats a count of songs. */
-    record Labels(String sources, String songs, String untitled, String unavailableTitle, String unavailableSubtitle,
-                  IntFunction<String> songCount) {}
+    /** The texts of the shelf and rows; {@code songCount} formats a count of songs. */
+    record Labels(String sources, String noPlaylist, String untitled, IntFunction<String> songCount) {}
 
     private static final String TOKEN_PREFIX = "CONTENT_RELOAD_CONTINUATION_TOKEN_";
 
@@ -117,8 +114,9 @@ final class DownloadsPageLogic {
 
     /**
      * What a request adds to its page. The Downloads chip asks with {@code DEFAULT}, and its sub-chips with
-     * {@code TRACKS}, {@code PLAYLISTS} and {@code ALBUMS} followed by {@code _DOWNLOADED_SUBCHIP} on the device;
-     * both spellings of a chip get the same layout. Podcasts and any token this does not know are left alone.
+     * {@code PLAYLISTS} and {@code ALBUMS} followed by {@code _DOWNLOADED_SUBCHIP} on the device; both spellings of a
+     * chip get the same layout. The Songs sub-chip ({@code TRACKS}), podcasts and any token this does not know are
+     * left alone: no song of a stream copy is listed as a song.
      */
     static Layout layoutOf(@Nullable String token) {
         if (token == null || !token.startsWith(TOKEN_PREFIX)) return Layout.NONE;
@@ -128,7 +126,6 @@ final class DownloadsPageLogic {
 
         return switch (name) {
             case "DEFAULT" -> Layout.ALL;
-            case "TRACKS" -> Layout.SONGS;
             case "PLAYLISTS" -> Layout.PLAYLISTS;
             case "ALBUMS" -> Layout.ALBUMS;
             default -> Layout.NONE;
@@ -141,11 +138,12 @@ final class DownloadsPageLogic {
     }
 
     /**
-     * The content items the layout adds, in page order; none when there is nothing to show for it. A song that
-     * cannot play offline is left out while offline, and so is a source without a song that can.
+     * The content items the layout adds, in page order; none when there is nothing to show for it. A source without
+     * a song that can play offline is left out while offline. {@code noPlaylist} is the row of the songs no
+     * downloaded list holds, or null when there are none; it ends the playlists.
      */
-    static List<byte[]> sections(Layout layout, boolean online, List<SourceRow> sources, List<SongRow> songs,
-                                 Labels labels, Taps taps, CoverOf covers) {
+    static List<byte[]> sections(Layout layout, boolean online, List<SourceRow> sources,
+                                 @Nullable SourceRow noPlaylist, Labels labels, Taps taps, CoverOf covers) {
         List<byte[]> items = new ArrayList<>();
         boolean all = layout == Layout.ALL;
         List<byte[]> sourceRows = new ArrayList<>();
@@ -155,18 +153,12 @@ final class DownloadsPageLogic {
                 if (row != null) sourceRows.add(row);
             }
         }
-        addShelf(items, all ? labels.sources() : null, sourceRows);
-
-        if (all || layout == Layout.SONGS) {
-            List<byte[]> songRows = new ArrayList<>();
-            for (SongRow song : songs) {
-                if (!online && !song.availableOffline()) continue;
-
-                byte[] row = songRow(song, labels, taps, covers);
-                if (row != null) songRows.add(row);
-            }
-            addShelf(items, all ? labels.songs() : null, songRows);
+        boolean listsNoPlaylist = layout == Layout.ALL || layout == Layout.PLAYLISTS;
+        if (noPlaylist != null && listsNoPlaylist) {
+            byte[] row = sourceRow(noPlaylist, labels, taps, covers);
+            if (row != null) sourceRows.add(row);
         }
+        addShelf(items, all ? labels.sources() : null, sourceRows);
         return items;
     }
 
@@ -199,19 +191,6 @@ final class DownloadsPageLogic {
         String title = source.title().isEmpty() ? labels.untitled() : source.title();
         String cover = covers.of(source.coverVideoId(), source.thumbnailUrl());
         return row(title, labels.songCount().apply(source.songCount()), cover, tap);
-    }
-
-    @Nullable
-    private static byte[] songRow(SongRow song, Labels labels, Taps taps, CoverOf covers) {
-        byte[] tap = taps.song(song);
-        if (tap == null) return null;
-
-        String cover = covers.of(song.videoId(), song.thumbnailUrl());
-        if (!song.availableOffline() && song.title().isEmpty()) {
-            return row(labels.unavailableTitle(), labels.unavailableSubtitle(), cover, tap);
-        }
-
-        return row(song.title(), OfflineLibraryLogic.songSubtitle(song.artist(), song.durationMs()), cover, tap);
     }
 
     private static byte[] row(String title, String subtitle, @Nullable String coverUrl, byte[] tap) {

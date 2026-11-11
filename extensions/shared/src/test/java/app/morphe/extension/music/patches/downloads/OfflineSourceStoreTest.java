@@ -2,6 +2,7 @@
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
  * Written by lavinhoque33, 2026-11-07.
+ * Modified by lavinhoque33, 2026-11-10
  */
 package app.morphe.extension.music.patches.downloads;
 
@@ -125,6 +126,20 @@ public class OfflineSourceStoreTest {
         OfflineSourceStore reloaded = store();
         reloaded.ensureLoaded();
         assertNull(reloaded.get("two"));
+    }
+
+    @Test public void removingASourceForgetsOnlyThatSourceAndPersists() throws Exception {
+        OfflineSourceStore store = store();
+        store.remember("one", null, List.of("a", "b"), 1);
+        store.remember("two", null, List.of("c"), 2);
+        store.remove("one");
+        store.remove("never-remembered");
+        assertNull(store.get("one"));
+        assertNotNull(store.get("two"));
+        OfflineSourceStore reloaded = store();
+        reloaded.ensureLoaded();
+        assertNull(reloaded.get("one"));
+        assertEquals(List.of("c"), reloaded.get("two").videoIds());
     }
 
     @Test public void clearForgetsEverythingAndTheFile() throws Exception {

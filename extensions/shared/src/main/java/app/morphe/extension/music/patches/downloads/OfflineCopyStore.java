@@ -124,6 +124,17 @@ final class OfflineCopyStore {
         return Storage.copies.allMetadata();
     }
 
+    /**
+     * The track list of every downloaded playlist and album, those saved before the offline store included, whether
+     * or not their copies are all there. Reads the disk: a worker thread only.
+     */
+    static Map<String, List<String>> allTrackLists() {
+        Utils.verifyOffMainThread();
+        Storage.sources.ensureLoaded();
+        adoptEarlierSources();
+        return tracksBySource();
+    }
+
     /** The downloaded playlists and albums that still have a stream copy, the latest first. */
     static List<OfflineSourceStore.Source> sources() {
         Utils.verifyOffMainThread();
@@ -334,6 +345,16 @@ final class OfflineCopyStore {
                 Logger.printDebug(() -> "OfflineCopyStore: no header for " + sourceId, ex);
             }
         });
+    }
+
+    /** A downloaded playlist or album is forgotten, with the pages stored for it. Its copies are the caller's. */
+    static void removeSource(String sourceId) {
+        try {
+            Storage.sources.remove(sourceId);
+            OfflineBrowsePages.retainOnly(Storage.sources.ids());
+        } catch (Exception ex) {
+            Logger.printException(() -> "OfflineCopyStore: could not forget the source " + sourceId, ex);
+        }
     }
 
     /** The stream copy is deleted: its stored data goes with it. */

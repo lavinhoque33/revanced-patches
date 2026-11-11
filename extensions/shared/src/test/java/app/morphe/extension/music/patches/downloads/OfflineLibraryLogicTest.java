@@ -2,10 +2,10 @@
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
  * Written by lavinhoque33, 2026-11-08.
+ * Modified by lavinhoque33, 2026-11-10
  */
 package app.morphe.extension.music.patches.downloads;
 
-import static app.morphe.extension.music.patches.downloads.OfflineLibraryLogic.SongRow;
 import static app.morphe.extension.music.patches.downloads.OfflineLibraryLogic.SourceRow;
 import static org.junit.Assert.*;
 
@@ -48,11 +48,6 @@ public class OfflineLibraryLogicTest {
         List<SourceRow> sources = OfflineLibraryLogic.sourceRows(List.of(recorded),
                 Map.of("PLa", List.of(track("x", true)))::get);
         assertEquals("https://img/a", sources.get(0).thumbnailUrl());
-
-        OfflineCopyMetadata withCover =
-                new OfflineCopyMetadata("x", "X", "A", null, 1000, "https://img/x", 1, "online");
-        List<SongRow> songs = OfflineLibraryLogic.songRows(List.of(withCover), Set.of("x"), List.of("x"));
-        assertEquals("https://img/x", songs.get(0).thumbnailUrl());
     }
 
     @Test public void aSourceWithoutAnySongIsLeftOutAndOneWithoutStoredDataHasNoCover() {
@@ -62,25 +57,16 @@ public class OfflineLibraryLogicTest {
         assertEquals(List.of(new SourceRow("PLb", "B", 1, 0, null, null)), rows);
     }
 
-    @Test public void songRowsSortStoredSongsByTitleThenListTheOnesWithoutData() {
-        List<SongRow> rows = OfflineLibraryLogic.songRows(
-                List.of(metadata("b", "banana"), metadata("a", "Cherry"), metadata("c", "apple")),
-                Set.of("a", "b", "c", "z", "y"), List.of("c", "b", "a"));
-        assertEquals(List.of("c", "b", "a", "y", "z"), rows.stream().map(SongRow::videoId).toList());
-        assertEquals(List.of(0, 1, 2, -1, -1), rows.stream().map(SongRow::queueIndex).toList());
-        assertEquals("apple", rows.get(0).title());
-        assertTrue(rows.get(2).availableOffline());
-        assertFalse(rows.get(3).availableOffline());
+    @Test public void noPlaylistIsOneRowWithTheCoverOfItsFirstSong() {
+        List<OfflineWatchNext.Item> songs = List.of(new OfflineWatchNext.Item("a", "A", "", "", 1000, null),
+                new OfflineWatchNext.Item("b", "B", "", "", 1000, null));
+
+        assertEquals(new SourceRow("songs", "No Playlist", 2, 2, "a", null),
+                OfflineLibraryLogic.noPlaylistRow("songs", "No Playlist", songs));
     }
 
-    @Test public void songRowsSkipStoredDataOfACopyThatIsGone() {
-        List<SongRow> rows = OfflineLibraryLogic.songRows(
-                List.of(metadata("a", "A"), metadata("gone", "Gone")), Set.of("a"), List.of("a"));
-        assertEquals(List.of("a"), rows.stream().map(SongRow::videoId).toList());
-    }
-
-    @Test public void songRowsAreEmptyWithoutCopies() {
-        assertTrue(OfflineLibraryLogic.songRows(List.of(), Set.of(), List.of()).isEmpty());
+    @Test public void noPlaylistHasNoRowWithoutSongs() {
+        assertNull(OfflineLibraryLogic.noPlaylistRow("songs", "No Playlist", List.of()));
     }
 
     // endregion

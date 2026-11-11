@@ -29,8 +29,15 @@ public final class PlaylistDownloads {
 
     private PlaylistDownloads() {}
 
-    /** The header Download of a playlist or album. */
+    /**
+     * The header Download of a playlist or album: a stream download that is saved already offers Remove instead,
+     * so the playlist is never saved twice.
+     */
     static void onDownloadButton(String playlistId) {
+        if (LocalDownloadManager.playlistMode().streamCopy() && DownloadedMarkers.isSourceDownloaded(playlistId)) {
+            DownloadRemoval.confirmSource(playlistId);
+            return;
+        }
         enqueue(playlistId);
     }
 

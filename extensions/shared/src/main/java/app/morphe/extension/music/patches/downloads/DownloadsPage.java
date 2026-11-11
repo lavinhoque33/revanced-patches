@@ -14,13 +14,11 @@ import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
-import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
 import app.morphe.extension.music.patches.downloads.DownloadsPageLogic.Layout;
-import app.morphe.extension.music.patches.downloads.OfflineLibraryLogic.SongRow;
 import app.morphe.extension.music.patches.downloads.OfflineLibraryLogic.SourceRow;
 import app.morphe.extension.shared.utils.Logger;
 import app.morphe.extension.shared.utils.Utils;
@@ -50,10 +48,6 @@ public final class DownloadsPage {
     private static final DownloadsPageLogic.Taps TAPS = new DownloadsPageLogic.Taps() {
         @Override public byte[] source(SourceRow row) {
             return OfflineLibraryLogic.browseCommand("VL" + row.sourceId());
-        }
-
-        @Override public byte[] song(SongRow row) {
-            return OnlineWatchCommand.build(row.videoId(), null, 0);
         }
     };
 
@@ -167,7 +161,7 @@ public final class DownloadsPage {
         /** The sections of the stream copies for the layout, by the network state when the page is built. */
         private List<byte[]> copySections() {
             boolean online = Utils.isInternetReachable();
-            List<byte[]> items = DownloadsPageLogic.sections(layout, online, sourceRows(), songRows(), labels(),
+            List<byte[]> items = DownloadsPageLogic.sections(layout, online, sourceRows(), noPlaylistRow(), labels(),
                     TAPS, OfflineCopyStore::coverUrl);
             Logger.printDebug(() -> "DownloadsPage: online=" + online + " sections=" + items.size());
             return items;
@@ -178,17 +172,16 @@ public final class DownloadsPage {
         return OfflineLibraryLogic.sourceRows(OfflineCopyStore.sources(), OfflineCopyStore::tracksOf);
     }
 
-    private static List<SongRow> songRows() {
-        List<String> queue = new ArrayList<>();
-        for (OfflineWatchNext.Item item : OfflineReplay.queueOf(OfflineReplay.SONGS)) queue.add(item.videoId());
-        return OfflineLibraryLogic.songRows(OfflineCopyStore.copiesWithData(), RawAudioStore.copyIds(), queue);
+    /** The row of the songs no downloaded list holds, or null when there are none. */
+    @Nullable
+    private static SourceRow noPlaylistRow() {
+        return OfflineLibraryLogic.noPlaylistRow(OfflineReplay.SONGS, str("morphe_music_downloads_no_playlist"),
+                OfflineReplay.queueOf(OfflineReplay.SONGS));
     }
 
     private static DownloadsPageLogic.Labels labels() {
         return new DownloadsPageLogic.Labels(str("morphe_music_offline_library_albums"),
-                str("morphe_music_offline_library_songs"), str("morphe_music_offline_library_untitled"),
-                str("morphe_music_offline_library_unavailable_title"),
-                str("morphe_music_offline_library_unavailable"),
+                str("morphe_music_downloads_no_playlist"), str("morphe_music_offline_library_untitled"),
                 count -> count == 1
                         ? str("morphe_music_offline_library_song_one")
                         : str("morphe_music_offline_library_songs_count", count));

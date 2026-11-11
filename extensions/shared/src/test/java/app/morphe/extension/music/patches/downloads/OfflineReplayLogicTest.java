@@ -14,6 +14,7 @@ import org.junit.Test;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
@@ -214,10 +215,18 @@ public class OfflineReplayLogicTest {
                 copy("c", "beta", null), copy("a", "Alpha", null), copy("b", "Beta", null),
                 copy("d", "alpha", null));
 
-        List<OfflineWatchNext.Item> items = OfflineReplayLogic.itemsOfSongs(copies);
+        List<OfflineWatchNext.Item> items = OfflineReplayLogic.itemsOfSongs(copies, Set.of("a", "b", "c", "d"));
 
         // Equal titles (ignoring case) fall back to the video id.
         assertEquals(List.of("a", "d", "b", "c"), idsOf(items));
+    }
+
+    @Test public void theSongsListHoldsOnlyTheLooseSongs() {
+        List<OfflineCopyMetadata> copies = List.of(
+                copy("c", "Gamma", null), copy("a", "Alpha", null), copy("b", "Beta", null));
+
+        assertEquals(List.of("a", "c"), idsOf(OfflineReplayLogic.itemsOfSongs(copies, Set.of("a", "c", "gone"))));
+        assertTrue(OfflineReplayLogic.itemsOfSongs(copies, Set.of()).isEmpty());
     }
 
     @Test public void anItemCarriesTheMetadataOfItsCopy() {
@@ -253,8 +262,9 @@ public class OfflineReplayLogicTest {
         OfflineReplayLogic.WatchTarget watch = watchCommand == null ? null
                 : OfflineReplayLogic.onlineWatchOf(watchCommand);
         return OfflineReplayLogic.routeOf(online, browseId, watch, "songs", TRACKS::containsKey, id -> page,
-                id -> id.equals("x") || id.equals("z"),
-                target -> OfflineReplayLogic.sourceOfPlaylist(target.playlistId(), target.videoId(), TRACKS));
+                id -> id.equals("x") || id.equals("z") || id.equals("loose"),
+                target -> OfflineReplayLogic.sourceOfPlaylist(target.playlistId(), target.videoId(), TRACKS),
+                id -> OfflineReplayLogic.sourceHolding(id, TRACKS));
     }
 
     @Test public void anOnlineWatchNamesItsVideoPlaylistAndPlace() {
@@ -299,7 +309,7 @@ public class OfflineReplayLogicTest {
     }
 
     @Test public void offlineTheWatchOfADownloadedSongPlaysItsCopyAsATrackOfItsList() {
-        assertEquals(new OfflineReplayLogic.Decision(OfflineReplayLogic.Route.PLAY_TRACK, "songs", "x"),
+        assertEquals(new OfflineReplayLogic.Decision(OfflineReplayLogic.Route.PLAY_TRACK, "PLa", "x"),
                 route(false, null, OnlineWatchCommand.build("x", null, 0), false));
         assertEquals(new OfflineReplayLogic.Decision(OfflineReplayLogic.Route.PLAY_TRACK, "PLa", "x"),
                 route(false, null, OnlineWatchCommand.build("x", "PLa", 4), true));
@@ -312,8 +322,33 @@ public class OfflineReplayLogicTest {
                 route(false, null, OnlineWatchCommand.build("y", "PLa", 1), true));
         assertEquals(OfflineReplayLogic.Decision.STOCK,
                 route(false, null, OnlineWatchCommand.build("no-copy", null, 0), false));
-        assertEquals(OfflineReplayLogic.Decision.STOCK,
+        // A song with a copy tapped under a playlist that is not downloaded plays from the list that holds it.
+        assertEquals(new OfflineReplayLogic.Decision(OfflineReplayLogic.Route.PLAY_TRACK, "PLa", "x"),
                 route(false, null, OnlineWatchCommand.build("x", "PLother", 1), false));
+    }
+
+    @Test public void offlineALooseSongFromAnywhereBecomesATrackOfNoPlaylist() {
+        assertEquals(new OfflineReplayLogic.Decision(OfflineReplayLogic.Route.PLAY_TRACK, "songs", "loose"),
+                route(false, null, OnlineWatchCommand.build("loose", null, 0), false));
+        assertEquals(new OfflineReplayLogic.Decision(OfflineReplayLogic.Route.PLAY_TRACK, "songs", "loose"),
+                route(false, null, OnlineWatchCommand.build("loose", "PLother", 3), false));
+    }
+
+    @Test public void theBrowseOfNoPlaylistOpensItsListOnlineAndOffline() {
+        OfflineReplayLogic.Decision open = new OfflineReplayLogic.Decision(
+                OfflineReplayLogic.Route.OPEN_SONGS, "songs", null);
+
+        assertEquals(open, route(true, "VLsongs", null, false));
+        assertEquals(open, route(false, "VLsongs", null, false));
+        assertEquals(open, route(false, "songs", null, true));
+    }
+
+    @Test public void aSongInSeveralListsIsHeldByTheFirstByIdAndALooseOneByNone() {
+        Map<String, List<String>> lists = Map.of("PLb", List.of("s", "t"), "PLa", List.of("s"));
+
+        assertEquals("PLa", OfflineReplayLogic.sourceHolding("s", lists));
+        assertEquals("PLb", OfflineReplayLogic.sourceHolding("t", lists));
+        assertNull(OfflineReplayLogic.sourceHolding("loose", lists));
     }
 
     @Test public void aTapRetargetedToTheMusicVideoOfASongStillPlaysThatSongOfItsList() {
@@ -330,11 +365,11 @@ public class OfflineReplayLogicTest {
         assertEquals(new OfflineReplayLogic.WatchTarget("y", "PLa", 1), target);
         assertEquals(new OfflineReplayLogic.Decision(OfflineReplayLogic.Route.PLAY_TRACK, "PLa", "y"),
                 OfflineReplayLogic.routeOf(false, null, target, "songs", TRACKS::containsKey, id -> false, hasCopy,
-                        source));
+                        source, id -> null));
         // Without the mapping the tapped video is no track of the list: the whole list starts at its first track.
         assertEquals(new OfflineReplayLogic.Decision(OfflineReplayLogic.Route.PLAY_SOURCE, "PLa", null),
                 OfflineReplayLogic.routeOf(false, null, OfflineReplayLogic.onlineWatchOf(command), "songs",
-                        TRACKS::containsKey, id -> false, hasCopy, source));
+                        TRACKS::containsKey, id -> false, hasCopy, source, id -> null));
     }
 
     @Test public void aWatchOfASongOrNoWatchIsLeftAsItIs() {

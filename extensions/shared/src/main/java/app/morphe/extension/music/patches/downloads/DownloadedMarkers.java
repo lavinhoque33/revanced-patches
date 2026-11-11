@@ -204,6 +204,15 @@ public final class DownloadedMarkers {
         refreshLater();
     }
 
+    /** Called when a downloaded playlist or album was removed: its track list and its header check go. */
+    static void onSourceRemoved(String sourceId) {
+        registry.removeSource(sourceId);
+        if (!trackPreferences().edit().remove(sourceId).commit()) {
+            Logger.printException(() -> "Could not forget the tracks of a removed playlist");
+        }
+        refreshLater();
+    }
+
     private static SharedPreferences trackPreferences() {
         return Utils.getContext().getSharedPreferences(TRACKS_PREFERENCES, 0);
     }

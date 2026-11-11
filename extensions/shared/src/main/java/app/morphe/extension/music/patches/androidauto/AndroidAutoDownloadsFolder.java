@@ -163,7 +163,7 @@ final class AndroidAutoDownloadsFolder {
 
     private static String streamSourceTitle(OfflineStreamBrowse.Source source) {
         if (OfflineStreamBrowse.SONGS.equals(source.id())) {
-            return ResourceUtils.getString("morphe_music_android_auto_stream_songs");
+            return ResourceUtils.getString("morphe_music_downloads_no_playlist");
         }
         return source.title().isEmpty()
                 ? ResourceUtils.getString("morphe_music_offline_library_untitled") : source.title();

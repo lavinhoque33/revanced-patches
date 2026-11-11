@@ -19,6 +19,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.ConcurrentMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.UnaryOperator;
@@ -78,7 +79,7 @@ final class OfflineReplayLogic {
 
     /**
      * The playlist id the normal online watch command of a list's track carries, or null when the track plays on
-     * its own: the all-songs list has no playlist, and an album page's browse id is not a playlist.
+     * its own: the songs list has no playlist, and an album page's browse id is not a playlist.
      */
     @Nullable
     static String onlinePlaylistId(String sourceId, String songsId) {
@@ -244,7 +245,9 @@ final class OfflineReplayLogic {
         /** The command is dropped and the downloaded list plays from its first song, with no network. */
         PLAY_SOURCE,
         /** The command is dropped and the song plays from its copy as a track of the list, with no network. */
-        PLAY_TRACK
+        PLAY_TRACK,
+        /** The command is dropped and the list of the songs no downloaded list holds opens, online or offline. */
+        OPEN_SONGS
     }
 
     /** A decision: what to do, and for which list and song (null where the route does not use them). */
@@ -254,23 +257,29 @@ final class OfflineReplayLogic {
 
     /**
      * Decides a command when it is dispatched, never before: a row of the page carries the app's own command, and
-     * only the network of this moment says whether the app can run it. Online every command stays the app's.
+     * only the network of this moment says whether the app can run it. The browse of the songs list (No Playlist)
+     * opens that list on any network: it has no online page. Otherwise online every command stays the app's.
      * Offline, the browse of a downloaded list plays its songs unless a page was recorded for it (then the app opens
      * that page); the watch of a song of a downloaded list, from the recorded page or a row, plays that song as a
-     * track of the list; the watch of a downloaded song on its own plays its copy.
+     * track of the list; the watch of any other downloaded song plays its copy as a track of the first downloaded
+     * list that holds it, or of the songs list when none does.
      *
      * @param online         The device reaches the internet now.
      * @param browseId       The page a browse command opens, or null for any other command.
      * @param watch          What a watch command names, or null for any other command.
-     * @param songsId        The id of the list of every song.
+     * @param songsId        The id of the list of the songs no downloaded list holds.
      * @param isSource       Whether a page id names a downloaded list, the {@code VL} prefix of a playlist included.
      * @param hasPage        Whether a page was recorded for the downloaded list.
      * @param hasCopy        Whether the song has a copy with stored data.
      * @param sourceOfWatch  The downloaded list a watch of a list's song belongs to, or null.
+     * @param holdingList    The first downloaded list that holds the song, or null when none does.
      */
     static Decision routeOf(boolean online, @Nullable String browseId, @Nullable WatchTarget watch, String songsId,
                             Predicate<String> isSource, Predicate<String> hasPage, Predicate<String> hasCopy,
-                            Function<WatchTarget, String> sourceOfWatch) {
+                            Function<WatchTarget, String> sourceOfWatch, Function<String, String> holdingList) {
+        if (browseId != null && songsId.equals(sourceOfBrowseId(browseId))) {
+            return new Decision(Route.OPEN_SONGS, songsId, null);
+        }
         if (online) return Decision.STOCK;
 
         if (browseId != null) {
@@ -279,16 +288,32 @@ final class OfflineReplayLogic {
             return plays ? new Decision(Route.PLAY_SOURCE, sourceId, null) : Decision.STOCK;
         }
 
-        if (watch == null || !hasCopy.test(watch.videoId())) {
+        if (watch == null) return Decision.STOCK;
+
+        String listOfWatch = sourceOfWatch.apply(watch);
+        if (!hasCopy.test(watch.videoId())) {
             // A song with no copy has nothing to play here; it may still start the downloaded list it is a track of.
-            String sourceId = watch == null ? null : sourceOfWatch.apply(watch);
-            return sourceId == null ? Decision.STOCK : new Decision(Route.PLAY_SOURCE, sourceId, null);
+            return listOfWatch == null ? Decision.STOCK : new Decision(Route.PLAY_SOURCE, listOfWatch, null);
         }
 
-        if (watch.playlistId().isEmpty()) return new Decision(Route.PLAY_TRACK, songsId, watch.videoId());
+        if (listOfWatch != null) return new Decision(Route.PLAY_TRACK, listOfWatch, watch.videoId());
 
-        String sourceId = sourceOfWatch.apply(watch);
-        return sourceId == null ? Decision.STOCK : new Decision(Route.PLAY_TRACK, sourceId, watch.videoId());
+        String holding = holdingList.apply(watch.videoId());
+        return new Decision(Route.PLAY_TRACK, holding != null ? holding : songsId, watch.videoId());
+    }
+
+    /**
+     * The first downloaded list, by id, that lists the song, or null when none does: where a song tapped outside any
+     * list plays when it belongs to one.
+     */
+    @Nullable
+    static String sourceHolding(String videoId, Map<String, List<String>> tracksBySource) {
+        String found = null;
+        for (Map.Entry<String, List<String>> source : tracksBySource.entrySet()) {
+            boolean holds = source.getValue().contains(videoId);
+            if (holds && (found == null || source.getKey().compareTo(found) < 0)) found = source.getKey();
+        }
+        return found;
     }
 
     /**
@@ -345,9 +370,15 @@ final class OfflineReplayLogic {
         return items;
     }
 
-    /** The queue items of the all-songs list: every copy with stored data, sorted by title. */
-    static List<OfflineWatchNext.Item> itemsOfSongs(List<OfflineCopyMetadata> copies) {
-        List<OfflineCopyMetadata> sorted = new ArrayList<>(copies);
+    /**
+     * The queue items of the songs list (No Playlist): the loose songs that have stored data, sorted by title
+     * ignoring case, then by id. That is the order the list shows and the order it plays.
+     */
+    static List<OfflineWatchNext.Item> itemsOfSongs(List<OfflineCopyMetadata> copies, Set<String> loose) {
+        List<OfflineCopyMetadata> sorted = new ArrayList<>();
+        for (OfflineCopyMetadata copy : copies) {
+            if (loose.contains(copy.videoId())) sorted.add(copy);
+        }
         sorted.sort(Comparator.comparing(OfflineCopyMetadata::title, String.CASE_INSENSITIVE_ORDER)
                 .thenComparing(OfflineCopyMetadata::videoId));
         List<OfflineWatchNext.Item> items = new ArrayList<>(sorted.size());

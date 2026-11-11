@@ -2,11 +2,13 @@
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
  * Written by lavinhoque33, 2026-11-07.
- * Modified by lavinhoque33, 2026-11-09.
+ * Modified by lavinhoque33, 2026-11-10
  */
 package app.morphe.extension.music.patches.downloads;
 
+import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 import app.morphe.extension.shared.utils.Utils;
 
@@ -70,6 +72,34 @@ public final class StreamDownloads {
     static void readinessChanged() {
         Runnable listener = readinessListener;
         if (listener != null) Utils.runOnMainThread(listener);
+    }
+
+    /**
+     * Deletes the stream copy of one song with everything stored with it (its video copy, its stored data), as the
+     * song menu's Remove download does. A playlist or album that lists the song keeps its record and loses a copy.
+     * Off the main thread.
+     */
+    public static void remove(String videoId) {
+        RawAudioStore.delete(videoId);
+    }
+
+    /**
+     * Removes a downloaded playlist or album: deletes the copies of its songs that no other downloaded list lists
+     * and that were not downloaded on their own (see {@link CopyOwnership}), and forgets the list. Off the main
+     * thread.
+     *
+     * @return How many songs lost their copy.
+     */
+    public static int removeSource(String sourceId) {
+        Map<String, List<String>> sources = OfflineCopyStore.allTrackLists();
+        CopyOwnership.Removal removal = CopyOwnership.removing(sourceId, sources, RawAudioStore.individualIds(),
+                RawAudioStore.copyIds());
+        for (String videoId : removal.deleteVideos()) VideoCopyStore.deleteForSong(videoId);
+        for (String videoId : removal.deleteCopies()) RawAudioStore.delete(videoId);
+
+        OfflineCopyStore.removeSource(sourceId);
+        DownloadedMarkers.onSourceRemoved(sourceId);
+        return removal.deleteCopies().size();
     }
 
     /**

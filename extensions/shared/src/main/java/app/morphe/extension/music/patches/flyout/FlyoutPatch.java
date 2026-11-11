@@ -175,7 +175,7 @@ public class FlyoutPatch {
      *
      * @return The video ID, or an empty string for albums and playlists.
      */
-    private static String getOfflineUpsellVideoId(byte[] command) {
+    static String offlineUpsellVideoId(byte[] command) {
         String value = new ProtoMessage(command).messageField(OFFLINE_UPSELL_ENDPOINT).stringField(1);
         if (value.isEmpty() || VIDEO_ID.matcher(value).matches()) return value;
 
@@ -208,7 +208,7 @@ public class FlyoutPatch {
             }
             Utils.verifyOnMainThread();
 
-            String videoId = getOfflineUpsellVideoId(message.toByteArray());
+            String videoId = offlineUpsellVideoId(message.toByteArray());
             // Albums and playlists are left to the app.
             if (videoId.isEmpty()) return false;
 
@@ -284,11 +284,13 @@ public class FlyoutPatch {
         touchOutSideViewRef = new WeakReference<>(touchOutSideView);
     }
 
-    public static void replaceComponents(@Nullable Enum<?> flyoutPanelEnum, @NonNull TextView textView, @NonNull ImageView imageView) {
+    public static void replaceComponents(@Nullable Enum<?> flyoutPanelEnum, @NonNull TextView textView,
+                                         @NonNull ImageView imageView, @Nullable Object presenter) {
         if (flyoutPanelEnum == null)
             return;
 
         final String enumString = flyoutPanelEnum.name();
+        if (enumString.equals("OFFLINE_DOWNLOAD")) FlyoutDownloadItem.relabel(textView, presenter);
         final boolean isDismissQue = enumString.equals("DISMISS_QUEUE");
         final boolean isReport = enumString.equals("FLAG");
 

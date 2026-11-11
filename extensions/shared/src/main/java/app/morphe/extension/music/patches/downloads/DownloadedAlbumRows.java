@@ -2,6 +2,7 @@
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
  * Written by lavinhoque33, 2026-11-07.
+ * Modified by lavinhoque33, 2026-11-10
  */
 package app.morphe.extension.music.patches.downloads;
 
@@ -30,8 +31,9 @@ import app.morphe.extension.shared.utils.ResourceUtils;
 /**
  * The green checks on the track rows of an album page. The rows are Litho views that are mounted by the page's list
  * without a bind that reports a model, so a row cannot tell which song it shows. What a row does show is its track
- * number, drawn in a cell at its start. When the page is the album whose track list was recorded (the header names
- * it, see {@link DownloadedHeaders}), the row that shows the number n is the n-th track of that list, and it gets a
+ * number, drawn in a cell at its start. When the page is an album whose track list is known (recorded by its
+ * download, or read once from the page for the songs downloaded one by one; the header names it, see
+ * {@link DownloadedHeaders}), the row that shows the number n is the n-th track of that list, and it gets a
  * check when that track has a stream copy, drawn at the end of the row, next to its action menu (a row without a
  * menu cell gets none). The numbers must make sense (see {@link AlbumTrackNumbers#problem}): otherwise no row of the
  * page is marked. A row whose number is unknown is never marked.
@@ -42,7 +44,7 @@ import app.morphe.extension.shared.utils.ResourceUtils;
  * ({@link AlbumPageGuard.Titles}), so a list that is reused for another album never gets this album's checks.
  *
  * <p>The page is looked at after a layout or scroll of the window, one scan per frame at most, and only while the
- * setting is on and the header names an album with a recorded track list; otherwise nothing is registered. A scan
+ * setting is on and the header names an album with a known track list; otherwise nothing is registered. A scan
  * remembers per row view where its number cell and the host that draws the number are, so a row that did not change
  * costs one text read and no allocation. Main thread only; the state holds only weak references to views.
  */
@@ -220,6 +222,7 @@ final class DownloadedAlbumRows {
 
     /** The header was bound or laid out, or the stream copies changed: look at the page again. */
     static void apply(ViewGroup container, State state, List<String> sourceIds) {
+        readUnrecordedAlbum(container, state, sourceIds);
         String source = wantedSource(sourceIds);
         if (source == null || !source.equals(state.sourceId)) {
             state.highestNumber = 0;
@@ -237,16 +240,47 @@ final class DownloadedAlbumRows {
         scanLater(container, state);
     }
 
-    /** The one album whose recorded track list this page shows, or null when no row may be marked. */
+    /** The one album whose track list this page shows, or null when no row may be marked. */
     @Nullable
     private static String wantedSource(List<String> sourceIds) {
         if (!DownloadedMarkers.enabled() || sourceIds.size() != 1 || !sourceIds.get(0).startsWith(ALBUM_PREFIX)) {
             return null;
         }
 
-        DownloadedRegistry registry = DownloadedMarkers.loadedRegistry();
-        List<String> tracks = registry == null ? null : registry.sourceTracks(sourceIds.get(0));
+        List<String> tracks = tracksOf(DownloadedMarkers.loadedRegistry(), sourceIds.get(0));
         return tracks == null || tracks.isEmpty() ? null : sourceIds.get(0);
+    }
+
+    /**
+     * The track list of the album: the one recorded by its download, else the one read from its page for the songs
+     * downloaded one by one (see {@link KnownAlbumTracks}); null when neither is known.
+     */
+    @Nullable
+    private static List<String> tracksOf(@Nullable DownloadedRegistry registry, String albumId) {
+        if (registry == null) return null;
+
+        List<String> recorded = registry.sourceTracks(albumId);
+        return recorded != null && !recorded.isEmpty() ? recorded : KnownAlbumTracks.tracksOf(albumId);
+    }
+
+    /**
+     * An album that was never downloaded as a whole has no recorded track list: its songs that have a stream copy of
+     * their own are marked from the list read once from its page, only when the device holds a stream copy at all.
+     */
+    private static void readUnrecordedAlbum(ViewGroup container, State state, List<String> sourceIds) {
+        if (!DownloadedMarkers.enabled() || sourceIds.size() != 1 || !sourceIds.get(0).startsWith(ALBUM_PREFIX)) {
+            return;
+        }
+
+        DownloadedRegistry registry = DownloadedMarkers.loadedRegistry();
+        String albumId = sourceIds.get(0);
+        if (registry == null || !registry.hasTracks() || tracksOf(registry, albumId) != null) return;
+
+        WeakReference<ViewGroup> header = new WeakReference<>(container);
+        KnownAlbumTracks.readLater(albumId, () -> {
+            ViewGroup current = header.get();
+            if (current != null) apply(current, state, sourceIds);
+        });
     }
 
     /** Removes the listeners and every check of the page. */
@@ -307,8 +341,7 @@ final class DownloadedAlbumRows {
 
         state.claimPending = false;
         DownloadedRegistry registry = DownloadedMarkers.loadedRegistry();
-        List<String> tracks = registry == null || state.sourceId == null ? null
-                : registry.sourceTracks(state.sourceId);
+        List<String> tracks = state.sourceId == null ? null : tracksOf(registry, state.sourceId);
         if (tracks == null || tracks.isEmpty()) {
             stop(container, state);
             return;

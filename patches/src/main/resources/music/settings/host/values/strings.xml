@@ -162,6 +162,7 @@ YouTube Music 8.x - crossfade only runs on 9.x and newer"</string>
     <string name="morphe_music_fade_out_enabled_title">Fade out</string>
     <string name="morphe_music_fade_screen_summary">Fade the volume in and out at the start and end of tracks</string>
     <string name="morphe_music_fade_screen_title">Fade in and out</string>
+    <string name="morphe_music_downloads_category_title">Downloads</string>
     <string name="morphe_music_song_download_method_title">Song downloads</string>
     <string name="morphe_music_song_download_method_entry_stream">Stream download (default)\nSaves a private copy of the song inside the app. It plays from this device with or without internet, shows a green check, and is listed in Library, Downloads (songs that are in no playlist are under No Playlist). Other apps and Device files cannot see it. Radio and lyrics still need internet. Tap Download again to remove it. Changing this never deletes what you already downloaded</string>
     <string name="morphe_music_song_download_method_entry_device_file">Device file (older method)\nSaves the song as an audio file in Music/RVX that Device files and other apps can see, and plays it with YouTube Music’s own file player. Library, Downloads opens the device files library. No green checks. Changing this never deletes what you already downloaded</string>
@@ -185,6 +186,7 @@ YouTube Music 8.x - crossfade only runs on 9.x and newer"</string>
     <string name="morphe_music_stream_downloads_delete_message">Delete the %1$s stream downloads (%2$s MB)? Songs saved as device files in Music/RVX and Device files are not affected</string>
     <string name="morphe_music_stream_downloads_delete_message_videos">Delete the %1$s stream downloads and %3$s videos (%2$s MB)? Songs saved as device files in Music/RVX and Device files are not affected</string>
     <string name="morphe_music_stream_downloads_deleted">Deleted %s stream downloads</string>
+    <string name="morphe_music_download_item">Download</string>
     <string name="morphe_music_remove_download">Remove download</string>
     <string name="morphe_music_remove_song_title">Remove this download?</string>
     <string name="morphe_music_remove_song_message">The saved stream copy of this song is deleted from the app. Songs saved as device files are not affected</string>

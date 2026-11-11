@@ -38,6 +38,9 @@
 * **Music - Stream download:** Songs you downloaded one by one and that are in no downloaded playlist or album are no
   longer listed as songs in Library, Downloads. They are in one playlist called No Playlist, which plays in the shown
   order from the song you tap, online and offline, and also appears in Android Auto in the downloaded playlists.
+* **Music - Stream download:** Accounts whose song menu has no Download item now get one, so a single song can be
+  downloaded from any song menu. It reads Remove download once the song is saved.
+* **Music - Settings:** The download options are now together in a Downloads group of Miscellaneous.
 * **Music - Stream download:** Album song lists show the green check for songs you downloaded one by one, even when the
   album was never downloaded.
 * **Sync with anddea/revanced-patches dev:** Merge the changes up to v4.4.0-dev.6 (anddea dev, b2f29faa6) into this

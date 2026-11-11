@@ -85,6 +85,7 @@ import app.morphe.patches.music.utils.videotype.videoTypeHookPatch
 import app.morphe.patches.music.video.information.videoInformationPatch
 import app.morphe.patches.shared.litho.addLithoFilter
 import app.morphe.patches.shared.litho.lithoFilterPatch
+import app.morphe.patches.shared.misc.fix.proto.fixProtoLibraryPatch
 import app.morphe.util.ResourceGroup
 import app.morphe.util.cloneMutable
 import app.morphe.util.copyResources
@@ -156,6 +157,7 @@ val flyoutMenuComponentsPatch = bytecodePatch(
 
     dependsOn(
         actionBarComponentsPatch,
+        fixProtoLibraryPatch,
         settingsPatch,
         flyoutMenuComponentsResourcePatch,
         flyoutMenuHookPatch,
@@ -211,6 +213,9 @@ val flyoutMenuComponentsPatch = bytecodePatch(
                 """
                 )
             }
+
+            // Accounts the server offers no Download item get one from this patch.
+            installDownloadItem()
         }
 
         // endregion

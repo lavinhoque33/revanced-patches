@@ -24,7 +24,9 @@ import app.morphe.patches.music.utils.extension.sharedExtensionPatch
 import app.morphe.patches.music.utils.patch.PatchList.DOWNLOADS
 import app.morphe.patches.music.utils.playservice.is_7_25_or_greater
 import app.morphe.patches.music.utils.settings.CategoryType
+import app.morphe.patches.music.utils.settings.ResourceUtils.PREFERENCE_CATEGORY_TAG_NAME
 import app.morphe.patches.music.utils.settings.ResourceUtils.addPreferenceCategory
+import app.morphe.patches.music.utils.settings.ResourceUtils.editPreferenceCategory
 import app.morphe.patches.music.utils.settings.ResourceUtils.updatePatchStatus
 import app.morphe.patches.music.utils.settings.addCustomPreference
 import app.morphe.patches.music.utils.settings.addListPreference
@@ -38,6 +40,7 @@ import app.morphe.patches.shared.misc.request.authHeadersPatch
 import app.morphe.util.Utils.printWarn
 import com.android.tools.smali.dexlib2.AccessFlags
 import com.android.tools.smali.dexlib2.builder.MutableMethodImplementation
+import org.w3c.dom.Element
 import com.android.tools.smali.dexlib2.Opcode
 import com.android.tools.smali.dexlib2.iface.Method
 import com.android.tools.smali.dexlib2.iface.instruction.FiveRegisterInstruction
@@ -88,6 +91,40 @@ private val downloadsResourcePatch = resourcePatch {
     }
 }
 
+/** Every download row of Miscellaneous, in the order they are shown inside the Downloads group. */
+private val DOWNLOAD_PREFERENCE_KEYS = listOf(
+    "morphe_music_song_download_method",
+    "revanced_external_downloader_action",
+    "revanced_external_downloader_flyout_menu",
+    "revanced_external_downloader_package_name",
+    "morphe_music_playlist_download_method",
+    "morphe_music_downloaded_checkmarks",
+    "morphe_music_start_downloaded_in_audio",
+    "morphe_music_open_downloads",
+    "morphe_music_stream_downloads",
+)
+
+/**
+ * Collects the download rows of Miscellaneous in one "Downloads" group, so they are in one place that a user can
+ * find by scrolling or with the settings search. The rows keep their keys, so their dependencies still resolve.
+ */
+private fun groupDownloadPreferences() {
+    editPreferenceCategory(CategoryType.MISC.value) {
+        val rows = List(childNodes.length) { childNodes.item(it) }
+            .filterIsInstance<Element>()
+            .filter { it.getAttribute("android:key") in DOWNLOAD_PREFERENCE_KEYS }
+            .sortedBy { DOWNLOAD_PREFERENCE_KEYS.indexOf(it.getAttribute("android:key")) }
+        if (rows.isEmpty()) return@editPreferenceCategory
+
+        val group = ownerDocument.createElement(PREFERENCE_CATEGORY_TAG_NAME).apply {
+            setAttribute("android:title", "@string/morphe_music_downloads_category_title")
+            setAttribute("android:key", "morphe_music_downloads_category")
+        }
+        insertBefore(group, rows.first())
+        rows.forEach { group.appendChild(it) }
+    }
+}
+
 internal fun MutableClass.addDownloadsBridge(
     name: String, parameters: List<String>, returnType: String, registers: Int, instructions: String,
 ) {
@@ -134,6 +171,9 @@ val downloadsPatch = bytecodePatch(
     compatibleWith(COMPATIBILITY_YOUTUBE_MUSIC)
 
     execute {
+        // After the patches this one depends on added their rows, so the external downloader rows are grouped too.
+        groupDownloadPreferences()
+
         if (!is_7_25_or_greater) {
             printWarn("\"${DOWNLOADS.title}\" is not supported in this version. Use YouTube Music v7.25 or later.")
             return@execute

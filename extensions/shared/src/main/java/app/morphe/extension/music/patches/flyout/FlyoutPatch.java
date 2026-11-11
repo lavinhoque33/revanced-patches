@@ -72,6 +72,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import java.lang.ref.WeakReference;
+import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
 
@@ -95,6 +96,19 @@ public class FlyoutPatch {
      */
     public interface ProtocolBufferFieldInterface {
         byte[] toByteArray();
+    }
+
+    /** Added to the class of a menu item model: builds another item of the same class from its serialized form. */
+    public interface ItemFactory {
+        Object rvxWithBytes(byte[] bytes);
+    }
+
+    /**
+     * Injection point: the items of a song menu, before the sheet shows them. Adds a Download item when the
+     * account's menu has none.
+     */
+    public static List<?> withDownloadItem(List<?> items) {
+        return FlyoutDownloadEntry.withDownloadItem(items);
     }
 
     private static final BooleanSetting DISABLE_TRIM_SILENCE =

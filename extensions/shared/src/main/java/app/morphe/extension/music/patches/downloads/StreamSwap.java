@@ -106,19 +106,19 @@ public final class StreamSwap {
             byte[] onlineBytes = adapter.rvxBytes();
             PlayerResponse online = PlayerResponse.parseFrom(onlineBytes);
             if (!online.hasStreamingData()) return unchanged(original, videoId, "no StreamingData", stored);
-            Format selected = null;
-            for (Format format : online.getStreamingData().getAdaptiveFormatsList()) {
-                if (format.getItag() == raw.itag()) {
-                    selected = format;
-                    break;
-                }
+            Format live = VideoCopyLogic.adaptiveOf(online, raw.itag());
+            Format selected = live;
+            if (selected == null || StreamSwapLogic.mismatch(raw, selected, online) != null) {
+                OfflineCopyFiles.Stored saved = OfflineCopyStore.find(videoId);
+                PlayerResponse savedResponse = saved == null ? null : PlayerResponse.parseFrom(saved.response());
+                selected = StreamSwapLogic.savedAudio(videoId, raw, online, savedResponse);
             }
-            if (selected == null) return unchanged(original, videoId, "stored itag missing online", stored);
-            String mismatch = StreamSwapLogic.mismatch(raw, selected, online);
-            if (mismatch != null) return unchanged(original, videoId, mismatch, stored);
-            if (!stored) rememberOnlineResponse(videoId, onlineBytes, raw.itag());
+            if (selected == null) return unchanged(original, videoId, "no matching stored audio descriptor", stored);
+            if (!stored) rememberOnlineResponse(videoId,
+                    StreamSwapLogic.replaceAudio(online, selected).toByteArray(), raw.itag());
 
-            StreamSwapSources.Source source = StreamSwapSources.issue(videoId, raw, selected.getUrl());
+            StreamSwapSources.Source source = StreamSwapSources.issue(
+                    videoId, raw, VideoCopyLogic.fallbackUrl(selected, live));
             Format local = selected.toBuilder().setUrl(source.token).clearSignatureCipher().build();
             PlayerResponse replacement = StreamSwapLogic.replaceAudio(online, local);
             Object result = adapter.rvxWithBytes(replacement.toByteArray(), true);

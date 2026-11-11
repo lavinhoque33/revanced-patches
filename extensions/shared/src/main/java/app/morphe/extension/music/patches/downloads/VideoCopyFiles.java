@@ -25,7 +25,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * The video copies of songs, in a directory of their own beside the raw audio copies: the adaptive pair of the song's
- * music video (a 360p video-only stream and the video's own opus audio), filed under the id of the music video and
+ * music video (a 360p video-only stream and the video's selected-quality audio), filed under the music video's id and
  * tied to the song (the downloaded audio copy) it belongs to. A copy is {@code <video>.video}, {@code <video>.audio},
  * {@code <video>.resp} (the stored player response of the video) and {@code <video>.json}, the commit record, which
  * names the song, the itag, mime, length and checksum of each stream and the length of the response, and is

@@ -36,6 +36,12 @@
 
 ### Features
 
+* **Music - Downloads:** Add one Download quality setting for new song, album and playlist downloads: Highest,
+  High, Normal and Low. Highest uses the best source the available clients offer to your account, including 256 kbps
+  when available, without unlocking Premium. High prefers standard high Opus, Normal 128 kbps AAC, and Low 48 kbps
+  AAC or about 50 kbps Opus. Missing tiers fall back to available sources. Existing downloads remain unchanged.
+  Stream download and Device files share this setting; YouTube Music and external apps use their own settings.
+  Playlist video remains 360p, with the selected audio quality. Local playback uses each copy's own codec and ranges.
 * **Music - Stream download:** Stream download is now the main way to download in YouTube Music. A fresh install saves
   a private copy of a song, playlist or album inside the app that plays with or without internet and keeps radio and
   lyrics online. One Download method setting applies to every song, playlist and album: Stream download (default),

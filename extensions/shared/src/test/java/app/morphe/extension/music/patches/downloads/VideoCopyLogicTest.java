@@ -55,47 +55,51 @@ public class VideoCopyLogicTest {
         assertFalse(VideoCopyLogic.supportedVideo(134, null));
     }
 
-    @Test public void theAvcStreamIsPreferredThenVp9ThenAv1AndTheAudioIsOpus251() {
+    @Test public void theAvcStreamIsPreferredThenVp9ThenAv1() {
         Format audio = adaptive(251, OPUS, 3_433_755).build();
         Format avc = adaptive(134, AVC, 8_390_921).build();
         Format vp9 = adaptive(243, VP9, 6_014_765).build();
         Format av1 = adaptive(396, AV1, 5_685_561).build();
 
-        VideoCopyLogic.Selection all = VideoCopyLogic.select(response(av1, vp9, avc, audio));
+        VideoCopyLogic.Selection all = VideoCopyLogic.select(response(av1, vp9, avc, audio), DownloadQuality.HIGHEST);
         assertEquals(134, all.video().getItag());
         assertEquals(251, all.audio().getItag());
         assertEquals(8_390_921 + 3_433_755, all.bytes());
-        assertEquals(243, VideoCopyLogic.select(response(av1, vp9, audio)).video().getItag());
-        assertEquals(396, VideoCopyLogic.select(response(av1, audio)).video().getItag());
+        assertEquals(243, VideoCopyLogic.select(response(av1, vp9, audio), DownloadQuality.HIGHEST).video().getItag());
+        assertEquals(396, VideoCopyLogic.select(response(av1, audio), DownloadQuality.HIGHEST).video().getItag());
     }
 
     @Test public void aCopyNeedsBothStreamsWithPlainUrlsLengthsAndRanges() {
         Format audio = adaptive(251, OPUS, 100).build();
         Format avc = adaptive(134, AVC, 100).build();
 
-        assertNull(VideoCopyLogic.select(response(avc)));
-        assertNull(VideoCopyLogic.select(response(audio)));
-        assertNull(VideoCopyLogic.select(response(adaptive(134, AVC, 100).clearUrl().build(), audio)));
-        assertNull(VideoCopyLogic.select(response(adaptive(134, AVC, 0).build(), audio)));
-        assertNull(VideoCopyLogic.select(response(adaptive(134, AVC, 100).clearInitRange().build(), audio)));
+        assertNull(VideoCopyLogic.select(response(avc), DownloadQuality.HIGHEST));
+        assertNull(VideoCopyLogic.select(response(audio), DownloadQuality.HIGHEST));
+        assertNull(VideoCopyLogic.select(response(adaptive(134, AVC, 100).clearUrl().build(), audio),
+                DownloadQuality.HIGHEST));
+        assertNull(VideoCopyLogic.select(response(adaptive(134, AVC, 0).build(), audio), DownloadQuality.HIGHEST));
+        assertNull(VideoCopyLogic.select(response(adaptive(134, AVC, 100).clearInitRange().build(), audio),
+                DownloadQuality.HIGHEST));
         assertNull(VideoCopyLogic.select(response(adaptive(134, AVC, 100).setIndexRange(
-                ByteRange.newBuilder().setStart(50).setEnd(100)).build(), audio)));
-        assertNull(VideoCopyLogic.select(response(avc, adaptive(251, OPUS, 100).clearUrl().build())));
-        assertNull(VideoCopyLogic.select(response(avc, adaptive(140, "audio/mp4; codecs=\"mp4a.40.2\"", 100)
-                .build())));
-        assertNotNull(VideoCopyLogic.select(response(avc, audio)));
+                ByteRange.newBuilder().setStart(50).setEnd(100)).build(), audio), DownloadQuality.HIGHEST));
+        assertNull(VideoCopyLogic.select(response(avc, adaptive(251, OPUS, 100).clearUrl().build()),
+                DownloadQuality.HIGHEST));
+        assertNotNull(VideoCopyLogic.select(response(avc, adaptive(140, "audio/mp4; codecs=\"mp4a.40.2\"", 100)
+                .build()), DownloadQuality.HIGHEST));
+        assertNotNull(VideoCopyLogic.select(response(avc, audio), DownloadQuality.HIGHEST));
     }
 
     @Test public void theMuxedFormatOfAResponseIsNeitherSelectedNorTakenFromTheAdaptiveFormats() {
         Format audio = adaptive(251, OPUS, 100).build();
         Format avc = adaptive(134, AVC, 100).build();
 
-        VideoCopyLogic.Selection withMuxed = VideoCopyLogic.select(response(avc, audio));
+        VideoCopyLogic.Selection withMuxed = VideoCopyLogic.select(response(avc, audio), DownloadQuality.HIGHEST);
 
         assertEquals(avc, withMuxed.video());
         assertEquals(audio, withMuxed.audio());
         assertEquals(withMuxed, VideoCopyLogic.select(PlayerResponse.newBuilder().setStreamingData(
-                StreamingData.newBuilder().addAdaptiveFormats(avc).addAdaptiveFormats(audio)).build()));
+                StreamingData.newBuilder().addAdaptiveFormats(avc).addAdaptiveFormats(audio)).build(),
+                DownloadQuality.HIGHEST));
     }
 
     @Test public void aStoredCopyYieldsItsTwoFormatsByItag() {
@@ -120,6 +124,28 @@ public class VideoCopyLogicTest {
         assertNull(VideoCopyLogic.fallbackUrl(stored, adaptive(243, VP9, 100).build()));
         assertNull(VideoCopyLogic.fallbackUrl(stored, adaptive(134, AVC, 100).clearUrl().build()));
         assertNull(VideoCopyLogic.fallbackUrl(stored, null));
+    }
+
+    @Test public void everyAudioQualityKeepsTheSame360pVideoAndItsOwnCodecAndRanges() {
+        Format video = adaptive(134, AVC, 2000).build();
+        PlayerResponse response = response(video, adaptive(141, "audio/mp4; codecs=\"mp4a.40.2\"", 1000).build(),
+                adaptive(251, OPUS, 900).build(),
+                adaptive(140, "audio/mp4; codecs=\"mp4a.40.2\"", 800).build(),
+                adaptive(139, "audio/mp4; codecs=\"mp4a.40.5\"", 300).build());
+        int[] expected = {141, 251, 140, 139};
+        for (DownloadQuality quality : DownloadQuality.values()) {
+            VideoCopyLogic.Selection selected = VideoCopyLogic.select(response, quality);
+            assertEquals(video, selected.video());
+            assertEquals(expected[quality.ordinal()], selected.audio().getItag());
+            Format local = VideoCopyLogic.local(selected.audio(), "local", selected.audio().getContentLength(), 1000);
+            assertEquals(selected.audio().getMimeType(), local.getMimeType());
+            assertEquals(selected.audio().getIndexRange(), local.getIndexRange());
+        }
+    }
+
+    @Test public void fallbackNeverServesAnotherCodecUnderTheStoredDescriptor() {
+        Format saved = adaptive(140, "audio/mp4; codecs=\"mp4a.40.2\"", 100).build();
+        assertNull(VideoCopyLogic.fallbackUrl(saved, saved.toBuilder().setMimeType(OPUS).build()));
     }
 
     @Test public void theCopyIsAnnouncedWithTheLocalTokenTheRealLengthAndTheCopysDuration() {

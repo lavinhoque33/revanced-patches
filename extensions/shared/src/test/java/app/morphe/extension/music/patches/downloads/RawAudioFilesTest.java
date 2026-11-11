@@ -70,6 +70,26 @@ public class RawAudioFilesTest {
         assertFalse(raw("track.json.part").exists());
     }
 
+    @Test public void newQualityCopiesAndEarlier251CopiesKeepTheirBytesIdentityAndOwnership() throws Exception {
+        RawAudioFiles store = store();
+        retain(store, "earlier");
+        byte[] earlierCommit = Files.readAllBytes(raw("earlier.json").toPath());
+        byte[] earlierBytes = Files.readAllBytes(raw("earlier.251").toPath());
+        for (int itag : new int[]{139, 140, 141, 249, 250, 251, 774}) {
+            String mime = itag == 139 ? "audio/mp4; codecs=\"mp4a.40.5\""
+                    : itag < 200 ? "audio/mp4; codecs=\"mp4a.40.2\"" : MIME;
+            assertTrue(store.retain("new" + itag, input(), itag, mime, 8, 123, null, true));
+            RawAudioFiles.Entry entry = store.find("new" + itag, id -> null);
+            assertNotNull(entry);
+            assertEquals(itag, entry.itag());
+            assertEquals(mime, entry.mime());
+            assertFalse(entry.tiedToNativeTrack());
+        }
+        assertNotNull(store.find("earlier", muxed(MUXED)));
+        assertArrayEquals(earlierCommit, Files.readAllBytes(raw("earlier.json").toPath()));
+        assertArrayEquals(earlierBytes, Files.readAllBytes(raw("earlier.251").toPath()));
+    }
+
     @Test public void corruptJsonDeclinesWithoutBreakingPlayback() throws Exception {
         RawAudioFiles store = store();
         retain(store, "track");

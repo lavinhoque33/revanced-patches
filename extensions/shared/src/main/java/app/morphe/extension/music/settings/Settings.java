@@ -12,6 +12,7 @@ import static app.morphe.extension.shared.utils.StringRef.str;
 
 import app.morphe.extension.music.patches.downloads.DownloadMethodMigration;
 import app.morphe.extension.music.patches.downloads.DownloadMethod;
+import app.morphe.extension.music.patches.downloads.DownloadQuality;
 import app.morphe.extension.music.patches.lyrics.LyricsFilterDefaults;
 
 import android.os.Build;
@@ -416,6 +417,8 @@ public class Settings extends SharedYouTubeSettings {
     // One method for songs, albums and playlists. External overrides apply only in delegated mode.
     public static final EnumSetting<DownloadMethod> DOWNLOAD_METHOD =
             new EnumSetting<>("morphe_music_download_method", DownloadMethod.STREAM);
+    public static final EnumSetting<DownloadQuality> DOWNLOAD_QUALITY = new EnumSetting<>(
+            "morphe_music_download_quality", DownloadQuality.HIGHEST, false, downloadsKept());
     public static final BooleanSetting EXTERNAL_DOWNLOADER_ACTION_BUTTON = new BooleanSetting(
             "revanced_external_downloader_action", FALSE, true, downloadMethodIs(DownloadMethod.DELEGATED));
     public static final BooleanSetting EXTERNAL_DOWNLOADER_FLYOUT_MENU = new BooleanSetting(

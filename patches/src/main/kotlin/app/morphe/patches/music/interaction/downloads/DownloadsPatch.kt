@@ -70,6 +70,7 @@ private val downloadsResourcePatch = resourcePatch {
         addPreferenceCategory(CategoryType.MISC.value)
         // Every route follows the same global method. Dependent rows refresh through Settings availability.
         addListPreference(CategoryType.MISC, "morphe_music_download_method", "", false)
+        addListPreference(CategoryType.MISC, "morphe_music_download_quality")
         addSwitchPreference(CategoryType.MISC, "morphe_music_downloaded_checkmarks", "true")
         addSwitchPreference(CategoryType.MISC, "morphe_music_start_downloaded_in_audio", "true")
         // The one way into the list that no page of the app has a say in: the offline home, the banner and the
@@ -92,6 +93,7 @@ private val downloadsResourcePatch = resourcePatch {
 /** Every download row of Miscellaneous, in the order they are shown inside the Downloads group. */
 private val DOWNLOAD_PREFERENCE_KEYS = listOf(
     "morphe_music_download_method",
+    "morphe_music_download_quality",
     "revanced_external_downloader_action",
     "revanced_external_downloader_flyout_menu",
     "revanced_external_downloader_package_name",

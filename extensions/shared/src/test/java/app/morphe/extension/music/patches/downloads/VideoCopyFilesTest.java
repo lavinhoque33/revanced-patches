@@ -69,6 +69,25 @@ public class VideoCopyFilesTest {
         assertEquals(150, files.stats().bytes());
     }
 
+    @Test public void selectedAudioCodecsReopenWithoutInvalidatingEarlierPairs() throws Exception {
+        assertTrue(retain("earlier", "songEarlier", 100));
+        File commit = new File(temporary.getRoot(), "rvx_video/earlier.json");
+        byte[] previous = Files.readAllBytes(commit.toPath());
+        for (int itag : new int[]{139, 140, 141, 249, 250, 251, 774}) {
+            String mime = itag == 139 ? "audio/mp4; codecs=\"mp4a.40.5\""
+                    : itag < 200 ? "audio/mp4; codecs=\"mp4a.40.2\"" : OPUS;
+            VideoCopyLogic.Download copy = new VideoCopyLogic.Download(
+                    new VideoCopyLogic.Stream(134, MP4, 100, 123),
+                    new VideoCopyLogic.Stream(itag, mime, 50, 456), 213000, RESPONSE);
+            assertTrue(files.retain("video" + itag, "song" + itag, "PLlist", download(100), download(50), copy));
+            VideoCopyFiles reopened = new VideoCopyFiles(new File(temporary.getRoot(), "rvx_video"));
+            assertEquals(itag, reopened.find("video" + itag).audio().itag());
+            assertEquals(mime, reopened.find("video" + itag).audio().mime());
+        }
+        assertEquals(251, files.find("earlier").audio().itag());
+        assertArrayEquals(previous, Files.readAllBytes(commit.toPath()));
+    }
+
     private static void assertArrayEquals(byte[] expected, byte[] actual) {
         org.junit.Assert.assertArrayEquals(expected, actual);
     }

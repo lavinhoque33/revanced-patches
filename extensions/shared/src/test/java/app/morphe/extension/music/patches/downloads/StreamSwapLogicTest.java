@@ -48,6 +48,43 @@ public class StreamSwapLogicTest {
         assertNull(StreamSwapLogic.mismatch(raw(), audio().build(), online().build()));
     }
 
+    @Test public void aacAndPremiumCopiesSwapOnlyWithTheirOwnExactDescriptors() {
+        for (int itag : new int[]{139, 140, 141, 249, 250, 251, 774}) {
+            String mime = itag == 139 ? "audio/mp4; codecs=\"mp4a.40.5\""
+                    : itag < 200 ? "audio/mp4; codecs=\"mp4a.40.2\"" : MIME;
+            RawAudioFiles.Entry copy = new RawAudioFiles.Entry(new File("track." + itag),
+                    itag, mime, 1000, 123, null, "digest");
+            Format selected = audio().setItag(itag).setMimeType(mime).build();
+            assertNull(StreamSwapLogic.mismatch(copy, selected, online().build()));
+            assertNotNull(StreamSwapLogic.mismatch(copy,
+                    selected.toBuilder().setContentLength(1001).build(), online().build()));
+        }
+    }
+
+    @Test public void anOnlineResponseMissingTheSavedTierUsesTheSavedCodecRangesAndBytesOnly() {
+        String aac = "audio/mp4; codecs=\"mp4a.40.5\"";
+        RawAudioFiles.Entry copy = new RawAudioFiles.Entry(new File("track.139"), 139, aac, 1000, 123, null, "d");
+        Format downloaded = audio().setItag(139).setMimeType(aac).build();
+        PlayerResponse live = online().setVideoDetails(VideoDetails.newBuilder()
+                .setVideoId("track").setLengthSeconds(200)).build();
+        PlayerResponse saved = live.toBuilder().setStreamingData(StreamingData.newBuilder()
+                .addAdaptiveFormats(downloaded)).build();
+        Format selected = StreamSwapLogic.savedAudio("track", copy, live, saved);
+        assertEquals(downloaded, selected);
+        PlayerResponse swapped = StreamSwapLogic.replaceAudio(live, selected);
+        assertEquals(139, swapped.getStreamingData().getAdaptiveFormats(0).getItag());
+        assertEquals(aac, swapped.getStreamingData().getAdaptiveFormats(0).getMimeType());
+        assertEquals(downloaded.getInitRange(), swapped.getStreamingData().getAdaptiveFormats(0).getInitRange());
+        assertEquals(live.getVideoDetails(), swapped.getVideoDetails());
+        assertNull(VideoCopyLogic.fallbackUrl(selected, audio().setUrl("https://example.invalid/251").build()));
+        assertNull(StreamSwapLogic.savedAudio("track", copy, live, null));
+        assertNull(StreamSwapLogic.savedAudio("track", copy, live, saved.toBuilder()
+                .setVideoDetails(saved.getVideoDetails().toBuilder().setVideoId("other")).build()));
+        assertNull(StreamSwapLogic.savedAudio("track", copy, live, saved.toBuilder()
+                .setStreamingData(saved.getStreamingData().toBuilder().setAdaptiveFormats(0,
+                        downloaded.toBuilder().setLastModified(124))).build()));
+    }
+
     /** The 9.40.51 SABR shape from device round P1: empty Format.url, routing URL in StreamingData field 15. */
     @Test public void sabrFormatWithoutUrlSwapsAndDropsTheSabrRoute() {
         Format audio = audio().build();

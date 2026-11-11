@@ -22,6 +22,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 import app.morphe.extension.music.patches.misc.requests.MusicBrowseRequest;
+import app.morphe.extension.music.settings.Settings;
 import app.morphe.extension.shared.utils.Logger;
 import app.morphe.extension.shared.utils.Utils;
 
@@ -61,6 +62,7 @@ public final class PlaylistDownloads {
     public static void enqueue(String playlistId) {
         // Decided once for the whole playlist, so a setting changed mid-way cannot split it between modes.
         DownloadMode mode = LocalDownloadManager.downloadMode();
+        DownloadQuality quality = Settings.DOWNLOAD_QUALITY.get();
         if (mode == DownloadMode.OFF) return;
         if (mode.localFiles() && !NativeDownloads.ensureStoragePermission()) return;
         if (!active.add(playlistId)) {
@@ -111,7 +113,7 @@ public final class PlaylistDownloads {
                                 index * 100 / available.size(), true,
                                 str("morphe_music_playlist_download_progress", index + 1, available.size()));
                     }
-                    LocalDownloadManager.Saved saved = LocalDownloadManager.download(available.get(index), mode);
+                    LocalDownloadManager.Saved saved = LocalDownloadManager.download(available.get(index), mode, quality);
                     if (saved.downloaded()) downloaded++;
                     if (mode.localFiles()) mediaIds.add(NativeAudioStore.mediaId(saved.nativeTrack()));
                 }
@@ -119,7 +121,8 @@ public final class PlaylistDownloads {
                 if (mode.localFiles()) NativePlaylistStore.save(playlistId, title, mediaIds);
                 // The videos of the songs that have one follow the audio copies; a video that fails fails nothing.
                 VideoCopyDownloader.Outcome videos = mode.streamCopy()
-                        ? VideoCopyDownloader.ensure(playlistId, title, available) : VideoCopyDownloader.Outcome.NONE;
+                        ? VideoCopyDownloader.ensure(playlistId, title, available, quality)
+                        : VideoCopyDownloader.Outcome.NONE;
                 // Every copy and video is in: the header may show the check and offer Remove.
                 if (mode.streamCopy()) DownloadedMarkers.onPlaylistCompleted(playlistId);
                 String done = completionText(mode, downloaded, available.size(), skipped, videos);

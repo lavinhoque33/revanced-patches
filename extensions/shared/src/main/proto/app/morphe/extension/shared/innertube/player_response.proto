@@ -124,6 +124,13 @@ message Format {
   optional int32 height = 8;
   optional int32 fps = 25;
   optional string qualityLabel = 26;
+  // Same AudioTrack wire fields as innertube/utils/player_response.proto; retain the default recording.
+  optional DownloadAudioTrack audioTrack = 28;
+}
+
+message DownloadAudioTrack {
+  optional string id = 5;
+  optional bool audioIsDefault = 6;
 }
 
 message ByteRange {

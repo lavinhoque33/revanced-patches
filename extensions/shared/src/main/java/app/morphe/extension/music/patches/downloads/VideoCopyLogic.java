@@ -15,7 +15,7 @@ import app.morphe.extension.shared.innertube.PlayerResponseOuterClass.PlayerResp
 
 /**
  * What the video copy of a song is and when it can be taken: the adaptive pair of the song's music video, a 360p
- * video-only stream and the video's own audio (itag 251), the two streams the app's own player plays and switches
+ * video-only stream and the video's own selected-quality audio, which the app's own player plays and switches
  * between in place. Never the muxed progressive format, which only a framework player could open. Contains no
  * Android code.
  */
@@ -89,11 +89,11 @@ final class VideoCopyLogic {
 
     /**
      * The streams to save out of a response: the preferred 360p video-only format that has everything a download
-     * needs, and the opus audio, or null when either is missing. The muxed format of the response is neither
+     * needs, and the selected-quality audio, or null when either is missing. The muxed format of the response is neither
      * downloaded nor kept, see {@link OfflineResponseTrim#fromVideoDownload}.
      */
     @Nullable
-    static Selection select(PlayerResponse response) {
+    static Selection select(PlayerResponse response, DownloadQuality quality) {
         List<Format> adaptive = response.getStreamingData().getAdaptiveFormatsList();
         Format video = null;
         for (int itag : VIDEO_ITAGS) {
@@ -105,13 +105,7 @@ final class VideoCopyLogic {
             }
             if (video != null) break;
         }
-        Format audio = null;
-        for (Format format : adaptive) {
-            if (StreamSwapLogic.supportedAudio(format.getItag(), format.getMimeType()) && usable(format)) {
-                audio = format;
-                break;
-            }
-        }
+        Format audio = DownloadFormats.bestAudio(response, true, quality);
         if (video == null || audio == null) return null;
 
         return new Selection(video, audio);
@@ -138,6 +132,7 @@ final class VideoCopyLogic {
     @Nullable
     static String fallbackUrl(Format stored, @Nullable Format online) {
         if (online == null || online.getItag() != stored.getItag()
+                || !online.getMimeType().equals(stored.getMimeType())
                 || online.getContentLength() != stored.getContentLength()
                 || online.getLastModified() != stored.getLastModified()) return null;
 

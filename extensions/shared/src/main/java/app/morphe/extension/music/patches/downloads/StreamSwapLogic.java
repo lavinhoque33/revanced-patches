@@ -25,7 +25,12 @@ final class StreamSwapLogic {
     }
 
     static boolean supportedAudio(int itag, String mime) {
-        return itag == 251 && "audio/webm; codecs=\"opus\"".equals(mime);
+        return switch (itag) {
+            case 249, 250, 251, 774 -> "audio/webm; codecs=\"opus\"".equals(mime);
+            case 139 -> "audio/mp4; codecs=\"mp4a.40.5\"".equals(mime);
+            case 140, 141 -> "audio/mp4; codecs=\"mp4a.40.2\"".equals(mime);
+            default -> false;
+        };
     }
 
     static String mismatch(RawAudioFiles.Entry raw, Format audio, PlayerResponse online) {
@@ -42,6 +47,24 @@ final class StreamSwapLogic {
                 || !validRange(audio.hasIndexRange(), audio.getIndexRange().getStart(),
                 audio.getIndexRange().getEnd(), raw.length())) return "missing or invalid ranges";
         return null;
+    }
+
+    /**
+     * A download's own descriptor, not a different online codec or byte layout. Online metadata and features stay
+     * live; only this format is substituted. Older copies without saved data still require an exact live match.
+     */
+    @Nullable
+    static Format savedAudio(String videoId, RawAudioFiles.Entry raw, PlayerResponse online,
+                             @Nullable PlayerResponse saved) {
+        if (saved == null || !videoId.equals(saved.getVideoDetails().getVideoId())
+                || !videoId.equals(online.getVideoDetails().getVideoId())
+                || online.getVideoDetails().getLengthSeconds() <= 0
+                || online.getStreamingData().hasHlsManifestUrl()
+                || !VideoCopyLogic.sameLength(online.getVideoDetails().getLengthSeconds(),
+                saved.getVideoDetails().getLengthSeconds() * 1000L)) return null;
+
+        Format audio = VideoCopyLogic.adaptiveOf(saved, raw.itag());
+        return audio != null && mismatch(raw, audio, saved) == null ? audio : null;
     }
 
     private static boolean validRange(boolean present, long start, long end, long length) {

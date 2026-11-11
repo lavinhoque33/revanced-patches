@@ -9,7 +9,7 @@ package app.morphe.extension.music.patches.downloads;
 import java.util.function.BooleanSupplier;
 
 /**
- * What a download request does, from the method chosen for its kind (a song or a playlist). The mode is decided once
+ * What any download request does, from the one global method. The mode is decided once
  * when a download is requested and is never a mix: a download writes a local file or keeps a stream copy, not both.
  * Contains no Android code.
  */
@@ -39,23 +39,14 @@ enum DownloadMode {
     }
 
     /**
-     * The mode of a song download. A stream copy needs the playback hooks of the stream swap: where they did not
-     * resolve ({@code streamSupported} false) the method behaves as if the app did the download itself.
+     * A stream copy needs the playback hooks of the stream swap: where they did not resolve, the download stays
+     * with the app. This decision is identical for a song, an album and a playlist.
      */
-    static DownloadMode ofSong(SongDownloadMethod method, boolean streamSupported) {
-        return switch (method) {
-            case STREAM -> streamSupported ? STREAM_COPY : OFF;
-            case DEVICE_FILE -> LOCAL_FILES;
-            case EXTERNAL_APP -> OFF;
-        };
-    }
-
-    /** The mode of a playlist or album download, with the same rule for the stream copy as {@link #ofSong}. */
-    static DownloadMode ofPlaylist(PlaylistDownloadMethod method, boolean streamSupported) {
+    static DownloadMode of(DownloadMethod method, boolean streamSupported) {
         return switch (method) {
             case STREAM -> streamSupported ? STREAM_COPY : OFF;
             case DEVICE_FILES -> LOCAL_FILES;
-            case MUSIC_OWN -> OFF;
+            case DELEGATED -> OFF;
         };
     }
 

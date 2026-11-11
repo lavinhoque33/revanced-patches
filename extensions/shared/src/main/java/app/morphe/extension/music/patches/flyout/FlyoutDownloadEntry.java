@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-10.
  * Written by lavinhoque33, 2026-11-10.
  */
 package app.morphe.extension.music.patches.flyout;
@@ -15,6 +16,7 @@ import com.google.protobuf.MessageLite;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.List;
 
 import app.morphe.extension.music.patches.downloads.LocalDownloadManager;
@@ -22,11 +24,10 @@ import app.morphe.extension.music.patches.downloads.SongDownloadRoute;
 import app.morphe.extension.shared.utils.Logger;
 
 /**
- * Gives the menu of a song a Download item when the account's own menu has none (accounts without Premium get no
- * Download item from the server). The item is a menu service item whose endpoint is the offline upsell command with
- * the song's id: the command the existing Download hook already intercepts, so a tap reaches
- * {@link LocalDownloadManager#onDownloadTap}. A song menu is recognised by {@link FlyoutMenuScan}. A menu that has a
- * Download item of its own, or that names no single video, is left as it is.
+ * Gives the menu of a song one Download/Remove download action for the selected global method. Known stock download
+ * rows are replaced in place; every unrelated row stays intact. If the server offers none, the action follows Add
+ * to queue. Its canonical offline-upsell parameters name the opened song, so the existing native hook dispatches
+ * the action without consulting the current player.
  */
 final class FlyoutDownloadEntry {
     private static final int MENU_SERVICE_ITEM = 66441155;
@@ -44,12 +45,16 @@ final class FlyoutDownloadEntry {
     private FlyoutDownloadEntry() {
     }
 
-    /** The items with a Download item added after the Add to queue item, or the same list when none is needed. */
+    /** The full menu with one owned Download action, or the original list for stock delegation/unknown targets. */
     static List<?> withDownloadItem(List<?> items) {
         try {
             SongDownloadRoute route = LocalDownloadManager.menuRoute();
             Logger.printDebug(() -> "FlyoutDownloadEntry: menu of " + items.size() + " items, route " + route);
-            if (items.isEmpty() || route == SongDownloadRoute.STOCK) return items;
+            if (items.isEmpty()) return items;
+
+            FlyoutMenuScan.Result scan = scan(items);
+            String songId = SongMenus.targetOfMenu(scan.songId());
+            if (route == SongDownloadRoute.STOCK && !SongMenus.isOpenFor(songId)) return items;
 
             FlyoutPatch.ItemFactory factory = firstFactory(items);
             if (factory == null) {
@@ -58,18 +63,16 @@ final class FlyoutDownloadEntry {
                 return items;
             }
 
-            FlyoutMenuScan.Result scan = scan(items);
-            Logger.printDebug(() -> "FlyoutDownloadEntry: song " + scan.songId() + ", has Download "
+            Logger.printDebug(() -> "FlyoutDownloadEntry: song " + songId + ", has Download "
                     + scan.hasDownload() + ", queue item " + scan.insertAfter());
-            if (scan.hasDownload() || scan.songId() == null) return items;
+            if (songId == null) return items;
 
-            String label = labelOf(scan.songId());
-            Object item = factory.rvxWithBytes(itemBytes(scan.songId(), label));
+            String label = labelOf(songId);
+            Object item = factory.rvxWithBytes(itemBytes(songId, label));
             if (item == null) return items;
 
-            List<Object> extended = new ArrayList<>(items);
-            extended.add(scan.insertAfter() + 1, item);
-            Logger.printDebug(() -> "FlyoutDownloadEntry: item \"" + label + "\" added for " + scan.songId());
+            List<Object> extended = scan.withDownload(items, item);
+            Logger.printDebug(() -> "FlyoutDownloadEntry: item \"" + label + "\" added for " + songId);
             return extended;
         } catch (Exception ex) {
             Logger.printException(() -> "FlyoutDownloadEntry: could not add the Download item", ex);
@@ -104,7 +107,8 @@ final class FlyoutDownloadEntry {
         byte[] service = concat(
                 message(SERVICE_TEXT, message(RUNS, string(RUN_TEXT, text))),
                 message(SERVICE_ICON, varint(ICON_TYPE, OFFLINE_DOWNLOAD_ICON)),
-                message(SERVICE_ENDPOINT, message(OFFLINE_UPSELL_ENDPOINT, string(1, songId))));
+                message(SERVICE_ENDPOINT, message(OFFLINE_UPSELL_ENDPOINT,
+                        string(1, Base64.getUrlEncoder().withoutPadding().encodeToString(string(4, songId))))));
         return message(MENU_SERVICE_ITEM, service);
     }
 

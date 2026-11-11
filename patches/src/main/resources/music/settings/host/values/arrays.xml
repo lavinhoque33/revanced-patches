@@ -38,25 +38,15 @@
         <item>PODCASTS</item>
         <item>SAMPLES</item>
     </string-array>
-    <string-array name="morphe_music_song_download_method_entries">
-        <item>@string/morphe_music_song_download_method_entry_stream</item>
-        <item>@string/morphe_music_song_download_method_entry_device_file</item>
-        <item>@string/morphe_music_song_download_method_entry_external_app</item>
+    <string-array name="morphe_music_download_method_entries">
+        <item>@string/morphe_music_download_method_entry_stream</item>
+        <item>@string/morphe_music_download_method_entry_device_files</item>
+        <item>@string/morphe_music_download_method_entry_delegated</item>
     </string-array>
-    <string-array name="morphe_music_song_download_method_entry_values">
-        <item>STREAM</item>
-        <item>DEVICE_FILE</item>
-        <item>EXTERNAL_APP</item>
-    </string-array>
-    <string-array name="morphe_music_playlist_download_method_entries">
-        <item>@string/morphe_music_playlist_download_method_entry_stream</item>
-        <item>@string/morphe_music_playlist_download_method_entry_device_files</item>
-        <item>@string/morphe_music_playlist_download_method_entry_music_own</item>
-    </string-array>
-    <string-array name="morphe_music_playlist_download_method_entry_values">
+    <string-array name="morphe_music_download_method_entry_values">
         <item>STREAM</item>
         <item>DEVICE_FILES</item>
-        <item>MUSIC_OWN</item>
+        <item>DELEGATED</item>
     </string-array>
     <string-array name="revanced_disable_music_video_in_album_redirect_type_entries">
         <item>@string/revanced_disable_music_video_in_album_redirect_type_entry_redirect</item>

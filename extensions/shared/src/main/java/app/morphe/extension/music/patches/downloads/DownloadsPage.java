@@ -71,7 +71,8 @@ public final class DownloadsPage {
      */
     static Object wrap(Object request, Object options, Object callback) {
         try {
-            if (!OfflineReplay.enabled() || !(request instanceof PageRequest page)) return callback;
+            if (NativeDownloads.deviceLibrary() || !OfflineReplay.enabled()
+                    || !(request instanceof PageRequest page)) return callback;
 
             String token = DownloadsPageLogic.tokenOf(page.rvxRequestBytes());
             Layout layout = DownloadsPageLogic.layoutOf(token);

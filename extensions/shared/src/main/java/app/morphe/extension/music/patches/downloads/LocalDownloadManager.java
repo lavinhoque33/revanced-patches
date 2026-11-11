@@ -101,35 +101,30 @@ public final class LocalDownloadManager {
     private LocalDownloadManager() {
     }
 
-    /** What a song download does now: the song method, with a stream copy only where the swap is supported. */
-    static DownloadMode songMode() {
-        return DownloadMode.ofSong(Settings.SONG_DOWNLOAD_METHOD.get(), StreamSwap.supported());
+    /** One mode for every download, with stream copies only where their playback hooks are supported. */
+    static DownloadMode downloadMode() {
+        return DownloadMode.of(Settings.DOWNLOAD_METHOD.get(), StreamSwap.supported());
     }
 
-    /** What a playlist or album download does now, from the playlist method. */
-    static DownloadMode playlistMode() {
-        return DownloadMode.ofPlaylist(Settings.PLAYLIST_DOWNLOAD_METHOD.get(), StreamSwap.supported());
-    }
-
-    /** True when the song method makes the Download of a song ours and not the external app or stock command. */
+    /** True when the global method makes a song Download ours rather than stock or external. */
     public static boolean interceptsSongs() {
-        return songMode() != DownloadMode.OFF;
+        return downloadMode() != DownloadMode.OFF;
     }
 
-    /** True when the playlist method makes the header Download ours and not the stock command. */
+    /** True when the same global method makes an album or playlist header Download ours. */
     public static boolean interceptsPlaylists() {
-        return playlistMode() != DownloadMode.OFF;
+        return downloadMode() != DownloadMode.OFF;
     }
 
     /** Who handles the Download of the player button; it has its own external downloader switch. */
     public static SongDownloadRoute playerButtonRoute() {
-        return SongDownloadRoute.of(Settings.SONG_DOWNLOAD_METHOD.get(), StreamSwap.supported(),
+        return SongDownloadRoute.of(Settings.DOWNLOAD_METHOD.get(), StreamSwap.supported(),
                 Settings.EXTERNAL_DOWNLOADER_ACTION_BUTTON.get());
     }
 
     /** Who handles the Download of a song menu; it has its own external downloader switch. */
     public static SongDownloadRoute menuRoute() {
-        return SongDownloadRoute.of(Settings.SONG_DOWNLOAD_METHOD.get(), StreamSwap.supported(),
+        return SongDownloadRoute.of(Settings.DOWNLOAD_METHOD.get(), StreamSwap.supported(),
                 Settings.EXTERNAL_DOWNLOADER_FLYOUT_MENU.get());
     }
 
@@ -158,7 +153,8 @@ public final class LocalDownloadManager {
     /** The id the stream copy of the song or video is stored under, or null when it has none. */
     @Nullable
     private static String savedCopyOf(String videoId) {
-        if (!songMode().streamCopy()) return null;
+        if (app.morphe.extension.music.patches.flyout.SongMenus.isOpenFor(videoId)) return videoId;
+        if (!downloadMode().streamCopy()) return null;
 
         DownloadedMarkers.warmUp();
         DownloadedRegistry registry = DownloadedMarkers.loadedRegistry();
@@ -171,7 +167,7 @@ public final class LocalDownloadManager {
 
     /** Must be called from the main thread. Resolution and downloading happen in background. */
     public static void enqueue(String videoId) {
-        DownloadMode mode = songMode();
+        DownloadMode mode = downloadMode();
         if (mode == DownloadMode.OFF) return;
         if (!VIDEO_ID.matcher(videoId).matches()) {
             Utils.showToastShort(str("morphe_music_downloads_unknown_track"));
@@ -252,6 +248,7 @@ public final class LocalDownloadManager {
         }
         // A copy that was there already (kept by a playlist before) is now also one the user asked for.
         if (mode.streamCopy() && !saved.downloaded()) RawAudioStore.markIndividual(savedId);
+        if (mode.streamCopy()) app.morphe.extension.music.patches.flyout.SongMenus.remember(savedId);
     }
 
     /** What the track still needs in this mode. Asks only the stores the mode cares about. */

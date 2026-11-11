@@ -62,7 +62,7 @@ Tap the continue button and allow optimization changes"</string>
     <string name="morphe_force_original_audio_title">Force original audio language</string>
     <string name="morphe_music_android_auto_last_played">Last played</string>
     <string name="morphe_music_android_auto_downloaded_playlists_title">Android Auto downloaded playlists</string>
-    <string name="morphe_music_android_auto_downloaded_playlists_summary">Show playlists saved with Stream download or Device files in Android Auto, including offline. Not used while Playlist downloads is set to YouTube Music download</string>
+    <string name="morphe_music_android_auto_downloaded_playlists_summary">Show playlists saved with Stream download or Device files in Android Auto, including offline</string>
     <string name="morphe_music_android_auto_downloaded_playlists_folder">Downloaded playlists</string>
     <string name="morphe_music_android_auto_downloaded_playlists_tracks">tracks</string>
     <string name="morphe_music_android_auto_downloaded_playlists_library">Library</string>
@@ -163,18 +163,14 @@ YouTube Music 8.x - crossfade only runs on 9.x and newer"</string>
     <string name="morphe_music_fade_screen_summary">Fade the volume in and out at the start and end of tracks</string>
     <string name="morphe_music_fade_screen_title">Fade in and out</string>
     <string name="morphe_music_downloads_category_title">Downloads</string>
-    <string name="morphe_music_song_download_method_title">Song downloads</string>
-    <string name="morphe_music_song_download_method_entry_stream">Stream download (default)\nSaves a private copy of the song inside the app. It plays from this device with or without internet, shows a green check, and is listed in Library, Downloads (songs that are in no playlist are under No Playlist). Other apps and Device files cannot see it. Radio and lyrics still need internet. Tap Download again to remove it. Changing this never deletes what you already downloaded</string>
-    <string name="morphe_music_song_download_method_entry_device_file">Device file (older method)\nSaves the song as an audio file in Music/RVX that Device files and other apps can see, and plays it with YouTube Music’s own file player. Library, Downloads opens the device files library. No green checks. Changing this never deletes what you already downloaded</string>
-    <string name="morphe_music_song_download_method_entry_external_app">External downloader app\nHands the song to the downloader app chosen below, such as YTDLnis. Nothing is saved inside Music. Changing this never deletes what you already downloaded</string>
-    <string name="morphe_music_playlist_download_method_title">Playlist and album downloads</string>
-    <string name="morphe_music_playlist_download_method_entry_stream">Stream download (default)\nSaves a private copy of every song of the playlist or album inside the app, and the video of songs that have one. It plays with or without internet, shows green checks, and is listed in Library, Downloads. Other apps cannot see it. Tap the green Download button again to remove it. Changing this never deletes what you already downloaded</string>
-    <string name="morphe_music_playlist_download_method_entry_device_files">Device files (older method)\nSaves every song as an audio file in Music/RVX and adds a playlist to Device files that other apps can see. Library, Downloads opens the device files library. No green checks. Changing this never deletes what you already downloaded</string>
-    <string name="morphe_music_playlist_download_method_entry_music_own">YouTube Music download\nLeaves the Download button to YouTube Music itself, which needs Premium. This patch saves nothing. Changing this never deletes what you already downloaded</string>
+    <string name="morphe_music_download_method_title">Download method</string>
+    <string name="morphe_music_download_method_entry_stream">Stream download (default)\nApplies to songs, albums and playlists. Saves private copies inside the app for online and offline playback, with green checks in Library, Downloads. Single songs save audio; playlists and albums also save the video when one exists. Other apps and Device files cannot see these copies. Radio and lyrics need internet. Download again to remove a copy. Changing this never deletes saved downloads</string>
+    <string name="morphe_music_download_method_entry_device_files">Device files (older method)\nApplies to songs, albums and playlists. Saves audio files in Music/RVX that Device files and other apps can see; albums and playlists also create a Device files playlist. Library, Downloads opens the device files library. Files do not get stream-download checkmarks. Changing this never deletes saved downloads</string>
+    <string name="morphe_music_download_method_entry_delegated">YouTube Music / external app\nLeaves all downloads to YouTube Music, which normally needs Premium. The external overrides below can send single songs to your downloader app instead; they do not send albums or playlists. This patch saves no new copies or files. Changing this never deletes saved downloads</string>
     <string name="morphe_music_downloaded_checkmarks_title">Downloaded checkmarks</string>
-    <string name="morphe_music_downloaded_checkmarks_summary">Shows a green check at the right end of songs, albums and playlists that have a stream download. Used while Stream download is chosen for songs or playlists, and still marks the downloads you already have</string>
+    <string name="morphe_music_downloaded_checkmarks_summary">Shows a green check at the right end of songs, albums and playlists that have a stream download, including copies saved before changing Download method</string>
     <string name="morphe_music_start_downloaded_in_audio_title">Start downloaded songs in audio mode</string>
-    <string name="morphe_music_start_downloaded_in_audio_summary">Songs with a stream download start in audio mode, so the saved copy is used. The Song/Video switch still works and plays the online video. Used while Stream download is chosen for songs or playlists, and still applies to the downloads you already have</string>
+    <string name="morphe_music_start_downloaded_in_audio_summary">Songs with a stream download start in audio mode, so the saved copy is used. The Song/Video switch still reaches the online video. Also applies to copies saved before changing Download method</string>
     <string name="morphe_music_open_downloads_title">Open stream downloads</string>
     <string name="morphe_music_open_downloads_summary">Opens Library, Downloads: the playlists, albums and No Playlist songs saved with Stream download, with or without a connection</string>
     <string name="morphe_music_open_downloads_ready">Offline ready: %1$s of %2$s songs. Songs that are not ready fill in while you are online</string>
@@ -188,6 +184,7 @@ YouTube Music 8.x - crossfade only runs on 9.x and newer"</string>
     <string name="morphe_music_stream_downloads_deleted">Deleted %s stream downloads</string>
     <string name="morphe_music_download_item">Download</string>
     <string name="morphe_music_remove_download">Remove download</string>
+    <string name="morphe_music_song_menu_needs_connection">Song options have not been saved yet. Open this page with internet to load the regular song menu</string>
     <string name="morphe_music_remove_song_title">Remove this download?</string>
     <string name="morphe_music_remove_song_message">The saved stream copy of this song is deleted from the app. Songs saved as device files are not affected</string>
     <string name="morphe_music_remove_song_message_lists">The saved stream copy of this song is deleted from the app. It also belongs to %s downloaded playlists or albums, which will lack it. Songs saved as device files are not affected</string>
@@ -877,10 +874,10 @@ Limitations: SponsorBlock segments are not shown in the seekbar"</string>
     <string name="revanced_enable_zen_mode_podcast_title">Enable Zen mode in podcasts</string>
     <string name="revanced_enable_zen_mode_summary">Enables a light grey color for the player background to reduce eye strain</string>
     <string name="revanced_enable_zen_mode_title">Enable Zen mode</string>
-    <string name="revanced_external_downloader_action_summary">Used with External downloader app. The player Download button opens your external downloader. Off leaves YouTube Music’s own Download</string>
+    <string name="revanced_external_downloader_action_summary">In YouTube Music / external app mode, sends a single song from the player Download button to your external downloader. Off keeps Music’s own Download. Does not send albums or playlists</string>
     <string name="revanced_external_downloader_action_title">Override Download action button</string>
     <string name="revanced_external_downloader_dialog_title">External downloader</string>
-    <string name="revanced_external_downloader_flyout_menu_summary">Used with External downloader app. The Download item of the song menu opens your external downloader. Off leaves YouTube Music’s own Download</string>
+    <string name="revanced_external_downloader_flyout_menu_summary">In YouTube Music / external app mode, sends a single song from the menu Download item to your external downloader. Off keeps Music’s own Download. Does not send albums or playlists</string>
     <string name="revanced_external_downloader_flyout_menu_title">Override Download menu</string>
     <string name="revanced_external_downloader_not_installed_dialog_message">"%1$s is not installed
 Please download %2$s from the website"</string>

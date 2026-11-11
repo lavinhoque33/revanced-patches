@@ -120,7 +120,7 @@ public final class NativePlaylistStore {
     }
 
     private static boolean filesChosen() {
-        return DownloadMethods.filesChosen(Settings.SONG_DOWNLOAD_METHOD.get(), Settings.PLAYLIST_DOWNLOAD_METHOD.get());
+        return Settings.DOWNLOAD_METHOD.get() == DownloadMethod.DEVICE_FILES;
     }
 
     /** Refreshes "Not in a playlist" in the background; requests made while one is queued are merged. */

@@ -10,6 +10,7 @@ import static app.morphe.extension.shared.utils.StringRef.str;
 
 import android.app.Activity;
 import android.content.Context;
+import android.view.View;
 
 import androidx.annotation.Nullable;
 
@@ -165,13 +166,15 @@ public final class OfflineReplay {
         return OfflineReplayLogic.itemsOfTracks(OfflineCopyStore.tracksOf(sourceId));
     }
 
-    /** The command that starts track {@code index} of the list's queue with no network, or null outside it. */
+    /** Auto retains song IDs; online player responses keep radio/lyrics while StreamSwap serves local media. */
     @Nullable
-    static byte[] offlineCommand(String sourceId, int index) {
+    static byte[] autoCommand(String sourceId, int index, boolean online) {
         List<OfflineWatchNext.Item> items = queueOf(sourceId);
         if (index < 0 || index >= items.size()) return null;
 
-        return OfflineWatchCommand.build(items.get(index).videoId(), playlistId(sourceId), index);
+        String songId = items.get(index).videoId();
+        return online ? onlineCommand(sourceId, songId, songId)
+                : OfflineWatchCommand.build(songId, playlistId(sourceId), index);
     }
 
     /**
@@ -189,7 +192,7 @@ public final class OfflineReplay {
         logDecision(HOOK_COMMAND, "audio mode: " + AudioFirst.startAudioMode());
 
         // A new tap ends the queueing of an earlier one.
-        queueGeneration.incrementAndGet();
+        int generation = queueGeneration.incrementAndGet();
         Utils.runOnBackgroundThread(() -> {
             try {
                 byte[] command = playCommand(sourceId, index);
@@ -197,8 +200,9 @@ public final class OfflineReplay {
                     Logger.printWarn(() -> "OfflineReplay: no track " + index + " in " + sourceId);
                     return;
                 }
-                dispatchCommand(command);
-                if (SONGS.equals(sourceId) && Utils.isInternetReachable()) queueTheList(index);
+                if (generation != queueGeneration.get()) return;
+                dispatchCommand(command, null, generation, true);
+                if (SONGS.equals(sourceId) && Utils.isInternetReachable()) queueTheList(index, generation);
             } catch (Exception ex) {
                 Logger.printException(() -> "OfflineReplay: could not start " + sourceId + " at " + index, ex);
             }
@@ -211,8 +215,8 @@ public final class OfflineReplay {
      * radio the app builds for it: once the tapped song plays, the app's own Play next runs for each following song.
      * A newer tap ends this one. Off the main thread.
      */
-    private static void queueTheList(int index) throws InterruptedException {
-        int generation = queueGeneration.incrementAndGet();
+    private static void queueTheList(int index, int generation) throws InterruptedException {
+        if (generation != queueGeneration.get()) return;
         List<OfflineWatchNext.Item> items = queueOf(SONGS);
         if (index < 0 || index >= items.size()) return;
 
@@ -222,7 +226,9 @@ public final class OfflineReplay {
         String video = OfflineReplayLogic.videoOf(tapped, videoCopies());
 
         if (!waitForPlaying(generation, tapped, video)) {
-            Logger.printWarn(() -> "OfflineReplay: " + tapped + " did not start, the list is not queued");
+            if (generation == queueGeneration.get()) {
+                Logger.printWarn(() -> "OfflineReplay: " + tapped + " did not start, the list is not queued");
+            }
             return;
         }
         // The queue of the new song is built a moment after it starts.
@@ -233,9 +239,13 @@ public final class OfflineReplay {
         for (String id : order) {
             if (generation != queueGeneration.get()) return;
 
-            dispatchCommand(OnlineQueueCommand.playNext(id));
+            dispatchCommand(OnlineQueueCommand.playNext(id), null, generation, true);
             Thread.sleep(QUEUE_STEP_MS);
         }
+    }
+
+    static void cancelQueuedSongs() {
+        queueGeneration.incrementAndGet();
     }
 
     private static boolean waitForPlaying(int generation, String song, @Nullable String video)
@@ -286,7 +296,7 @@ public final class OfflineReplay {
     /**
      * The offline command a tap in a list starts: a song that has a video copy starts as its music video, which the
      * copy answers in either display of the app's own Song/Video switch; the rest start as the song. Unlike
-     * {@link #offlineCommand}, which Android Auto uses, so the car keeps the song ids. Off the main thread.
+     * {@link #autoCommand}, which keeps song IDs for Android Auto. Off the main thread.
      */
     @Nullable
     private static byte[] startCommand(String sourceId, int index) {
@@ -317,6 +327,20 @@ public final class OfflineReplay {
         return 0;
     }
 
+    /** Opens a whole, unfiltered stock MenuRenderer through the app's regular menu endpoint. */
+    public static boolean openSongMenu(byte[] menu, View anchor) {
+        byte[] container = new ProtoWriter().message(66_439_850, menu).toByteArray();
+        byte[] endpoint = new ProtoWriter().message(1, container).toByteArray();
+        return dispatchCommand(new ProtoWriter().message(98_150_882, endpoint).toByteArray(), anchor);
+    }
+
+    /** Positionless get_queue input. Menu consumers must isolate its response from queue updates and commands. */
+    public static byte[] songMenuRequest(String songId) {
+        byte[] target = new ProtoWriter().string(1, songId).toByteArray();
+        byte[] request = new ProtoWriter().message(1, target).toByteArray();
+        return new ProtoWriter().message(163_162_354, request).toByteArray();
+    }
+
     static boolean canDispatch() {
         Captured seen = captured;
         return seen != null && seen.dispatcher().get() != null;
@@ -328,13 +352,23 @@ public final class OfflineReplay {
      * @return false when no command was seen yet to run one with: nothing was dispatched.
      */
     static boolean dispatchCommand(byte[] commandBytes) {
+        return dispatchCommand(commandBytes, null);
+    }
+
+    private static boolean dispatchCommand(byte[] commandBytes, @Nullable View sender) {
+        return dispatchCommand(commandBytes, sender, 0, false);
+    }
+
+    private static boolean dispatchCommand(byte[] commandBytes, @Nullable View sender, int generation,
+                                           boolean ordered) {
         Captured seen = captured;
         Dispatcher dispatcher = seen == null ? null : seen.dispatcher().get();
         if (dispatcher == null) return false;
 
         Utils.runOnMainThreadNowOrLater(() -> {
+            if (ordered && generation != queueGeneration.get()) return;
             try {
-                dispatcher.rvxDispatch(seen.template().rvxWithBytes(commandBytes), contextOf(seen));
+                dispatcher.rvxDispatch(seen.template().rvxWithBytes(commandBytes), contextOf(seen, sender));
             } catch (Exception ex) {
                 Logger.printException(() -> "OfflineReplay: could not dispatch the command", ex);
             }
@@ -343,12 +377,16 @@ public final class OfflineReplay {
     }
 
     /** A copy of the context the last command had, or an empty one when it is gone or cannot be copied. */
-    private static Map<?, ?> contextOf(Captured seen) {
+    private static Map<?, ?> contextOf(Captured seen, @Nullable View sender) {
         Map<?, ?> context = seen.context().get();
-        if (context == null) return Collections.emptyMap();
+        if (context == null && sender == null) return Collections.emptyMap();
 
         try {
-            return new HashMap<Object, Object>(context);
+            Map<Object, Object> copied = context == null ? new HashMap<>() : new HashMap<>(context);
+            if (sender != null) {
+                copied.put("com.google.android.libraries.youtube.rendering.elements.sender_view", sender);
+            }
+            return copied;
         } catch (Exception ex) {
             Logger.printDebug(() -> "OfflineReplay: the command's context cannot be copied, using none", ex);
             return Collections.emptyMap();

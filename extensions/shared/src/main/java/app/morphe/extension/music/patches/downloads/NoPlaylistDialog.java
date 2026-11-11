@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-10.
  * Written by lavinhoque33, 2026-11-10.
  */
 package app.morphe.extension.music.patches.downloads;
@@ -24,15 +25,16 @@ import android.widget.BaseAdapter;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ListView;
-import android.widget.PopupMenu;
 import android.widget.TextView;
 
+import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 
+import app.morphe.extension.music.patches.flyout.SongMenus;
 import app.morphe.extension.shared.utils.BaseThemeUtils;
 import app.morphe.extension.shared.utils.Logger;
 import app.morphe.extension.shared.utils.Utils;
@@ -43,8 +45,8 @@ import app.morphe.extension.shared.utils.Utils;
  * Back returns to the Downloads view. A tap plays the list in its shown order from the tapped song, from the copies:
  * offline as one queue; online as the app's own watch of the song (so radio and lyrics stay) with the rest of the
  * list queued after it, see {@link OnlineQueueCommand}.
- * Every song has a check at the right end, as every stream copy has, and a menu just left of it whose one entry,
- * Remove download, asks the same confirmation as the song menu and takes the row off the list.
+ * Every song has a check at the right end and the app's regular song menu just left of it. Remove download asks the
+ * same confirmation as any other song menu and updates this page once the copy is gone.
  */
 final class NoPlaylistDialog {
     private static final int ROW_HEIGHT_DP = 64;
@@ -53,6 +55,7 @@ final class NoPlaylistDialog {
     private static final int HEADER_HEIGHT_DP = 56;
     private static final int CHECK_DP = 20;
     private static final int MENU_DP = 40;
+    private static WeakReference<SongsAdapter> displayedAdapter = new WeakReference<>(null);
 
     private NoPlaylistDialog() {}
 
@@ -67,6 +70,7 @@ final class NoPlaylistDialog {
                     if (cover != null) covers.put(song.videoId(), cover);
                 }
                 Utils.runOnMainThread(() -> display(songs, covers));
+                SongMenus.backfill();
             } catch (Exception ex) {
                 Logger.printException(() -> "NoPlaylistDialog: could not read the songs", ex);
             }
@@ -155,11 +159,23 @@ final class NoPlaylistDialog {
                 : str("morphe_music_offline_library_songs_count", songs));
     }
 
+    /** A stock-menu Remove completed, so the open page follows the copy deletion like every other view. */
+    static void onSongRemoved(String songId) {
+        SongsAdapter adapter = displayedAdapter.get();
+        if (adapter == null) return;
+        for (OfflineWatchNext.Item song : adapter.songs) {
+            if (song.videoId().equals(songId)) {
+                adapter.onRemoved.accept(song);
+                break;
+            }
+        }
+    }
+
     private static ListView listOf(Context context, List<OfflineWatchNext.Item> songs, Map<String, Bitmap> covers,
                                    Dialog dialog, TextView count) {
         ListView list = new ListView(context);
         list.setDivider(null);
-        SongsAdapter adapter = new SongsAdapter(context, songs, covers, song -> {
+        SongsAdapter adapter = new SongsAdapter(context, songs, covers, dialog, song -> {
             // The copy is gone: the row goes, the count follows, and an empty list closes.
             songs.remove(song);
             showCount(count, songs.size());
@@ -167,11 +183,19 @@ final class NoPlaylistDialog {
             ((SongsAdapter) list.getAdapter()).notifyDataSetChanged();
         });
         list.setAdapter(adapter);
+        displayedAdapter = new WeakReference<>(adapter);
+        dialog.setOnDismissListener(ignored -> {
+            if (displayedAdapter.get() == adapter) displayedAdapter.clear();
+        });
         list.setOnItemClickListener((parent, view, position, id) -> {
             dialog.dismiss();
             if (!OfflineReplay.play(OfflineReplay.SONGS, position)) {
                 Utils.showToastShort(str("morphe_music_offline_library_not_ready"));
             }
+        });
+        list.setOnItemLongClickListener((parent, view, position, id) -> {
+            SongMenus.open(songs.get(position).videoId(), view, dialog);
+            return true;
         });
         return list;
     }
@@ -182,13 +206,15 @@ final class NoPlaylistDialog {
         private final List<OfflineWatchNext.Item> songs;
         private final Map<String, Bitmap> covers;
         private final Consumer<OfflineWatchNext.Item> onRemoved;
+        private final Dialog dialog;
 
-        SongsAdapter(Context context, List<OfflineWatchNext.Item> songs, Map<String, Bitmap> covers,
+        SongsAdapter(Context context, List<OfflineWatchNext.Item> songs, Map<String, Bitmap> covers, Dialog dialog,
                      Consumer<OfflineWatchNext.Item> onRemoved) {
             this.context = context;
             this.songs = songs;
             this.covers = covers;
             this.onRemoved = onRemoved;
+            this.dialog = dialog;
         }
 
         @Override public int getCount() {
@@ -260,13 +286,7 @@ final class NoPlaylistDialog {
         }
 
         private void showMenu(View anchor, OfflineWatchNext.Item song) {
-            PopupMenu popup = new PopupMenu(context, anchor);
-            popup.getMenu().add(str("morphe_music_remove_download"));
-            popup.setOnMenuItemClickListener(item -> {
-                DownloadRemoval.confirmSong(song.videoId(), () -> onRemoved.accept(song));
-                return true;
-            });
-            popup.show();
+            SongMenus.open(song.videoId(), anchor, dialog);
         }
 
         private TextView textView(int sizeSp, boolean bold, int color) {

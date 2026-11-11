@@ -74,7 +74,6 @@ import androidx.annotation.Nullable;
 import java.lang.ref.WeakReference;
 import java.util.List;
 import java.util.Map;
-import java.util.regex.Pattern;
 
 import app.morphe.extension.music.patches.actionbar.ActionBarPatch;
 import app.morphe.extension.music.patches.downloads.LocalDownloadManager;
@@ -129,7 +128,6 @@ public class FlyoutPatch {
 
     /** Command field of the 'ypc/get_offline_upsell' endpoint. */
     private static final int OFFLINE_UPSELL_ENDPOINT = 133724106;
-    private static final Pattern VIDEO_ID = Pattern.compile("[A-Za-z0-9_-]{11}");
 
     private static volatile long lastFlyoutDownloadTime;
     /** When the player button was last left to the app, because only menus are overridden. */
@@ -170,6 +168,12 @@ public class FlyoutPatch {
      * the app is from a menu, unless the player button was just left to the app.
      */
     private static boolean onMenuDownload(String videoId) {
+        if (SongMenus.isOpenFor(videoId)) {
+            LocalDownloadManager.onDownloadTap(videoId);
+            SongMenus.clear();
+            return true;
+        }
+
         if (!isFlyoutMenuOverridden()) return false;
 
         final long now = System.currentTimeMillis();
@@ -185,13 +189,13 @@ public class FlyoutPatch {
     }
 
     /**
-     * The endpoint holds the video ID, or encoded parameters with the video ID in field 4.
+     * The endpoint holds encoded stock parameters with the video ID in field 4.
      *
      * @return The video ID, or an empty string for albums and playlists.
      */
     static String offlineUpsellVideoId(byte[] command) {
         String value = new ProtoMessage(command).messageField(OFFLINE_UPSELL_ENDPOINT).stringField(1);
-        if (value.isEmpty() || VIDEO_ID.matcher(value).matches()) return value;
+        if (value.isEmpty()) return value;
 
         return new ProtoMessage(Base64.decode(Uri.decode(value), Base64.URL_SAFE)).stringField(4);
     }
@@ -216,8 +220,7 @@ public class FlyoutPatch {
      */
     public static boolean offlineUpsellOnClick(@Nullable Object command) {
         try {
-            if (!isFlyoutMenuOverridden()
-                    || !(command instanceof ProtocolBufferFieldInterface message)) {
+            if (!(command instanceof ProtocolBufferFieldInterface message)) {
                 return false;
             }
             Utils.verifyOnMainThread();

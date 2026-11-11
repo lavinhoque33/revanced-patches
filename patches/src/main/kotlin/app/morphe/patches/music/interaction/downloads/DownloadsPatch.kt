@@ -68,10 +68,8 @@ private val downloadsResourcePatch = resourcePatch {
     dependsOn(settingsPatch, actionBarComponentsPatch)
     execute {
         addPreferenceCategory(CategoryType.MISC.value)
-        // One method for songs and one for playlists and albums. The dependents below follow them in the extension
-        // (Settings availability), so no row is tied to the other by an XML dependency.
-        addListPreference(CategoryType.MISC, "morphe_music_song_download_method", "", false)
-        addListPreference(CategoryType.MISC, "morphe_music_playlist_download_method", "", false)
+        // Every route follows the same global method. Dependent rows refresh through Settings availability.
+        addListPreference(CategoryType.MISC, "morphe_music_download_method", "", false)
         addSwitchPreference(CategoryType.MISC, "morphe_music_downloaded_checkmarks", "true")
         addSwitchPreference(CategoryType.MISC, "morphe_music_start_downloaded_in_audio", "true")
         // The one way into the list that no page of the app has a say in: the offline home, the banner and the
@@ -93,11 +91,10 @@ private val downloadsResourcePatch = resourcePatch {
 
 /** Every download row of Miscellaneous, in the order they are shown inside the Downloads group. */
 private val DOWNLOAD_PREFERENCE_KEYS = listOf(
-    "morphe_music_song_download_method",
+    "morphe_music_download_method",
     "revanced_external_downloader_action",
     "revanced_external_downloader_flyout_menu",
     "revanced_external_downloader_package_name",
-    "morphe_music_playlist_download_method",
     "morphe_music_downloaded_checkmarks",
     "morphe_music_start_downloaded_in_audio",
     "morphe_music_open_downloads",
@@ -206,6 +203,8 @@ val downloadsPatch = bytecodePatch(
             move-result-object v0
             return-object v0
         """)
+        installSongMenus(command.type)
+        installDeviceLibraryChips()
 
         // hook the dispatcher that calls tryResolve, before it picks a resolver.
         // Signed-in resolvers are bound to the command they were selected for, so rewriting inside tryResolve is too late.

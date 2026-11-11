@@ -317,4 +317,31 @@ public class DownloadsPageLogicTest {
     }
 
     // endregion
+    @Test
+    public void globalDeviceFilesChoiceSelectsNativeLibraryContinuationForEveryDownloadChip() {
+        String downloads = "CONTENT_RELOAD_CONTINUATION_TOKEN_";
+        String nativeFiles = "SIDELOADED_LIBRARY_RELOAD_CONTINUATION_TOKEN_";
+        for (String suffix : new String[]{"", "_DOWNLOADED_SUBCHIP"}) {
+            assertEquals(nativeFiles + "TRACKS",
+                    DownloadsPageLogic.libraryToken(DownloadMethod.DEVICE_FILES, downloads + "DEFAULT" + suffix));
+            assertEquals(nativeFiles + "TRACKS",
+                    DownloadsPageLogic.libraryToken(DownloadMethod.DEVICE_FILES, downloads + "TRACKS" + suffix));
+            assertEquals(nativeFiles + "PLAYLISTS",
+                    DownloadsPageLogic.libraryToken(DownloadMethod.DEVICE_FILES, downloads + "PLAYLISTS" + suffix));
+            assertEquals(nativeFiles + "ALBUMS",
+                    DownloadsPageLogic.libraryToken(DownloadMethod.DEVICE_FILES, downloads + "ALBUMS" + suffix));
+        }
+    }
+
+    @Test
+    public void otherMethodsAndUnrelatedChipsRetainTheirNativeContinuation() {
+        String downloads = "CONTENT_RELOAD_CONTINUATION_TOKEN_DEFAULT";
+        assertSame(downloads, DownloadsPageLogic.libraryToken(DownloadMethod.STREAM, downloads));
+        assertSame(downloads, DownloadsPageLogic.libraryToken(DownloadMethod.DELEGATED, downloads));
+        for (String token : new String[]{"CONTENT_RELOAD_CONTINUATION_TOKEN_EPISODE_CONTAINERS",
+                "SIDELOADED_LIBRARY_RELOAD_CONTINUATION_TOKEN_TRACKS", "unknown"}) {
+            assertSame(token, DownloadsPageLogic.libraryToken(DownloadMethod.DEVICE_FILES, token));
+        }
+    }
+
 }

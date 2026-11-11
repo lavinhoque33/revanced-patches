@@ -36,7 +36,7 @@ public final class PlaylistDownloads {
      * so the playlist is never saved twice, and while its download runs a tap says so ({@link HeaderDownloadState}).
      */
     static void onDownloadButton(String playlistId) {
-        boolean streamCopy = LocalDownloadManager.playlistMode().streamCopy();
+        boolean streamCopy = LocalDownloadManager.downloadMode().streamCopy();
         boolean running = isRunning(playlistId);
         HeaderDownloadState.Tap tap = HeaderDownloadState.tapOf(streamCopy,
                 streamCopy && DownloadedMarkers.isSourceDownloaded(playlistId), running);
@@ -60,7 +60,7 @@ public final class PlaylistDownloads {
 
     public static void enqueue(String playlistId) {
         // Decided once for the whole playlist, so a setting changed mid-way cannot split it between modes.
-        DownloadMode mode = LocalDownloadManager.playlistMode();
+        DownloadMode mode = LocalDownloadManager.downloadMode();
         if (mode == DownloadMode.OFF) return;
         if (mode.localFiles() && !NativeDownloads.ensureStoragePermission()) return;
         if (!active.add(playlistId)) {

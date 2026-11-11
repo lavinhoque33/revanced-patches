@@ -6,6 +6,7 @@
  *
  * Modified by lavinhoque33, 2026-10-24: ported to the RVX fork (fork extension, version check and utility
  * packages; skipped with a warning before YouTube Music 9.15, where the Android Auto classes differ).
+ * Modified by lavinhoque33, 2026-11-10: resolve local playback off-main before the native session callback.
  */
 
 package app.morphe.extension.music.patches.androidauto;
@@ -58,6 +59,7 @@ import java.util.function.Consumer;
 import app.morphe.extension.music.patches.androidauto.AndroidAutoSearchResponseParser.ResultCategory;
 import app.morphe.extension.music.patches.androidauto.AndroidAutoSearchResponseParser.SearchResult;
 import app.morphe.extension.music.patches.downloads.AudioFirst;
+import app.morphe.extension.music.patches.downloads.AndroidAutoQueue;
 import app.morphe.extension.music.patches.downloads.OfflineStreamBrowse;
 import app.morphe.extension.shared.utils.Logger;
 import app.morphe.extension.shared.utils.ResourceUtils;
@@ -78,6 +80,11 @@ public final class AndroidAutoPatch {
                 String continuation, Executor executor);
         ListenableFuture<PhoneBrowseResponse> patch_requestLibraryPagination(
                 Object paginationCommand, Executor executor);
+    }
+
+    /** Re-enters the original callback with an already resolved stock media ID, on the session thread. */
+    public interface PlaybackCallback {
+        void rvxPlayFromMediaId(String mediaId, @Nullable Bundle extras);
     }
 
     /**
@@ -321,6 +328,9 @@ public final class AndroidAutoPatch {
 
     static final Executor BACKGROUND_EXECUTOR = Utils::runOnBackgroundThread;
     static final Handler mainHandler = new Handler(Looper.getMainLooper());
+    private static final AndroidAutoStreamPlayback streamPlayback = new AndroidAutoStreamPlayback(
+            BACKGROUND_EXECUTOR, task -> mainHandler.post(task),
+            failure -> Logger.printException(() -> "Could not resolve Android Auto downloaded playback", failure));
     private static final Runnable REFRESH_LIBRARY = AndroidAutoPatch::refreshLibrary;
 
     // A user's playlist can also be named "Playlists"; do not use these title matches for playback.
@@ -373,6 +383,8 @@ public final class AndroidAutoPatch {
      * Clear saved requests and pending refreshes so they cannot use the previous service's connection.
      */
     public static synchronized void setPhoneBrowseClient(PhoneBrowseClient client) {
+        streamPlayback.begin();
+        OfflineStreamBrowse.onPlaybackRequested();
         phoneBrowseClient = client;
         libraryMediaId = null;
         librarySubscription = null;
@@ -700,12 +712,15 @@ public final class AndroidAutoPatch {
         return null;
     }
 
-    /** Injection point before stock's media-session callback decodes the requested command. No disk or network IO. */
-    public static String onPlayFromMediaId(String mediaId) {
+    /** Injection point before stock decodes the media ID. Local queue reads never run on this session callback. */
+    @Nullable
+    public static String onPlayFromMediaId(PlaybackCallback callback, String mediaId, @Nullable Bundle extras) {
+        long request = streamPlayback.begin();
+        OfflineStreamBrowse.onPlaybackRequested();
         AudioFirst.onAndroidAutoStart();
         if (mediaId == null || !mediaId.startsWith(AndroidAutoDownloadsData.PREFIX)) return mediaId;
         var streamPlay = AndroidAutoStreamIds.parsePlay(mediaId);
-        if (streamPlay != null) return onPlayStreamCopy(mediaId, streamPlay);
+        if (streamPlay != null) return onPlayStreamCopy(callback, extras, mediaId, streamPlay, request);
 
         var play = AndroidAutoDownloadsData.parsePlayId(mediaId);
         if (play == null || !AndroidAutoDownloadsFolder.deviceFilesEnabled()) {
@@ -720,19 +735,28 @@ public final class AndroidAutoPatch {
                 : encodeCommand(AndroidAutoDownloadsData.playCommand(play));
     }
 
-    /**
-     * A stream copy always starts through the offline watch command, whether or not the car has a connection: the
-     * song and the rest of its list play from their stored copies, and what needs a network is simply blank.
-     */
-    private static String onPlayStreamCopy(String mediaId, AndroidAutoStreamIds.PlayRequest play) {
+    /** Uses normal online playback with local streams, and the exact cached queue when fully offline. */
+    @Nullable
+    private static String onPlayStreamCopy(PlaybackCallback callback, @Nullable Bundle extras, String mediaId,
+                                          AndroidAutoStreamIds.PlayRequest play, long request) {
         if (!AndroidAutoDownloadsFolder.streamEnabled()) {
             Logger.printDebug(() -> "AA downloads play id=" + mediaId + " count=0 route=rejected");
             return mediaId;
         }
 
-        Logger.printDebug(() -> "AA downloads play id=" + mediaId + " count=" + play.count()
-                + " index=" + play.index() + " route=offline-watch-command");
-        return encodeCommand(OfflineStreamBrowse.offlineCommand(play.sourceId(), play.index()));
+        boolean online = Utils.isInternetReachable();
+        streamPlayback.resolve(request,
+                () -> OfflineStreamBrowse.playCommand(play.sourceId(), play.index(), online),
+                command -> {
+                    Logger.printDebug(() -> "AA downloads play id=" + mediaId + " count=" + play.count()
+                            + " index=" + play.index()
+                            + " route=" + (online ? "online-local-stream" : "offline-queue"));
+                    AudioFirst.onAndroidAutoStart();
+                    Bundle playExtras = online
+                            ? AndroidAutoQueue.prepare(play.sourceId(), play.index(), extras, request) : extras;
+                    callback.rvxPlayFromMediaId(encodeCommand(command), playExtras);
+                });
+        return null;
     }
 
     /** Enabled only after the media-session callback fingerprint matches on this app version. */

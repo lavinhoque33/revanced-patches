@@ -24,7 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.StringJoiner;
 
-import app.morphe.extension.music.patches.downloads.DownloadMethods;
+import app.morphe.extension.music.patches.downloads.DownloadMethod;
 import app.morphe.extension.music.patches.downloads.OfflineStreamBrowse;
 import app.morphe.extension.music.settings.Settings;
 import app.morphe.extension.shared.utils.ResourceUtils;
@@ -41,7 +41,7 @@ final class AndroidAutoDownloadsFolder {
     /** The device-file playlists are the fork's own downloads: they need a device files download method. */
     static boolean deviceFilesEnabled() {
         return AndroidAutoPatch.downloadedPlaylistsSupported()
-                && DownloadMethods.filesChosen(Settings.SONG_DOWNLOAD_METHOD.get(), Settings.PLAYLIST_DOWNLOAD_METHOD.get())
+                && Settings.DOWNLOAD_METHOD.get() == DownloadMethod.DEVICE_FILES
                 && Settings.ANDROID_AUTO_DOWNLOADED_PLAYLISTS.get();
     }
 

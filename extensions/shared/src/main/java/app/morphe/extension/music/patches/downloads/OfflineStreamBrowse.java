@@ -13,8 +13,8 @@ import java.util.List;
 
 /**
  * What Android Auto may see of the stream copies: the albums and playlists that have songs with stored data, those
- * songs in the order of their offline queue, and the command that starts one of them offline. The stores and the
- * replay are package-private, so this is the one public door; it holds no state.
+ * songs in queue order, and the normal/fully-offline command appropriate to connectivity. The stores and replay are
+ * package-private, so this is the one public door; metadata reads belong on a worker thread.
  */
 public final class OfflineStreamBrowse {
     /** The id of the list of the songs no downloaded list holds (No Playlist), next to the ids of the sources. */
@@ -66,9 +66,16 @@ public final class OfflineStreamBrowse {
         return tracks;
     }
 
-    /** The command that starts the song at {@code index} of the list's offline queue. Pure: any thread. */
-    public static byte[] offlineCommand(String sourceId, int index) {
-        return OfflineReplay.offlineCommand(sourceId, index);
+    /** Resolves the selected song in the same order as browse. Reads copy metadata: a worker thread only. */
+    @Nullable
+    public static byte[] playCommand(String sourceId, int index, boolean online) {
+        return OfflineReplay.autoCommand(sourceId, index, online);
+    }
+
+    /** A new session selection cancels queued Play-next work from the previous one. No disk access. */
+    public static void onPlaybackRequested() {
+        OfflineReplay.cancelQueuedSongs();
+        AndroidAutoQueue.cancel();
     }
 
     /** The cover stored with a song, or null. A worker thread. */

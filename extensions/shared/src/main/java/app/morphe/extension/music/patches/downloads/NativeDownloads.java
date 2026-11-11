@@ -74,18 +74,23 @@ public final class NativeDownloads {
      * dispatch one); then either kind of download takes over the download command.
      */
     public static Object rewriteCommand(Object dispatcher, Object original, java.util.Map<?, ?> context) {
-        if (OfflineReplayHooks.onCommand(dispatcher, original, context)) return null;
-
-        return rewriteDownloadCommand(original, context);
+        app.morphe.extension.music.patches.flyout.SongMenus.onCommand(original);
+        Object rewritten = rewriteDownloadCommand(original, context);
+        if (rewritten == null || OfflineReplayHooks.onCommand(dispatcher, rewritten, context)) return null;
+        return rewritten;
     }
 
-    private static boolean deviceLibrary() {
-        return DownloadMethods.deviceLibrary(Settings.SONG_DOWNLOAD_METHOD.get(), Settings.PLAYLIST_DOWNLOAD_METHOD.get());
+    static boolean deviceLibrary() {
+        return Settings.DOWNLOAD_METHOD.get() == DownloadMethod.DEVICE_FILES;
+    }
+
+    /** Both native continuation consumers must choose the same library before constructing their request. */
+    public static String libraryContinuation(String token) {
+        return DownloadsPageLogic.libraryToken(Settings.DOWNLOAD_METHOD.get(), token);
     }
 
     private static Object rewriteDownloadCommand(Object original, java.util.Map<?, ?> context) {
-        // The playlist method takes over the header Download; with Music's own download the command stays stock,
-        // but navigation to the device files library may still be ours.
+        // The global method handles all Download commands, or leaves them with stock/external delegation.
         if (!(original instanceof Command command)) return original;
         boolean playlists = LocalDownloadManager.interceptsPlaylists();
         if (!playlists && !deviceLibrary()) return original;

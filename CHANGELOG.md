@@ -21,14 +21,27 @@
   Save to Watch later and Save to playlist items in the menu, mixes and the movie shelf keep their own layout when
   they are hidden, and the cards keep their layout while the app updates its templates.
 * **YouTube - Toolbar:** Fix the Create button of the toolbar so it opens the upload menu again.
+* **Music - Stream download:** Fix loading the regular song menu of earlier copies while online, and keep just one
+  Download or Remove download action when Music supplies its newer menu rows. Other stock actions stay intact.
+  No Playlist opens the tapped song's full native menu, also from its saved renderer offline. Looking up or opening
+  another song's menu does not change the current queue or what Next plays.
+* **Music - Downloads:** With Device files selected, the Downloads chip uses Music's device-files library, not the
+  stream-copy list. Existing stream copies are kept.
+* **Music - Android Auto:** Fix a crash when starting a track from Downloaded Playlists, including No Playlist.
+  Newer selections take priority, and online playback keeps radio and lyrics while using the local stream.
+  No Playlist uses one native Play next request and its complete response after the selected song is committed,
+  inserting the following songs as one ordered batch before radio. Menu lookups cannot overwrite that queue context.
+  Changing the selection or reconnecting cancels old work before it can change that queue.
+  Queue work follows Music's current-item updates without blocking its playback thread.
 
 ### Features
 
 * **Music - Stream download:** Stream download is now the main way to download in YouTube Music. A fresh install saves
   a private copy of a song, playlist or album inside the app that plays with or without internet and keeps radio and
-  lyrics online. Song downloads and Playlist and album downloads each have one list to choose from: Stream download,
-  Device files or the downloader app, and YouTube Music's own download. Your earlier choices are kept, and changing
-  the list never deletes anything you already downloaded.
+  lyrics online. One Download method setting applies to every song, playlist and album: Stream download (default),
+  Device files (older method), or YouTube Music / external app. External overrides in the last mode handle single
+  songs only; albums and playlists stay with Music. Earlier mixed choices prefer Stream, then Device files.
+  Changing the method never deletes anything you already downloaded.
 * **Music - Stream download:** A song downloaded from the Video display, or from an album row that shows the music
   video, is saved as the song's audio, so it plays and shows its green check everywhere. A failed song download now
   says why.
@@ -44,8 +57,10 @@
   or remove a song, an album or a playlist, also when you come back to it with Back from a list or a player, so the
   rows and the No Playlist count are current without pulling. Nothing is opened by itself and the Library still
   opens first after a restart.
-* **Music - Stream download:** Each song on the No Playlist page has a three dot menu with Remove download, which asks
-  the same confirmation as the song menu and takes the song off the list. The green check stays at the right end.
+* **Music - Stream download:** The three dot menu of a No Playlist song opens the app's regular song menu for that
+  song, with the usual available actions and Remove download. Removing a copy updates the row and count; the green
+  check stays at the right end.
+  The complete stock menu is saved for offline use. Earlier copies need this page opened online once to load it.
 * **Music - Stream download:** A playlist or album download that was cut off, for example by closing the app, no longer
   leaves its songs in No Playlist and no longer counts as saved. Its Download button finishes the job and the green
   check and Remove download appear once every song is in.
@@ -74,38 +89,32 @@
   previews in the feed muted.
 * **YouTube Music - Lyrics:** Add a dynamic background to the lyrics, and show the reading of each Japanese word
   above the text (furigana).
-* **YouTube Music - Downloads:** Add Play downloads locally, off by default, to play downloaded songs from a private
-  copy of the audio; radio, lyrics and the queue stay online while there is a connection. It is independent of
-  Download in app: on its own it saves only that copy, which is kept inside the app and is not shown in Device files
-  or the library (about 5 MB a song); with Download in app also on, one download feeds both the files and the copy.
-  Add a Stream downloads action that shows what the copies take and deletes them all, without touching the saved
-  files. Downloaded songs start in audio mode (a sub-setting, on by default) so the local copy plays, also from an
-  album's track list, its Play button and Next; the Song/Video switch still reaches the online video, and continues
-  at the same position in either direction (it starts over only when the position is unknown or within 3 seconds of
-  the end).
+* **YouTube Music - Downloads:** Private stream copies keep radio, lyrics and the queue online while there is a
+  connection, and play without internet. A download uses only the global method: it never writes a device file and
+  a stream copy together. Stream downloads shows their size and can remove them without touching device files.
+  Downloaded songs start in audio mode (a sub-setting, on by default); the Song/Video switch still reaches the
+  online video and continues at the same position.
 * **YouTube Music - Downloads:** Play the stream copies with no network. Each copy keeps the details of its song,
-  and the Downloads chip of the Library lists the downloaded albums, playlists and all songs inside its own page, on
-  the Downloads, Playlists, Albums and Songs chips, online or offline. A tap on a song starts it, and Next and the
-  end of a song go on through the list, with no connection too. An album or playlist row opens its page while
-  online, where a song starts the playlist from that song, and plays the list from its first downloaded song while
-  offline. Lyrics, comments and related stay blank offline. Songs downloaded before this version fill in by
+  and the Downloads chip of the Library lists downloaded albums, playlists and the No Playlist aggregate. A tap
+  starts playback from the local copy, and Next and the end of a song continue through the list offline too.
+  An album or playlist opens its normal page online. Lyrics, comments and related stay blank offline.
+  Songs downloaded before this version fill in by
   themselves in the background while you are online, and Open downloaded songs shows how many are Offline ready and
   opens the Downloads chip. Albums and playlists downloaded earlier appear in the list too, in their recorded order,
   and fetch their title while online. Android Auto lists the copies in a Stream copies folder inside Downloaded
-  playlists, with their covers, and Android Auto downloaded playlists no longer needs Download in app. A song tapped
+  playlists, with their covers, independently of the device-file method. A song tapped
   while offline starts at once. The No connection sheet no longer covers the player controls while a downloaded song
-  plays offline. The Library tab keeps the app's own behavior and opens where you left it. The Playlists, Albums and
-  Songs chips of the Downloads view filter the list. A row of the list no longer decides online or offline when the
-  page is drawn but when you tap it, so a tap right after the network came back or went away works. Opening a
+  plays offline. After a restart the Library tab opens the Library, not the Downloads chip. A row decides whether
+  to open an online page or start local playback when tapped, so network changes take effect immediately. Opening a
   downloaded playlist or album online records the app's own page of it (about 90 KB for a playlist, 22 KB for an
   album), and with no network the page opens as it does online, with its header, cover and track rows, also when the
   album is opened from the Albums chip; tapping a track plays it from its copy and goes on through the list. A
   downloaded list that was not opened online since this version plays from its first song, as before.
-* **YouTube Music - Downloads:** Add green downloaded checkmarks, on by default and a child of Play downloads locally.
+* **YouTube Music - Downloads:** Add green downloaded checkmarks, on by default for stream copies.
   Songs and playlists saved for local playback show a check at the end of the song row, next to its menu or drag
   handle, on playlist pages, on the track rows of an album page, in the Search songs filter and in the player queue,
   and a playlist or album page whose every track has a stream copy shows one on its Download button. Songs saved only
-  as files by Download in app are not marked, and neither are the search All cards.
+  as device files are not marked, and neither are the search All cards.
 * **YouTube Music - Downloads:** Download the rest of a playlist or album that has unavailable tracks (deleted,
   private or blocked songs, shown greyed out) instead of failing the whole download. The finished message says how
   many were skipped, the Download button's check turns on when every available track has a copy, and a failed

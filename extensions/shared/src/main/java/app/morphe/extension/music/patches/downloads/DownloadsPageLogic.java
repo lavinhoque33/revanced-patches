@@ -94,6 +94,19 @@ final class DownloadsPageLogic {
 
     private DownloadsPageLogic() {}
 
+    /** The global device-files choice keeps the chip inside the Library, using its native local-media service. */
+    static String libraryToken(DownloadMethod method, String token) {
+        if (method != DownloadMethod.DEVICE_FILES || token == null || !token.startsWith(TOKEN_PREFIX)) return token;
+        String name = token.substring(TOKEN_PREFIX.length());
+        if (name.endsWith(SUBCHIP_SUFFIX)) name = name.substring(0, name.length() - SUBCHIP_SUFFIX.length());
+        return switch (name) {
+            case "DEFAULT", "TRACKS" -> "SIDELOADED_LIBRARY_RELOAD_CONTINUATION_TOKEN_TRACKS";
+            case "PLAYLISTS" -> "SIDELOADED_LIBRARY_RELOAD_CONTINUATION_TOKEN_PLAYLISTS";
+            case "ALBUMS" -> "SIDELOADED_LIBRARY_RELOAD_CONTINUATION_TOKEN_ALBUMS";
+            default -> token;
+        };
+    }
+
     /** The continuation token of a page request (field 7 of its message), or null when it has none. */
     @Nullable
     static String tokenOf(byte[] request) {

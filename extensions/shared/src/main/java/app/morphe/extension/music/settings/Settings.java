@@ -11,9 +11,7 @@ import static app.morphe.extension.shared.settings.Setting.parentsAny;
 import static app.morphe.extension.shared.utils.StringRef.str;
 
 import app.morphe.extension.music.patches.downloads.DownloadMethodMigration;
-import app.morphe.extension.music.patches.downloads.DownloadMethods;
-import app.morphe.extension.music.patches.downloads.PlaylistDownloadMethod;
-import app.morphe.extension.music.patches.downloads.SongDownloadMethod;
+import app.morphe.extension.music.patches.downloads.DownloadMethod;
 import app.morphe.extension.music.patches.lyrics.LyricsFilterDefaults;
 
 import android.os.Build;
@@ -415,31 +413,26 @@ public class Settings extends SharedYouTubeSettings {
     public static final BooleanSetting DISABLE_MUSIC_VIDEO_IN_ALBUM = new BooleanSetting("revanced_disable_music_video_in_album", FALSE, true);
     public static final EnumSetting<RedirectType> DISABLE_MUSIC_VIDEO_IN_ALBUM_REDIRECT_TYPE = new EnumSetting<>("revanced_disable_music_video_in_album_redirect_type", RedirectType.REDIRECT, true);
     public static final BooleanSetting PLAY_ALBUMS_SONGS = new BooleanSetting("morphe_music_play_album_songs", FALSE, true, parent(SPOOF_VIDEO_STREAMS));
-    // How a song and a playlist are downloaded: one method for each, never two at once. The external downloader
-    // rows below belong to the external app method of songs.
-    public static final EnumSetting<SongDownloadMethod> SONG_DOWNLOAD_METHOD =
-            new EnumSetting<>("morphe_music_song_download_method", SongDownloadMethod.STREAM);
-    public static final EnumSetting<PlaylistDownloadMethod> PLAYLIST_DOWNLOAD_METHOD =
-            new EnumSetting<>("morphe_music_playlist_download_method", PlaylistDownloadMethod.STREAM);
-    public static final BooleanSetting EXTERNAL_DOWNLOADER_ACTION_BUTTON = new BooleanSetting("revanced_external_downloader_action", FALSE, true, songMethodIs(SongDownloadMethod.EXTERNAL_APP));
-    public static final BooleanSetting EXTERNAL_DOWNLOADER_FLYOUT_MENU = new BooleanSetting("revanced_external_downloader_flyout_menu", FALSE, true, parentsAll(songMethodIs(SongDownloadMethod.EXTERNAL_APP), parent(EXTERNAL_DOWNLOADER_ACTION_BUTTON)));
-    public static final StringSetting EXTERNAL_DOWNLOADER_PACKAGE_NAME = new StringSetting("revanced_external_downloader_package_name", "com.deniscerri.ytdl", songMethodIs(SongDownloadMethod.EXTERNAL_APP));
-    // The checks, the audio start, the Downloads chip and No Playlist belong to the stream copies. They are in use
-    // while a stream download is chosen for songs or for playlists, and they still apply to copies that exist.
+    // One method for songs, albums and playlists. External overrides apply only in delegated mode.
+    public static final EnumSetting<DownloadMethod> DOWNLOAD_METHOD =
+            new EnumSetting<>("morphe_music_download_method", DownloadMethod.STREAM);
+    public static final BooleanSetting EXTERNAL_DOWNLOADER_ACTION_BUTTON = new BooleanSetting(
+            "revanced_external_downloader_action", FALSE, true, downloadMethodIs(DownloadMethod.DELEGATED));
+    public static final BooleanSetting EXTERNAL_DOWNLOADER_FLYOUT_MENU = new BooleanSetting(
+            "revanced_external_downloader_flyout_menu", FALSE, true,
+            parentsAll(downloadMethodIs(DownloadMethod.DELEGATED), parent(EXTERNAL_DOWNLOADER_ACTION_BUTTON)));
+    public static final StringSetting EXTERNAL_DOWNLOADER_PACKAGE_NAME = new StringSetting(
+            "revanced_external_downloader_package_name", "com.deniscerri.ytdl",
+            downloadMethodIs(DownloadMethod.DELEGATED));
+    // These still apply to existing copies after changing the download method.
     public static final BooleanSetting DOWNLOADED_CHECKMARKS = new BooleanSetting(
-            "morphe_music_downloaded_checkmarks", TRUE, false, streamDownloadChosen());
+            "morphe_music_downloaded_checkmarks", TRUE, false, downloadMethodIs(DownloadMethod.STREAM));
     public static final BooleanSetting START_DOWNLOADED_IN_AUDIO = new BooleanSetting(
-            "morphe_music_start_downloaded_in_audio", TRUE, false, streamDownloadChosen());
-    // Device-file playlists need the files method, stream copies need the stream method: either one is enough.
+            "morphe_music_start_downloaded_in_audio", TRUE, false, downloadMethodIs(DownloadMethod.STREAM));
     public static final BooleanSetting ANDROID_AUTO_DOWNLOADED_PLAYLISTS = new BooleanSetting(
-            "morphe_music_android_auto_downloaded_playlists", TRUE, false, playlistDownloadsKept());
-    // The switches of the earlier builds, read once by migrateDownloadMethods.
-    private static final BooleanSetting DEPRECATED_IN_APP_DOWNLOADS =
-            new BooleanSetting("morphe_music_in_app_downloads", FALSE, false);
-    private static final BooleanSetting DEPRECATED_PLAY_DOWNLOADS_LOCALLY =
-            new BooleanSetting("morphe_music_play_downloads_locally", FALSE, false);
-    private static final BooleanSetting DOWNLOAD_METHODS_MIGRATED =
-            new BooleanSetting("morphe_music_download_methods_migrated", FALSE, false, false);
+            "morphe_music_android_auto_downloaded_playlists", TRUE, false, downloadsKept());
+    private static final BooleanSetting DOWNLOAD_METHOD_MIGRATED =
+            new BooleanSetting("morphe_music_download_method_migrated", FALSE, false, false);
     public static final StringSetting DOWNLOADS_SORT = new StringSetting("morphe_music_downloads_sort", "ARTIST", false, false);
     public static final BooleanSetting SETTINGS_IMPORT_EXPORT = new BooleanSetting("revanced_settings_import_export", FALSE, false);
     public static final BooleanSetting SPOOF_VIDEO_STREAMS_SIGN_IN_ANDROID_VR_ABOUT =
@@ -583,70 +576,59 @@ public class Settings extends SharedYouTubeSettings {
         DEPRECATED_LYRICS_DISPLAY_ARTIST_FIRST.resetToDefault();
     }
 
-    /** Available while the song method is the given one; the list setting is the parent that refreshes the UI. */
-    private static Setting.Availability songMethodIs(SongDownloadMethod method) {
+    /** The global list is the parent that refreshes dependent settings. */
+    private static Setting.Availability downloadMethodIs(DownloadMethod method) {
         return new Setting.Availability() {
             @Override
             public boolean isAvailable() {
-                return SONG_DOWNLOAD_METHOD.get() == method;
+                return DOWNLOAD_METHOD.get() == method;
             }
 
             @Override
             public List<Setting<?>> getParentSettings() {
-                return Collections.singletonList(SONG_DOWNLOAD_METHOD);
+                return Collections.singletonList(DOWNLOAD_METHOD);
             }
         };
     }
 
-    /** Available while a stream download is chosen for songs or for playlists. */
-    private static Setting.Availability streamDownloadChosen() {
+
+    /** Downloaded lists remain accessible even after changing the method. */
+    private static Setting.Availability downloadsKept() {
         return new Setting.Availability() {
             @Override
             public boolean isAvailable() {
-                return DownloadMethods.streamChosen(SONG_DOWNLOAD_METHOD.get(), PLAYLIST_DOWNLOAD_METHOD.get());
+                return DOWNLOAD_METHOD.get() != DownloadMethod.DELEGATED;
             }
 
             @Override
             public List<Setting<?>> getParentSettings() {
-                return List.of(SONG_DOWNLOAD_METHOD, PLAYLIST_DOWNLOAD_METHOD);
+                return Collections.singletonList(DOWNLOAD_METHOD);
             }
         };
     }
 
-    /** Available while the playlist method is one this app performs itself. */
-    private static Setting.Availability playlistDownloadsKept() {
-        return new Setting.Availability() {
-            @Override
-            public boolean isAvailable() {
-                return DownloadMethods.playlistsKept(PLAYLIST_DOWNLOAD_METHOD.get());
-            }
-
-            @Override
-            public List<Setting<?>> getParentSettings() {
-                return Collections.singletonList(PLAYLIST_DOWNLOAD_METHOD);
-            }
-        };
-    }
-
-    /**
-     * Moves the two independent download switches of the earlier builds to the song and playlist methods, once.
-     * The methods are only saved when they differ from the defaults, so a default stays a default.
-     */
+    /** Consumes old preferences, without leaving independent song or playlist choices behind. */
     private static void migrateDownloadMethods() {
-        if (DOWNLOAD_METHODS_MIGRATED.get()) return;
-
-        DownloadMethodMigration.Methods methods = DownloadMethodMigration.of(
-                DEPRECATED_IN_APP_DOWNLOADS.get(), DEPRECATED_PLAY_DOWNLOADS_LOCALLY.get(),
+        var prefs = Setting.preferences.preferences;
+        DownloadMethod method = DownloadMethodMigration.resolve(
+                prefs.contains(DOWNLOAD_METHOD.key) ? DOWNLOAD_METHOD.get() : null,
+                DOWNLOAD_METHOD_MIGRATED.get(),
+                prefs.getString("morphe_music_song_download_method", null),
+                prefs.getString("morphe_music_playlist_download_method", null),
+                prefs.getBoolean("morphe_music_download_methods_migrated", false),
+                prefs.getBoolean("morphe_music_in_app_downloads", false),
+                prefs.getBoolean("morphe_music_play_downloads_locally", false),
                 EXTERNAL_DOWNLOADER_ACTION_BUTTON.get(), EXTERNAL_DOWNLOADER_FLYOUT_MENU.get());
-        if (methods != null) {
-            SONG_DOWNLOAD_METHOD.save(methods.songs());
-            PLAYLIST_DOWNLOAD_METHOD.save(methods.playlists());
-            Logger.printInfo(() -> "Migrated download switches to songs=" + methods.songs()
-                    + ", playlists=" + methods.playlists());
-        }
-        DEPRECATED_IN_APP_DOWNLOADS.resetToDefault();
-        DEPRECATED_PLAY_DOWNLOADS_LOCALLY.resetToDefault();
-        DOWNLOAD_METHODS_MIGRATED.save(true);
+        DOWNLOAD_METHOD.save(method);
+        DOWNLOAD_METHOD_MIGRATED.save(true);
+
+        prefs.edit()
+                .remove("morphe_music_song_download_method")
+                .remove("morphe_music_playlist_download_method")
+                .remove("morphe_music_download_methods_migrated")
+                .remove("morphe_music_in_app_downloads")
+                .remove("morphe_music_play_downloads_locally")
+                .apply();
     }
 
     static {

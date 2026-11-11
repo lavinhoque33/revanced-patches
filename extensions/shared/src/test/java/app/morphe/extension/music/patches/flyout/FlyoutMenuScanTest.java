@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-10.
  * Written by lavinhoque33, 2026-11-10.
  */
 package app.morphe.extension.music.patches.flyout;
@@ -8,6 +9,7 @@ package app.morphe.extension.music.patches.flyout;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 
 import com.google.protobuf.CodedOutputStream;
@@ -117,12 +119,13 @@ public class FlyoutMenuScanTest {
     }
 
     @Test
-    public void existingDownloadItemIsDetectedOnBothRenderers() {
-        byte[] upsell = item(66441155, message(133724106, string(1, SONG)));
-        byte[] video = item(77258115, message(73080600, string(1, SONG)));
-
-        assertTrue(scan(queueAdd(66441155, SONG), upsell).hasDownload());
-        assertTrue(scan(queueAdd(66441155, SONG), video).hasDownload());
+    public void downloadActionsAreRecognizedAcrossAllNativeWrappers() {
+        for (int renderer : new int[]{66441155, 77258115, 66441108, 77262503}) {
+            byte[] upsell = item(renderer, message(133724106, string(1, "encoded-song-params")));
+            byte[] video = item(renderer, message(73080600, string(1, SONG), number(2, 1)));
+            assertTrue(scan(queueAdd(66441155, SONG), upsell).hasDownload());
+            assertTrue(scan(queueAdd(66441155, SONG), video).hasDownload());
+        }
     }
 
     @Test
@@ -140,5 +143,77 @@ public class FlyoutMenuScanTest {
         List<byte[]> items = Arrays.asList(new byte[]{(byte) 0xff, (byte) 0xff}, queueAdd(66441155, SONG));
 
         assertEquals(SONG, FlyoutMenuScan.scan(items).songId());
+    }
+
+    private static byte[] number(int field, int value) {
+        try {
+            ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+            CodedOutputStream output = CodedOutputStream.newInstance(bytes);
+            output.writeInt32(field, value);
+            output.flush();
+            return bytes.toByteArray();
+        } catch (IOException ex) {
+            throw new AssertionError(ex);
+        }
+    }
+
+    /** Captured Ghost/Homesick standalone row ABI, with no account/tracking bytes retained. */
+    private static byte[] sheetRow(String template, String destination, String params) {
+        byte[] sheet = message(443434441, message(1, message(2, string(2, destination), string(3, params))));
+        byte[] action = message(169495254, sheet);
+        byte[] dismiss = message(169495254, message(274807924, number(1, 1)));
+        byte[] batch = message(204158123, message(170382688, message(1, action), message(1, dismiss)));
+        byte[] click = message(3, message(169495254, batch));
+        byte[] model = message(5, message(413471385,
+                message(1, message(489973921, message(997, message(3, click))))));
+        return message(153515154, message(172660663, message(1, message(168777401,
+                message(3, message(172035250, string(1, template))), model))));
+    }
+
+    @Test
+    public void capturedElementsDownloadIsReplacedWithoutChangingAnyOtherRow() {
+        byte[] queue = queueAdd(66441155, SONG);
+        byte[] album = credits(66441108, "MPREb_album");
+        byte[] download = sheetRow("list_item.eml-fe|413c0648d97023c8", "PApremium_upsell", "igkCCA4%3D");
+        byte[] artist = credits(66441108, "UC_artist");
+        List<byte[]> original = List.of(queue, album, download, artist);
+        byte[] replacement = item(66441155, message(133724106, string(1, "song-params")));
+
+        FlyoutMenuScan.Result scanned = FlyoutMenuScan.scan(original);
+        List<byte[]> changed = scanned.withDownload(original, replacement);
+        assertEquals(SONG, scanned.songId());
+        assertEquals(4, changed.size());
+        assertSame(queue, changed.get(0));
+        assertSame(album, changed.get(1));
+        assertSame(replacement, changed.get(2));
+        assertSame(artist, changed.get(3));
+        assertSame(download, original.get(2));
+    }
+
+    @Test
+    public void onlyDownloadUpsellsInStandaloneRowsAreReplaced() {
+        byte[] queue = queueAdd(66441155, SONG);
+        assertFalse(scan(queue, sheetRow("list_item.eml-fe|known", "PApremium_upsell", "igkCCAw=")).hasDownload());
+        assertFalse(scan(queue, sheetRow("list_item.eml-fe|known", "PAother", "igkCCA4%3D")).hasDownload());
+        assertFalse(scan(queue, sheetRow("carousel.eml-fe|unknown", "PApremium_upsell", "igkCCA4%3D"))
+                .hasDownload());
+    }
+
+    @Test
+    public void duplicateDownloadActionsBecomeOneAndRemoveCancelActionsStayIntact() {
+        byte[] queue = queueAdd(66441155, SONG);
+        byte[] download = item(66441108, message(73080600, string(7, SONG), number(2, 1)));
+        byte[] cancel = item(66441155, message(73080600, string(1, SONG), number(2, 2)));
+        byte[] elements = sheetRow("list_item.eml-fe|known", "PApremium_upsell", "igkCCA4%3D");
+        byte[] last = credits(66441108, "MPTC" + SONG);
+        List<byte[]> original = List.of(queue, download, cancel, elements, last);
+        byte[] replacement = new byte[]{1};
+
+        List<byte[]> changed = FlyoutMenuScan.scan(original).withDownload(original, replacement);
+        assertEquals(4, changed.size());
+        assertSame(queue, changed.get(0));
+        assertSame(replacement, changed.get(1));
+        assertSame(cancel, changed.get(2));
+        assertSame(last, changed.get(3));
     }
 }

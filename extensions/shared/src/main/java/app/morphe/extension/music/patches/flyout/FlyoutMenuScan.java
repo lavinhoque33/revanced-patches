@@ -1,12 +1,17 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-10.
  * Written by lavinhoque33, 2026-11-10.
  */
 package app.morphe.extension.music.patches.flyout;
 
 import androidx.annotation.Nullable;
 
+import java.net.URLDecoder;
+import java.util.ArrayList;
+import java.util.Base64;
+import java.util.Collections;
 import java.util.List;
 import java.util.regex.Pattern;
 
@@ -32,7 +37,24 @@ final class FlyoutMenuScan {
     private static final Pattern VIDEO_ID = Pattern.compile("[A-Za-z0-9_-]{11}");
 
     /** @param songId null when the menu is not the menu of one song; the index is of the item to add after. */
-    record Result(@Nullable String songId, boolean hasDownload, int insertAfter) {
+    record Result(@Nullable String songId, List<Integer> downloadItems, int insertAfter) {
+        boolean hasDownload() {
+            return !downloadItems.isEmpty();
+        }
+
+        /** Replaces Download slots only, retaining every unrelated row and its position. */
+        <T> List<T> withDownload(List<? extends T> items, T download) {
+            List<T> result = new ArrayList<>(items);
+            if (downloadItems.isEmpty()) {
+                result.add(insertAfter + 1, download);
+            } else {
+                result.set(downloadItems.get(0), download);
+                for (int index = downloadItems.size() - 1; index > 0; index--) {
+                    result.remove(downloadItems.get(index).intValue());
+                }
+            }
+            return result;
+        }
     }
 
     private FlyoutMenuScan() {
@@ -42,7 +64,8 @@ final class FlyoutMenuScan {
     static Result scan(List<byte[]> items) {
         String queued = null;
         int queuedIndex = -1;
-        boolean hasDownload = false;
+        List<Integer> downloads = Collections.emptyList();
+        boolean conflictingQueue = false;
         String mix = null;
         int mixIndex = -1;
         String credits = null;
@@ -52,17 +75,20 @@ final class FlyoutMenuScan {
             byte[] item = items.get(index);
             if (item == null) continue;
 
+            if (isDownloadItem(item)) {
+                if (downloads.isEmpty()) downloads = new ArrayList<>(1);
+                downloads.add(index);
+            }
+
             for (int renderer : SERVICE_ITEMS) {
                 ProtoMessage command = commandOf(item, renderer);
                 if (command == null) continue;
 
-                hasDownload |= !command.messageField(OFFLINE_UPSELL_ENDPOINT).isEmpty()
-                        || !command.messageField(OFFLINE_VIDEO_ENDPOINT).isEmpty();
                 String id = command.messagePath(QUEUE_ADD_ENDPOINT, 1).stringField(1);
                 if (!VIDEO_ID.matcher(id).matches()) continue;
 
                 // Two different videos in one menu: it is not the menu of one song.
-                if (queued != null && !queued.equals(id)) return new Result(null, hasDownload, -1);
+                if (queued != null && !queued.equals(id)) conflictingQueue = true;
                 queued = id;
                 queuedIndex = index;
             }
@@ -85,9 +111,10 @@ final class FlyoutMenuScan {
             }
         }
 
-        if (queued != null) return new Result(queued, hasDownload, queuedIndex);
-        if (mix != null) return new Result(mix, hasDownload, mixIndex);
-        return new Result(credits, hasDownload, creditsIndex);
+        if (conflictingQueue) return new Result(null, downloads, -1);
+        if (queued != null) return new Result(queued, downloads, queuedIndex);
+        if (mix != null) return new Result(mix, downloads, mixIndex);
+        return new Result(credits, downloads, creditsIndex);
     }
 
     /** The command (field 3) of the item when it is the given renderer, else null. */
@@ -98,6 +125,57 @@ final class FlyoutMenuScan {
             return wrapper.isEmpty() ? null : wrapper.messageField(ITEM_COMMAND);
         } catch (RuntimeException notThisItem) {
             return null;
+        }
+    }
+
+    private static boolean isDownloadItem(byte[] item) {
+        for (int renderer : SERVICE_ITEMS) {
+            ProtoMessage command = commandOf(item, renderer);
+            if (command != null && isDownloadCommand(command, 0, false)) return true;
+        }
+        for (int renderer : NAVIGATION_ITEMS) {
+            ProtoMessage command = commandOf(item, renderer);
+            if (command != null && isDownloadCommand(command, 0, false)) return true;
+        }
+
+        // Only this standalone list-row model is replaceable; a carousel's other actions stay intact.
+        try {
+            ProtoMessage component = new ProtoMessage(item).messagePath(153515154, 172660663, 1, 168777401);
+            if (!component.messagePath(3, 172035250).stringField(1).startsWith("list_item.eml-fe|")) return false;
+            ProtoMessage click = component.messagePath(5, 413471385, 1, 489973921, 997, 3);
+            return isDownloadCommand(click.messageField(3), 0, true);
+        } catch (RuntimeException notThisRow) {
+            return false;
+        }
+    }
+
+    /** Traverses typed command edges, never arbitrary strings/bytes or all Premium sheets. */
+    private static boolean isDownloadCommand(ProtoMessage command, int depth, boolean downloadSheet) {
+        if (depth > 6 || command.isEmpty()) return false;
+        if (!command.messageField(OFFLINE_UPSELL_ENDPOINT).isEmpty()) return true;
+        ProtoMessage video = command.messageField(OFFLINE_VIDEO_ENDPOINT);
+        if (!video.isEmpty() && video.varintField(2) == 1
+                && (VIDEO_ID.matcher(video.stringField(1)).matches()
+                || VIDEO_ID.matcher(video.stringField(7)).matches())) return true;
+
+        if (downloadSheet && isDownloadSheet(command.messageField(443434441))) return true;
+        if (isDownloadCommand(command.messageField(169495254), depth + 1, downloadSheet)) return true;
+        if (isDownloadCommand(command.messageField(204158123), depth + 1, downloadSheet)) return true;
+        for (ProtoMessage child : command.messageField(170382688).repeatedMessageField(1)) {
+            if (isDownloadCommand(child, depth + 1, downloadSheet)) return true;
+        }
+        return false;
+    }
+
+    private static boolean isDownloadSheet(ProtoMessage sheet) {
+        ProtoMessage destination = sheet.messagePath(1, 2);
+        if (!"PApremium_upsell".equals(destination.stringField(2))) return false;
+        try {
+            String encoded = URLDecoder.decode(destination.stringField(3), "UTF-8");
+            ProtoMessage params = new ProtoMessage(Base64.getUrlDecoder().decode(encoded));
+            return params.messageField(145).varintField(1) == 14;
+        } catch (Exception notDownloadParams) {
+            return false;
         }
     }
 }

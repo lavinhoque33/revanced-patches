@@ -17,6 +17,7 @@ import com.google.common.util.concurrent.ListenableFuture;
 
 import java.io.IOException;
 import java.lang.ref.WeakReference;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -24,8 +25,10 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import app.morphe.extension.music.patches.downloads.NativeDownloads.Command;
+import app.morphe.extension.music.shared.VideoInformation;
 import app.morphe.extension.shared.utils.Logger;
 import app.morphe.extension.shared.utils.Utils;
 
@@ -42,6 +45,13 @@ public final class OfflineReplay {
      * playlists and albums.
      */
     public static final String SONGS = "songs";
+
+    /** The online queueing of No Playlist: how long it waits for the tapped song, and the pauses between steps. */
+    private static final long QUEUE_WAIT_MS = 20_000;
+    private static final long QUEUE_POLL_MS = 250;
+    private static final long QUEUE_SETTLE_MS = 600;
+    private static final long QUEUE_STEP_MS = 350;
+    private static final AtomicInteger queueGeneration = new AtomicInteger();
 
     /** Added by the Downloads patch to the class that dispatches a command, so a command can be run again. */
     public interface Dispatcher {
@@ -177,6 +187,8 @@ public final class OfflineReplay {
         // video surface off, and the app's own Song/Video switch flips it in place.
         logDecision(HOOK_COMMAND, "audio mode: " + AudioFirst.startAudioMode());
 
+        // A new tap ends the queueing of an earlier one.
+        queueGeneration.incrementAndGet();
         Utils.runOnBackgroundThread(() -> {
             try {
                 byte[] command = playCommand(sourceId, index);
@@ -185,11 +197,56 @@ public final class OfflineReplay {
                     return;
                 }
                 dispatchCommand(command);
+                if (SONGS.equals(sourceId) && Utils.isInternetReachable()) queueTheList(index);
             } catch (Exception ex) {
                 Logger.printException(() -> "OfflineReplay: could not start " + sourceId + " at " + index, ex);
             }
         });
         return true;
+    }
+
+    /**
+     * Online, puts the songs of No Playlist after the tapped one in the order the list shows them, in front of the
+     * radio the app builds for it: once the tapped song plays, the app's own Play next runs for each following song.
+     * A newer tap ends this one. Off the main thread.
+     */
+    private static void queueTheList(int index) throws InterruptedException {
+        int generation = queueGeneration.incrementAndGet();
+        List<OfflineWatchNext.Item> items = queueOf(SONGS);
+        if (index < 0 || index >= items.size()) return;
+
+        List<String> ids = new ArrayList<>();
+        for (OfflineWatchNext.Item item : items) ids.add(item.videoId());
+        String tapped = ids.get(index);
+        String video = OfflineReplayLogic.videoOf(tapped, videoCopies());
+
+        if (!waitForPlaying(generation, tapped, video)) {
+            Logger.printWarn(() -> "OfflineReplay: " + tapped + " did not start, the list is not queued");
+            return;
+        }
+        // The queue of the new song is built a moment after it starts.
+        Thread.sleep(QUEUE_SETTLE_MS);
+
+        List<String> order = OnlineQueueCommand.commandOrder(OnlineQueueCommand.following(ids, index));
+        Logger.printDebug(() -> "OfflineReplay: queueing " + order.size() + " songs after " + tapped);
+        for (String id : order) {
+            if (generation != queueGeneration.get()) return;
+
+            dispatchCommand(OnlineQueueCommand.playNext(id));
+            Thread.sleep(QUEUE_STEP_MS);
+        }
+    }
+
+    private static boolean waitForPlaying(int generation, String song, @Nullable String video)
+            throws InterruptedException {
+        long deadline = System.currentTimeMillis() + QUEUE_WAIT_MS;
+        while (generation == queueGeneration.get() && System.currentTimeMillis() < deadline) {
+            String playing = VideoInformation.getVideoId();
+            if (song.equals(playing) || (video != null && video.equals(playing))) return true;
+
+            Thread.sleep(QUEUE_POLL_MS);
+        }
+        return false;
     }
 
     /**

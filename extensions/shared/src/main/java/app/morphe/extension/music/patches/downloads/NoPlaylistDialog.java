@@ -37,8 +37,9 @@ import app.morphe.extension.shared.utils.Utils;
 /**
  * The page of No Playlist: the songs that have a stream copy and belong to no downloaded playlist or album. It is our
  * own full screen page over the Downloads view, as the songs list has no page of the app to open, online or offline;
- * Back returns to the Downloads view. A tap plays the list from the tapped song: offline in the shown order, from the
- * copies; online as the song itself (the app's own watch of it, so radio and lyrics stay), its audio from the copy.
+ * Back returns to the Downloads view. A tap plays the list in its shown order from the tapped song, from the copies:
+ * offline as one queue; online as the app's own watch of the song (so radio and lyrics stay) with the rest of the
+ * list queued after it, see {@link OnlineQueueCommand}.
  * Every song has a check at the right end, as every stream copy has.
  */
 final class NoPlaylistDialog {

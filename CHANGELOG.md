@@ -37,9 +37,9 @@
   playlist or album. Songs that another downloaded list or your own download still needs are kept.
 * **Music - Stream download:** Songs you downloaded one by one and that are in no downloaded playlist or album are no
   longer listed as songs in Library, Downloads. They are in one playlist called No Playlist, which opens as its own
-  page with a green check on every song. Offline it plays in the shown order from the song you tap. Online the song
-  you tap plays as the normal song, so radio and lyrics stay, and its audio comes from your copy. It also appears in
-  Android Auto in the downloaded playlists.
+  page with a green check on every song. It plays in the shown order from the song you tap, online and offline.
+  Online the songs are queued after the one you tap, so radio and lyrics stay, and the audio comes from your copies.
+  It also appears in Android Auto in the downloaded playlists.
 * **Music - Stream download:** Accounts whose song menu has no Download item now get one, so a single song can be
   downloaded from any song menu. It reads Remove download once the song is saved.
 * **Music - Settings:** The download options are now together in a Downloads group of Miscellaneous.

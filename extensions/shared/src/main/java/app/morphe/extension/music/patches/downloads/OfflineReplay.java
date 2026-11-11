@@ -323,6 +323,8 @@ public final class OfflineReplay {
     private static boolean takeOffline(byte[] command, @Nullable String browseId) {
         OfflineReplayLogic.WatchTarget watch = browseId == null ? OfflineReplayLogic.songTargetOf(
                 OfflineReplayLogic.onlineWatchOf(command), VideoCopyStore.pairsIfLoaded()) : null;
+        DownloadedRegistry registry = DownloadedMarkers.loadedRegistry();
+        if (registry != null) watch = OfflineReplayLogic.canonicalTargetOf(watch, registry::canonicalId);
         if (browseId == null && watch == null) return false;
 
         Map<String, List<String>> tracks = OfflineCopyStore.tracksBySource();

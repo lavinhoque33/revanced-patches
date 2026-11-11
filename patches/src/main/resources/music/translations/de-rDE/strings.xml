@@ -126,7 +126,6 @@ Schritte:
     <string name="morphe_music_downloads_already_running">Download läuft bereits</string>
     <string name="morphe_music_downloads_already_saved">Bereits heruntergeladen</string>
     <string name="morphe_music_downloads_complete">Download abgeschlossen</string>
-    <string name="morphe_music_downloads_failed">Download fehlgeschlagen</string>
     <string name="morphe_music_downloads_notification_channel">Audio-Downloads</string>
     <string name="morphe_music_downloads_progress">Wird heruntergeladen: %s%%</string>
     <string name="morphe_music_downloads_sort">Sortieren</string>

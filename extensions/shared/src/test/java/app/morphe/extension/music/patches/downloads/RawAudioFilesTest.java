@@ -2,6 +2,7 @@
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
  * Written by lavinhoque33, 2026-11-07.
+ * Modified by lavinhoque33, 2026-11-10
  */
 package app.morphe.extension.music.patches.downloads;
 
@@ -16,6 +17,8 @@ import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.Arrays;
+import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 
 public class RawAudioFilesTest {
@@ -43,7 +46,7 @@ public class RawAudioFilesTest {
     }
 
     private void retain(RawAudioFiles store, String id) throws Exception {
-        store.retain(id, input(), 251, MIME, 8, 123, MUXED);
+        store.retain(id, input(), 251, MIME, 8, 123, MUXED, false);
     }
 
     private void write(File file, String text) throws Exception {
@@ -54,7 +57,7 @@ public class RawAudioFilesTest {
         RawAudioFiles store = store();
         File input = input();
         byte[] expected = Files.readAllBytes(input.toPath());
-        store.retain("track", input, 251, MIME, 8, 123, MUXED);
+        store.retain("track", input, 251, MIME, 8, 123, MUXED, false);
         RawAudioFiles.Entry entry = store.find("track", muxed(MUXED));
         assertNotNull(entry);
         assertArrayEquals(expected, Files.readAllBytes(entry.file().toPath()));
@@ -211,10 +214,10 @@ public class RawAudioFilesTest {
     @Test public void invalidMetadataCannotPublishAndPathTraversalCannotDelete() throws Exception {
         RawAudioFiles store = store();
         File input = input();
-        store.retain("../escape", input, 251, MIME, 8, 123, MUXED);
-        store.retain("track", input, 251, MIME, 7, 123, MUXED);
-        store.retain("track", input, 140, "audio/mp4", 8, 123, MUXED);
-        store.retain("track", input, 251, MIME, 8, 0, MUXED);
+        store.retain("../escape", input, 251, MIME, 8, 123, MUXED, false);
+        store.retain("track", input, 251, MIME, 7, 123, MUXED, false);
+        store.retain("track", input, 140, "audio/mp4", 8, 123, MUXED, false);
+        store.retain("track", input, 251, MIME, 8, 0, MUXED, false);
         assertTrue(input.exists());
         assertNull(store.find("track", muxed(MUXED)));
         store.delete("../escape");
@@ -226,13 +229,13 @@ public class RawAudioFilesTest {
         retain(store, "track");
         File replacement = input();
         Files.write(replacement.toPath(), new byte[8]);
-        store.retain("track", replacement, 251, MIME, 8, 456, MUXED);
+        store.retain("track", replacement, 251, MIME, 8, 456, MUXED, false);
         assertEquals(456, store.find("track", muxed(MUXED)).modified());
         assertArrayEquals(new byte[8], Files.readAllBytes(raw("track.251").toPath()));
     }
 
     private boolean retainStreamOnly(RawAudioFiles store, String id) throws Exception {
-        return store.retain(id, input(), 251, MIME, 8, 123, null);
+        return store.retain(id, input(), 251, MIME, 8, 123, null, false);
     }
 
     @Test public void streamOnlyCopyIsSelfContainedAndNeedsNoNativeTrack() throws Exception {
@@ -273,7 +276,7 @@ public class RawAudioFilesTest {
         Files.write(raw("corrupt.251").toPath(), new byte[8]);
         assertNull(store.find("corrupt", muxed(null)));
 
-        assertFalse(store.retain("bad", input(), 140, "audio/mp4", 8, 123, null));
+        assertFalse(store.retain("bad", input(), 140, "audio/mp4", 8, 123, null, false));
         assertNull(store.find("bad", muxed(null)));
     }
 
@@ -398,5 +401,43 @@ public class RawAudioFilesTest {
         retain(store, "track");
         assertTrue(store.find("track", muxed(MUXED)).tiedToNativeTrack());
         assertNull(store.find("track", muxed(null)));
+    }
+
+    @Test public void aCopyIsIndividualOnlyWhenTheUserAskedForTheSongItself() throws Exception {
+        RawAudioFiles store = store();
+        retain(store, "listed");
+        store.retain("single", input(), 251, MIME, 8, 123, null, true);
+        assertEquals(Set.of("single"), store.individualIds());
+
+        assertTrue(store.markIndividual("listed"));
+        assertEquals(Set.of("single", "listed"), store.individualIds());
+        assertNotNull(store.find("listed", muxed(MUXED)));
+    }
+
+    @Test public void markingAnUnknownCopyDoesNothing() throws Exception {
+        RawAudioFiles store = store();
+        assertFalse(store.markIndividual("missing"));
+        assertFalse(store.addAlias("missing", "video123456"));
+        assertTrue(store.individualIds().isEmpty());
+        assertTrue(store.aliases().isEmpty());
+    }
+
+    @Test public void aliasesNameTheSongAndGoWithItsCopy() throws Exception {
+        RawAudioFiles store = store();
+        retain(store, "song");
+        assertTrue(store.addAlias("song", "video123456"));
+        assertTrue(store.addAlias("song", "video123456"));
+        assertTrue(store.addAlias("song", "other123456"));
+        assertEquals(Map.of("video123456", "song", "other123456", "song"), store.aliases());
+
+        store.delete("song");
+        assertTrue(store.aliases().isEmpty());
+    }
+
+    @Test public void aRecordWithoutNotesIsNotIndividualAndHasNoAlias() throws Exception {
+        RawAudioFiles store = store();
+        retain(store, "plain");
+        assertTrue(store.individualIds().isEmpty());
+        assertTrue(store.aliases().isEmpty());
     }
 }

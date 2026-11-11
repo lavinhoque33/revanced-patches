@@ -132,7 +132,6 @@ Langkah-langkah:
     <string name="morphe_music_downloads_already_running">Pengunduhan sedang berlangsung</string>
     <string name="morphe_music_downloads_already_saved">Sudah diunduh</string>
     <string name="morphe_music_downloads_complete">Pengunduhan selesai</string>
-    <string name="morphe_music_downloads_failed">Pengunduhan gagal</string>
     <string name="morphe_music_downloads_notification_channel">Unduhan audio</string>
     <string name="morphe_music_downloads_progress">Mengunduh %s%%</string>
     <string name="morphe_music_downloads_sort">Urutkan</string>

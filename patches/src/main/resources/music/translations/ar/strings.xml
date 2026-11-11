@@ -127,7 +127,6 @@
     <string name="morphe_music_downloads_already_running">التنزيل جارٍ بالفعل</string>
     <string name="morphe_music_downloads_already_saved">تم تنزيله مسبقًا</string>
     <string name="morphe_music_downloads_complete">اكتمل التنزيل</string>
-    <string name="morphe_music_downloads_failed">فشل التنزيل</string>
     <string name="morphe_music_downloads_notification_channel">تنزيلات الصوت</string>
     <string name="morphe_music_downloads_progress">جارٍ التنزيل %s%%</string>
     <string name="morphe_music_downloads_sort">فرز</string>

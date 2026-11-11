@@ -153,22 +153,73 @@ public final class LocalDownloadManager {
         Utils.submitOnBackgroundThread(() -> {
             try {
                 if (mode.localFiles()) NativeDownloads.migrateLegacy();
-                if (plan(videoId, mode) == DownloadMode.Work.SKIP) {
+                // A music video saved before as its song names that song: there is nothing left to save.
+                String known = mode.streamCopy() ? RawAudioStore.aliases().get(videoId) : null;
+                if (known != null || plan(videoId, mode) == DownloadMode.Work.SKIP) {
+                    if (mode.streamCopy()) RawAudioStore.markIndividual(known != null ? known : videoId);
                     Utils.showToastShort(str(mode.localFiles()
                             ? "morphe_music_downloads_already_saved" : "morphe_music_downloads_stream_already_saved"));
                     return null;
                 }
                 Utils.showToastShort(str("morphe_music_downloads_started"));
-                download(videoId, mode);
+                downloadSingle(videoId, mode);
                 Utils.showToastShort(str(mode.localFiles()
                         ? "morphe_music_downloads_complete" : "morphe_music_downloads_stream_complete"));
                 if (mode.localFiles()) NativePlaylistStore.refreshUnsortedLater(); // list the new single.
             } catch (Exception ex) {
                 Logger.printException(() -> "Local audio download failed: " + videoId, ex);
-                Utils.showToastShort(str("morphe_music_downloads_failed"));
+                Utils.showToastShort(str("morphe_music_downloads_failed_reason", PlaylistText.failureReason(ex)));
             }
             return null;
         });
+    }
+
+    /**
+     * What a request for one track is: a track of a playlist or album download, a song the user downloaded itself,
+     * or the song found for a music video the user downloaded.
+     */
+    private enum Request {
+        LIST_TRACK, SINGLE, SONG_OF_VIDEO;
+
+        /** The user asked for this song itself, so a playlist removal keeps its copy. */
+        boolean individual() {
+            return this != LIST_TRACK;
+        }
+
+        /** A music video may be redirected to its song. */
+        boolean mayRedirect() {
+            return this == SINGLE;
+        }
+    }
+
+    /** A stream copy of a music video is not wanted: its song is, and this is the song's id. */
+    private static final class SongRedirect extends Exception {
+        final String songId;
+
+        SongRedirect(String songId) {
+            super("The song of the music video is " + songId);
+            this.songId = songId;
+        }
+    }
+
+    /**
+     * Saves one song the user chose. A music video becomes its song: the copy is the song's audio under the song's
+     * id, and the video's id is recorded as the same song, so a tap on either finds it. A video that has no song
+     * found is saved as it is, under its own id, and that is logged.
+     */
+    private static void downloadSingle(String videoId, DownloadMode mode) throws Exception {
+        String savedId = videoId;
+        Saved saved;
+        try {
+            saved = download(videoId, mode, Request.SINGLE);
+        } catch (SongRedirect redirect) {
+            savedId = redirect.songId;
+            Logger.printInfo(() -> "Single download: v=" + videoId + " is saved as the song " + redirect.songId);
+            saved = download(savedId, mode, Request.SONG_OF_VIDEO);
+            RawAudioStore.addAlias(savedId, videoId);
+        }
+        // A copy that was there already (kept by a playlist before) is now also one the user asked for.
+        if (mode.streamCopy() && !saved.downloaded()) RawAudioStore.markIndividual(savedId);
     }
 
     /** What the track still needs in this mode. Asks only the stores the mode cares about. */
@@ -187,6 +238,10 @@ public final class LocalDownloadManager {
 
     /** Brings one track to what the mode asks for: its local file or its stream copy. Returns at once when done. */
     static Saved download(String videoId, DownloadMode mode) throws Exception {
+        return download(videoId, mode, Request.LIST_TRACK);
+    }
+
+    private static Saved download(String videoId, DownloadMode mode, Request request) throws Exception {
         Utils.verifyOffMainThread();
         if (!VIDEO_ID.matcher(videoId).matches()) throw new IOException("Invalid video id");
         boolean playing = videoId.equals(VideoInformation.getVideoId());
@@ -196,7 +251,7 @@ public final class LocalDownloadManager {
         while (true) {
             if (plan(videoId, mode) == DownloadMode.Work.SKIP) return saved(videoId, mode, false);
 
-            FutureTask<Saved> task = new FutureTask<>(() -> downloadBlocking(videoId, mode, title, artist));
+            FutureTask<Saved> task = new FutureTask<>(() -> downloadBlocking(videoId, mode, request, title, artist));
             FutureTask<Saved> existing = ACTIVE_DOWNLOADS.putIfAbsent(videoId, task);
             if (existing == null) {
                 try {
@@ -230,8 +285,8 @@ public final class LocalDownloadManager {
 
     // the stream is downloaded to a private temporary file; then it is published with embedded tags as a local
     // file, since Music's device-files library reads metadata only from the file, or moved to the stream copy.
-    private static Saved downloadBlocking(String videoId, DownloadMode mode, String title, String artist)
-            throws Exception {
+    private static Saved downloadBlocking(String videoId, DownloadMode mode, Request request, String title,
+                                          String artist) throws Exception {
         NativeAudioStore.Destination destination = null;
         File temporary = null;
         try {
@@ -242,6 +297,10 @@ public final class LocalDownloadManager {
             StreamCandidates candidates = new StreamCandidates(videoId, !work.writesLocalFile());
             ResolvedStream resolved = candidates.next();
             if (resolved == null) throw new IOException("Audio stream unavailable");
+            if (request.mayRedirect() && work.keepsStreamCopy()) {
+                String songId = songOfVideo(videoId, resolved.details());
+                if (songId != null) throw new SongRedirect(songId);
+            }
             AudioTagger.Tags tags = TrackMetadata.resolve(videoId, title, artist, resolved.details());
             title = tags.title;
             awaitNotificationSlot();
@@ -275,7 +334,7 @@ public final class LocalDownloadManager {
                 uri = NativeAudioStore.finish(videoId, destination);
                 destination = null;
             } else if (work.keepsStreamCopy()) {
-                if (!RawAudioStore.retain(videoId, temporary, format)) {
+                if (!RawAudioStore.retain(videoId, temporary, format, request.individual())) {
                     throw new IOException("Could not keep the stream copy");
                 }
                 OfflineCopyStore.storeDownloaded(videoId, format, resolved.details(), tags);
@@ -284,9 +343,12 @@ public final class LocalDownloadManager {
             showDownloadNotification(videoId, title, 100, false, str(mode.localFiles()
                     ? "morphe_music_downloads_complete" : "morphe_music_downloads_stream_complete"));
             return new Saved(uri, true);
+        } catch (SongRedirect redirect) {
+            throw redirect;
         } catch (Exception ex) {
             awaitNotificationSlot();
-            showDownloadNotification(videoId, title, 0, false, str("morphe_music_downloads_failed"));
+            showDownloadNotification(videoId, title, 0, false,
+                    str("morphe_music_downloads_failed_reason", PlaylistText.failureReason(ex)));
             throw ex;
         } finally {
             if (destination != null) NativeAudioStore.abort(destination);
@@ -295,6 +357,22 @@ public final class LocalDownloadManager {
     }
 
     private record ResolvedStream(Format format, VideoDetails details) {
+    }
+
+    /**
+     * The song to save instead of this music video, or null to save the video's own audio under its own id (a
+     * song, or a video with no song found, which is logged).
+     */
+    @Nullable
+    private static String songOfVideo(String videoId, VideoDetails details) {
+        boolean playerSaysVideo = SongIdResolver.isMusicVideo(details.hasMusicVideoType(),
+                details.getMusicVideoType());
+        SongIdResolver.Video video = new SongIdResolver.Video(videoId, details.getTitle(),
+                details.getOwnerChannelName(), details.getLengthSeconds());
+        String songId = SongIdLookup.songOf(video, playerSaysVideo);
+        Logger.printDebug(() -> "Single download: v=" + videoId + " playerType="
+                + (details.hasMusicVideoType() ? details.getMusicVideoType() : "none") + " song=" + songId);
+        return songId == null || songId.equals(videoId) ? null : songId;
     }
 
     /** The server refused the stream's url itself, so another client's url may still work. */

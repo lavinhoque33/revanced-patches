@@ -140,7 +140,7 @@ YouTube Music 8.x - crossfade only runs on 9.x and newer"</string>
     <string name="morphe_music_downloads_already_running">Download already in progress</string>
     <string name="morphe_music_downloads_already_saved">Device file already saved</string>
     <string name="morphe_music_downloads_complete">Device file saved</string>
-    <string name="morphe_music_downloads_failed">Download failed</string>
+    <string name="morphe_music_downloads_failed_reason">Download failed: %s</string>
     <string name="morphe_music_downloads_notification_channel">Audio downloads</string>
     <string name="morphe_music_downloads_progress">Downloading %s%%</string>
     <string name="morphe_music_downloads_sort">Sort</string>

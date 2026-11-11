@@ -175,6 +175,12 @@ public final class DownloadedMarkers {
         refreshLater();
     }
 
+    /** Called when a music video id was recorded as the same song as a song with a stream copy. */
+    static void onAlias(String alias, String songId) {
+        registry.addAlias(alias, songId);
+        refreshLater();
+    }
+
     /** Called when a track's stream copy was deleted. */
     static void onStreamCopyRemoved(String videoId) {
         registry.remove(videoId);
@@ -233,6 +239,7 @@ public final class DownloadedMarkers {
         Utils.submitOnBackgroundThread(() -> {
             try {
                 registry.addAll(RawAudioStore.copyIds());
+                registry.setAliases(RawAudioStore.aliases());
                 for (Map.Entry<String, ?> entry : trackPreferences().getAll().entrySet()) {
                     if (entry.getValue() instanceof String encoded) {
                         registry.putSource(entry.getKey(), DownloadedRegistry.decode(encoded));
@@ -305,6 +312,7 @@ public final class DownloadedMarkers {
         Set<String> present = RawAudioStore.copyIds();
 
         registry.prune(knownBefore, present);
+        registry.setAliases(RawAudioStore.aliases());
         refreshLater();
     }
 

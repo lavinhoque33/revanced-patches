@@ -2,6 +2,7 @@
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
  * Written by lavinhoque33, 2026-11-07.
+ * Modified by lavinhoque33, 2026-11-10
  */
 package app.morphe.extension.music.patches.downloads;
 
@@ -323,5 +324,47 @@ public class DownloadedRegistryTest {
         registry.putSource("OLAK5uy_album", Arrays.asList(SONG));
 
         assertNull(registry.findSource(message(2, "RDAMPLOLAK5uy_album")));
+    }
+
+    @Test public void aMusicVideoSavedAsItsSongCountsAsDownloadedThroughTheAlias() throws Exception {
+        DownloadedRegistry registry = new DownloadedRegistry();
+        registry.add(SONG);
+        registry.addAlias(OTHER, SONG);
+
+        assertTrue(registry.isDownloaded(OTHER));
+        assertFalse(registry.hasOwnCopy(OTHER));
+        assertEquals(SONG, registry.canonicalId(OTHER));
+        assertEquals(SONG, registry.canonicalId(SONG));
+        assertEquals(SONG, registry.findDownloaded(message(1, OTHER)));
+        assertEquals(SONG, registry.findDownloadedLoose(("watch?v=" + OTHER + "&x").getBytes(StandardCharsets.UTF_8)));
+    }
+
+    @Test public void anAliasOfASongWithoutACopyIsNothing() {
+        DownloadedRegistry registry = new DownloadedRegistry();
+        registry.add(THIRD);
+        registry.addAlias(OTHER, SONG);
+
+        assertFalse(registry.isDownloaded(OTHER));
+        assertEquals(OTHER, registry.canonicalId(OTHER));
+    }
+
+    @Test public void aliasesGoWhenTheirSongsCopyIsRemovedPrunedOrCleared() {
+        DownloadedRegistry registry = new DownloadedRegistry();
+        registry.addAll(List.of(SONG, THIRD));
+        registry.addAlias(OTHER, SONG);
+        registry.addAlias("alias123456", THIRD);
+
+        registry.remove(SONG);
+        assertFalse(registry.isDownloaded(OTHER));
+        assertEquals(OTHER, registry.canonicalId(OTHER));
+
+        registry.prune(Set.of(THIRD), Set.of());
+        assertFalse(registry.isDownloaded("alias123456"));
+
+        registry.addAll(List.of(SONG));
+        registry.setAliases(Map.of(OTHER, SONG));
+        assertTrue(registry.isDownloaded(OTHER));
+        registry.clear();
+        assertFalse(registry.isDownloaded(OTHER));
     }
 }

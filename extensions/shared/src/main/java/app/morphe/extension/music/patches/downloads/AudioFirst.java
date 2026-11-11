@@ -268,9 +268,13 @@ public final class AudioFirst {
             String mode = liveMode();
             logCommand(tap, registry, bytes, mode);
 
-            AudioFirstLogic.Arm arm = AudioFirstLogic.chooseArmLazily(true, tap.ids,
+            AudioFirstLogic.Arm chosen = AudioFirstLogic.chooseArmLazily(true, tap.ids,
                     () -> registry.sourceTracks(registry.findSource(bytes)), tap.index, tap.hasParams,
                     registry::isDownloaded);
+
+            // A music video that was saved as its song names the song: the copy is stored under the song's id.
+            AudioFirstLogic.Arm arm = chosen == null ? null
+                    : new AudioFirstLogic.Arm(chosen.rule(), registry.canonicalId(chosen.videoId()));
 
             boolean namesVideoCopy = tap.videoId != null && VideoCopyStore.has(tap.videoId);
             synchronized (lock) {
@@ -301,7 +305,7 @@ public final class AudioFirst {
                     androidAutoAt)) {
                 return retargetAtVideoCopy(rebuildable, bytes, tap.videoId, video, AudioFirstLogic.hintsIn(mode));
             }
-            if (!AudioFirstLogic.namesTheRow(arm.rule(), arm.videoId(), tap.videoId, registry::isDownloaded)) {
+            if (!AudioFirstLogic.namesTheRow(arm.rule(), arm.videoId(), tap.videoId, registry::hasOwnCopy)) {
                 return null;
             }
 

@@ -2,11 +2,13 @@
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
  * Written by lavinhoque33, 2026-11-07.
+ * Modified by lavinhoque33, 2026-11-10
  */
 package app.morphe.extension.music.patches.downloads;
 
 import androidx.annotation.Nullable;
 
+import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.io.File;
@@ -20,6 +22,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 
@@ -46,6 +49,10 @@ final class RawAudioFiles {
     private static final String ORIGIN = "origin";
     private static final String ORIGIN_STREAM = "stream";
     private static final String ORIGIN_NATIVE = "native";
+    /** True when the user downloaded this song itself, as opposed to a playlist or album that holds it. */
+    private static final String INDIVIDUAL = "individual";
+    /** The ids another page names this song by (the music video of a song downloaded from a video). */
+    private static final String ALIASES = "aliases";
 
     private static final Pattern VIDEO_ID = Pattern.compile("[A-Za-z0-9_-]{1,20}");
     private static final long MAX_METADATA_BYTES = 4096;
@@ -66,10 +73,11 @@ final class RawAudioFiles {
     /**
      * Publishes the copy. {@code muxed} is the native track's URI, or null for a stream-only copy.
      *
+     * @param individual Whether the user downloaded this song itself and not as part of a playlist or album.
      * @return Whether the copy was published; false when the arguments cannot describe a playable copy.
      */
     boolean retain(String videoId, File temporary, int itag, String mime, long length,
-                   long modified, @Nullable String muxed) throws Exception {
+                   long modified, @Nullable String muxed, boolean individual) throws Exception {
         if (!validId(videoId) || !StreamSwapLogic.supportedAudio(itag, mime) || length <= 0
                 || modified <= 0 || temporary.length() != length || (muxed != null && muxed.isEmpty())) {
             return false;
@@ -80,6 +88,7 @@ final class RawAudioFiles {
                 .put("lmt", modified).put("sha256", digest)
                 .put(ORIGIN, muxed == null ? ORIGIN_STREAM : ORIGIN_NATIVE);
         if (muxed != null) metadata.put("muxed", muxed);
+        if (individual) metadata.put(INDIVIDUAL, true);
         synchronized (this) {
             publish(videoId, temporary, itag, metadata);
         }
@@ -148,6 +157,99 @@ final class RawAudioFiles {
         if (entry.tiedToNativeTrack() && !entry.muxed().equals(currentMuxed)) return null;
 
         return new Candidate(entry, entry.file().length(), entry.file().lastModified());
+    }
+
+    /**
+     * Records that the user downloaded the song itself, so a playlist or album removal keeps its copy.
+     *
+     * @return Whether the song has a committed copy to record it on.
+     */
+    synchronized boolean markIndividual(String videoId) {
+        return update(videoId, metadata -> {
+            try {
+                metadata.put(INDIVIDUAL, true);
+            } catch (Exception ignored) {
+                // The key is a constant: put cannot fail.
+            }
+        });
+    }
+
+    /**
+     * Records that {@code alias} (the music video of the song) names the same song. The alias is deleted with the
+     * copy: it lives in the copy's own commit record.
+     *
+     * @return Whether the song has a committed copy to record it on.
+     */
+    synchronized boolean addAlias(String videoId, String alias) {
+        return update(videoId, metadata -> {
+            try {
+                JSONArray aliases = metadata.optJSONArray(ALIASES);
+                if (aliases == null) aliases = new JSONArray();
+                for (int index = 0; index < aliases.length(); index++) {
+                    if (alias.equals(aliases.optString(index))) return;
+                }
+                metadata.put(ALIASES, aliases.put(alias));
+            } catch (Exception ignored) {
+                // The key is a constant: put cannot fail.
+            }
+        });
+    }
+
+    /** Rewrites a committed record in place: the copy stays valid, only its notes change. */
+    private boolean update(String videoId, Consumer<JSONObject> change) {
+        try {
+            if (committed(videoId) == null) return false;
+
+            File sidecar = new File(directory, videoId + ".json");
+            JSONObject metadata = new JSONObject(
+                    new String(Files.readAllBytes(sidecar.toPath()), StandardCharsets.UTF_8));
+            change.accept(metadata);
+            File pending = new File(directory, videoId + ".json.part");
+            try {
+                Files.write(pending.toPath(), metadata.toString().getBytes(StandardCharsets.UTF_8));
+                Files.move(pending.toPath(), sidecar.toPath(), StandardCopyOption.REPLACE_EXISTING);
+            } finally {
+                Files.deleteIfExists(pending.toPath());
+            }
+            return true;
+        } catch (Exception ex) {
+            return false;
+        }
+    }
+
+    /** The ids of the copies the user downloaded itself. Read-only, never takes the monitor playback needs. */
+    Set<String> individualIds() {
+        Set<String> ids = new HashSet<>();
+        for (String id : committedIds()) {
+            JSONObject metadata = metadataOf(id);
+            if (metadata != null && metadata.optBoolean(INDIVIDUAL)) ids.add(id);
+        }
+        return ids;
+    }
+
+    /** The alias of every copy that has one, alias to song id. Read-only, as {@link #individualIds}. */
+    Map<String, String> aliases() {
+        Map<String, String> aliases = new HashMap<>();
+        for (String id : committedIds()) {
+            JSONObject metadata = metadataOf(id);
+            JSONArray names = metadata == null ? null : metadata.optJSONArray(ALIASES);
+            for (int index = 0; names != null && index < names.length(); index++) {
+                String alias = names.optString(index);
+                if (validId(alias) && !alias.equals(id)) aliases.put(alias, id);
+            }
+        }
+        return aliases;
+    }
+
+    private JSONObject metadataOf(String videoId) {
+        try {
+            File sidecar = new File(directory, videoId + ".json");
+            if (!sidecar.isFile() || sidecar.length() > MAX_METADATA_BYTES) return null;
+
+            return new JSONObject(new String(Files.readAllBytes(sidecar.toPath()), StandardCharsets.UTF_8));
+        } catch (Exception ex) {
+            return null;
+        }
     }
 
     /** The sidecar's claim, checked only structurally: bytes of the recorded length exist. Never hashes. */

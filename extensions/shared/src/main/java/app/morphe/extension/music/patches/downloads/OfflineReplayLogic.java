@@ -2,7 +2,7 @@
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
  * Written by lavinhoque33, 2026-11-08.
- * Modified by lavinhoque33, 2026-11-09.
+ * Modified by lavinhoque33, 2026-11-10
  */
 package app.morphe.extension.music.patches.downloads;
 
@@ -21,6 +21,7 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.function.UnaryOperator;
 
 /**
  * The decisions of {@link OfflineReplay} that need no Android: which playlist id stands for a list, whether a hook
@@ -221,6 +222,18 @@ final class OfflineReplayLogic {
         if (watch == null) return null;
 
         String songId = songOf(watch.videoId(), videoToSong);
+        return songId.equals(watch.videoId()) ? watch : new WatchTarget(songId, watch.playlistId(), watch.index());
+    }
+
+    /**
+     * The watch target with the id of the song a music video was saved as ({@code canonical} maps an id to the id its
+     * copy is stored under: the id itself for any other).
+     */
+    @Nullable
+    static WatchTarget canonicalTargetOf(@Nullable WatchTarget watch, UnaryOperator<String> canonical) {
+        if (watch == null) return null;
+
+        String songId = canonical.apply(watch.videoId());
         return songId.equals(watch.videoId()) ? watch : new WatchTarget(songId, watch.playlistId(), watch.index());
     }
 

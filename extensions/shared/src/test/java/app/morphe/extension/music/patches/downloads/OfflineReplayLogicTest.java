@@ -2,7 +2,7 @@
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
  * Written by lavinhoque33, 2026-11-08.
- * Modified by lavinhoque33, 2026-11-09.
+ * Modified by lavinhoque33, 2026-11-10
  */
 package app.morphe.extension.music.patches.downloads;
 
@@ -429,5 +429,16 @@ public class OfflineReplayLogicTest {
 
         assertEquals(new OfflineReplayLogic.WatchTarget("vb", "PPSVrvx:PLabc", 3),
                 OfflineReplayLogic.offlineWatchOf(command));
+    }
+
+    @Test public void aMusicVideoSavedAsItsSongTargetsTheSong() {
+        OfflineReplayLogic.WatchTarget video = new OfflineReplayLogic.WatchTarget("omv", "", 3);
+        OfflineReplayLogic.WatchTarget target = OfflineReplayLogic.canonicalTargetOf(video,
+                id -> id.equals("omv") ? "song" : id);
+        assertEquals(new OfflineReplayLogic.WatchTarget("song", "", 3), target);
+
+        OfflineReplayLogic.WatchTarget plain = new OfflineReplayLogic.WatchTarget("other", "", 0);
+        assertSame(plain, OfflineReplayLogic.canonicalTargetOf(plain, id -> id));
+        assertNull(OfflineReplayLogic.canonicalTargetOf(null, id -> "x"));
     }
 }

@@ -132,7 +132,6 @@ Adımlar:
     <string name="morphe_music_downloads_already_running">İndirme zaten devam ediyor</string>
     <string name="morphe_music_downloads_already_saved">Zaten indirildi</string>
     <string name="morphe_music_downloads_complete">İndirme tamamlandı</string>
-    <string name="morphe_music_downloads_failed">İndirme başarısız oldu</string>
     <string name="morphe_music_downloads_notification_channel">Ses indirmeleri</string>
     <string name="morphe_music_downloads_progress">İndiriliyor: %s%%</string>
     <string name="morphe_music_downloads_sort">Sırala</string>

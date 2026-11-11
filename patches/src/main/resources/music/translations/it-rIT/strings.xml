@@ -132,7 +132,6 @@ Passaggi:
     <string name="morphe_music_downloads_already_running">Scaricamento già in corso</string>
     <string name="morphe_music_downloads_already_saved">Già scaricato</string>
     <string name="morphe_music_downloads_complete">Scaricamento completato</string>
-    <string name="morphe_music_downloads_failed">Scaricamento non riuscito</string>
     <string name="morphe_music_downloads_notification_channel">Scaricamenti audio</string>
     <string name="morphe_music_downloads_progress">Scaricamento in corso %s%%</string>
     <string name="morphe_music_downloads_sort">Ordina</string>

@@ -13,6 +13,7 @@ import android.provider.MediaStore;
 import androidx.annotation.Nullable;
 
 import java.io.File;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -82,14 +83,15 @@ final class RawAudioStore {
     /**
      * Keeps the stream copy of a finished download: stream-only, with no native track.
      *
+     * @param individual Whether the user downloaded this song itself and not as a track of a playlist or album.
      * @return Whether the copy now exists.
      */
-    static boolean retain(String videoId, File temporary, Format format) {
+    static boolean retain(String videoId, File temporary, Format format, boolean individual) {
         try {
             Utils.verifyOffMainThread();
             if (!StreamSwap.supported()) return false;
             boolean kept = Storage.files.retain(videoId, temporary, format.getItag(), format.getMimeType(),
-                    format.getContentLength(), format.getLastModified(), null);
+                    format.getContentLength(), format.getLastModified(), null, individual);
             if (!kept) return false;
 
             DownloadedMarkers.onStreamCopyKept(videoId);
@@ -98,6 +100,30 @@ final class RawAudioStore {
             Logger.printException(() -> "StreamSwap: could not retain raw copy v=" + videoId, ex);
             return false;
         }
+    }
+
+    /** The user asked for this song itself: its copy outlives the removal of a playlist or album that holds it. */
+    static void markIndividual(String videoId) {
+        Utils.verifyOffMainThread();
+        Storage.files.markIndividual(videoId);
+    }
+
+    /** The ids of the copies the user downloaded itself. */
+    static Set<String> individualIds() {
+        Utils.verifyOffMainThread();
+        return Storage.files.individualIds();
+    }
+
+    /** The music video ids that name a song with a copy, by video id. */
+    static Map<String, String> aliases() {
+        Utils.verifyOffMainThread();
+        return Storage.files.aliases();
+    }
+
+    /** From now on {@code alias} (the music video of the song) is the same song as {@code songId}. */
+    static void addAlias(String songId, String alias) {
+        Utils.verifyOffMainThread();
+        if (Storage.files.addAlias(songId, alias)) DownloadedMarkers.onAlias(alias, songId);
     }
 
     /** The copy that may be played, or null. Hashes the file the first time. */

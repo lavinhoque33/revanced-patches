@@ -125,7 +125,6 @@ Lépések:
     <string name="morphe_music_downloads_already_running">A letöltés már folyamatban van</string>
     <string name="morphe_music_downloads_already_saved">Már letöltve</string>
     <string name="morphe_music_downloads_complete">Letöltés befejezve</string>
-    <string name="morphe_music_downloads_failed">Letöltés sikertelen</string>
     <string name="morphe_music_downloads_notification_channel">Audió-letöltések</string>
     <string name="morphe_music_downloads_progress">Letöltés: %s%%</string>
     <string name="morphe_music_downloads_sort">Rendezés</string>

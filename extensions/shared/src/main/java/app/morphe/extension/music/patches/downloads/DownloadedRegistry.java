@@ -2,6 +2,7 @@
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
  * Written by lavinhoque33, 2026-11-07.
+ * Modified by lavinhoque33, 2026-11-10
  */
 package app.morphe.extension.music.patches.downloads;
 
@@ -28,13 +29,36 @@ final class DownloadedRegistry {
 
     private final Set<String> tracks = ConcurrentHashMap.newKeySet();
     private final Map<String, List<String>> sources = new ConcurrentHashMap<>();
+    /** The music video ids that name a song with a stream copy, by video id: a song saved from its video. */
+    private final Map<String, String> aliases = new ConcurrentHashMap<>();
 
     boolean hasTracks() {
         return !tracks.isEmpty();
     }
 
+    /** Whether the id, or the song it is an alias of, has a stream copy: what a check or the audio start means. */
     boolean isDownloaded(String videoId) {
+        return tracks.contains(canonicalId(videoId));
+    }
+
+    /** Whether the id itself is the one a stream copy is stored under; an alias is not. */
+    boolean hasOwnCopy(String videoId) {
         return tracks.contains(videoId);
+    }
+
+    /** The song id a copy is stored under for this id: the id itself unless it is the alias of a song with a copy. */
+    String canonicalId(String videoId) {
+        String song = aliases.get(videoId);
+        return song != null && tracks.contains(song) ? song : videoId;
+    }
+
+    void addAlias(String alias, String songId) {
+        aliases.put(alias, songId);
+    }
+
+    void setAliases(Map<String, String> known) {
+        aliases.keySet().retainAll(known.keySet());
+        aliases.putAll(known);
     }
 
     void add(String videoId) {
@@ -43,6 +67,7 @@ final class DownloadedRegistry {
 
     void remove(String videoId) {
         tracks.remove(videoId);
+        aliases.values().removeIf(songId -> songId.equals(videoId));
     }
 
     void addAll(Collection<String> videoIds) {
@@ -51,6 +76,7 @@ final class DownloadedRegistry {
 
     void clear() {
         tracks.clear();
+        aliases.clear();
     }
 
     Set<String> snapshot() {
@@ -65,6 +91,7 @@ final class DownloadedRegistry {
         Set<String> gone = new HashSet<>(knownBefore);
         gone.removeAll(stillPresent);
         tracks.removeAll(gone);
+        aliases.values().removeAll(gone);
     }
 
     void putSource(String sourceId, List<String> videoIds) {
@@ -129,6 +156,7 @@ final class DownloadedRegistry {
             if (message[start] != VIDEO_ID_LENGTH || !isVideoId(message, start + 1)) continue;
             String candidate = new String(message, start + 1, VIDEO_ID_LENGTH, StandardCharsets.ISO_8859_1);
             if (tracks.contains(candidate)) return candidate;
+            if (aliases.containsKey(candidate) && isDownloaded(candidate)) return canonicalId(candidate);
         }
         return null;
     }
@@ -147,7 +175,7 @@ final class DownloadedRegistry {
 
             if (index - runStart == VIDEO_ID_LENGTH) {
                 String candidate = new String(message, runStart, VIDEO_ID_LENGTH, StandardCharsets.ISO_8859_1);
-                if (tracks.contains(candidate)) return candidate;
+                if (isDownloaded(candidate)) return canonicalId(candidate);
             }
             runStart = index + 1;
         }

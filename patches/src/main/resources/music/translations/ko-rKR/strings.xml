@@ -132,7 +132,6 @@ SABR 프로토콜을 사용하여 재생하는 경우 (동영상 스트림 속�
     <string name="morphe_music_downloads_already_running">이미 디운로드 진행 중입니다</string>
     <string name="morphe_music_downloads_already_saved">이미 다운로드됨</string>
     <string name="morphe_music_downloads_complete">다운로드 완료</string>
-    <string name="morphe_music_downloads_failed">다운로드 실패</string>
     <string name="morphe_music_downloads_notification_channel">오디오 다운로드</string>
     <string name="morphe_music_downloads_progress">%s%% 다운로드 중</string>
     <string name="morphe_music_downloads_sort">정렬</string>

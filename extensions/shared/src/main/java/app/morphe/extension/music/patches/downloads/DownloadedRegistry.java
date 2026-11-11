@@ -29,6 +29,8 @@ final class DownloadedRegistry {
 
     private final Set<String> tracks = ConcurrentHashMap.newKeySet();
     private final Map<String, List<String>> sources = new ConcurrentHashMap<>();
+    /** The lists whose download started and has not finished: they are remembered, but never saved yet. */
+    private final Set<String> pending = ConcurrentHashMap.newKeySet();
     /** The music video ids that name a song with a stream copy, by video id: a song saved from its video. */
     private final Map<String, String> aliases = new ConcurrentHashMap<>();
 
@@ -130,6 +132,26 @@ final class DownloadedRegistry {
 
     void removeSource(String sourceId) {
         sources.remove(sourceId);
+        pending.remove(sourceId);
+    }
+
+    /** A list whose download started: it counts as not saved until {@link #finish} says it was. */
+    void start(String sourceId, List<String> videoIds) {
+        putSource(sourceId, videoIds);
+        pending.add(sourceId);
+    }
+
+    void finish(String sourceId) {
+        pending.remove(sourceId);
+    }
+
+    void setPending(Collection<String> sourceIds) {
+        pending.clear();
+        pending.addAll(sourceIds);
+    }
+
+    boolean isPending(@Nullable String sourceId) {
+        return sourceId != null && pending.contains(sourceId);
     }
 
     boolean hasSource(String sourceId) {
@@ -138,11 +160,11 @@ final class DownloadedRegistry {
 
     /**
      * True when every available track of a remembered playlist or album still has a stream copy: an unavailable
-     * track has none to have.
+     * track has none to have. A list whose download has not finished (it was interrupted or still runs) is not.
      */
     boolean isSourceDownloaded(@Nullable String sourceId) {
         List<String> videoIds = sourceId == null ? null : sources.get(sourceId);
-        if (videoIds == null) return false;
+        if (videoIds == null || pending.contains(sourceId)) return false;
 
         List<String> available = PlaylistPage.available(videoIds);
         return !available.isEmpty() && tracks.containsAll(available);

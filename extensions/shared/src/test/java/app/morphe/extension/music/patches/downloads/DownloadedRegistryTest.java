@@ -367,4 +367,37 @@ public class DownloadedRegistryTest {
         registry.clear();
         assertFalse(registry.isDownloaded(OTHER));
     }
+
+    @Test public void aListWhoseDownloadStartedIsNotSavedUntilItFinishes() {
+        DownloadedRegistry registry = registryOf(SONG, OTHER, THIRD);
+
+        registry.start("OLAK5uy_album", Arrays.asList(SONG, OTHER, THIRD));
+
+        assertTrue(registry.isPending("OLAK5uy_album"));
+        assertFalse("every copy is there, but the download did not end", registry.isSourceDownloaded("OLAK5uy_album"));
+
+        registry.finish("OLAK5uy_album");
+
+        assertFalse(registry.isPending("OLAK5uy_album"));
+        assertTrue(registry.isSourceDownloaded("OLAK5uy_album"));
+    }
+
+    @Test public void anInterruptedListKeepsItsTracksAndIsNotSavedAfterARestart() {
+        DownloadedRegistry afterRestart = registryOf(SONG);
+        afterRestart.putSource("OLAK5uy_album", Arrays.asList(SONG, OTHER, THIRD));
+        afterRestart.setPending(Collections.singleton("OLAK5uy_album"));
+
+        assertEquals(Arrays.asList(SONG, OTHER, THIRD), afterRestart.sourceTracks("OLAK5uy_album"));
+        assertFalse(afterRestart.isSourceDownloaded("OLAK5uy_album"));
+    }
+
+    @Test public void removingAListForgetsThatItWasPending() {
+        DownloadedRegistry registry = registryOf(SONG);
+        registry.start("OLAK5uy_album", Collections.singletonList(SONG));
+
+        registry.removeSource("OLAK5uy_album");
+
+        assertFalse(registry.isPending("OLAK5uy_album"));
+        assertFalse(registry.hasSource("OLAK5uy_album"));
+    }
 }

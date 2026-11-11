@@ -40,8 +40,12 @@
   page with a green check on every song. It plays in the shown order from the song you tap, online and offline.
   Online the songs are queued after the one you tap, so radio and lyrics stay, and the audio comes from your copies.
   It also appears in Android Auto in the downloaded playlists.
-* **Music - Stream download:** The Downloads chip updates on its own after you remove a download or a download
-  finishes, so a removed list or song no longer stays listed when you go back to it.
+* **Music - Stream download:** The Downloads chip refreshes itself the way a pull to refresh does after you download
+  or remove a song, an album or a playlist, so the rows and the No Playlist count are current when you open or return
+  to it. Nothing is opened by itself and the Library still opens first after a restart.
+* **Music - Stream download:** A playlist or album download that was cut off, for example by closing the app, no longer
+  leaves its songs in No Playlist and no longer counts as saved. Its Download button finishes the job and the green
+  check and Remove download appear once every song is in.
 * **Music - Stream download:** Accounts whose song menu has no Download item now get one, so a single song can be
   downloaded from any song menu. It reads Remove download once the song is saved.
 * **Music - Settings:** The download options are now together in a Downloads group of Miscellaneous.

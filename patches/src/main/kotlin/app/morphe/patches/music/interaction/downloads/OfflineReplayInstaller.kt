@@ -41,7 +41,6 @@ import com.android.tools.smali.dexlib2.iface.reference.TypeReference
 
 private const val REPLAY = "Lapp/morphe/extension/music/patches/downloads/OfflineReplayHooks;"
 private const val PAGE_REQUEST = $$"Lapp/morphe/extension/music/patches/downloads/DownloadsPage$PageRequest;"
-private const val PAGE_SERVICE_BRIDGE = $$"Lapp/morphe/extension/music/patches/downloads/DownloadsPage$PageService;"
 private const val PAGE_RESPONSE = $$"Lapp/morphe/extension/music/patches/downloads/DownloadsPage$PageResponse;"
 private const val NEXT_REQUEST = $$"Lapp/morphe/extension/music/patches/downloads/OfflineReplay$NextRequest;"
 private const val STREAM_RESPONSE = $$"Lapp/morphe/extension/music/patches/downloads/StreamSwap$Response;"
@@ -149,24 +148,13 @@ private fun BytecodePatchContext.prepareDownloadsPage(): (() -> Unit)? {
         val request = pageRequestBridge(requestBase)
         val response = pageResponseBridge(serviceType, callbackType)
 
-        val optionsType = method.parameterTypes[1].toString()
-        val loadParameters = method.parameterTypes.joinToString("") { it.toString() }
-        val loadCall = if (AccessFlags.PRIVATE.isSet(method.accessFlags)) "invoke-direct" else "invoke-virtual"
+        val refresh = prepareDownloadsPageRefresh(serviceType)
 
         return {
             request()
             response()
-            // The service can run its own load again: the Downloads view in the back stack is given a current page
-            // after the stream copies changed, as the app's own call for it would.
-            service.interfaces.add(PAGE_SERVICE_BRIDGE)
-            service.addDownloadsBridge("rvxLoad", listOf(OBJECT, OBJECT, OBJECT), "V", 4, """
-                check-cast p1, $requestBase
-                check-cast p2, $optionsType
-                check-cast p3, $callbackType
-                $loadCall {p0, p1, p2, p3}, $serviceType->${method.name}($loadParameters)V
-                return-void
-            """)
-            // this, request, options and callback are consecutive parameter registers, so no local is needed.
+            refresh?.invoke()
+            // this, request, options and the callback are consecutive parameter registers, so one local is enough.
             method.addInstructions(0, """
                 invoke-static/range {p0 .. p3}, $REPLAY->wrapDownloadsPage($OBJECT$OBJECT$OBJECT$OBJECT)$OBJECT
                 move-result-object v0

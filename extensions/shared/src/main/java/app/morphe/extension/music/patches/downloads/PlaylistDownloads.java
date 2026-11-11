@@ -98,6 +98,9 @@ public final class PlaylistDownloads {
                 if (skipped > 0) Logger.printDebug(() -> "PlaylistDownloads: " + playlistId + " skips " + skipped
                         + " unavailable of " + tracks.size() + " tracks");
 
+                // Recorded as not finished before the first copy: a download cut off here is resumed, not lost.
+                if (mode.streamCopy()) DownloadedMarkers.onPlaylistStarted(playlistId, tracks, header);
+
                 List<Long> mediaIds = new ArrayList<>(available.size());
                 int downloaded = 0;
                 for (int index = 0; index < available.size(); index++) {
@@ -114,11 +117,11 @@ public final class PlaylistDownloads {
                 }
                 // The playlist in Device files exists only for local files; a stream copy is invisible there.
                 if (mode.localFiles()) NativePlaylistStore.save(playlistId, title, mediaIds);
-                // The header check follows the stream copies: only a playlist that has them is remembered.
-                if (mode.streamCopy()) DownloadedMarkers.onPlaylistSaved(playlistId, tracks, header);
                 // The videos of the songs that have one follow the audio copies; a video that fails fails nothing.
                 VideoCopyDownloader.Outcome videos = mode.streamCopy()
                         ? VideoCopyDownloader.ensure(playlistId, title, available) : VideoCopyDownloader.Outcome.NONE;
+                // Every copy and video is in: the header may show the check and offer Remove.
+                if (mode.streamCopy()) DownloadedMarkers.onPlaylistCompleted(playlistId);
                 String done = completionText(mode, downloaded, available.size(), skipped, videos);
                 LocalDownloadManager.awaitNotificationSlot();
                 LocalDownloadManager.showDownloadNotification("playlist:" + playlistId, title, 100, false, done);

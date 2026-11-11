@@ -82,4 +82,11 @@ public class CopyOwnershipTest {
         // "c" is listed by two lists; the individual download changes nothing about being loose.
         assertFalse(CopyOwnership.looseSongs(COPIES, SOURCES).contains("c"));
     }
+
+    @Test public void theSongsOfAListThatIsStillDownloadingAreNotLoose() {
+        // The list is recorded with all its tracks when its download starts, so the copies made so far are its own.
+        Map<String, List<String>> sources = Map.of("OLAK5uy_cut_off", List.of("a", "b", "c", "d"));
+
+        assertEquals(Set.of("x"), CopyOwnership.looseSongs(Set.of("a", "b", "x"), sources));
+    }
 }

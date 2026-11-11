@@ -39,6 +39,8 @@ import app.morphe.extension.shared.utils.Utils;
 @SuppressWarnings("unused")
 public final class DownloadedMarkers {
     private static final String TRACKS_PREFERENCES = "rvx_native_playlist_tracks";
+    /** The lists whose download started and did not end, by list id. */
+    private static final String PENDING_PREFERENCES = "rvx_playlist_downloads_pending";
     private static final long REVALIDATE_INTERVAL_MILLIS = 5_000;
 
     private static final DownloadedRegistry registry = new DownloadedRegistry();
@@ -195,13 +197,27 @@ public final class DownloadedMarkers {
     }
 
     /**
-     * Called when a whole playlist or album was downloaded with stream copies. Only the track list is remembered:
-     * its tracks count as downloaded through their own stream copies, so a playlist whose tracks have none (saved
-     * as local files only, or whose copies were deleted) never shows a check. The offline store also keeps the
-     * header ({@code title}, subtitle, cover url) the download resolved, for the offline lists.
+     * Called when the download of a whole playlist or album with stream copies starts: the list is remembered at once,
+     * with its tracks, as not finished. The songs it holds are then not loose whatever happens to the download, and
+     * it is not saved (no check, no Remove) until {@link #onPlaylistCompleted}; a download that is cut off leaves it
+     * pending across restarts, and the header Download resumes it. The offline store also keeps the header
+     * ({@code title}, subtitle, cover url) the download resolved, for the offline lists.
      */
-    static void onPlaylistSaved(String sourceId, List<String> videoIds, SourceHeader header) {
+    static void onPlaylistStarted(String sourceId, List<String> videoIds, SourceHeader header) {
+        registry.start(sourceId, videoIds);
+        if (!pendingPreferences().edit().putBoolean(sourceId, true).commit()) {
+            Logger.printException(() -> "Could not remember that a playlist download started");
+        }
         rememberSource(sourceId, videoIds, header);
+        refreshLater();
+    }
+
+    /** Called when the whole download of a list, its videos included, ended: the list is saved from now on. */
+    static void onPlaylistCompleted(String sourceId) {
+        registry.finish(sourceId);
+        if (!pendingPreferences().edit().remove(sourceId).commit()) {
+            Logger.printException(() -> "Could not remember that a playlist download ended");
+        }
         refreshLater();
     }
 
@@ -213,10 +229,15 @@ public final class DownloadedMarkers {
     /** Called when a downloaded playlist or album was removed: its track list and its header check go. */
     static void onSourceRemoved(String sourceId) {
         registry.removeSource(sourceId);
-        if (!trackPreferences().edit().remove(sourceId).commit()) {
+        if (!trackPreferences().edit().remove(sourceId).commit()
+                || !pendingPreferences().edit().remove(sourceId).commit()) {
             Logger.printException(() -> "Could not forget the tracks of a removed playlist");
         }
         refreshLater();
+    }
+
+    private static SharedPreferences pendingPreferences() {
+        return Utils.getContext().getSharedPreferences(PENDING_PREFERENCES, 0);
     }
 
     private static SharedPreferences trackPreferences() {
@@ -260,6 +281,7 @@ public final class DownloadedMarkers {
                         registry.putSource(entry.getKey(), DownloadedRegistry.decode(encoded));
                     }
                 }
+                registry.setPending(pendingPreferences().getAll().keySet());
                 loaded = true;
                 refreshLater();
 

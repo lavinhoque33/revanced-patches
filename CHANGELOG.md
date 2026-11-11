@@ -1,5 +1,7 @@
 ## Unreleased
 
+## [1.34.1](https://github.com/lavinhoque33/revanced-patches/compare/v1.34.0...v1.34.1) (2026-11-11)
+
 ### Bug Fixes
 
 * **Music - Downloads:** Keep the three Download method choices short and move their explanations to an Info

@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
- * Modified by lavinhoque33, 2026-11-10.
+ * Modified by lavinhoque33, 2026-11-11.
  * Written by lavinhoque33, 2026-11-10.
  */
 package app.morphe.extension.music.patches.flyout;
@@ -21,6 +21,8 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+
+import app.morphe.extension.music.patches.downloads.DownloadMethod;
 
 public class FlyoutMenuScanTest {
     private static final String SONG = "dQw4w9WgXcQ";
@@ -159,10 +161,17 @@ public class FlyoutMenuScanTest {
 
     /** Captured Ghost/Homesick standalone row ABI, with no account/tracking bytes retained. */
     private static byte[] sheetRow(String template, String destination, String params) {
+        return sheetRowWithCommand(template, sheetCommand(destination, params));
+    }
+
+    private static byte[] sheetCommand(String destination, String params) {
         byte[] sheet = message(443434441, message(1, message(2, string(2, destination), string(3, params))));
         byte[] action = message(169495254, sheet);
         byte[] dismiss = message(169495254, message(274807924, number(1, 1)));
-        byte[] batch = message(204158123, message(170382688, message(1, action), message(1, dismiss)));
+        return message(204158123, message(170382688, message(1, action), message(1, dismiss)));
+    }
+
+    private static byte[] sheetRowWithCommand(String template, byte[] batch) {
         byte[] click = message(3, message(169495254, batch));
         byte[] model = message(5, message(413471385,
                 message(1, message(489973921, message(997, message(3, click))))));
@@ -215,5 +224,96 @@ public class FlyoutMenuScanTest {
         assertSame(replacement, changed.get(1));
         assertSame(cancel, changed.get(2));
         assertSame(last, changed.get(3));
+    }
+
+    /** Sanitized Library > Playlists capture: menu field 66439850 / items 1, queue target field 2. */
+    private static byte[] playlistMenu(String id, byte[] command) {
+        byte[] queue = item(77258115, message(163162354, message(1, string(2, id))));
+        return message(66439850, message(1, queue),
+                message(1, sheetRowWithCommand("list_item.eml-fe|library-download", command)));
+    }
+
+    @Test
+    public void libraryDownloadUsesThatRowsPlaylistForBothOwnedMethods() {
+        String rowId = "PL16FEhKJOy-Ymx5_29RV8sCv6MwBSsicE";
+        byte[] command = sheetCommand("PApremium_upsell", "igkCCA4%3D");
+        byte[] menu = playlistMenu(rowId, command);
+
+        assertEquals(rowId, FlyoutMenuScan.playlistForDownload(DownloadMethod.STREAM, command, menu));
+        assertEquals(rowId, FlyoutMenuScan.playlistForDownload(DownloadMethod.DEVICE_FILES, command, menu));
+    }
+
+    @Test
+    public void delegatedLibraryDownloadKeepsStockBehavior() {
+        byte[] command = sheetCommand("PApremium_upsell", "igkCCA4%3D");
+
+        assertNull(FlyoutMenuScan.playlistForDownload(DownloadMethod.DELEGATED,
+                command, playlistMenu("PLlibrary", command)));
+    }
+
+    @Test
+    public void otherPremiumUpsellsAndDifferentTappedCommandsAreNotPlaylistDownloads() {
+        byte[] download = sheetCommand("PApremium_upsell", "igkCCA4%3D");
+        byte[] otherReason = sheetCommand("PApremium_upsell", "igkCCAw=");
+        byte[] otherOffer = sheetCommand("PAother", "igkCCA4%3D");
+        byte[] invalidParams = sheetCommand("PApremium_upsell", "not-base64!");
+
+        for (byte[] unrelated : new byte[][]{otherReason, otherOffer, invalidParams}) {
+            assertNull(FlyoutMenuScan.playlistForDownload(DownloadMethod.STREAM,
+                    unrelated, playlistMenu("PLlibrary", unrelated)));
+        }
+
+        byte[] differentButton = message(204158123,
+                new ProtoMessage(download).messageField(204158123).serializedBytes(), string(99, "other-button"));
+        assertNull(FlyoutMenuScan.playlistForDownload(DownloadMethod.STREAM,
+                differentButton, playlistMenu("PLlibrary", download)));
+        assertNull(FlyoutMenuScan.playlistForDownload(DownloadMethod.STREAM,
+                otherReason, playlistMenu("PLlibrary", download)));
+        assertNull(FlyoutMenuScan.playlistForDownload(DownloadMethod.STREAM,
+                download, playlistMenu("PLlibrary", otherReason)));
+    }
+
+    @Test
+    public void ambiguousOrSongQueueTargetsDoNotFallBackToAPlaylist() {
+        byte[] command = sheetCommand("PApremium_upsell", "igkCCA4%3D");
+        byte[] download = message(1, sheetRowWithCommand("list_item.eml-fe|download", command));
+        byte[] first = message(1, item(66441155, message(163162354, message(1, string(2, "PLfirst")))));
+        byte[] second = message(1, item(77258115, message(163162354, message(1, string(2, "PLsecond")))));
+        byte[] song = message(1, item(77258115,
+                message(163162354, message(1, string(1, SONG), string(2, "PLcontext")))));
+
+        assertNull(FlyoutMenuScan.playlistForDownload(DownloadMethod.STREAM,
+                command, message(66439850, first, second, download)));
+        assertNull(FlyoutMenuScan.playlistForDownload(DownloadMethod.STREAM,
+                command, message(66439850, song, download)));
+        assertNull(FlyoutMenuScan.playlistForDownload(DownloadMethod.STREAM,
+                command, message(66439850, download)));
+    }
+
+    @Test
+    public void matchingAlbumPlaylistAndRepeatedIdenticalTargetsAreSupported() {
+        byte[] command = sheetCommand("PApremium_upsell", "igkCCA4%3D");
+        String albumId = "OLAK5uy_album";
+        assertEquals(albumId, FlyoutMenuScan.playlistForDownload(DownloadMethod.DEVICE_FILES,
+                command, playlistMenu(albumId, command)));
+
+        byte[] queue = message(1, item(66441155,
+                message(163162354, message(1, string(2, "VLPLlibrary")))));
+        byte[] download = message(1, sheetRowWithCommand("list_item.eml-fe|download", command));
+        assertEquals("PLlibrary", FlyoutMenuScan.playlistForDownload(DownloadMethod.STREAM,
+                command, message(66439850, queue, queue, download)));
+    }
+
+    @Test
+    public void unknownMenuModelsAndNonStandaloneUpsellsStayStock() {
+        byte[] command = sheetCommand("PApremium_upsell", "igkCCA4%3D");
+        byte[] queue = message(1, item(77258115, message(163162354, message(1, string(2, "PLlibrary")))));
+        byte[] carousel = message(1, sheetRowWithCommand("carousel.eml-fe|not-a-download-row", command));
+
+        assertNull(FlyoutMenuScan.playlistForDownload(DownloadMethod.STREAM, command, new byte[]{(byte) 0xff}));
+        assertNull(FlyoutMenuScan.playlistForDownload(DownloadMethod.STREAM,
+                command, message(66439850, queue, carousel)));
+        assertNull(FlyoutMenuScan.playlistForDownload(DownloadMethod.STREAM,
+                new byte[]{(byte) 0xff}, playlistMenu("PLlibrary", command)));
     }
 }

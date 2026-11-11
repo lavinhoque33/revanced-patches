@@ -164,9 +164,24 @@ YouTube Music older than 9.00"</string>
     <string name="morphe_music_fade_screen_title">Fade in and out</string>
     <string name="morphe_music_downloads_category_title">Downloads</string>
     <string name="morphe_music_download_method_title">Download method</string>
-    <string name="morphe_music_download_method_entry_stream">Stream download (default)\nApplies to songs, albums and playlists. Saves private copies inside the app for online and offline playback, with green checks in Library, Downloads. Single songs save audio; playlists and albums also save the video when one exists. Other apps and Device files cannot see these copies. Radio and lyrics need internet. Download again to remove a copy. Changing this never deletes saved downloads</string>
-    <string name="morphe_music_download_method_entry_device_files">Device files (older method)\nApplies to songs, albums and playlists. Saves audio files in Music/RVX that Device files and other apps can see; albums and playlists also create a Device files playlist. Library, Downloads opens the device files library. Files do not get stream-download checkmarks. Changing this never deletes saved downloads</string>
-    <string name="morphe_music_download_method_entry_delegated">YouTube Music / external app\nLeaves all downloads to YouTube Music, which normally needs Premium. The external overrides below can send single songs to your downloader app instead; they do not send albums or playlists. This patch saves no new copies or files. Changing this never deletes saved downloads</string>
+    <string name="morphe_music_download_method_entry_stream">Stream download (default)</string>
+    <string name="morphe_music_download_method_entry_device_files">Device files</string>
+    <string name="morphe_music_download_method_entry_delegated">YouTube Music / external app</string>
+    <string name="morphe_music_download_method_info">Info</string>
+    <string name="morphe_music_download_method_info_title">About download methods</string>
+    <string name="morphe_music_download_method_help_stream">Applies to songs, albums and playlists.
+        Saves private copies inside the app for online and offline playback, with green checks in Library, Downloads.
+        Single songs save audio; playlists and albums also save the video when one exists.
+        Other apps and Device files cannot see these copies. Radio and lyrics need internet.
+        Download again to remove a copy. Changing this never deletes saved downloads</string>
+    <string name="morphe_music_download_method_help_device_files">This is the older method.
+        Applies to songs, albums and playlists. Saves audio files in Music/RVX that Device files and other apps can see;
+        albums and playlists also create a Device files playlist. Library, Downloads opens the device files library.
+        Files do not get stream-download checkmarks. Changing this never deletes saved downloads</string>
+    <string name="morphe_music_download_method_help_delegated">Leaves all downloads to YouTube Music,
+        which normally needs Premium. The external overrides below can send single songs to your downloader app instead;
+        they do not send albums or playlists. This patch saves no new copies or files.
+        Changing this never deletes saved downloads</string>
     <string name="morphe_music_download_quality_title">Download quality</string>
     <string name="morphe_music_download_quality_summary">Audio quality for new song, album and playlist downloads with Stream download or Device files. Highest takes the best source offered to your account by the available clients, including 256 kbps when offered; it does not unlock Premium. High targets standard high Opus, Normal targets 128 kbps AAC, and Low targets 48 kbps AAC or about 50 kbps Opus. Missing tiers use an available lower tier first, then the nearest higher tier. Existing downloads stay unchanged; remove a copy before downloading it at another quality. Playlist video stays at 360p with the selected audio quality. YouTube Music and external apps use their own settings</string>
     <string name="morphe_music_download_quality_highest">Highest</string>

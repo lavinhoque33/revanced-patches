@@ -4,7 +4,7 @@
  *
  * See the included NOTICE file for GPLv3 Section 7 terms that apply to Morphe contributions.
  *
- * Modified by lavinhoque33, 2026-11-10.
+ * Modified by lavinhoque33, 2026-11-11.
  */
 
 package app.morphe.patches.music.interaction.downloads
@@ -24,6 +24,7 @@ import app.morphe.patches.music.utils.extension.sharedExtensionPatch
 import app.morphe.patches.music.utils.patch.PatchList.DOWNLOADS
 import app.morphe.patches.music.utils.playservice.is_7_25_or_greater
 import app.morphe.patches.music.utils.settings.CategoryType
+import app.morphe.patches.music.utils.settings.ResourceUtils
 import app.morphe.patches.music.utils.settings.ResourceUtils.PREFERENCE_CATEGORY_TAG_NAME
 import app.morphe.patches.music.utils.settings.ResourceUtils.addPreferenceCategory
 import app.morphe.patches.music.utils.settings.ResourceUtils.editPreferenceCategory
@@ -69,7 +70,14 @@ private val downloadsResourcePatch = resourcePatch {
     execute {
         addPreferenceCategory(CategoryType.MISC.value)
         // Every route follows the same global method. Dependent rows refresh through Settings availability.
-        addListPreference(CategoryType.MISC, "morphe_music_download_method", "", false)
+        ResourceUtils.addCustomPreference(
+            category = CategoryType.MISC.value,
+            key = "morphe_music_download_method",
+            tag = "app.morphe.extension.music.settings.preference.DownloadMethodPreference",
+            setSummary = false,
+            entriesArrayKey = "morphe_music_download_method_entries",
+            entryValuesArrayKey = "morphe_music_download_method_entry_values",
+        )
         addListPreference(CategoryType.MISC, "morphe_music_download_quality")
         addSwitchPreference(CategoryType.MISC, "morphe_music_downloaded_checkmarks", "true")
         addSwitchPreference(CategoryType.MISC, "morphe_music_start_downloaded_in_audio", "true")

@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
- * Modified by lavinhoque33, 2026-11-10.
+ * Modified by lavinhoque33, 2026-11-11.
  */
 package app.morphe.extension.music.patches.downloads;
 
@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 
 import app.morphe.extension.music.patches.flyout.FlyoutPatch.ProtocolBufferFieldInterface;
+import app.morphe.extension.music.patches.flyout.FlyoutMenuScan;
 import app.morphe.extension.music.settings.Settings;
 import app.morphe.extension.shared.utils.Logger;
 import app.morphe.extension.shared.utils.Utils;
@@ -96,9 +97,9 @@ public final class NativeDownloads {
         if (!playlists && !deviceLibrary()) return original;
         try {
             // signed-in non-Premium accounts receive an upsell batch without a playlist id.
-            String headerPlaylist = playlists ? playlistFromHeaderUpsell(command.toByteArray(), context) : null;
-            if (headerPlaylist != null) {
-                PlaylistDownloads.onDownloadButton(headerPlaylist);
+            String playlistId = playlists ? playlistFromContextUpsell(command.toByteArray(), context) : null;
+            if (playlistId != null) {
+                PlaylistDownloads.onDownloadButton(playlistId);
                 return null;
             }
         } catch (Exception ex) {
@@ -147,11 +148,10 @@ public final class NativeDownloads {
     private static final String ENDPOINT_TAG = "com.google.android.libraries.youtube.innertube.endpoint.tag";
 
     /**
-     * The playlist header's Download button sends a command batch whose only stock action is the Premium upsell.
-     * The tapped button model is located in the header element by that exact batch; its download-state entity key
-     * names the playlist. Any other upsell, or a header without that structure, keeps stock behavior.
+     * Header buttons name their playlist with a download-state entity key. Library row menus instead name it in
+     * Add to queue. Both must contain the exact tapped Download batch; neither uses the current page or player.
      */
-    private static String playlistFromHeaderUpsell(byte[] command, java.util.Map<?, ?> context) throws IOException {
+    private static String playlistFromContextUpsell(byte[] command, java.util.Map<?, ?> context) throws IOException {
         byte[] executor = fieldBytes(command, COMMAND_EXECUTOR);
         if (executor == null || !containsField(executor, UPSELL_COMMAND, 0) || context == null) return null;
         Object tag = context.get(ENDPOINT_TAG);
@@ -165,9 +165,12 @@ public final class NativeDownloads {
             } catch (IllegalAccessException ex) {
                 continue;
             }
-            byte[] header = value instanceof com.google.protobuf.MessageLite message ? message.toByteArray()
+            byte[] model = value instanceof com.google.protobuf.MessageLite message ? message.toByteArray()
                     : value instanceof byte[] raw ? raw : null;
-            String playlistId = header == null ? null : playlistForButton(header, executor, 0);
+            if (model == null) continue;
+
+            String playlistId = FlyoutMenuScan.playlistForDownload(Settings.DOWNLOAD_METHOD.get(), command, model);
+            if (playlistId == null) playlistId = playlistForButton(model, executor, 0);
             if (playlistId != null) return playlistId;
         }
         return null;

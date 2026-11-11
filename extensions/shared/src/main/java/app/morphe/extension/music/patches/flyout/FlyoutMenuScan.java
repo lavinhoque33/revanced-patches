@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
- * Modified by lavinhoque33, 2026-11-10.
+ * Modified by lavinhoque33, 2026-11-11.
  * Written by lavinhoque33, 2026-11-10.
  */
 package app.morphe.extension.music.patches.flyout;
@@ -15,16 +15,18 @@ import java.util.Collections;
 import java.util.List;
 import java.util.regex.Pattern;
 
+import app.morphe.extension.music.patches.downloads.DownloadMethod;
+
 /**
- * What the items of a song menu name: the song, and whether an item already offers Download. Works on the serialized
- * items, with no Android dependency.
+ * What a song or playlist menu names, and which item offers Download. Reads only the serialized items, with no
+ * Android dependency or fallback to the current player.
  *
  * <p>Add to queue names the song. It is an ordinary service item (66441155) or the conditional one (77258115), and
  * both keep the command in field 3. A menu without it falls back to the navigation items: Start mix (66441108, or the
  * conditional 77262503) names the video, and the credits page names it as {@code MPTC} plus the video id. The queue
  * id wins, and the song playing now is never a fallback: the menu is the one of the row that was opened.
  */
-final class FlyoutMenuScan {
+public final class FlyoutMenuScan {
     private static final int[] SERVICE_ITEMS = {66441155, 77258115};
     private static final int[] NAVIGATION_ITEMS = {66441108, 77262503};
     private static final int ITEM_COMMAND = 3;
@@ -58,6 +60,48 @@ final class FlyoutMenuScan {
     }
 
     private FlyoutMenuScan() {
+    }
+
+    /**
+     * A Library row's endpoint tag includes its menu (66439850 / repeated 1). The playlist target is field 2 of
+     * Add to queue, not the song field 1. The captured Download item is an Elements standalone list row whose
+     * Premium reason is Download (14); its complete executor must equal the command that was tapped.
+     */
+    @Nullable
+    public static String playlistForDownload(DownloadMethod method, byte[] command, byte[] menu) {
+        if (method != DownloadMethod.STREAM && method != DownloadMethod.DEVICE_FILES) return null;
+        try {
+            ProtoMessage executor = new ProtoMessage(command).messageField(204158123);
+            if (executor.isEmpty()) return null;
+
+            boolean tappedDownload = false;
+            String playlistId = null;
+            for (ProtoMessage item : new ProtoMessage(menu).messageField(66439850).repeatedMessageField(1)) {
+                if (matchesPlaylistDownload(item, executor)) tappedDownload = true;
+
+                for (int renderer : SERVICE_ITEMS) {
+                    ProtoMessage target = item.messagePath(renderer, ITEM_COMMAND, QUEUE_ADD_ENDPOINT, 1);
+                    String id = target.stringField(2);
+                    if (id.isEmpty()) continue;
+                    if (!target.stringField(1).isEmpty()) return null;
+                    if (id.startsWith("VL")) id = id.substring(2);
+                    if (id.isEmpty() || (playlistId != null && !playlistId.equals(id))) return null;
+                    playlistId = id;
+                }
+            }
+            return tappedDownload ? playlistId : null;
+        } catch (RuntimeException notPlaylistMenu) {
+            return null;
+        }
+    }
+
+    private static boolean matchesPlaylistDownload(ProtoMessage item, ProtoMessage tappedExecutor) {
+        ProtoMessage component = item.messagePath(153515154, 172660663, 1, 168777401);
+        if (!component.messagePath(3, 172035250).stringField(1).startsWith("list_item.eml-fe|")) return false;
+
+        ProtoMessage executor = component.messagePath(5, 413471385, 1, 489973921, 997, 3, 3, 169495254, 204158123);
+        return !executor.isEmpty() && executor.contentEquals(tappedExecutor)
+                && isDownloadCommand(executor, 0, true);
     }
 
     /** @param items The serialized menu items, null for an item that is not a message. */

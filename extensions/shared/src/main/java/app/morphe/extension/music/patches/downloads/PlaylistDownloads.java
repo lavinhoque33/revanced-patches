@@ -8,6 +8,8 @@ package app.morphe.extension.music.patches.downloads;
 
 import static app.morphe.extension.shared.utils.StringRef.str;
 
+import androidx.annotation.Nullable;
+
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -31,17 +33,24 @@ public final class PlaylistDownloads {
 
     /**
      * The header Download of a playlist or album: a stream download that is saved already offers Remove instead,
-     * so the playlist is never saved twice.
+     * so the playlist is never saved twice, and while its download runs a tap says so ({@link HeaderDownloadState}).
      */
     static void onDownloadButton(String playlistId) {
-        boolean saved = LocalDownloadManager.playlistMode().streamCopy()
-                && DownloadedMarkers.isSourceDownloaded(playlistId);
-        Logger.printDebug(() -> "PlaylistDownloads: header Download of " + playlistId + ", saved=" + saved);
-        if (saved) {
-            DownloadRemoval.confirmSource(playlistId);
-            return;
+        boolean streamCopy = LocalDownloadManager.playlistMode().streamCopy();
+        boolean running = isRunning(playlistId);
+        HeaderDownloadState.Tap tap = HeaderDownloadState.tapOf(streamCopy,
+                streamCopy && DownloadedMarkers.isSourceDownloaded(playlistId), running);
+        Logger.printDebug(() -> "PlaylistDownloads: header Download of " + playlistId + ", tap=" + tap);
+        switch (tap) {
+            case REMOVE -> DownloadRemoval.confirmSource(playlistId);
+            case IN_PROGRESS -> Utils.showToastShort(str("morphe_music_downloads_already_running"));
+            case DOWNLOAD -> enqueue(playlistId);
         }
-        enqueue(playlistId);
+    }
+
+    /** Whether a download of the list is running. */
+    static boolean isRunning(@Nullable String playlistId) {
+        return playlistId != null && active.contains(playlistId);
     }
 
     public static void enqueue(String playlistId) {
@@ -118,6 +127,7 @@ public final class PlaylistDownloads {
                 Utils.showToastLong(failed);
             } finally {
                 active.remove(playlistId);
+                if (mode.streamCopy()) DownloadedMarkers.onPlaylistFinished();
                 // tracks now in a playlist leave "Not in a playlist";
                 // songs kept from a failed download join it.
                 if (mode.localFiles()) NativePlaylistStore.refreshUnsortedLater();

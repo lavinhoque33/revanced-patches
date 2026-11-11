@@ -90,7 +90,8 @@ public final class DownloadedMarkers {
     }
 
     static boolean isSourceDownloaded(@Nullable String sourceId) {
-        return loaded && registry.isSourceDownloaded(sourceId);
+        return loaded && HeaderDownloadState.isSaved(registry.isSourceDownloaded(sourceId),
+                PlaylistDownloads.isRunning(sourceId));
     }
 
     /** Injection point: the final bind of every list row presenter, with its root view and its model. */
@@ -201,6 +202,11 @@ public final class DownloadedMarkers {
      */
     static void onPlaylistSaved(String sourceId, List<String> videoIds, SourceHeader header) {
         rememberSource(sourceId, videoIds, header);
+        refreshLater();
+    }
+
+    /** Called when the download of a list ended: its header may now show the check. */
+    static void onPlaylistFinished() {
         refreshLater();
     }
 

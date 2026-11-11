@@ -48,6 +48,11 @@ public final class PlaylistDownloads {
         }
     }
 
+    /** Whether any list is being downloaded. */
+    static boolean anyRunning() {
+        return !active.isEmpty();
+    }
+
     /** Whether a download of the list is running. */
     static boolean isRunning(@Nullable String playlistId) {
         return playlistId != null && active.contains(playlistId);

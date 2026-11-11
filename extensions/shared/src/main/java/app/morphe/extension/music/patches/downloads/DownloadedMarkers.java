@@ -334,6 +334,7 @@ public final class DownloadedMarkers {
     /** Re-evaluates every known row and header on the main thread; requests made while queued are merged. */
     private static void refreshLater() {
         refresh.request();
+        DownloadsPage.onCopiesChanged();
     }
 
     private static void refreshViews() {

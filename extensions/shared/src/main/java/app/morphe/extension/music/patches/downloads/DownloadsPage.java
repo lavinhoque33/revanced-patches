@@ -38,6 +38,11 @@ public final class DownloadsPage {
         byte[] rvxRequestBytes();
     }
 
+    /** Added by the Downloads patch to the page service: runs the app's own load again with the same kind of call. */
+    public interface PageService {
+        void rvxLoad(Object request, Object options, Object callback);
+    }
+
     /** Added by the Downloads patch to the page response: the section list it holds, and a response with another. */
     public interface PageResponse {
         byte[] rvxPageBytes();
@@ -51,6 +56,13 @@ public final class DownloadsPage {
         }
     };
 
+    /** How long after a change of the copies the page is loaded again, so the stores have settled. */
+    private static final long RELOAD_DELAY_MS = 800;
+
+    private static final PageLoads loads = new PageLoads();
+    private static final CoalescedRunner reload = new CoalescedRunner(Utils::runOnBackgroundThread,
+            DownloadsPage::reloadViews);
+
     private DownloadsPage() {}
 
     /**
@@ -58,7 +70,7 @@ public final class DownloadsPage {
      *
      * @return the callback to ask with: the app's own for a page this does not touch, whatever goes wrong.
      */
-    static Object wrap(Object request, Object callback) {
+    static Object wrap(Object service, Object request, Object options, Object callback) {
         try {
             if (!OfflineReplay.enabled() || !(request instanceof PageRequest page)) return callback;
 
@@ -67,6 +79,7 @@ public final class DownloadsPage {
             Logger.printDebug(() -> "DownloadsPage: page token=" + token + " layout=" + layout);
             if (layout == Layout.NONE) return callback;
 
+            loads.remember(layout, service, request, options, callback);
             OfflineCopyStore.warmUp();
             Class<?>[] interfaces = interfacesOf(callback.getClass()).toArray(new Class<?>[0]);
             return Proxy.newProxyInstance(callback.getClass().getClassLoader(), interfaces,
@@ -74,6 +87,30 @@ public final class DownloadsPage {
         } catch (Exception ex) {
             Logger.printException(() -> "DownloadsPage: could not wrap the page callback", ex);
             return callback;
+        }
+    }
+
+    /**
+     * Called when the stream copies or the downloaded lists changed: a Downloads view that is still on the back
+     * stack is given a current page. Not while a list downloads (it ends with its own call), and nothing when no
+     * view was opened since the app started, so a restart never opens Downloads.
+     */
+    static void onCopiesChanged() {
+        if (PlaylistDownloads.anyRunning() || loads.all().isEmpty()) return;
+
+        Utils.runOnMainThreadDelayed(reload::request, RELOAD_DELAY_MS);
+    }
+
+    private static void reloadViews() {
+        for (PageLoads.Load load : loads.all()) {
+            if (!(load.service() instanceof PageService pageService)) continue;
+
+            try {
+                Logger.printDebug(() -> "DownloadsPage: loading " + load.layout() + " again after a change");
+                pageService.rvxLoad(load.request(), load.options(), load.callback());
+            } catch (Exception ex) {
+                Logger.printException(() -> "DownloadsPage: could not load the page again", ex);
+            }
         }
     }
 

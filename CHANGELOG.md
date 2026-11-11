@@ -40,6 +40,8 @@
   page with a green check on every song. It plays in the shown order from the song you tap, online and offline.
   Online the songs are queued after the one you tap, so radio and lyrics stay, and the audio comes from your copies.
   It also appears in Android Auto in the downloaded playlists.
+* **Music - Stream download:** The Downloads chip updates on its own after you remove a download or a download
+  finishes, so a removed list or song no longer stays listed when you go back to it.
 * **Music - Stream download:** Accounts whose song menu has no Download item now get one, so a single song can be
   downloaded from any song menu. It reads Remove download once the song is saved.
 * **Music - Settings:** The download options are now together in a Downloads group of Miscellaneous.

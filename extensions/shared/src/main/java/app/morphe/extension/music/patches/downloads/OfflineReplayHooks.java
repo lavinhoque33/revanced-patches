@@ -2,6 +2,7 @@
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
  * Written by lavinhoque33, 2026-11-08.
+ * Modified by lavinhoque33, 2026-11-10.
  */
 package app.morphe.extension.music.patches.downloads;
 
@@ -115,11 +116,11 @@ public final class OfflineReplayHooks {
      * Injection point: the callback of a request for a page of the Library's Downloads chips. The callback to ask
      * with: the app's own, or one that adds the stream copies to the page.
      */
-    public static Object wrapDownloadsPage(Object request, Object callback) {
+    public static Object wrapDownloadsPage(Object service, Object request, Object options, Object callback) {
         if (!usable()) return callback;
 
         try {
-            return DownloadsPage.wrap(request, callback);
+            return DownloadsPage.wrap(service, request, options, callback);
         } catch (Throwable failure) {
             disable("downloads page", failure);
             return callback;

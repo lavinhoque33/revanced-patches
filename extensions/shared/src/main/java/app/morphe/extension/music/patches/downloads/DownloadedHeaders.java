@@ -2,8 +2,11 @@
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
  * Written by lavinhoque33, 2026-11-07.
+ * Modified by lavinhoque33, 2026-11-10.
  */
 package app.morphe.extension.music.patches.downloads;
+
+import static app.morphe.extension.shared.utils.StringRef.str;
 
 import android.view.Gravity;
 import android.view.View;
@@ -29,6 +32,9 @@ import app.morphe.extension.shared.utils.ResourceUtils;
  * our own is laid over the header container, at the corner of the button's icon. The button is found by its label
  * (the content description the header gives it) and the check follows it on every layout. A button that is not
  * recognised by its label gets no check: a guess by size could put the check on another button.
+ *
+ * <p>A downloaded header also lays a transparent tap view of our own over the whole button: its tap is the Remove
+ * download of the list, so it never depends on the command the app sends for a button it believes is a plain Download.
  */
 final class DownloadedHeaders {
     private static final String DOWNLOAD_LABEL = "Download";
@@ -46,6 +52,9 @@ final class DownloadedHeaders {
         List<String> sourceIds = Collections.emptyList();
         WeakReference<View> host = new WeakReference<>(null);
         WeakReference<DownloadedCheck> badge = new WeakReference<>(null);
+        WeakReference<View> removeTap = new WeakReference<>(null);
+        /** The downloaded list the tap view removes; read when it is tapped. */
+        volatile String removeSource;
         boolean listening;
         boolean applyQueued;
         String lastLogged = "";
@@ -60,12 +69,10 @@ final class DownloadedHeaders {
         DownloadedAlbumRows.apply(container, state.albumRows, state.sourceIds);
 
         DownloadedCheck badge = state.badge.get();
-        boolean downloaded = false;
-        if (DownloadedMarkers.enabled()) {
-            for (String sourceId : state.sourceIds) downloaded |= DownloadedMarkers.isSourceDownloaded(sourceId);
-        }
-        if (!downloaded) {
+        String downloadedSource = downloadedSource(state);
+        if (downloadedSource == null) {
             if (badge != null) badge.setShown(false);
+            hideRemoveTap(state);
             logOnChange(state, () -> "not downloaded");
             return;
         }
@@ -73,6 +80,7 @@ final class DownloadedHeaders {
         View button = downloadButton(container, state, badge);
         if (button == null) {
             if (badge != null) badge.setShown(false);
+            hideRemoveTap(state);
             logOnChange(state, () -> "downloaded but no button labelled " + downloadLabels()
                     + " in the header (collapsed, not laid out, or another language): no check");
             return;
@@ -92,8 +100,62 @@ final class DownloadedHeaders {
         if (container.indexOfChild(badge) != container.getChildCount() - 1) badge.bringToFront();
         place(container, button, badge);
         badge.setShown(true);
+        placeRemoveTap(container, button, badge, state, downloadedSource);
         logOnChange(state, () -> "check shown at " + button.getClass().getSimpleName()
-                + " " + button.getWidth() + "x" + button.getHeight());
+                + " " + button.getWidth() + "x" + button.getHeight() + ", tap removes " + downloadedSource);
+    }
+
+    /** The first list of the header that is saved whole as stream copies, or null when there is none. */
+    @Nullable
+    private static String downloadedSource(State state) {
+        if (!DownloadedMarkers.enabled()) return null;
+
+        for (String sourceId : state.sourceIds) {
+            if (DownloadedMarkers.isSourceDownloaded(sourceId)) return sourceId;
+        }
+        return null;
+    }
+
+    private static void hideRemoveTap(State state) {
+        View tap = state.removeTap.get();
+        if (tap != null && tap.getVisibility() != View.GONE) tap.setVisibility(View.GONE);
+        state.removeSource = null;
+    }
+
+    /** Lays the tap view over the button, below the check, and points it at the list the header names. */
+    private static void placeRemoveTap(ViewGroup container, View button, DownloadedCheck badge, State state,
+                                       String sourceId) {
+        View tap = state.removeTap.get();
+        if (tap == null || tap.getParent() != container) {
+            tap = new View(container.getContext());
+            tap.setContentDescription(str("morphe_music_remove_download"));
+            tap.setOnClickListener(view -> {
+                String source = state.removeSource;
+                if (source != null) PlaylistDownloads.onDownloadButton(source);
+            });
+            container.addView(tap, new FrameLayout.LayoutParams(button.getWidth(), button.getHeight(),
+                    Gravity.TOP | Gravity.LEFT));
+            state.removeTap = new WeakReference<>(tap);
+        }
+        state.removeSource = sourceId;
+
+        FrameLayout.LayoutParams params = (FrameLayout.LayoutParams) tap.getLayoutParams();
+        if (params.width != button.getWidth() || params.height != button.getHeight()) {
+            params.width = button.getWidth();
+            params.height = button.getHeight();
+            tap.setLayoutParams(params);
+        }
+        int[] buttonAt = new int[2];
+        int[] containerAt = new int[2];
+        button.getLocationInWindow(buttonAt);
+        container.getLocationInWindow(containerAt);
+        tap.setTranslationX(buttonAt[0] - containerAt[0]);
+        tap.setTranslationY(buttonAt[1] - containerAt[1]);
+        tap.setVisibility(View.VISIBLE);
+
+        // The tap view sits under the check, which stays on top of the row.
+        tap.bringToFront();
+        badge.bringToFront();
     }
 
     /** One line per change of what the header shows, never one per bind or layout. */

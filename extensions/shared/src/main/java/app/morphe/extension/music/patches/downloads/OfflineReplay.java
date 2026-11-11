@@ -26,6 +26,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 
 import app.morphe.extension.music.patches.downloads.NativeDownloads.Command;
 import app.morphe.extension.music.shared.VideoInformation;
@@ -745,7 +746,9 @@ public final class OfflineReplay {
         byte[] response = OfflineWatchNext.build(queueId, items, current);
         int queued = items.size();
         long shown = items.stream().filter(item -> item.musicVideoType() == CommandRewrite.TYPE_OMV).count();
+        List<String> queueIds = items.stream().map(OfflineWatchNext.Item::videoId).collect(Collectors.toList());
         Logger.printWarn(() -> "OfflineReplay: next v=" + videoId + " playlist=" + queueId + " items=" + queued
+                + " current=" + queueIds.indexOf(songId) + " ids=" + queueIds
                 + " videos=" + shown + " bytes=" + response.length);
         return response;
     }

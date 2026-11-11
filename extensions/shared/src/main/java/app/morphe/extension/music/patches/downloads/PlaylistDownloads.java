@@ -34,7 +34,10 @@ public final class PlaylistDownloads {
      * so the playlist is never saved twice.
      */
     static void onDownloadButton(String playlistId) {
-        if (LocalDownloadManager.playlistMode().streamCopy() && DownloadedMarkers.isSourceDownloaded(playlistId)) {
+        boolean saved = LocalDownloadManager.playlistMode().streamCopy()
+                && DownloadedMarkers.isSourceDownloaded(playlistId);
+        Logger.printDebug(() -> "PlaylistDownloads: header Download of " + playlistId + ", saved=" + saved);
+        if (saved) {
             DownloadRemoval.confirmSource(playlistId);
             return;
         }

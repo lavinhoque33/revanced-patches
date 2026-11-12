@@ -1,7 +1,16 @@
 ## Unreleased
 
+### Features
+
+* **YouTube / Music - Patches update notice:** Check the public patches feed daily and show a notice with release
+  notes when newer patches are available. Choose Off, Stable or Development in Miscellaneous, check manually,
+  postpone or skip a version, and open Morphe Manager (or the patches release page) to re-patch.
+  Development checks both release channels. No APK downloads or installation are performed.
+
 ### Bug Fixes
 
+* **YouTube / Music - Settings:** Prevent a crash when a list preference supplies string-array entries and
+  newly added options receive the new-setting indicator, including the patches update notice channel chooser.
 * **Music - Debug logging:** Add Export debug logs beside the Miscellaneous debug controls to save the current
   RVX log buffer to a file through Android's document picker. Cancelling a settings export no longer leaves
   log export in settings-export mode, and document-provider errors show the existing failure message.

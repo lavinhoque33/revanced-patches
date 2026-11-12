@@ -1,5 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="revanced_patches_update_notice_title">Patches update notice</string>
+    <string name="revanced_patches_update_check_title">Check now</string>
+    <string name="revanced_patches_update_check_summary">Check for newer patches now, including skipped versions. When notices are off, use the installed patches channel.</string>
+    <string name="revanced_patches_update_off">Off</string>
+    <string name="revanced_patches_update_stable">Stable</string>
+    <string name="revanced_patches_update_development">Development</string>
+    <string name="revanced_patches_update_title">Patches update available</string>
+    <string name="revanced_patches_update_message">"Installed patches: %1$s\nNew patches: %2$s\n\nRe-patch with Manager to update. This notice does not download or install APKs."</string>
+    <string name="revanced_patches_update_manager">Open Manager</string>
+    <string name="revanced_patches_update_later">Later</string>
+    <string name="revanced_patches_update_skip">Skip this version</string>
+    <string name="revanced_patches_update_checking">Checking for patches updates…</string>
+    <string name="revanced_patches_update_current">Your patches are up to date for this channel.</string>
+    <string name="revanced_patches_update_error">Could not check for patches updates. Try again later.</string>
     <string name="gms_core_dialog_continue_text">Continue</string>
     <string name="gms_core_dialog_dismiss_text">Don\'t show again</string>
     <string name="gms_core_dialog_not_whitelisted_not_allowed_in_background_message">"GmsCore does not have permission to run in the background

@@ -8,7 +8,7 @@
  * - anddea (https://github.com/anddea)
  *
  * Licensed under the GNU General Public License v3.0.
- * Modified by lavinhoque33, 2026-11-10
+ * Modified by lavinhoque33, 2026-11-12
  *
  * ------------------------------------------------------------------------
  * GPLv3 Section 7 – Additional Terms & Attribution Requirements
@@ -1770,6 +1770,8 @@ private val rvxPreferenceKey = mapOf(
         "318.77 1.23 -21.46 -22.23 190.54 -190.54 -190.08 -190.85 L 640 266.46 l 212.31 212.31 -213.54 " +
         "213.54 Z",
     "revanced_debug_spannable" to "morphe_music_lyrics_show_romanize_button",
+    "revanced_patches_update_notice" to "morphe_notification_dot_color",
+    "revanced_patches_update_check" to "morphe_notification_dot_color",
     "revanced_disable_music_video_in_album_redirect_type" to "morphe_music_scrobbling_guess_album",
     "revanced_enable_zen_mode_podcast" to "revanced_hide_podcast_episode_download_button",
     "revanced_external_downloader_flyout_menu" to "morphe_music_jam_download",

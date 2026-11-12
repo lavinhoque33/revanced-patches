@@ -4,7 +4,7 @@
  * https://github.com/MorpheApp/morphe-patches/pull/3635
  *
  * See the included NOTICE file for GPLv3 Section 7 terms that apply to this code.
- * Modified by lavinhoque33, 2026-11-11.
+ * Modified by lavinhoque33, 2026-11-12.
  */
 
 package app.morphe.patches.music.interaction.crossfade
@@ -36,6 +36,7 @@ import com.android.tools.smali.dexlib2.iface.ClassDef
 import com.android.tools.smali.dexlib2.iface.Field
 import com.android.tools.smali.dexlib2.iface.Method
 import com.android.tools.smali.dexlib2.iface.instruction.FiveRegisterInstruction
+import com.android.tools.smali.dexlib2.iface.instruction.NarrowLiteralInstruction
 import com.android.tools.smali.dexlib2.iface.instruction.ReferenceInstruction
 import com.android.tools.smali.dexlib2.iface.reference.FieldReference
 import com.android.tools.smali.dexlib2.iface.reference.MethodReference
@@ -206,6 +207,30 @@ val crossfadePatch = bytecodePatch(
             CloseAudioEffectSessionFingerprint.instructionMatches.last()
         }.getOrElse {
             return@execute printWarn("Track crossfade: audio effect session close not found. Skipping: ${it.message}")
+        }
+
+        // BasePlayer.isPlaying = READY && playWhenReady && !suppressed. Its only boolean
+        // getter is playWhenReady; unlike the medialib play/pause hooks it also tracks tap-started songs.
+        val getPlayWhenReadyName = runCatching {
+            val exoClass = ExoPlayerImplFingerprint.classDef
+            val methods = allMethodsInHierarchy(exoClass.type)
+            val isPlaying = methods.single { method ->
+                method.parameterTypes.isEmpty() && method.returnType == "Z" &&
+                    method.implementation?.instructions?.any {
+                        it is NarrowLiteralInstruction && it.narrowLiteral == 3
+                    } == true
+            }
+            val getter = isPlaying.implementation!!.instructions
+                .filterIsInstance<ReferenceInstruction>()
+                .mapNotNull { it.getReference<MethodReference>() }
+                .single { it.parameterTypes.isEmpty() && it.returnType == "Z" }
+            check(methods.any {
+                it.name == getter.name && it.parameterTypes.isEmpty() &&
+                    it.returnType == "Z" && it.implementation != null
+            }) { "Play-when-ready getter has no implementation" }
+            getter.name
+        }.getOrElse {
+            return@execute printWarn("Track crossfade: live playback getter not found. Skipping: ${it.message}")
         }
 
         // 9.28+ keeps many fields private, and the bridges below read them from other
@@ -1008,7 +1033,7 @@ val crossfadePatch = bytecodePatch(
                 "invoke-virtual { p0 }, $target"
             }
             val (registers, result) = when (returnType) {
-                "I" -> 2 to "move-result v0\nreturn v0"
+                "I", "Z" -> 2 to "move-result v0\nreturn v0"
                 "J" -> 3 to "move-result-wide v0\nreturn-wide v0"
                 else -> 2 to "return-void"
             }
@@ -1016,6 +1041,7 @@ val crossfadePatch = bytecodePatch(
         }
 
         addExoBridge("patch_getPlaybackState", getPlaybackStateName, "I")
+        addExoBridge("patch_getPlayWhenReady", getPlayWhenReadyName, "Z")
         addExoBridge("patch_getCurrentPosition", getCurrentPositionName, "J")
         addExoBridge("patch_getDuration", getDurationName, "J")
         // Keep the native body as the raw fade writer. The public setter filters every app write

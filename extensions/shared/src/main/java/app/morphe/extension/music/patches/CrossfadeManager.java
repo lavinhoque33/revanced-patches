@@ -4,7 +4,7 @@
  * https://github.com/MorpheApp/morphe-patches/pull/3635
  *
  * See the included NOTICE file for GPLv3 Section 7 terms that apply to this code.
- * Modified by lavinhoque33, 2026-11-11.
+ * Modified by lavinhoque33, 2026-11-12.
  */
 
 package app.morphe.extension.music.patches;
@@ -93,6 +93,7 @@ public class CrossfadeManager {
 
     public interface ExoPlayerAccess {
         int patch_getPlaybackState();
+        boolean patch_getPlayWhenReady();
         long patch_getCurrentPosition();
         long patch_getDuration();
         void patch_setVolume(float volume);
@@ -248,7 +249,7 @@ public class CrossfadeManager {
     private static volatile boolean audioModeWasForced = false;
     private static volatile boolean activityRunning = false;
     /**
-     * Keeps a crossfade from resuming an outgoing player the user had paused.
+     * Last medialib hook event, for diagnostics only. Tap-started songs can bypass playVideo.
      */
     private static volatile boolean playerIsPlaying = true;
     /**
@@ -346,6 +347,7 @@ public class CrossfadeManager {
     private static CrossfadeGain pendingGain;
     private static CrossfadeGain incomingGain;
     private static float outgoingAppVolume = 1.0f;
+    private static CrossfadeOutgoing outgoingPlayback = CrossfadeOutgoing.SILENT;
     private static final List<Intent> heldAudioEffectSessionCloses = new ArrayList<>();
     private static int drainingPlayers;
 
@@ -586,19 +588,15 @@ public class CrossfadeManager {
             }
             swapCoordinatorPlayer(coordinator, currentExo, newExo);
 
-            // A pauseVideo right before this stop is part of the skip, not a user pause,
-            // which comes seconds before picking another song.
-            long msSincePause = System.currentTimeMillis() - lastPauseVideoMs;
-            boolean outgoingWasPlaying = playerIsPlaying || msSincePause < PAUSE_TO_STOP_INTERNAL_WINDOW_MS;
-            logDebug(() -> "outgoing re-enable check: playerIsPlaying=" + playerIsPlaying
-                    + " msSincePause=" + msSincePause + "ms -> wasPlaying=" + outgoingWasPlaying);
+            boolean outgoingWasPlaying = outgoingPlayback.shouldPlay();
             try {
                 if (outgoingWasPlaying) {
                     currentExo.patch_setPlayWhenReady(true);
                     currentExo.patch_setVolume(outgoingAppVolume);
                     logDebug(() -> "9.x: re-enabled outgoing player @" + System.identityHashCode(currentExo));
                 } else {
-                    currentExo.patch_setVolume(0.0f);
+                    currentExo.patch_setVolume(outgoingPlayback.volume(outgoingAppVolume));
+                    currentExo.patch_setPlayWhenReady(false);
                     logDebug(() -> "9.x: outgoing player was paused (genuine), keeping silent @"
                             + System.identityHashCode(currentExo));
                 }
@@ -693,6 +691,12 @@ public class CrossfadeManager {
     private static void beginCrossfade(PlayerCoordinatorAccess coordinator,
                                        ExoPlayerAccess outgoing, ExoPlayerAccess incoming) {
         outgoingAppVolume = coordinator.patch_getVolume();
+        boolean playWhenReady = outgoing.patch_getPlayWhenReady();
+        long msSincePause = System.currentTimeMillis() - lastPauseVideoMs;
+        outgoingPlayback = CrossfadeOutgoing.fromPlayer(playWhenReady, msSincePause);
+        logDebug(() -> "outgoing re-enable check: playerIsPlaying=" + playerIsPlaying
+                + " playWhenReady=" + playWhenReady + " msSincePause=" + msSincePause
+                + "ms -> wasPlaying=" + outgoingPlayback.shouldPlay());
         pendingGain = new CrossfadeGain(outgoingAppVolume);
         incoming.patch_setVolume(pendingGain.volume());
         pendingOutPlayer = outgoing;
@@ -759,6 +763,10 @@ public class CrossfadeManager {
      * longer than the outgoing has left, so waiting for READY would shorten or skip the fade-out.
      */
     private static void preStartOutgoingFadeOut(ExoPlayerAccess outgoing) {
+        if (!outgoingPlayback.shouldPlay()) {
+            logDebug(() -> "pre-started outgoing fade-out skipped: outgoing kept silent");
+            return;
+        }
         long duration = getCrossfadeDurationMs();
         fadingOutPlayers.add(new FadingPlayer(outgoing, duration, Settings.CROSSFADE_CURVE.get()));
         outgoingFadePreStarted = true;
@@ -888,6 +896,10 @@ public class CrossfadeManager {
             beginCrossfade(coordinator, currentExo, newExo);
             autoAdvanceCrossfadeActive = true;
             swapCoordinatorPlayer(coordinator, currentExo, newExo);
+            if (!outgoingPlayback.shouldPlay()) {
+                currentExo.patch_setVolume(outgoingPlayback.volume(outgoingAppVolume));
+                currentExo.patch_setPlayWhenReady(false);
+            }
 
             if (wasInVideoMode) {
                 forceAudioModeIfNeeded();
@@ -989,10 +1001,6 @@ public class CrossfadeManager {
     private static long lastPlayEventMs = 0;
     private static final long EVENT_DEDUP_WINDOW_MS = 100;
     private static volatile long lastPauseVideoMs = System.currentTimeMillis();
-    /**
-     * A skip calls pauseVideo 10 to 50 ms before stopVideo, a user pause comes seconds earlier.
-     */
-    private static final long PAUSE_TO_STOP_INTERNAL_WINDOW_MS = 500;
 
     /**
      * Injection point.
@@ -1126,7 +1134,7 @@ public class CrossfadeManager {
      */
     private static void recoverFailedLoad() {
         ExoPlayerAccess outgoing = pendingOutPlayer;
-        if (outgoing != null && autoAdvanceCrossfadeActive) {
+        if (outgoing != null && autoAdvanceCrossfadeActive && outgoingPlayback.shouldPlay()) {
             pendingOutPlayer = null;
             removeFromFading(outgoing);
             try { outgoing.patch_setVolume(outgoingAppVolume); } catch (Exception ignored) {}
@@ -1202,7 +1210,12 @@ public class CrossfadeManager {
         if (outgoing != null) {
             logDebug(() -> "onPendingPlayerReady (9.x): coordinator listener already migrated at start");
 
-            if (outgoingFadePreStarted) {
+            if (!outgoingPlayback.shouldPlay()) {
+                pendingOutPlayer = null;
+                releasePlayer(outgoing);
+                logDebug(() -> "Original outgoing player @" + System.identityHashCode(outgoing)
+                        + " -> released (kept silent, no fade-out)");
+            } else if (outgoingFadePreStarted) {
                 logDebug(() -> "onPendingPlayerReady: outgoing @" + System.identityHashCode(outgoing)
                         + " fade-out already in flight (pre-started at swap time)");
                 pendingOutPlayer = null;
@@ -1447,9 +1460,9 @@ public class CrossfadeManager {
             detachCwh(currentExo);
             swapCoordinatorPlayer(coordinator, currentExo, newExo);
 
-            currentExo.patch_setPlayWhenReady(true);
-            currentExo.patch_setVolume(outgoingAppVolume);
-            outgoingAwaitingLoad = currentExo;
+            currentExo.patch_setVolume(outgoingPlayback.volume(outgoingAppVolume));
+            currentExo.patch_setPlayWhenReady(outgoingPlayback.shouldPlay());
+            if (outgoingPlayback.shouldPlay()) outgoingAwaitingLoad = currentExo;
 
             logInfo(() -> "repeat-single: re-issuing loadVideo (same song) onto @"
                     + System.identityHashCode(newExo) + " descriptor=@"
@@ -1481,7 +1494,9 @@ public class CrossfadeManager {
         } else if (isReady(inp)) {
             bestPlayer = inp;
         } else {
-            bestPlayer = pendOut;
+            // Never snap back to a deliberately silenced old song. The pending player is
+            // already coordinator-owned, even when it has not become READY yet.
+            bestPlayer = outgoingPlayback.shouldPlay() ? pendOut : pending;
         }
 
         if (bestPlayer != null && coord != null) {
@@ -1535,6 +1550,7 @@ public class CrossfadeManager {
         currentFadeInVolume = 0.0f;
         pendingGain = null;
         incomingGain = null;
+        outgoingPlayback = CrossfadeOutgoing.SILENT;
         flushAudioEffectSessionCloses();
     }
 
@@ -1549,6 +1565,9 @@ public class CrossfadeManager {
         }
         if (player == crossfadeInPlayer && incomingGain != null) {
             return incomingGain.onAppVolume(volume);
+        }
+        if (player == pendingOutPlayer && !outgoingPlayback.shouldPlay()) {
+            return outgoingPlayback.volume(volume);
         }
         return volume;
     }

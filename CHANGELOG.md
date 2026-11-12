@@ -7,6 +7,9 @@
   log export in settings-export mode, and document-provider errors show the existing failure message.
 * **Music - Track crossfade:** Keep the native player for the first song when it has not loaded a track yet,
   instead of creating a second player and starting a crossfade without an outgoing song.
+* **Music - Track crossfade:** Read the outgoing player's playback intent when a song was started by tapping it,
+  so a stale pause event cannot mute it and bring it back abruptly. Keep genuinely paused outgoing songs silent
+  when the next track loads or the transition is cancelled.
 * **YouTube - Playlist downloads:** Give Select all, Select none and Edit clearer button surfaces in dark and
   light themes. Make Edit half as wide while keeping its touch target and allowing longer labels to wrap.
   Show complete option descriptions when space permits; otherwise scroll options independently while keeping

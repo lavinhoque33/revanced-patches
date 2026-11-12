@@ -6,16 +6,35 @@
  * License, or (at your option) any later version.
  *
  * Written by lavinhoque33, 2026-11-11
+ * Modified by lavinhoque33, 2026-11-11
  */
 
 package app.morphe.extension.music.patches;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 import org.junit.Test;
 
 public class CrossfadeGainTest {
     private static final float EPSILON = 0.000001f;
+
+    @Test
+    public void unloadedFirstTrackDoesNotBecomeACrossfade() {
+        assertFalse(CrossfadeManager.PlaybackState.hasOutgoingTrack(1));
+    }
+
+    @Test
+    public void bufferingAnExistingTrackDoesNotDisableTheNextCrossfade() {
+        assertTrue(CrossfadeManager.PlaybackState.hasOutgoingTrack(2));
+        assertTrue(CrossfadeManager.PlaybackState.hasOutgoingTrack(3));
+    }
+
+    @Test
+    public void endedTrackKeepsTheExistingGaplessFadeInPath() {
+        assertTrue(CrossfadeManager.PlaybackState.hasOutgoingTrack(4));
+    }
 
     @Test
     public void incomingStaysSilentWhenNativeLoadRestoresVolumeBeforeReady() {

@@ -819,6 +819,12 @@ Use dark colors if possible, as the app does not support light themes"</string>
 Use dark colors if possible, as the app does not support light themes"</string>
     <string name="revanced_custom_player_background_color_secondary_title">Player background secondary color</string>
     <string name="revanced_custom_player_background_invalid_toast">Invalid player background color</string>
+    <string name="revanced_debug_export_logs_to_file_summary">Export RVX debug logs to a file</string>
+    <string name="revanced_debug_export_logs_to_file_title">Export debug logs</string>
+    <string name="revanced_debug_logs_disabled">Debug logging is disabled</string>
+    <string name="revanced_debug_logs_export_success">Logs were successfully exported</string>
+    <string name="revanced_debug_logs_failed_to_export">Failed to export logs: %s</string>
+    <string name="revanced_debug_logs_none_found">No logs found</string>
     <string name="revanced_debug_protobuffer_summary">Includes proto buffer in the debug log</string>
     <string name="revanced_debug_protobuffer_title">Log protocol buffer</string>
     <string name="revanced_debug_spannable_summary">Includes spannable in the debug log</string>

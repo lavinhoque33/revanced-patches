@@ -1,5 +1,20 @@
 ## Unreleased
 
+### Bug Fixes
+
+* **Music - Debug logging:** Add Export debug logs beside the Miscellaneous debug controls to save the current
+  RVX log buffer to a file through Android's document picker. Cancelling a settings export no longer leaves
+  log export in settings-export mode, and document-provider errors show the existing failure message.
+* **Music - Track crossfade:** Keep the native player for the first song when it has not loaded a track yet,
+  instead of creating a second player and starting a crossfade without an outgoing song.
+* **YouTube - Playlist downloads:** Give Select all, Select none and Edit clearer button surfaces in dark and
+  light themes. Make Edit half as wide while keeping its touch target and allowing longer labels to wrap.
+  Show complete option descriptions when space permits; otherwise scroll options independently while keeping
+  selection actions, Download and the playlist accessible.
+* **YouTube - Settings:** Consolidate app details and the complete recorded patch inventory under About >
+  Patch information. Distinguish recorded inclusion from patcher execution results, which the app does not store.
+* **YouTube - Credits:** Correct the project name in the Reseam licence notice.
+
 ## [1.34.1](https://github.com/lavinhoque33/revanced-patches/compare/v1.34.0...v1.34.1) (2026-11-11)
 
 ### Bug Fixes

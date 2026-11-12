@@ -307,6 +307,16 @@ public class CrossfadeManager {
     private static final int STATE_READY = 3;
     private static final int REASON_DIRECTOR_RESET = 5;
 
+    static final class PlaybackState {
+        /**
+         * The director also sends stopVideo(5) before the first load. There is no outgoing
+         * track in IDLE, but BUFFERING can still belong to an existing track.
+         */
+        static boolean hasOutgoingTrack(int state) {
+            return state != STATE_IDLE;
+        }
+    }
+
     /**
      * A pending player idle this long with no load issued means the queue was dismissed (#1671).
      * Background throttling can delay the load past 600 ms, so this is kept generous.
@@ -499,6 +509,12 @@ public class CrossfadeManager {
                 return false;
             }
 
+            int currentState = currentExo.patch_getPlaybackState();
+            if (!PlaybackState.hasOutgoingTrack(currentState)) {
+                logDebug(() -> "stopVideo(5): no outgoing track, keeping the native startup player");
+                return false;
+            }
+
             // The monitor flag is checked first. With fades of 5 s or longer the remaining time
             // exceeds the threshold, and the stop would be taken for a manual skip.
             boolean isAutoAdvance = queueAdvancedByMonitor;
@@ -550,7 +566,6 @@ public class CrossfadeManager {
                         + " wasInVideo=" + wasInVideoMode
                         + "]");
 
-            int currentState = currentExo.patch_getPlaybackState();
             logDebug(() -> "Current player state=" + currentState
                     + " class=" + currentExo.getClass().getName());
 
@@ -859,6 +874,11 @@ public class CrossfadeManager {
             if (currentExo == null) return false;
 
             int currentState = currentExo.patch_getPlaybackState();
+            if (!PlaybackState.hasOutgoingTrack(currentState)) {
+                logDebug(() -> "PlayNext: no outgoing track, keeping the native startup player");
+                return false;
+            }
+
             logDebug(() -> "PlayNext: current player state=" + currentState
                         + " wasInVideo=" + wasInVideoMode);
 

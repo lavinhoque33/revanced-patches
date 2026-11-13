@@ -1,5 +1,7 @@
 ## Unreleased
 
+## [1.35.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.34.1...v1.35.0) (2026-11-13)
+
 ### Features
 
 * **Music - Enable audio/video switch:** Port Morphe's Always play the song version setting, off by default.

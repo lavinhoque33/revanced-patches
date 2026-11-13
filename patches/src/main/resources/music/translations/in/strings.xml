@@ -1063,4 +1063,6 @@ ID video yang Anda tonton dikirim ke API Return YouTube Dislike, dan suka dan ti
     <string name="revanced_webview_toast_empty">%s kosong</string>
     <string name="revanced_webview_toast_no_network">Silakan periksa koneksi jaringan Anda</string>
     <string name="revanced_webview_toast_unavailable">WebView tidak tersedia</string>
+    <string name="morphe_music_auto_song_version_title">Selalu putar versi lagu</string>
+    <string name="morphe_music_auto_song_version_summary">Mengganti video musik resmi dalam antrean dengan lagu yang cocok. Memerlukan setelan aplikasi Jangan putar video musik diaktifkan. Trek tanpa kecocokan persis tidak diubah</string>
 </resources>

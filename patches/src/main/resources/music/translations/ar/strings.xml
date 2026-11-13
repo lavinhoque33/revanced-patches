@@ -1014,4 +1014,6 @@
     <string name="revanced_webview_toast_empty">%s فارغ</string>
     <string name="revanced_webview_toast_no_network">يرجى التحقق من اتصالك بالشبكة</string>
     <string name="revanced_webview_toast_unavailable">WebView غير متاح</string>
+    <string name="morphe_music_auto_song_version_title">تشغيل نسخة الأغنية دائمًا</string>
+    <string name="morphe_music_auto_song_version_summary">يستبدل الفيديوهات الموسيقية الرسمية في قائمة الانتظار بالأغنية المطابقة. يتطلب تفعيل إعداد التطبيق «عدم تشغيل الفيديوهات الموسيقية». تبقى المقاطع التي لا يوجد لها تطابق تام دون تغيير</string>
 </resources>

@@ -19,6 +19,7 @@ import android.content.res.Resources;
 import android.media.AudioDeviceInfo;
 import android.media.AudioManager;
 import android.media.MediaRouter;
+import android.media.audiofx.AudioEffect;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
@@ -97,6 +98,7 @@ public class CrossfadeManager {
         long patch_getCurrentPosition();
         long patch_getDuration();
         void patch_setVolume(float volume);
+        float patch_getRawVolume();
         void patch_setPlayWhenReady(boolean play);
         void patch_setVideoSurface(Surface surface);
         void patch_release();
@@ -384,6 +386,7 @@ public class CrossfadeManager {
             this.startTimeMs = System.currentTimeMillis();
             this.fadeDurationMs = fadeDurationMs;
             this.curve = curve;
+            CrossfadeTrace.role(player, "FADING_OUT");
         }
 
         /**
@@ -396,6 +399,7 @@ public class CrossfadeManager {
             this.startTimeMs = System.currentTimeMillis();
             this.fadeDurationMs = Math.max(50, fadeDurationMs);
             this.curve = null;
+            CrossfadeTrace.role(player, "FADING_OUT");
         }
 
         float currentVolume() {
@@ -416,11 +420,97 @@ public class CrossfadeManager {
     private static int suppressedReasonCount = 0;
     private static int lastAtadIdentity = 0;
 
+    /** One interceptor request, bound to the native player and load generation it will replace. */
+    public static final class ModeSwitch {
+        private final PlayerCoordinatorAccess coordinator;
+        private final Object player;
+        private final long loadGeneration;
+        private final String sourceId;
+        private final String targetId;
+        private volatile boolean loadStarted;
+        private boolean ended;
+
+        private ModeSwitch(PlayerCoordinatorAccess coordinator, String sourceId, String targetId) {
+            this.coordinator = coordinator;
+            this.player = coordinator.patch_getExoPlayer();
+            this.loadGeneration = nativeLoadGeneration;
+            this.sourceId = sourceId;
+            this.targetId = targetId;
+        }
+    }
+
+    private static ModeSwitch modeSwitch;
+    private static long nativeLoadGeneration;
+
+    /** Called on the main thread immediately before the interceptor dispatches its native transition. */
+    public static ModeSwitch beginModeSwitch(String sourceId, String targetId) {
+        if (!CROSSFADE_ENABLED) return null;
+
+        PlayerCoordinatorAccess coordinator = getCoordinatorFromAtad(lastAtadRef.get(), false);
+        if (coordinator == null || coordinator.patch_getExoPlayer() == null) return null;
+
+        endModeSwitch(modeSwitch, "replaced");
+        ModeSwitch intent = new ModeSwitch(coordinator, sourceId, targetId);
+        modeSwitch = intent;
+        traceModeSwitch(intent, "arm", "interceptor");
+
+        // Normal cleanup belongs to the interceptor's finally block. This only releases a request
+        // whose worker cannot complete (for example an abandoned queue executor), not a skip window.
+        mainHandler.postDelayed(() -> endModeSwitch(intent, "safety-expiry"), 10_000);
+        return intent;
+    }
+
+    public static boolean hasModeSwitchLoaded(ModeSwitch intent) {
+        return intent == null || intent.loadStarted;
+    }
+
+    /** Called on the main thread; an old worker must never clear a newer request. */
+    public static void endModeSwitch(ModeSwitch intent, String reason) {
+        if (intent == null || intent.ended) return;
+
+        intent.ended = true;
+        if (modeSwitch == intent) modeSwitch = null;
+        traceModeSwitch(intent, "end", reason);
+    }
+
+    private static boolean consumeModeSwitch(PlayerCoordinatorAccess coordinator, String hook) {
+        ModeSwitch intent = modeSwitch;
+        if (intent == null) return false;
+
+        if (intent.loadGeneration != nativeLoadGeneration
+                || coordinator != intent.coordinator
+                || coordinator.patch_getExoPlayer() != intent.player) {
+            endModeSwitch(intent, "different-player-or-load");
+            return false;
+        }
+
+        traceModeSwitch(intent, "consume", hook);
+        if (crossfadeInProgress) abortCrossfadeNow(true);
+        monitorTriggeredSkip = false;
+        return true;
+    }
+
+    private static void traceModeSwitch(ModeSwitch intent, String phase, String reason) {
+        logDebug(() -> "MODE_SWITCH " + phase + " request=@" + System.identityHashCode(intent)
+                + " source=" + intent.sourceId + " target=" + intent.targetId + " reason=" + reason);
+        if (CrossfadeTrace.isEnabled()) {
+            CrossfadeTrace.event("MODE_SWITCH", intent.player, () -> "phase=" + phase
+                    + " request=" + CrossfadeTrace.id(intent) + " source=" + intent.sourceId
+                    + " target=" + intent.targetId + " loadGeneration=" + intent.loadGeneration
+                    + " reason=" + reason);
+        }
+    }
+
     /**
      * Injection point.
      */
     public static boolean onBeforeStopVideo(Object atadInstance, int reason) {
         if (!CROSSFADE_ENABLED) return false;
+
+        if (modeSwitch != null
+                && consumeModeSwitch(getCoordinatorFromAtad(atadInstance, false), "stopVideo/" + reason)) {
+            return false;
+        }
 
         // A crossfade here would create a player that never loads and keep the old track
         // playing (#1671). The window expires by time to cover every stop of the dismissal.
@@ -667,6 +757,7 @@ public class CrossfadeManager {
             }
 
             pendingGain = new CrossfadeGain(coordinator.patch_getVolume());
+            CrossfadeTrace.role(newExo, "PENDING");
             newExo.patch_setVolume(pendingGain.volume());
             pendingInPlayer = newExo;
             activeCoordinator = coordinator;
@@ -690,6 +781,8 @@ public class CrossfadeManager {
 
     private static void beginCrossfade(PlayerCoordinatorAccess coordinator,
                                        ExoPlayerAccess outgoing, ExoPlayerAccess incoming) {
+        CrossfadeTrace.role(outgoing, "OUTGOING");
+        CrossfadeTrace.role(incoming, "PENDING");
         outgoingAppVolume = coordinator.patch_getVolume();
         boolean playWhenReady = outgoing.patch_getPlayWhenReady();
         long msSincePause = System.currentTimeMillis() - lastPauseVideoMs;
@@ -776,6 +869,9 @@ public class CrossfadeManager {
     }
 
     private static ExoPlayerAccess createNewPlayer(PlayerCoordinatorAccess coordinator) {
+        if (CrossfadeTrace.isEnabled()) {
+            CrossfadeTrace.begin(coordinator.patch_getExoPlayer(), coordinator);
+        }
         try {
             SessionAccess session = (SessionAccess) coordinator.patch_getSession();
             PlayerFactoryAccess factory = session == null ? null : (PlayerFactoryAccess) session.patch_getFactory();
@@ -797,6 +893,9 @@ public class CrossfadeManager {
             sharedCallback.patch_setCqb(null);
 
             ExoPlayerAccess newExo = createPlayerViaFactory(factory, coordinator, loadControl);
+            if (CrossfadeTrace.isEnabled()) {
+                CrossfadeTrace.event("FACTORY_END", newExo, () -> "coordinator=" + CrossfadeTrace.id(coordinator));
+            }
             if (newExo == null) {
                 logError(() -> "Factory returned null, restoring");
                 sharedState.patch_setTimeline(oldTimeline);
@@ -832,6 +931,11 @@ public class CrossfadeManager {
      */
     public static boolean onBeforePlayNext(Object coordinatorInstance) {
         if (!CROSSFADE_ENABLED) return false;
+
+        if (modeSwitch != null
+                && consumeModeSwitch((PlayerCoordinatorAccess) coordinatorInstance, "playNext")) {
+            return false;
+        }
 
         if (!crossfadeInProgress && isAudioRoutedToCast()) {
             logDebug(() -> "playNext: skip, audio routed to cast/mirror (#1549)");
@@ -978,6 +1082,18 @@ public class CrossfadeManager {
      * Injection point.
      */
     public static void onBeforeLoadVideo(Object newAtzqInstance, Object descriptor) {
+        nativeLoadGeneration++;
+        ModeSwitch intent = modeSwitch;
+        if (intent != null) {
+            // A native load closes this reset burst even if queue cleanup is still running.
+            // A later real skip on the same ExoPlayer must not inherit the intent.
+            intent.loadStarted = true;
+        }
+
+        if (CrossfadeTrace.isEnabled()) {
+            CrossfadeTrace.event("LOAD_BEGIN", pendingInPlayer, () -> "descriptor=" + CrossfadeTrace.id(descriptor)
+                    + " medialib=" + CrossfadeTrace.id(newAtzqInstance));
+        }
         if (descriptor != null) {
             lastLoadDescriptor = descriptor;
         }
@@ -1080,6 +1196,7 @@ public class CrossfadeManager {
 
                 try {
                     int state = newPlayer.patch_getPlaybackState();
+                    CrossfadeTrace.state(newPlayer);
                     if (state == STATE_READY) {
                         logDebug(() -> "Pending track READY, promoting to crossfade");
                         onPendingPlayerReady(newPlayer);
@@ -1133,6 +1250,9 @@ public class CrossfadeManager {
      * when the next track never loads (#2433). After a manual skip it would play on for minutes.
      */
     private static void recoverFailedLoad() {
+        if (CrossfadeTrace.isEnabled()) {
+            CrossfadeTrace.event("RECOVERY", pendingInPlayer, () -> "kind=failedLoad");
+        }
         ExoPlayerAccess outgoing = pendingOutPlayer;
         if (outgoing != null && autoAdvanceCrossfadeActive && outgoingPlayback.shouldPlay()) {
             pendingOutPlayer = null;
@@ -1277,6 +1397,7 @@ public class CrossfadeManager {
         }
 
         crossfadeInPlayer = newPlayer;
+        CrossfadeTrace.role(newPlayer, "INCOMING");
         incomingGain = pendingGain;
         pendingInPlayer = null;
         pendingGain = null;
@@ -1307,8 +1428,9 @@ public class CrossfadeManager {
                     return;
                 }
 
-                // Keep polling until casting stops (#1549) or the end of song timer is cleared (#2017).
-                if (isAudioRoutedToCast() || sleepTimerEndOfTrack) {
+                // A dispatched mode switch owns this load; do not race it with a monitor MEDIA_NEXT.
+                if (isAudioRoutedToCast() || sleepTimerEndOfTrack
+                        || (modeSwitch != null && modeSwitch.loadGeneration == nativeLoadGeneration)) {
                     mainHandler.postDelayed(this, MONITOR_POLL_MS);
                     return;
                 }
@@ -1480,7 +1602,14 @@ public class CrossfadeManager {
     }
 
     private static void abortCrossfadeNow() {
+        abortCrossfadeNow(false);
+    }
+
+    private static void abortCrossfadeNow(boolean keepIncoming) {
         if (!crossfadeInProgress) return;
+        if (CrossfadeTrace.isEnabled()) {
+            CrossfadeTrace.event("ABORT", pendingInPlayer, CrossfadeManager::dumpState);
+        }
         logDebug(() -> "ABORT: " + dumpState());
 
         ExoPlayerAccess inp = crossfadeInPlayer;
@@ -1489,7 +1618,9 @@ public class CrossfadeManager {
         PlayerCoordinatorAccess coord = activeCoordinator;
 
         ExoPlayerAccess bestPlayer;
-        if (isReady(pending)) {
+        if (keepIncoming) {
+            bestPlayer = pending != null ? pending : inp;
+        } else if (isReady(pending)) {
             bestPlayer = pending;
         } else if (isReady(inp)) {
             bestPlayer = inp;
@@ -1504,7 +1635,7 @@ public class CrossfadeManager {
                     + System.identityHashCode(bestPlayer));
             try {
                 bestPlayer.patch_setVolume(appVolumeFor(bestPlayer));
-                bestPlayer.patch_setPlayWhenReady(true);
+                if (!keepIncoming) bestPlayer.patch_setPlayWhenReady(true);
                 coord.patch_setExoPlayer(bestPlayer);
                 VideoSurfaceAccess surface =
                         (VideoSurfaceAccess) coord.patch_getVideoSurface();
@@ -1538,6 +1669,8 @@ public class CrossfadeManager {
     }
 
     private static void clearCrossfadeState() {
+        CrossfadeTrace.role(crossfadeInPlayer, "NATIVE");
+        CrossfadeTrace.role(pendingInPlayer, "NATIVE");
         crossfadeInPlayer = null;
         pendingInPlayer = null;
         pendingOutPlayer = null;
@@ -1560,16 +1693,88 @@ public class CrossfadeManager {
      */
     public static float filterVolume(Object player, float volume) {
         if (!CROSSFADE_ENABLED) return volume;
+        float result = volume;
+        float fadeGain = 1.0f;
         if (player == pendingInPlayer && pendingGain != null) {
-            return pendingGain.onAppVolume(volume);
+            result = pendingGain.onAppVolume(volume);
+            fadeGain = pendingGain.gain();
+        } else if (player == crossfadeInPlayer && incomingGain != null) {
+            result = incomingGain.onAppVolume(volume);
+            fadeGain = incomingGain.gain();
+        } else if (player == pendingOutPlayer && !outgoingPlayback.shouldPlay()) {
+            result = outgoingPlayback.volume(volume);
+            fadeGain = 0.0f;
         }
-        if (player == crossfadeInPlayer && incomingGain != null) {
-            return incomingGain.onAppVolume(volume);
+        if (CrossfadeTrace.isEnabled()) {
+            float gain = fadeGain;
+            float filtered = result;
+            CrossfadeTrace.event("FILTER", player, () -> "appVolume=" + volume
+                    + " fadeGain=" + gain + " result=" + filtered + " effective=preFocus");
         }
-        if (player == pendingOutPlayer && !outgoingPlayback.shouldPlay()) {
-            return outgoingPlayback.volume(volume);
-        }
-        return volume;
+        return result;
+    }
+
+    public static void traceAppVolumeBefore(Object coordinator, float requested) {
+        traceAppVolume(coordinator, requested, false);
+    }
+
+    public static void traceAppVolumeAfter(Object coordinator, float requested) {
+        traceAppVolume(coordinator, requested, true);
+    }
+
+    public static void traceRawVolumeBefore(Object player, float requested) {
+        traceRawVolume(player, requested, false);
+    }
+
+    public static void traceRawVolumeAfter(Object player, float requested) {
+        traceRawVolume(player, requested, true);
+    }
+
+    /** Reuses the native logger's existing argument array, without evaluating its event supplier. */
+    public static void traceNativeLoad(Object[] arguments) {
+        if (!CrossfadeTrace.isEnabled() || arguments == null || arguments.length < 6) return;
+        CrossfadeTrace.event("LOAD", pendingInPlayer, () -> "requestedVolume=" + arguments[5]
+                + " playWhenReady=" + arguments[1] + " positionMs=" + arguments[2]
+                + " videoId=" + arguments[4] + " client=see_SOURCE sabr=see_SOURCE");
+    }
+
+    /** Existing coordinator normalization method, before and after its cached-volume update. */
+    public static void traceAppVolume(Object instance, float requested, boolean after) {
+        if (!CrossfadeTrace.isEnabled() || !(instance instanceof PlayerCoordinatorAccess coordinator)) return;
+        CrossfadeTrace.event("APP_VOLUME", coordinator.patch_getExoPlayer(), () -> "requested=" + requested
+                + " phase=" + (after ? "after" : "before")
+                + " normalized=" + (after ? coordinator.patch_getVolume() : "pending")
+                + " coordinatorCached=" + coordinator.patch_getVolume());
+    }
+
+    /** Both native app writes and the existing raw fade bridge pass through this body. */
+    public static void traceRawVolume(Object instance, float requested, boolean after) {
+        if (!CrossfadeTrace.isEnabled() || !(instance instanceof ExoPlayerAccess player)) return;
+        CrossfadeTrace.event("RAW_VOLUME", player, () -> "requested=" + requested
+                + " phase=" + (after ? "after" : "before") + " cached=" + player.patch_getRawVolume()
+                + " effective=preFocus");
+        CrossfadeTrace.state(player);
+    }
+
+    public static void tracePlayWhenReady(Object player, boolean requested) {
+        if (!CrossfadeTrace.isEnabled()) return;
+        CrossfadeTrace.event("PLAY_WHEN_READY", player, () -> "requested=" + requested);
+    }
+
+    /** Passes the original broadcast through unchanged; no effect-session policy is added. */
+    public static void traceSessionBroadcast(Context context, Intent intent) {
+        traceSession(intent, "sent");
+        context.sendBroadcast(intent);
+    }
+
+    private static void traceSession(Intent intent, String disposition) {
+        if (!CrossfadeTrace.isEnabled()) return;
+        String action = intent.getAction();
+        String event = AudioEffect.ACTION_OPEN_AUDIO_EFFECT_CONTROL_SESSION.equals(action)
+                ? "SESSION_OPEN" : "SESSION_CLOSE";
+        CrossfadeTrace.event(event, null, () -> "session="
+                + intent.getIntExtra(AudioEffect.EXTRA_AUDIO_SESSION, -1) + " disposition=" + disposition
+                + " action=" + action);
     }
 
     private static float appVolumeFor(ExoPlayerAccess player) {
@@ -1585,7 +1790,9 @@ public class CrossfadeManager {
     public static void closeAudioEffectSession(Context context, Intent intent) {
         if (crossfadeInProgress || !fadingOutPlayers.isEmpty() || drainingPlayers != 0) {
             heldAudioEffectSessionCloses.add(new Intent(intent));
+            traceSession(intent, "held");
         } else {
+            traceSession(intent, "sent");
             context.sendBroadcast(intent);
         }
     }
@@ -1593,6 +1800,7 @@ public class CrossfadeManager {
     private static void flushAudioEffectSessionCloses() {
         if (crossfadeInProgress || !fadingOutPlayers.isEmpty() || drainingPlayers != 0) return;
         for (Intent intent : heldAudioEffectSessionCloses) {
+            traceSession(intent, "sentAfterDrain");
             Utils.getContext().sendBroadcast(intent);
         }
         heldAudioEffectSessionCloses.clear();
@@ -1627,6 +1835,11 @@ public class CrossfadeManager {
 
                 try {
                     inPlayer.patch_setVolume(incomingGain.setGain(inVol));
+                    if (CrossfadeTrace.isEnabled()) {
+                        CrossfadeTrace.event("FADE", inPlayer, () -> "direction=in t=" + t
+                                + " appVolume=" + incomingGain.appVolume() + " fadeGain=" + inVol
+                                + " result=" + incomingGain.volume() + " effective=preFocus");
+                    }
                     if (elapsed % 500 < TICK_MS) {
                         int inState = inPlayer.patch_getPlaybackState();
                         logDebug(() -> String.format(Locale.US,
@@ -1749,6 +1962,7 @@ public class CrossfadeManager {
 
     private static void releasePlayer(ExoPlayerAccess p) {
         if (p == null) return;
+        CrossfadeTrace.role(p, "RELEASED");
 
         playersReleased++;
         logDebug(() -> "releasePlayer: @" + System.identityHashCode(p)
@@ -1880,6 +2094,11 @@ public class CrossfadeManager {
                 try { playerState = fp.player.patch_getPlaybackState(); } catch (Exception ignored) {}
                 try {
                     fp.player.patch_setVolume(Math.max(0.0f, vol));
+                    if (CrossfadeTrace.isEnabled()) {
+                        CrossfadeTrace.event("FADE", fp.player, () -> "direction=out appVolume=" + fp.appVolume
+                                + " fadeGain=" + (fp.appVolume == 0 ? "unknown" : vol / fp.appVolume)
+                                + " result=" + Math.max(0.0f, vol) + " effective=preFocus");
+                    }
                     long elapsed = System.currentTimeMillis() - fp.startTimeMs;
                     if (elapsed % 500 < TICK_MS) {
                         final int playerStateFinal = playerState;
@@ -1898,6 +2117,7 @@ public class CrossfadeManager {
                     try { fp.player.patch_setVolume(0.0f); } catch (Exception ignored) {}
                     final ExoPlayerAccess toRelease = fp.player;
                     drainingPlayers++;
+                    CrossfadeTrace.role(fp.player, "DRAINING");
                     mainHandler.postDelayed(() -> {
                         try {
                             releasePlayer(toRelease);

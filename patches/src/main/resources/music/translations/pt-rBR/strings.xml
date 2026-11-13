@@ -1041,4 +1041,6 @@ O ID do vídeo que você assiste é enviado para a API do Return YouTube Dislike
     <string name="revanced_webview_toast_empty">%s está vazio</string>
     <string name="revanced_webview_toast_no_network">Por favor, verifique sua conexão com a internet</string>
     <string name="revanced_webview_toast_unavailable">O WebView não está disponível</string>
+    <string name="morphe_music_auto_song_version_title">Sempre reproduzir a versão da música</string>
+    <string name="morphe_music_auto_song_version_summary">Substitui os videoclipes oficiais na fila pela música correspondente. Requer ativar a opção Não reproduzir videoclipes nas configurações do app. Faixas sem correspondência exata permanecem inalteradas</string>
 </resources>

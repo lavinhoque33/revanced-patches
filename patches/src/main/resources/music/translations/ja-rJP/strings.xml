@@ -975,4 +975,6 @@ API キーの発行方法については、ここをタップしてください�
     <string name="revanced_webview_toast_empty">「%s」は空です。</string>
     <string name="revanced_webview_toast_no_network">ネットワーク接続を確認してください。</string>
     <string name="revanced_webview_toast_unavailable">WebView は利用できません。</string>
+    <string name="morphe_music_auto_song_version_title">常に楽曲バージョンを再生</string>
+    <string name="morphe_music_auto_song_version_summary">キュー内の公式ミュージックビデオを一致する楽曲に置き換えます。アプリの「ミュージックビデオを再生しない」をオンにする必要があります。完全に一致する楽曲がない場合は変更しません</string>
 </resources>

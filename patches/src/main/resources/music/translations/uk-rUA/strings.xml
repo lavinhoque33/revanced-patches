@@ -1046,4 +1046,6 @@
     <string name="revanced_webview_toast_empty">%s порожній</string>
     <string name="revanced_webview_toast_no_network">Перевірте підключення до Інтернету</string>
     <string name="revanced_webview_toast_unavailable">WebView недоступний</string>
+    <string name="morphe_music_auto_song_version_title">Завжди відтворювати версію пісні</string>
+    <string name="morphe_music_auto_song_version_summary">Замінює офіційні кліпи в черзі відповідними піснями. Потрібно ввімкнути налаштування додатка «Не відтворювати музичні відео». Треки без точного збігу залишаються без змін</string>
 </resources>

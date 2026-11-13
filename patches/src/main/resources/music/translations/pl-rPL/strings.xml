@@ -1065,4 +1065,6 @@ Efekt uboczny (blokada żądania):
     <string name="revanced_webview_toast_empty">%s jest puste</string>
     <string name="revanced_webview_toast_no_network">Sprawdź swoje połączenie internetowe</string>
     <string name="revanced_webview_toast_unavailable">WebView jest niedostępne</string>
+    <string name="morphe_music_auto_song_version_title">Zawsze odtwarzaj wersję utworu</string>
+    <string name="morphe_music_auto_song_version_summary">Zastępuje oficjalne teledyski w kolejce pasującymi utworami. Wymaga włączenia opcji „Nie odtwarzaj teledysków” w aplikacji. Utwory bez dokładnego dopasowania pozostają bez zmian</string>
 </resources>

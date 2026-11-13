@@ -163,9 +163,10 @@ YouTube Music older than 9.00"</string>
     <string name="morphe_music_downloads_starting">Starting download…</string>
     <string name="morphe_music_downloads_storage_permission">Allow storage access, then tap Download again</string>
     <string name="morphe_music_downloads_unknown_track">Could not identify the track to download</string>
-    <!-- modified by lavinhoque33, 2026-10-17: "Enable audio/video switch" ported from Morphe. -->
     <string name="morphe_music_enable_audio_video_switch_summary">Try to switch Audio Track Version and Official Music Video</string>
     <string name="morphe_music_enable_audio_video_switch_title">Enable audio/video switch</string>
+    <string name="morphe_music_auto_song_version_title">Always play the song version</string>
+    <string name="morphe_music_auto_song_version_summary">Replaces official music videos in the queue with the matching song. Requires the app setting \'Don\'t play music videos\' to be on. Tracks without an exact match are left unchanged</string>
     <string name="morphe_music_fade_in_duration_summary">Seconds of the track over which the volume rises. Counted in track time, so a faster playback speed shortens it. Shortened in proportion when the track is shorter than both fades</string>
     <string name="morphe_music_fade_in_duration_title">Fade-in duration</string>
     <string name="morphe_music_fade_in_enabled_summary">Raises the volume from silence over the first seconds of every track, including a repeat-one loop and a seek back to the start. Not used while Crossfade is on</string>
@@ -833,6 +834,9 @@ Use dark colors if possible, as the app does not support light themes"</string>
 Use dark colors if possible, as the app does not support light themes"</string>
     <string name="revanced_custom_player_background_color_secondary_title">Player background secondary color</string>
     <string name="revanced_custom_player_background_invalid_toast">Invalid player background color</string>
+    <string name="morphe_music_disable_audio_ducking_title">Disable audio ducking</string>
+    <string name="morphe_music_disable_audio_ducking_summary">Volume is not lowered when another app plays a short sound,
+        such as a notification</string>
     <string name="revanced_debug_export_logs_to_file_summary">Export RVX debug logs to a file</string>
     <string name="revanced_debug_export_logs_to_file_title">Export debug logs</string>
     <string name="revanced_debug_logs_disabled">Debug logging is disabled</string>

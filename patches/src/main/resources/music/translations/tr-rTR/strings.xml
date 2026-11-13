@@ -1043,4 +1043,6 @@ APl anahtarının nasıl verileceğini görmek için tıklayın"</string>
     <string name="revanced_webview_toast_empty">%s boş</string>
     <string name="revanced_webview_toast_no_network">Lütfen ağ bağlantınızı kontrol edin</string>
     <string name="revanced_webview_toast_unavailable">WebView kullanılamıyor</string>
+    <string name="morphe_music_auto_song_version_title">Her zaman şarkı sürümünü çal</string>
+    <string name="morphe_music_auto_song_version_summary">Sıradaki resmî müzik videolarını eşleşen şarkıyla değiştirir. Uygulamanın Müzik videolarını oynatma ayarı açık olmalıdır. Tam eşleşmesi olmayan parçalar değiştirilmez</string>
 </resources>

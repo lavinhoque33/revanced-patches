@@ -1009,4 +1009,6 @@ A megtekintett videó azonosítóját elküldjük a Return YouTube Dislike API-n
     <string name="revanced_webview_toast_empty">%s üres</string>
     <string name="revanced_webview_toast_no_network">Kérem ellenőrizze a hálózati kapcsolatot</string>
     <string name="revanced_webview_toast_unavailable">A webes nézet nem elérhető</string>
+    <string name="morphe_music_auto_song_version_title">Mindig a dalverzió lejátszása</string>
+    <string name="morphe_music_auto_song_version_summary">A sorban lévő hivatalos zenei videókat a megfelelő dalra cseréli. A „Ne játsszon le zenei videókat” alkalmazásbeállítás bekapcsolása szükséges. Pontos egyezés nélkül a számok változatlanok maradnak</string>
 </resources>

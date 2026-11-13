@@ -2,6 +2,14 @@
 
 ### Features
 
+* **Music - Enable audio/video switch:** Port Morphe's Always play the song version setting, off by default.
+  With Don't play music videos enabled in the app, replace matching official music videos in the queue.
+  Keep tracks without an exact match and downloaded stream copies unchanged. This takes priority over
+  Play albums songs; Disable music video in album keeps its manual toggle actions.
+* **Music - Disable audio ducking:** Port Morphe's optional notification-ducking control under Player.
+  It is off by default and preserves the app's spoken-content pause behavior.
+* **Music - Track crossfade:** Add debug-only CF45 transition, volume, normalization, session and source
+  tracing for the Poco/HyperOS burst investigation. Fade timing and gain behavior are unchanged.
 * **YouTube / Music - Patches update notice:** Check the public patches feed daily and show a notice with release
   notes when newer patches are available. Choose Off, Stable or Development in Miscellaneous, check manually,
   postpone or skip a version, and open Morphe Manager (or the patches release page) to re-patch.
@@ -9,6 +17,19 @@
 
 ### Bug Fixes
 
+* **Music - Disable music video in album:** Resolve each album song by the requested video's metadata,
+  not the queue's reused playlist index. Ambiguous recordings remain unchanged.
+* **Music - Enable audio/video switch:** Keep playlist video-stream copies as well as audio-stream copies
+  out of automatic song replacement, including counterparts cached before a download completed.
+  Log claimed interceptor taps, cached/search selection and queue outcomes when debug logging is enabled.
+* **Music - Enable audio/video switch:** Reject low-score counterparts instead of opening a Mix or another
+  song's video. Keep both versions paired so switching back returns to the same track, and preserve Jam's
+  queue capture when both patches are enabled.
+* **Music - Downloads:** Keep forward and backward seek targets when StreamSwap plays a local copy online,
+  in both Song and Video mode and through the notification controls. Online streams keep stock seeking.
+* **Music - Track crossfade:** Keep the Enable audio video switch pill's counterpart replacement out of
+  crossfade, including when a previous overlap is still active. Normal skips and automatic transitions still fade.
+* **Music - Debug logging:** Give Export debug logs a settings icon, including the bold icon variants.
 * **YouTube / Music - Settings:** Prevent a crash when a list preference supplies string-array entries and
   newly added options receive the new-setting indicator, including the patches update notice channel chooser.
 * **Music - Debug logging:** Add Export debug logs beside the Miscellaneous debug controls to save the current

@@ -41,6 +41,7 @@ import com.android.tools.smali.dexlib2.iface.instruction.ReferenceInstruction
 import com.android.tools.smali.dexlib2.iface.reference.FieldReference
 import com.android.tools.smali.dexlib2.iface.reference.MethodReference
 import com.android.tools.smali.dexlib2.immutable.ImmutableMethod
+import com.android.tools.smali.dexlib2.iface.reference.StringReference
 import com.android.tools.smali.dexlib2.immutable.ImmutableMethodParameter
 import java.util.logging.Logger
 import app.morphe.patcher.extensions.InstructionExtensions.replaceInstruction
@@ -202,6 +203,13 @@ val crossfadePatch = bytecodePatch(
             }
         }.getOrElse {
             return@execute printWarn("Track crossfade: renderer volume setter not found. Skipping: ${it.message}")
+        }
+        val rawVolumeField = runCatching {
+            exoVolumeSetter.instructions.mapNotNull { instruction ->
+                (instruction as? ReferenceInstruction)?.reference as? FieldReference
+            }.first { it.type == "F" && it.definingClass == exoVolumeSetter.definingClass }
+        }.getOrElse {
+            return@execute printWarn("Track crossfade: native volume cache not found. Skipping: ${it.message}")
         }
         val closeSessionMatch = runCatching {
             CloseAudioEffectSessionFingerprint.instructionMatches.last()
@@ -398,6 +406,29 @@ val crossfadePatch = bytecodePatch(
                     "onBeforeLoadVideo(Ljava/lang/Object;Ljava/lang/Object;)V"
         )
 
+        // Reuse the stock logger's already-built arguments; do not format or allocate them again.
+        runCatching {
+            val method = LoadVideoFingerprint.method
+            val logAnchor = method.instructions.indexOfFirst {
+                ((it as? ReferenceInstruction)?.reference as? StringReference)?.string
+                    ?.startsWith("MedialibPlayer.loadVideo(") == true
+            }
+            check(logAnchor >= 0) { "Native load log anchor missing" }
+            val loggerCall = method.instructions.withIndex().first { (index, instruction) ->
+                val reference = (instruction as? ReferenceInstruction)?.reference as? MethodReference
+                index > logAnchor && reference?.returnType == "V" &&
+                    reference.parameterTypes.takeLast(2) == listOf("Ljava/lang/String;", "[Ljava/lang/Object;")
+            }
+            val argumentsRegister = loggerCall.value.registersUsed.last()
+            method.addInstruction(
+                loggerCall.index,
+                "invoke-static/range { v$argumentsRegister .. v$argumentsRegister }, " +
+                    "$EXTENSION_CLASS->traceNativeLoad([Ljava/lang/Object;)V"
+            )
+        }.onFailure {
+            printWarn("Track crossfade: native LOAD tracing unavailable; playback is unchanged: ${it.message}")
+        }
+
         // Optional: without it repeat-one is not detected and the queue advances as usual.
         runCatching {
             LoopStateAdapterFingerprint.method.addInstruction(
@@ -437,6 +468,28 @@ val crossfadePatch = bytecodePatch(
             "invoke-static { v$contextRegister, v$intentRegister }, $EXTENSION_CLASS->" +
                 "closeAudioEffectSession(Landroid/content/Context;Landroid/content/Intent;)V"
         )
+
+        // The OPEN sender already references the discovered effect-session manager.
+        // Forward the exact Context/Intent; tracing does not retain or alter OPEN broadcasts.
+        runCatching {
+            val openSession = Fingerprint(
+                returnType = "V",
+                parameters = listOf("I"),
+                filters = listOf(
+                    fieldAccess(type = AudioEffectSessionFingerprint.classDef.type),
+                    methodCall(smali = "Landroid/content/Context;->sendBroadcast(Landroid/content/Intent;)V"),
+                ),
+            )
+            val broadcast = openSession.instructionMatches.last()
+            val (context, intent) = broadcast.instruction.registersUsed
+            openSession.method.replaceInstruction(
+                broadcast.index,
+                "invoke-static { v$context, v$intent }, $EXTENSION_CLASS->" +
+                    "traceSessionBroadcast(Landroid/content/Context;Landroid/content/Intent;)V"
+            )
+        }.onFailure {
+            printWarn("Track crossfade: SESSION_OPEN tracing unavailable; playback is unchanged: ${it.message}")
+        }
 
         getMainActivityMethod("onStop")
             .addInstruction(
@@ -1044,6 +1097,38 @@ val crossfadePatch = bytecodePatch(
         addExoBridge("patch_getPlayWhenReady", getPlayWhenReadyName, "Z")
         addExoBridge("patch_getCurrentPosition", getCurrentPositionName, "J")
         addExoBridge("patch_getDuration", getDurationName, "J")
+        exoPlayerImplClass.addBridge(
+            "patch_getRawVolume", emptyList(), "F", 2,
+            "iget v0, p0, $rawVolumeField\nreturn v0"
+        )
+
+        // All of these are existing control-thread boundaries, not renderer/audio-thread hooks.
+        fun traceVolumeMethod(
+            method: app.morphe.patcher.util.proxy.mutableTypes.MutableMethod,
+            name: String,
+        ) {
+            method.instructions.withIndex().filter { it.value.opcode == Opcode.RETURN_VOID }
+                .map { it.index }.reversed().forEach { index ->
+                    method.addInstruction(
+                        index,
+                        "invoke-static/range { p0 .. p1 }, $EXTENSION_CLASS->trace${name}After(Ljava/lang/Object;F)V"
+                    )
+                }
+            method.addInstruction(
+                0,
+                "invoke-static/range { p0 .. p1 }, $EXTENSION_CLASS->trace${name}Before(Ljava/lang/Object;F)V"
+            )
+        }
+
+        traceVolumeMethod(PlayerVolumeFingerprint.method, "AppVolume")
+        traceVolumeMethod(exoVolumeSetter, "RawVolume")
+
+        exoPlayerImplClass.methods.first {
+            it.name == setPlayWhenReadyName && it.parameterTypes.toList() == listOf("Z")
+        }.addInstruction(
+            0,
+            "invoke-static/range { p0 .. p1 }, $EXTENSION_CLASS->tracePlayWhenReady(Ljava/lang/Object;Z)V"
+        )
         // Keep the native body as the raw fade writer. The public setter filters every app write
         // before it sends volume to renderers, rather than repairing a loud write on the next poll.
         // Fade in/out may hook this body before or after us; both entry points still share that hook.

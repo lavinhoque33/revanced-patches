@@ -9,7 +9,15 @@
 * **Music - Disable audio ducking:** Port Morphe's optional notification-ducking control under Player.
   It is off by default and preserves the app's spoken-content pause behavior.
 * **Music - Track crossfade:** Add debug-only CF45 transition, volume, normalization, session and source
-  tracing for the Poco/HyperOS burst investigation. Fade timing and gain behavior are unchanged.
+  tracing for the Poco/HyperOS burst investigation.
+* **Music - Track crossfade:** Apply fade gain to decoded PCM after speed and silence processing, keeping
+  AudioTrack volume for normalization and focus. Add bounded processor/first-frame tracing on supported
+  Music versions; skip crossfade with a warning when the PCM integration cannot be discovered safely.
+* **Music - Track crossfade:** Own player transitions and drain outgoing PCM before release. Pause, seek,
+  speed and output changes preserve frame-based envelopes. Song/video switches remain instant, including
+  during an overlap; video mode is no longer blocked when crossfade is enabled.
+* **Music - Track crossfade:** Discover native player and listener boundaries from the PCM factory graph on
+  Music 9.15 and 9.40. Skip safely when a required integration is missing; retain native playback integrations.
 * **YouTube / Music - Patches update notice:** Check the public patches feed daily and show a notice with release
   notes when newer patches are available. Choose Off, Stable or Development in Miscellaneous, check manually,
   postpone or skip a version, and open Morphe Manager (or the patches release page) to re-patch.

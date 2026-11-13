@@ -118,7 +118,6 @@ SABR-воспроизведение (подмена видеопотоков о�
     <string name="morphe_music_crossfade_screen_title">Плавный переход</string>
     <string name="morphe_music_crossfade_session_control_summary">Долгое нажатие на кнопку перемешивания позволяет приостановить или возобновить плавный переход</string>
     <string name="morphe_music_crossfade_session_control_title">Управление сеансами</string>
-    <string name="morphe_music_crossfade_video_mode_disabled_toast">Видеорежим недоступен при включенном плавном переходе</string>
     <string name="morphe_music_deezer_arl_dialog_instruction">"Вставьте файл cookie arl из Deezer
 
 Шаги:

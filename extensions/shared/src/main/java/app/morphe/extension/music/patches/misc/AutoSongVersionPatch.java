@@ -272,6 +272,8 @@ public final class AutoSongVersionPatch {
             // The song plays next and doesn't need its own lookup.
             songVersions.put(songId, NO_SONG_VERSION);
             rememberSwitch(videoId, songId);
+
+            // The shared dispatcher owns MODE_SWITCH until the native load is acknowledged.
             final boolean switched = switchInQueue(Utils.getContext(), access, videoId, songId);
             Logger.printDebug(() -> "song version: " + videoId + " -> " + songId + " switched: " + switched);
             return switched;

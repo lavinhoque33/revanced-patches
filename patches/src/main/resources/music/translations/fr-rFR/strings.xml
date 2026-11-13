@@ -110,7 +110,6 @@ Lecture SABR (Falsifier les flux vidéo désactivés)"</string>
     <string name="morphe_music_crossfade_screen_title">Fondu enchaîné</string>
     <string name="morphe_music_crossfade_session_control_summary">Appuyez longuement sur le bouton \'Lecture aléatoire\' pour activer ou désactiver le fondu enchaîné</string>
     <string name="morphe_music_crossfade_session_control_title">Contrôle de session</string>
-    <string name="morphe_music_crossfade_video_mode_disabled_toast">Le mode vidéo n\'est pas disponible lorsque le fondu enchaîné est activé</string>
     <string name="morphe_music_deezer_arl_dialog_instruction">"Collez le cookie arl de Deezer
 
 Étapes :

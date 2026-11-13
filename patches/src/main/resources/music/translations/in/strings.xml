@@ -118,7 +118,6 @@ Pemutaran SABR (Spoof aliran video dimatikan)"</string>
     <string name="morphe_music_crossfade_screen_title">Pudar silang</string>
     <string name="morphe_music_crossfade_session_control_summary">Tekan lama tombol acak untuk menjeda atau melanjutkan pudar silang</string>
     <string name="morphe_music_crossfade_session_control_title">Kontrol sesi</string>
-    <string name="morphe_music_crossfade_video_mode_disabled_toast">Mode video tidak tersedia saat pudar silang diaktifkan</string>
     <string name="morphe_music_deezer_arl_dialog_instruction">"Tempel cookie arl dari Deezer
 
 Langkah-langkah:

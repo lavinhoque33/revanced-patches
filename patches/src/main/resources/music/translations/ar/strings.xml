@@ -113,7 +113,6 @@
     <string name="morphe_music_crossfade_screen_title">تلاشي</string>
     <string name="morphe_music_crossfade_session_control_summary">اضغط مطولاً على زر التشغيل العشوائي للإيقاف المؤقت أو استئناف التلاشي التدريجي</string>
     <string name="morphe_music_crossfade_session_control_title">التحكم في الجلسة</string>
-    <string name="morphe_music_crossfade_video_mode_disabled_toast">وضع الفيديو غير متاح أثناء تمكين التلاشي التدريجي</string>
     <string name="morphe_music_deezer_arl_dialog_instruction">"إلصق ملف تعريف إرتباط \"arl\" من ديزر
 
 الخطوات:

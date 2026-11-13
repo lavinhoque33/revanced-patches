@@ -118,7 +118,6 @@ Reprodução SABR (spoof de streams de vídeo desativado)"</string>
     <string name="morphe_music_crossfade_screen_title">Crossfade</string>
     <string name="morphe_music_crossfade_session_control_summary">Pressione e segure o botão de aleatorizar para pausar ou retomar o crossfade</string>
     <string name="morphe_music_crossfade_session_control_title">Controles de sessão</string>
-    <string name="morphe_music_crossfade_video_mode_disabled_toast">O modo de vídeo não está disponível enquanto o crossfade estiver habilitado</string>
     <string name="morphe_music_deezer_arl_dialog_instruction">"Cole o cookie arl do Deezer
 
 Etapas:

@@ -118,7 +118,6 @@ Reproducción SABR (con 'Falsificar transmisiones de vídeo' desactivado)"</stri
     <string name="morphe_music_crossfade_screen_title">Fundido entre canciones</string>
     <string name="morphe_music_crossfade_session_control_summary">Mantén pulsado el botón de reproducción aleatoria para pausar o reanudar el fundido entre canciones</string>
     <string name="morphe_music_crossfade_session_control_title">Control de sesión</string>
-    <string name="morphe_music_crossfade_video_mode_disabled_toast">El modo de vídeo no está disponible mientras el fundido entre canciones está activado</string>
     <string name="morphe_music_deezer_arl_dialog_instruction">"Pega la cookie arl de Deezer
 
 Pasos:

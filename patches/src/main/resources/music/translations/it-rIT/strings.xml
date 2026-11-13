@@ -118,7 +118,6 @@ Riproduzione SABR (simulazione dei flussi video disattivata)"</string>
     <string name="morphe_music_crossfade_screen_title">Dissolvenza incrociata</string>
     <string name="morphe_music_crossfade_session_control_summary">Tieni premuto il pulsante di riproduzione casuale per mettere in pausa o riprendere la dissolvenza incrociata</string>
     <string name="morphe_music_crossfade_session_control_title">Controllo di sessione</string>
-    <string name="morphe_music_crossfade_video_mode_disabled_toast">La modalità video non è disponibile quando la dissolvenza incrociata è abilitata</string>
     <string name="morphe_music_deezer_arl_dialog_instruction">"Incolla il cookie arl di Deezer
 
 Passaggi:

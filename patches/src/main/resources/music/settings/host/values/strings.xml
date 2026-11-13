@@ -98,7 +98,8 @@ Tap the continue button and allow optimization changes"</string>
     <string name="morphe_music_crossfade_about_banner_title" translatable="false" />
     <string name="morphe_music_crossfade_about_best_summary">Normal song-to-song playback and auto-advance, repeat-one (the song crossfades into itself), and local audio - phone speaker, wired headphones, Bluetooth, or USB</string>
     <string name="morphe_music_crossfade_about_best_title">Works best with</string>
-    <string name="morphe_music_crossfade_about_credit_summary">Crossfade feature by VazerOG</string>
+    <string name="morphe_music_crossfade_about_credit_summary">PCM processing and transition engine by lavinhoque33.
+        Retained native-player integration and settings originated with VazerOG and Morphe.</string>
     <string name="morphe_music_crossfade_about_credit_title">Credit</string>
     <string name="morphe_music_crossfade_about_how_summary">"Crossfade overlaps the end of one song with the start of the next, fading one down as the other comes up over your chosen duration and curve
 
@@ -106,15 +107,14 @@ It runs on auto-advance (when a song ends on its own) and on manual skips - each
 
 Requires YouTube Music 9.x or newer"</string>
     <string name="morphe_music_crossfade_about_how_title">How it works</string>
-    <string name="morphe_music_crossfade_about_known_summary">"A music video set as the first song - or one started from outside the current queue - may briefly show as video before audio-only mode kicks in
-
-Pausing crossfade to watch a music video can leave some videos black (the ones whose audio comes from the video itself). Pausing crossfade before you pick the song avoids it"</string>
+    <string name="morphe_music_crossfade_about_known_summary">The PCM engine requires a supported decoded audio output.
+        Casting and unsupported outputs keep ordinary playback rather than using native-volume fades.</string>
     <string name="morphe_music_crossfade_about_known_title">Known issues</string>
-    <string name="morphe_music_crossfade_about_quirks_summary">"Music videos play as audio-only while crossfade is on (long-press shuffle to pause if you want the video)
+    <string name="morphe_music_crossfade_about_quirks_summary">"Song/video switches stay on the native player and do not crossfade
 
 Songs shorter than your fade duration may skip the fade
 
-The lock screen or notification can briefly show a stale state mid-transition"</string>
+Long-press shuffle to pause crossfade for the current session"</string>
     <string name="morphe_music_crossfade_about_quirks_title">Doesn\'t work quite right</string>
     <string name="morphe_music_crossfade_about_summary">How crossfade works - and when it does not</string>
     <string name="morphe_music_crossfade_about_title">About</string>
@@ -143,7 +143,6 @@ YouTube Music older than 9.00"</string>
     <string name="morphe_music_crossfade_screen_title">Crossfade</string>
     <string name="morphe_music_crossfade_session_control_summary">Long-press the shuffle button to pause or resume crossfade</string>
     <string name="morphe_music_crossfade_session_control_title">Session control</string>
-    <string name="morphe_music_crossfade_video_mode_disabled_toast">Video mode is not available while crossfade is enabled</string>
     <string name="morphe_music_deezer_arl_dialog_hint" translatable="false">arl</string>
     <string name="morphe_music_deezer_arl_dialog_instruction">"Paste the arl cookie from Deezer.\n\nSteps:\n1. Sign in at deezer.com\n2. Open DevTools → Application → Cookies → deezer.com\n3. Copy the value of \"arl\""</string>
     <string name="morphe_music_deezer_arl_title">Deezer ARL</string>

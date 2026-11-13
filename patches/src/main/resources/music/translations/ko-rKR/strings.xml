@@ -118,7 +118,6 @@ SABR 프로토콜을 사용하여 재생하는 경우 (동영상 스트림 속�
     <string name="morphe_music_crossfade_screen_title">크로스페이드</string>
     <string name="morphe_music_crossfade_session_control_summary">셔플 버튼을 길게 탭하여 크로스페이드를 일시 중지하거나 다시 실행할 수 있습니다</string>
     <string name="morphe_music_crossfade_session_control_title">세션 제어</string>
-    <string name="morphe_music_crossfade_video_mode_disabled_toast">크로스페이드가 활성화된 동안에는 동영상 모드를 사용할 수 없습니다</string>
     <string name="morphe_music_deezer_arl_dialog_instruction">"Deezer에서 arl 쿠키를 붙여넣으세요
 
 단계:

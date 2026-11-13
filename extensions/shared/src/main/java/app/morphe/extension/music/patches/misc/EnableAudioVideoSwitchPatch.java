@@ -47,6 +47,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executor;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 
 import app.morphe.extension.music.patches.CrossfadeManager;
 import app.morphe.extension.music.patches.jam.QueueCommand;
@@ -279,6 +280,7 @@ public final class EnableAudioVideoSwitchPatch {
     ) {
         if (access == null) return false;
         CrossfadeManager.ModeSwitch modeSwitch = null;
+        String finishReason = "queue-switch-failed";
         try {
             if (!access.patch_atvLocal()) {
                 Logger.printDebug(() -> "audio/video switch: queue is not local");
@@ -309,7 +311,10 @@ public final class EnableAudioVideoSwitchPatch {
                 return false;
             }
 
-            modeSwitch = dispatchModeSwitch(access, currentId, targetId, () -> dispatchMediaKeyEvent(context));
+            modeSwitch = dispatchModeSwitch(access, currentId, targetId, request -> {
+                if (!CrossfadeManager.playNextForModeSwitch(request)) dispatchMediaKeyEvent(context);
+            });
+            finishReason = "queue-switch-unacknowledged";
             CrossfadeManager.ModeSwitch intent = modeSwitch;
             if (!await(
                     () -> access.patch_atvCurrentIndex() == index + 1
@@ -322,13 +327,14 @@ public final class EnableAudioVideoSwitchPatch {
                 return false;
             }
 
+            finishReason = "queue-switch-loaded";
             removePrevious(access, currentId);
             return true;
         } catch (Exception ex) {
             Logger.printException(() -> "switchInQueue failure", ex);
             return false;
         } finally {
-            endModeSwitch(modeSwitch);
+            endModeSwitch(modeSwitch, finishReason);
         }
     }
 
@@ -432,14 +438,19 @@ public final class EnableAudioVideoSwitchPatch {
     }
 
     private static CrossfadeManager.ModeSwitch dispatchModeSwitch(
-            QueueAccess access, String currentId, String targetId, Runnable dispatch) throws Exception {
+            QueueAccess access, String currentId, String targetId,
+            Consumer<CrossfadeManager.ModeSwitch> dispatch) throws Exception {
         CrossfadeManager.ModeSwitch[] request = {null};
         FutureTask<CrossfadeManager.ModeSwitch> task = new FutureTask<>(() -> {
             if (!currentId.equals(currentQueueVideoId(access))) return null;
 
             request[0] = CrossfadeManager.beginModeSwitch(currentId, targetId);
-            dispatch.run();
-            return request[0];
+            try {
+                dispatch.accept(request[0]);
+                return request[0];
+            } finally {
+                CrossfadeManager.modeSwitchDispatched(request[0]);
+            }
         });
         Utils.runOnMainThread(task);
 
@@ -454,14 +465,15 @@ public final class EnableAudioVideoSwitchPatch {
         }
     }
 
-    private static void endModeSwitch(CrossfadeManager.ModeSwitch intent) {
-        Utils.runOnMainThread(() -> CrossfadeManager.endModeSwitch(intent, "interceptor-finished"));
+    private static void endModeSwitch(CrossfadeManager.ModeSwitch intent, String reason) {
+        Utils.runOnMainThread(() -> CrossfadeManager.endModeSwitch(intent, reason));
     }
 
     private static void openWatch(Context context, QueueAccess access, String currentId, String videoId) {
         CrossfadeManager.ModeSwitch modeSwitch = null;
+        String finishReason = "watch-switch-failed";
         try {
-            modeSwitch = dispatchModeSwitch(access, currentId, videoId, () -> {
+            modeSwitch = dispatchModeSwitch(access, currentId, videoId, request -> {
                 Intent intent = new Intent(
                         Intent.ACTION_VIEW,
                         Uri.parse("https://music.youtube.com/watch?v=" + videoId)
@@ -475,12 +487,13 @@ public final class EnableAudioVideoSwitchPatch {
             });
 
             CrossfadeManager.ModeSwitch intent = modeSwitch;
-            await(() -> videoId.equals(currentQueueVideoId(queue.get()))
-                    && CrossfadeManager.hasModeSwitchLoaded(intent), 3_000);
+            finishReason = await(() -> videoId.equals(currentQueueVideoId(queue.get()))
+                    && CrossfadeManager.hasModeSwitchLoaded(intent), 3_000)
+                    ? "watch-switch-loaded" : "watch-switch-unacknowledged";
         } catch (Exception ex) {
             Logger.printException(() -> "openWatch failure", ex);
         } finally {
-            endModeSwitch(modeSwitch);
+            endModeSwitch(modeSwitch, finishReason);
         }
     }
 

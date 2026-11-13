@@ -111,7 +111,6 @@ SABR 播放（影片串流模擬已關閉）"</string>
     <string name="morphe_music_crossfade_screen_title">漸色混合</string>
     <string name="morphe_music_crossfade_session_control_summary">長按隨機播放按鈕以暫停或復原淡入淡出效果</string>
     <string name="morphe_music_crossfade_session_control_title">工作階段控制</string>
-    <string name="morphe_music_crossfade_video_mode_disabled_toast">啟用淡入淡出效果時，視訊模式不可用</string>
     <string name="morphe_music_deezer_arl_dialog_instruction">"貼上來自 Deezer 的 arl cookie。
 
 步驟：

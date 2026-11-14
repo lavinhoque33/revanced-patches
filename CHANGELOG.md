@@ -1,5 +1,40 @@
 ## Unreleased
 
+## [1.36.0-dev.1](https://github.com/lavinhoque33/revanced-patches/compare/v1.35.0...v1.36.0-dev.1) (2026-11-13)
+
+### Features
+
+* **Music - Glass player and navigation bar:** Add Morphe's independent glass miniplayer and navigation bar,
+  off by default, under Player and Navigation bar. Configure blur, tint, opacity, size and rim brightness
+  with live previews, plus optional spinning artwork. Keep rounded artwork on comments and lyrics sheets
+  and align controls in RTL layouts. Available on Music 8.51 and newer; older versions skip with a warning.
+
+### Bug Fixes
+
+* **YouTube - Overlay buttons:** Pause through the native controller after yellow repeat rewinds a finished video.
+  Keep playback intent in sync so Play resumes the same video. Blue repeat and repeat-off autoplay stay unchanged.
+* **YouTube / Music - Hide handle:** Show the profile handle by default. Keep hiding available as an opt-in.
+  Restore the account-menu switch on newer Music versions so it can be turned off without importing settings.
+* **Music - Hide action bar components:** Preserve native download arguments to prevent a download-button
+  bytecode type error on Music 8.30.54.
+* **Music - Older versions:** Restore Scrobbling and playlist track tap actions on 6.20. Skip unsupported
+  playback speed slider/pitch and external podcast restriction hooks below 7.25 with warnings, while keeping
+  exclusive audio playback and the other Video playback features working.
+* **YouTube / Music - Spoof video streams:** Warn when JavaScript clients need a missing or outdated WebView,
+  with repair links and a persistent dismissal. Retry visionOS attestation-test streams with a fresh visitor ID.
+  Avoid OAuth connection-error notices before the startup network is ready; keep invalid-login warnings.
+* **YouTube - Override YouTube Music buttons:** Check the configured app on Android 10 and older, and deliver
+  encoded song links to third-party clients through their link-handling activity.
+* **Music - Third-party lyrics:** Recognize local line-timed LRC as synchronized. Remove incompatible account
+  headers from YouTube Music lyrics requests and retry transient failures instead of retaining cached misses.
+* **Music - Dark theme:** Apply the selected palette to the offline dialog, including legacy precompiled themes.
+* **YouTube - Playback in feeds:** Preserve the imported mode when the native controller initializes.
+* **YouTube - Layout:** Preserve Home filters with toolbar Subscriptions tabs and respect Hide category bar.
+  Hide newer horizontal shelves and portrait Ask buttons. Make watch-title channel subtitles open the description.
+* **YouTube - Video quality:** Keep live-stream buffers when a quality is selected to avoid catch-up stutter.
+* **YouTube - Compatibility:** Allow engagement-panel fingerprint validation after feed-layout hooks.
+  Prevent end-of-video scrolling on 21.33+ and publish background notifications without artwork on 20.51+.
+
 ## [1.35.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.34.1...v1.35.0) (2026-11-13)
 
 ### Features

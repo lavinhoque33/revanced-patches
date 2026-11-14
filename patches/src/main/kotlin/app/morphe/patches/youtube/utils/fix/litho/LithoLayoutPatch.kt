@@ -7,11 +7,15 @@
  * https://github.com/ReVanced/revanced-patches/commit/724e6d61b2ecd868c1a9a37d465a688e83a74799
  *
  * See the included NOTICE file for GPLv3 Section 7 terms that apply to Morphe contributions.
+ * Modified by lavinhoque33, 2026-11-13
  */
 
 package app.morphe.patches.youtube.utils.fix.litho
 
 import app.morphe.patcher.extensions.InstructionExtensions.addInstruction
+import app.morphe.patches.youtube.utils.playservice.is_21_33_or_greater
+import app.morphe.patches.youtube.utils.playservice.versionCheckPatch
+import app.morphe.util.Utils.printWarn
 import app.morphe.patcher.extensions.InstructionExtensions.getInstruction
 import app.morphe.patcher.patch.bytecodePatch
 import app.morphe.patcher.util.proxy.mutableTypes.MutableMethod
@@ -31,7 +35,15 @@ private const val EXTENSION_DOUBLE_BACK_TO_CLOSE_CLASS_DESCRIPTOR =
 val lithoLayoutPatch = bytecodePatch(
     description = "lithoLayoutPatch"
 ) {
+    dependsOn(versionCheckPatch)
+
     execute {
+        if (is_21_33_or_greater) {
+            ScrollToRelatedItemsOnVideoEndFingerprint.method.addInstruction(0, "return-void")
+        } else {
+            printWarn("End-of-video scroll fix requires YouTube 21.33 or newer; skipped.")
+        }
+
 
         // region patch double back to close
 

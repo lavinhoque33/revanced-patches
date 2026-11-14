@@ -8,7 +8,7 @@
  *
  * See the included NOTICE file for GPLv3 Section 7 terms that apply to Morphe contributions.
  *
- * Modified by lavinhoque33, 2026-10-21.
+ * Modified by lavinhoque33, 2026-11-13
  */
 
 package app.morphe.patches.youtube.misc.backgroundplayback
@@ -17,6 +17,7 @@ import app.morphe.patcher.extensions.InstructionExtensions.addInstruction
 import app.morphe.patcher.extensions.InstructionExtensions.addInstructions
 import app.morphe.patcher.extensions.InstructionExtensions.getInstruction
 import app.morphe.patcher.extensions.InstructionExtensions.instructions
+import app.morphe.patcher.extensions.InstructionExtensions.replaceInstruction
 import app.morphe.patcher.patch.bytecodePatch
 import app.morphe.patcher.util.getReference
 import app.morphe.patcher.util.matchSingle
@@ -28,6 +29,7 @@ import app.morphe.patches.youtube.utils.patch.PatchList.REMOVE_BACKGROUND_PLAYBA
 import app.morphe.patches.youtube.utils.playertype.playerTypeHookPatch
 import app.morphe.patches.youtube.utils.playservice.is_19_34_or_greater
 import app.morphe.patches.youtube.utils.playservice.is_20_49_or_greater
+import app.morphe.patches.youtube.utils.playservice.is_20_51_or_greater
 import app.morphe.patches.youtube.utils.playservice.is_21_15_or_greater
 import app.morphe.patches.youtube.utils.playservice.is_21_30_or_greater
 import app.morphe.patches.youtube.utils.playservice.versionCheckPatch
@@ -41,7 +43,9 @@ import app.morphe.util.findInstructionIndicesReversed
 import app.morphe.util.findInstructionIndicesReversedOrThrow
 import app.morphe.util.getWalkerMethod
 import app.morphe.util.insertLiteralOverride
+import app.morphe.util.Utils.printWarn
 import com.android.tools.smali.dexlib2.Opcode
+import com.android.tools.smali.dexlib2.iface.instruction.NarrowLiteralInstruction
 import com.android.tools.smali.dexlib2.iface.instruction.OneRegisterInstruction
 import com.android.tools.smali.dexlib2.iface.reference.MethodReference
 import com.android.tools.smali.dexlib2.util.MethodUtil
@@ -202,6 +206,24 @@ val backgroundPlaybackPatch = bytecodePatch(
                     "$EXTENSION_CLASS_DESCRIPTOR->isAutomaticPlaybackPauseInFlyout(Z)Z"
                 )
             }
+        }
+
+        // Publish media-session state even if the notification artwork could not be loaded.
+        if (is_20_51_or_greater) {
+            MediaSessionArtworkStateFingerprint.let {
+                it.method.apply {
+                    val noChangeIndex = it.instructionMatches.first { match ->
+                        match.instruction.opcode == Opcode.CONST_4
+                    }.index
+                    val register = getInstruction<OneRegisterInstruction>(noChangeIndex).registerA
+                    val change = getInstruction<NarrowLiteralInstruction>(
+                        it.instructionMatches.last().index
+                    ).narrowLiteral
+                    replaceInstruction(noChangeIndex, "const v$register, $change")
+                }
+            }
+        } else {
+            printWarn("Background notification artwork fix requires YouTube 20.51 or newer; skipped.")
         }
 
         // Force allowing background play for videos labeled for kids.

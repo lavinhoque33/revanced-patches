@@ -725,6 +725,21 @@ To use this feature, turn off \'Spoof video streams\'"</string>
 
 Make %2$s the default client?"</string>
     <string name="morphe_spoof_video_streams_client_failing_dialog_switch">Switch</string>
+    <!-- Morphe #4733; Modified by lavinhoque33, 2026-11-13 -->
+    <string name="morphe_spoof_video_streams_webview_dialog_title">Android System WebView</string>
+    <string name="morphe_spoof_video_streams_webview_dialog_message_missing">"Android System WebView is unavailable.
+
+Video playback needs Android System WebView. Turn it on and update it to the latest version.
+
+Tap OK to open Android System WebView."</string>
+    <string name="morphe_spoof_video_streams_webview_dialog_message_outdated">"WebView is out of date (version %s).
+
+Video playback may fail until Android System WebView is updated to the latest version.
+
+Tap OK to open Android System WebView."</string>
+    <string name="morphe_spoof_video_streams_webview_dialog_ignore">Do not show again</string>
+    <string name="morphe_spoof_video_streams_webview_toast_not_installed">Android System WebView is not installed.
+Install it to fix video playback</string>
     <string name="morphe_spoof_video_streams_client_failing_dialog_title">Default client does not work</string>
     <string name="morphe_spoof_video_streams_client_type_title">Default client</string>
     <string name="morphe_spoof_video_streams_no_clients_toast">Could not fetch any client streams</string>
@@ -1362,4 +1377,76 @@ Side effect (Block request):
     <string name="revanced_webview_toast_no_network">Please check your network connection</string>
     <string name="revanced_webview_toast_unavailable">WebView is not available</string>
     <string name="revanced_webview_visitor_data" translatable="false">Visitor Data</string>
+
+    <!-- Morphe glass UI: PRs #4542, #4621 and #4742; port by lavinhoque33, 2026-11-13. -->
+    <string name="morphe_music_navigation_bar_glass_title">Enable glass navigation bar</string>
+    <string name="morphe_music_navigation_bar_glass_summary">
+        Shows the navigation bar as a floating, rounded, translucent capsule
+    </string>
+    <string name="morphe_music_navigation_bar_glass_size_title">Glass navigation bar size and style</string>
+    <string name="morphe_music_navigation_bar_glass_size_summary">
+        Adjust the height, the width, the button spacing, the opacity and the rim brightness of the glass
+        navigation bar, with a preview. Buttons that do not fit in the width of the screen are hidden
+    </string>
+    <string name="morphe_music_navigation_bar_glass_size_height">Height</string>
+    <string name="morphe_music_navigation_bar_glass_size_width">Maximum width</string>
+    <string name="morphe_music_navigation_bar_glass_size_button_spacing">Button spacing</string>
+    <string name="morphe_music_navigation_bar_glass_size_buttons_shown">Buttons shown: %1$s of %2$s</string>
+    <string name="morphe_music_navigation_bar_glass_opacity_title">Opacity</string>
+    <string name="morphe_music_navigation_bar_glass_rim_title">Rim brightness</string>
+    <string name="morphe_music_navigation_bar_glass_blur_title">Glass blur</string>
+    <string name="morphe_music_navigation_bar_glass_blur_summary">
+        How much the page behind the glass navigation bar is blurred (Android 14 and later). At 0 the page shows
+        through sharp, and before Android 14 the page is covered
+    </string>
+    <string name="morphe_music_navigation_bar_glass_light_title">Light glass</string>
+    <string name="morphe_music_navigation_bar_glass_light_summary">
+        Tints the glass navigation bar white instead of dark, for a lighter and clearer glass
+    </string>
+    <string name="morphe_music_navigation_bar_glass_album_tint_title">Album art tint</string>
+    <string name="morphe_music_navigation_bar_glass_album_tint_summary">
+        Tints the glass navigation bar with the color of the album art of the song that plays
+    </string>
+    <string name="morphe_music_navigation_bar_glass_hide_indicator_title">Hide selected button indicator</string>
+    <string name="morphe_music_navigation_bar_glass_hide_indicator_summary">
+        Hides the rounded highlight behind the selected button of the glass navigation bar
+    </string>
+    <string name="morphe_music_miniplayer_glass_title">Enable glass miniplayer</string>
+    <string name="morphe_music_miniplayer_glass_summary">
+        Shows the floating miniplayer as a rounded, translucent glass card
+    </string>
+    <string name="morphe_music_miniplayer_glass_style_title">Glass miniplayer style</string>
+    <string name="morphe_music_miniplayer_glass_style_summary">
+        Adjust the corner radius, the artwork padding, the rim brightness and the opacity of the glass
+        miniplayer, with a preview
+    </string>
+    <string name="morphe_music_miniplayer_glass_corner_radius_title">Corner radius</string>
+    <string name="morphe_music_miniplayer_glass_artwork_padding_title">Artwork padding</string>
+    <string name="morphe_music_miniplayer_glass_rim_title">Rim brightness</string>
+    <string name="morphe_music_miniplayer_glass_opacity_title">Opacity</string>
+    <string name="morphe_music_miniplayer_glass_blur_title">Glass blur</string>
+    <string name="morphe_music_miniplayer_glass_blur_summary">
+        How much the page behind the glass miniplayer is blurred (Android 14 and later). At 0 the page shows
+        through sharp, and before Android 14 the page is covered
+    </string>
+    <string name="morphe_music_miniplayer_glass_light_title">Light glass</string>
+    <string name="morphe_music_miniplayer_glass_light_summary">
+        Tints the glass miniplayer white instead of dark, for a lighter and clearer glass
+    </string>
+    <string name="morphe_music_miniplayer_glass_album_tint_title">Album art tint</string>
+    <string name="morphe_music_miniplayer_glass_album_tint_summary">
+        Tints the glass miniplayer with the color of the album art of the song that plays
+    </string>
+    <string name="morphe_music_miniplayer_glass_spinning_artwork_title">Spinning artwork</string>
+    <string name="morphe_music_miniplayer_glass_spinning_artwork_summary">
+        Makes the artwork of the glass miniplayer round, and spins it like a record while a song plays
+    </string>
+    <string name="morphe_music_miniplayer_glass_hide_progress_bar_title">Hide progress bar</string>
+    <string name="morphe_music_miniplayer_glass_hide_progress_bar_summary">
+        Hides the progress bar at the bottom of the glass miniplayer
+    </string>
+    <string name="morphe_music_navigation_bar_glass_preview_home">Home</string>
+    <string name="morphe_music_navigation_bar_glass_preview_samples">Samples</string>
+    <string name="morphe_music_navigation_bar_glass_preview_explore">Explore</string>
+    <string name="morphe_music_navigation_bar_glass_preview_library">Library</string>
 </resources>

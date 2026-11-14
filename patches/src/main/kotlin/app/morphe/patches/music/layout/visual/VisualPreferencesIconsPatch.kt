@@ -8,7 +8,7 @@
  * - anddea (https://github.com/anddea)
  *
  * Licensed under the GNU General Public License v3.0.
- * Modified by lavinhoque33, 2026-11-12
+ * Modified by lavinhoque33, 2026-11-13.
  *
  * ------------------------------------------------------------------------
  * GPLv3 Section 7 – Additional Terms & Attribution Requirements
@@ -293,6 +293,20 @@ private var preferenceKey = mutableMapOf(
 )
 
 private val rvxPreferenceKey = mapOf(
+    // Glass uses the same icon aliases and variants as the existing navigation color controls.
+    "morphe_music_navigation_bar_glass" to "revanced_enable_custom_navigation_bar_color",
+    "morphe_music_navigation_bar_glass_height" to "revanced_enable_custom_navigation_bar_color",
+    "morphe_music_navigation_bar_glass_blur" to "revanced_enable_custom_navigation_bar_color",
+    "morphe_music_navigation_bar_glass_light" to "revanced_enable_custom_navigation_bar_color",
+    "morphe_music_navigation_bar_glass_album_tint" to "revanced_enable_custom_navigation_bar_color",
+    "morphe_music_navigation_bar_glass_hide_indicator" to "revanced_enable_custom_navigation_bar_color",
+    "morphe_music_miniplayer_glass" to "revanced_enable_custom_navigation_bar_color",
+    "morphe_music_miniplayer_glass_corner_radius" to "revanced_enable_custom_navigation_bar_color",
+    "morphe_music_miniplayer_glass_blur" to "revanced_enable_custom_navigation_bar_color",
+    "morphe_music_miniplayer_glass_light" to "revanced_enable_custom_navigation_bar_color",
+    "morphe_music_miniplayer_glass_album_tint" to "revanced_enable_custom_navigation_bar_color",
+    "morphe_music_miniplayer_glass_spinning_artwork" to "revanced_enable_custom_navigation_bar_color",
+    "morphe_music_miniplayer_glass_hide_progress_bar" to "revanced_enable_custom_navigation_bar_color",
     // Internal RVX settings
     // General
     "morphe_custom_branding_name" to "M 597.69 240.77 L 416.15 240.77 Q 407.82 240.77 401.99 234.86 Q 396.15 228.95 396.15 220.52 Q 396.15 212.08 401.99 206.04 Q 407.82 200 416.15 200 L 820 200 Q 828.33 200 834.17 205.91 Q 840 211.81 840 220.25 Q 840 228.69 834.17 234.73 Q 828.33 240.77 820 240.77 L 638.46 240.77 L 638.46 740 Q 638.46 748.33 632.55 754.17 Q 626.65 760 618.21 760 Q 609.77 760 603.73 753.94 Q 597.69 747.88 597.69 739.23 L 597.69 240.77 Z M 243.08 436.92 L 140 436.92 Q 131.67 436.92 125.83 431.02 Q 120 425.11 120 416.67 Q 120 408.23 125.83 402.19 Q 131.67 396.15 140 396.15 L 386.15 396.15 Q 394.49 396.15 400.32 402.06 Q 406.15 407.97 406.15 416.41 Q 406.15 424.85 400.32 430.88 Q 394.49 436.92 386.15 436.92 L 283.08 436.92 L 283.08 740 Q 283.08 748.33 277.17 754.17 Q 271.26 760 262.82 760 Q 254.38 760 248.73 754.17 Q 243.08 748.33 243.08 740 L 243.08 436.92 Z",

@@ -8,12 +8,13 @@
  *
  * See the included NOTICE file for GPLv3 Section 7 terms that apply to Morphe contributions.
  *
- * Modified by lavinhoque33, 2026-10-21.
+ * Modified by lavinhoque33, 2026-11-13
  */
 
 package app.morphe.patches.youtube.misc.backgroundplayback
 
 import app.morphe.patcher.Fingerprint
+import app.morphe.patcher.fieldAccess
 import app.morphe.patcher.InstructionLocation.MatchAfterImmediately
 import app.morphe.patcher.InstructionLocation.MatchAfterWithin
 import app.morphe.patcher.OpcodesFilter
@@ -189,4 +190,36 @@ internal object ShortsBackgroundPlaybackFeatureFlagFingerprint : Fingerprint(
     filters = listOf(
         literal(SHORTS_BACKGROUND_PLAYBACK_FEATURE_FLAG),
     )
+)
+
+/** Returns the artwork change mask, or zero when both the old and new artwork are absent. */
+internal object MediaSessionArtworkStateFingerprint : Fingerprint(
+    accessFlags = listOf(AccessFlags.PUBLIC, AccessFlags.FINAL),
+    returnType = "I",
+    parameters = listOf("Landroid/graphics/Bitmap;", "Landroid/graphics/Bitmap;"),
+    filters = listOf(
+        opcode(Opcode.IF_NEZ),
+        opcode(Opcode.IF_NEZ, location = MatchAfterImmediately()),
+        fieldAccess(
+            opcode = Opcode.IGET_OBJECT,
+            type = "Landroid/graphics/Bitmap;",
+            location = MatchAfterImmediately()
+        ),
+        opcode(Opcode.IF_NEZ, location = MatchAfterImmediately()),
+        fieldAccess(
+            opcode = Opcode.IGET_OBJECT,
+            type = "Landroid/graphics/Bitmap;",
+            location = MatchAfterImmediately()
+        ),
+        opcode(Opcode.IF_NEZ, location = MatchAfterImmediately()),
+        opcode(Opcode.CONST_4, location = MatchAfterImmediately()),
+        fieldAccess(opcode = Opcode.IPUT_OBJECT, type = "Landroid/graphics/Bitmap;"),
+        fieldAccess(
+            opcode = Opcode.IPUT_OBJECT,
+            type = "Landroid/graphics/Bitmap;",
+            location = MatchAfterImmediately()
+        ),
+        opcode(Opcode.CONST_16, location = MatchAfterImmediately())
+    ),
+    custom = { _, classDef -> classDef.interfaces.isNotEmpty() }
 )

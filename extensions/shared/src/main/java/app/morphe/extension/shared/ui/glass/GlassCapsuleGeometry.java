@@ -3,13 +3,15 @@
  * https://github.com/MorpheApp/morphe-patches/pull/4424
  *
  * See the included NOTICE file for GPLv3 Section 7 terms that apply to this code.
- * Modified by lavinhoque33, 2026-11-06.
+ * Copyright (C) 2026 lavinhoque33
+ * Licensed under the GNU General Public License v3.0.
+ * Written by lavinhoque33, 2026-11-13.
  */
-package app.morphe.extension.youtube.patches.general;
+package app.morphe.extension.shared.ui.glass;
 
 /** Density-independent capsule decisions used by both the bar and the settings preview. */
-public final class GlassNavigationBarLayout {
-    private GlassNavigationBarLayout() {
+public final class GlassCapsuleGeometry {
+    private GlassCapsuleGeometry() {
     }
 
     /** Pack shown count and button width without allocating in the pre-draw callback. */
@@ -43,6 +45,14 @@ public final class GlassNavigationBarLayout {
 
     public static float scaledAlpha(float alpha, int opacity) {
         return Math.max(0, Math.min(1, alpha * clamp(opacity, 0, 100) / 50f));
+    }
+
+    public static float cornerRadius(float requested, float height) {
+        return Math.min(requested, height / 2);
+    }
+
+    public static float artworkRadius(float cardRadius, float padding, float minimum) {
+        return Math.max(minimum, cardRadius - padding);
     }
 
     public static int clamp(int value, int min, int max) {

@@ -12,7 +12,7 @@
  *
  * See the included NOTICE file for GPLv3 Section 7 terms that apply to Morphe contributions.
  *
- * Modified by lavinhoque33, 2026-11-10
+ * Modified by lavinhoque33, 2026-11-13
  */
 
 package app.morphe.patches.youtube.video.information
@@ -100,6 +100,42 @@ internal object PlayerInitFingerprint : Fingerprint(
         string("playVideo called on player response with no videoStreamingData."),
     )
 )
+
+internal object NativePauseVideoFingerprint : Fingerprint(
+    returnType = "V",
+    parameters = listOf("I"),
+    filters = listOf(string("pauseVideo.")),
+)
+
+internal object MedialibStopVideoFingerprint : Fingerprint(
+    returnType = "V",
+    parameters = listOf("I"),
+    filters = listOf(string("MedialibPlayer.stopVideo(), %s")),
+)
+
+// Older targets remove the facade's pause log, but retain its native-interface delegate.
+internal fun getPauseVideoFacadeFingerprint(nativePause: MethodReference) = object : Fingerprint(
+    accessFlags = listOf(AccessFlags.PUBLIC, AccessFlags.FINAL),
+    returnType = "V",
+    parameters = listOf("I"),
+    filters = listOf(
+        patcherMethodCall(name = nativePause.name, returnType = "V", parameters = listOf("I")),
+    ),
+) {}
+
+internal fun getControllerPauseFingerprint(pauseMethod: MethodReference) = object : Fingerprint(
+    accessFlags = listOf(AccessFlags.PUBLIC, AccessFlags.FINAL),
+    returnType = "V",
+    parameters = listOf("I"),
+    filters = listOf(
+        patcherMethodCall(
+            definingClass = pauseMethod.definingClass,
+            name = pauseMethod.name,
+            returnType = "V",
+            parameters = listOf("I"),
+        ),
+    ),
+) {}
 
 /**
  * Matched using class found in [PlayerInitFingerprint].

@@ -193,6 +193,7 @@ Local imports do not update automatically; import the new `.mpp` for each update
 | `Flyout menu components` | Adds options to hide or change flyout menu components. | 9.40.51 ~ 8.12.54 |
 | `Force original audio` | Adds an option to disable audio tracks from being automatically enabled. | 9.40.51 ~ 8.12.54 |
 | `Force portrait orientation` | Adds an option to keep the app in portrait orientation when the device is rotated. | 9.40.51 ~ 8.12.54 |
+| `Glass player and navigation bar` | Adds independent glass styles for the miniplayer and navigation bar, with live previews. | 9.40.51 ~ 8.12.54 |
 | `GmsCore support` | Allows the app to work without root by using a different package name when patched using a GmsCore instead of Google Play Services. | 9.40.51 ~ 8.12.54 |
 | `Hide account components` | Adds options to hide components related to the account menu. | 9.40.51 ~ 8.12.54 |
 | `Hide action bar components` | Adds options to hide action bar components and replace the offline download button with an external download button. | 9.40.51 ~ 8.12.54 |

@@ -9,7 +9,7 @@
  * - inotia00 (https://github.com/inotia00)
  *
  * Licensed under the GNU General Public License v3.0.
- * Modified by lavinhoque33, 2026-11-10
+ * Modified by lavinhoque33, 2026-11-13.
  *
  * ------------------------------------------------------------------------
  * GPLv3 Section 7 – Additional Terms & Attribution Requirements
@@ -645,7 +645,8 @@ val playerComponentsPatch = bytecodePatch(
                             move-result-object v$freeRegister
                             check-cast v$freeRegister, ${(colorMathPlayerIGetReference as FieldReference).definingClass}
                             iget v$freeRegister, v$freeRegister, $colorMathPlayerIGetReference
-                            invoke-static {v$freeRegister}, $PLAYER_CLASS_DESCRIPTOR->setLastMiniplayerColor(I)V
+                            invoke-static {v$freeRegister}, $PLAYER_CLASS_DESCRIPTOR->resolveMiniplayerColor(I)I
+                            move-result v$freeRegister
                             iput v$freeRegister, p0, $colorMathPlayerIPutReference
                             goto :off
                             :theme_color
@@ -733,7 +734,8 @@ val playerComponentsPatch = bytecodePatch(
                         if-eqz v$freeRegister, :theme_color
                         if-eqz p1, :off
                         ${readColorSmali(freeRegister)}
-                        invoke-static {v$freeRegister}, $PLAYER_CLASS_DESCRIPTOR->setLastMiniplayerColor(I)V
+                        invoke-static {v$freeRegister}, $PLAYER_CLASS_DESCRIPTOR->resolveMiniplayerColor(I)I
+                        move-result v$freeRegister
                         iput v$freeRegister, p0, $colorMathPlayerIPutReference
                         goto :off
                         :theme_color

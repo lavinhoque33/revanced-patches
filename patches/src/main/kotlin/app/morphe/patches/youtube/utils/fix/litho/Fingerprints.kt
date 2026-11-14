@@ -7,6 +7,7 @@ import app.morphe.patcher.checkCast
 import app.morphe.patcher.literal
 import app.morphe.patcher.methodCall
 import app.morphe.patcher.opcode
+import app.morphe.patcher.string
 import app.morphe.util.fingerprint.legacyFingerprint
 import app.morphe.util.or
 import com.android.tools.smali.dexlib2.AccessFlags
@@ -89,5 +90,16 @@ internal object backToRefreshFeatureFlagFingerprint : Fingerprint(
     parameters = listOf(),
     filters = listOf(
         literal(45359221L)
+    )
+)
+
+/** YouTube 21.33+ scrolls to related videos when playback ends. */
+internal object ScrollToRelatedItemsOnVideoEndFingerprint : Fingerprint(
+    returnType = "V",
+    parameters = listOf(),
+    filters = listOf(
+        literal(45825801L),
+        literal(45825802L),
+        string("related-items")
     )
 )

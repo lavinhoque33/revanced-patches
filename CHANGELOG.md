@@ -11,6 +11,12 @@
   Port native playback, downloads, Android Auto, crossfade PCM, captions, settings, navigation, Shorts and
   player gesture hooks to the newer layouts while preserving existing-version behavior.
 
+* **Music - Android Auto:** Show stream-downloaded playlists and albums in Playlists, with Downloaded songs
+  for loose copies. Keep the last complete playlist library available offline and mark unavailable or partially
+  downloaded playlists. Open playlists and albums to see their songs, with Play all at the top, and start the
+  whole playlist from any available song. Choose online or local playback when selected, including cards cached
+  by the car. Downloaded playlists now contains device-file playlists only.
+
 ### Bug Fixes
 
 * **Music - Glass player and navigation bar:** Align glass preference summaries with standard RVX rows,
@@ -27,6 +33,26 @@
 
 * **Music - Downloads:** Restore cached playlists, albums and the No Playlist group in the Library Downloads
   chip on Music 9.45.51, including its sub-filters and offline browsing.
+* **Music - Downloads / Android Auto:** Extend native queue fallback and in-flight connectivity recovery to
+  Music 9.45.51, retaining browsable downloaded playlists and native online queue updates.
+* **Music - Android Auto:** Load playlist songs when the response includes different continuation tokens for
+  the song list and its surrounding page, instead of showing Songs unavailable.
+* **Music - Downloads:** After an uncached in-flight request exhausts offline recovery, Play restarts the previous
+  saved queue occurrence locally from 0. Keep ordinary Play, preflight exhaustion and online playback unchanged.
+* **Music - Downloads:** Resolve uncached in-flight requests immediately on connectivity loss: Next/auto-advance
+  skips to the next saved song within the native queue's remaining budget, while explicit selections report
+  unavailable and exhausted queues stop cleanly. Reconnection before the decision keeps the online request.
+* **Music - Downloads:** Answer pending cached playback immediately when the default network is lost or no
+  longer validated, without waiting for socket timeouts. Preserve native request ownership, cancellation,
+  online streaming queue updates and late-response arbitration on the phone and Android Auto.
+* **Music - Downloads:** Recover in-flight Onesie playback from saved streams on the first disconnected
+  transport failure, before native retry/backoff or an additional online fallback request. Guard independent
+  Onesie preparation and prefetch paths while preserving native cancellation and online playback.
+* **Music - Downloads:** Keep online-started queues playing saved stream copies when connectivity drops,
+  on the phone and Android Auto. Answer disconnected player and queue requests before network work and recover
+  requests already in flight. Keep native queue order, skip unavailable songs on Next/automatic advancement,
+  and report explicit unavailable selections without replacing usable playback. Online lyrics and radio
+  are unchanged.
 
 ## [1.36.0-dev.1](https://github.com/lavinhoque33/revanced-patches/compare/v1.35.0...v1.36.0-dev.1) (2026-11-13)
 

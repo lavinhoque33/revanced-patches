@@ -80,11 +80,21 @@ Tap the continue button and allow optimization changes"</string>
     <string name="morphe_force_original_audio_title">Force original audio language</string>
     <string name="morphe_music_android_auto_last_played">Last played</string>
     <string name="morphe_music_android_auto_downloaded_playlists_title">Android Auto downloaded playlists</string>
-    <string name="morphe_music_android_auto_downloaded_playlists_summary">Show playlists saved with Stream download or Device files in Android Auto, including offline</string>
+    <string name="morphe_music_android_auto_downloaded_playlists_summary">
+        Show stream copies in Playlists and device-file playlists in Downloaded playlists, including offline
+    </string>
     <string name="morphe_music_android_auto_downloaded_playlists_folder">Downloaded playlists</string>
     <string name="morphe_music_android_auto_downloaded_playlists_tracks">tracks</string>
     <string name="morphe_music_android_auto_downloaded_playlists_library">Library</string>
-    <string name="morphe_music_android_auto_stream_copies_folder">Stream downloads</string>
+    <string name="morphe_music_android_auto_downloaded_songs">Downloaded songs</string>
+    <string name="morphe_music_android_auto_unavailable_offline">Unavailable offline</string>
+    <string name="morphe_music_android_auto_songs_unavailable">Songs unavailable</string>
+    <string name="morphe_music_android_auto_track_unavailable">Unavailable track</string>
+    <string name="morphe_music_android_auto_partial_offline">
+        Partially downloaded · %1$d of %2$d tracks available offline
+    </string>
+    <string name="morphe_music_android_auto_available_offline">Available offline</string>
+    <string name="morphe_music_android_auto_album">Album</string>
     <string name="morphe_music_android_auto_stream_play_all">Play all</string>
     <string name="morphe_music_android_auto_other_results">Other results</string>
     <string name="morphe_music_android_auto_subscriptions">Subscriptions</string>
@@ -239,6 +249,7 @@ YouTube Music older than 9.00"</string>
     <string name="morphe_music_offline_library_songs_count">%d songs</string>
     <string name="morphe_music_offline_library_not_enabled">Offline downloads are not available in this app version</string>
     <string name="morphe_music_offline_library_not_ready">Could not start playback yet. Play any song first</string>
+    <string name="morphe_music_player_unavailable_offline">Unavailable offline</string>
     <string name="morphe_music_not_in_playlist">Not in a playlist</string>
     <string name="morphe_music_playlist_download_complete">Device files saved: %s tracks</string>
     <string name="morphe_music_playlist_download_failed">Playlist download failed: %s</string>

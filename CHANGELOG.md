@@ -9,6 +9,9 @@
 * **Music - Track crossfade:** Stop retained playback when the miniplayer is swiped away, including a
   dismissal that resets playback without loading another song. Keep normal background playback unchanged.
 
+* **YouTube - Shorts components:** Repeat the current Short while comments or another engagement panel is open
+  instead of advancing and misplacing the player controls. Resume normal autoplay after closing the panel.
+
 ## [1.36.0-dev.1](https://github.com/lavinhoque33/revanced-patches/compare/v1.35.0...v1.36.0-dev.1) (2026-11-13)
 
 ### Features

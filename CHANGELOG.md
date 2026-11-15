@@ -12,6 +12,8 @@
   including live-preview controls. Keep playlist and Liked Music Play buttons above the real miniplayer
   and navigation bar heights, with either glass style enabled independently or together.
 
+* **YouTube - Hide player flyout menu:** Fix hiding the On-the-go entry in the player settings menu.
+
 * **Music - Track crossfade:** Stop retained playback when the miniplayer is swiped away, including a
   dismissal that resets playback without loading another song. Keep normal background playback unchanged.
 

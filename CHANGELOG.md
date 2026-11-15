@@ -1,5 +1,17 @@
 ## Unreleased
 
+### Features
+
+* **YouTube / Music - Supported versions:** Add YouTube 21.45.90 and Music 9.45.51 as optional experimental
+  targets. Keep YouTube 21.39.525 and Music 9.40.51 recommended by default, with all existing targets retained.
+  Port native playback, downloads, Android Auto, crossfade PCM, captions, settings, navigation, Shorts and
+  player gesture hooks to the newer layouts while preserving existing-version behavior.
+
+### Bug Fixes
+
+* **Music - Downloads:** Restore cached playlists, albums and the No Playlist group in the Library Downloads
+  chip on Music 9.45.51, including its sub-filters and offline browsing.
+
 ## [1.36.0-dev.1](https://github.com/lavinhoque33/revanced-patches/compare/v1.35.0...v1.36.0-dev.1) (2026-11-13)
 
 ### Features

@@ -12,7 +12,7 @@
  *
  * See the included NOTICE file for GPLv3 Section 7 terms that apply to Morphe contributions.
  *
- * Modified by lavinhoque33, 2026-11-13
+ * Modified by lavinhoque33, 2026-11-14
  */
 
 package app.morphe.patches.youtube.video.information
@@ -283,12 +283,16 @@ internal val playbackSpeedClassFingerprint = Fingerprint(
 )
 
 internal val playerControllerSetTimeReferenceFingerprint = Fingerprint(
-    filters = OpcodesFilter.opcodesToFilters(
-        Opcode.INVOKE_DIRECT_RANGE,
-        Opcode.IGET_OBJECT
+    // 21.45 can route the progress event through either playback session after construction.
+    // Match the payload constructor itself, not the instructions selecting its recipient.
+    filters = listOf(
+        methodCall(
+            opcode = Opcode.INVOKE_DIRECT_RANGE,
+            name = "<init>",
+            parameters = listOf("J", "J", "J", "J", "J", "J", "J", "Z", "Ljava/lang/String;"),
+        ),
     ),
-    // 21.39: the message became "Media progress reported outside media playback: %s" (format string
-    // instead of concatenation), so the string is matched by prefix instead of exactly.
+    // 21.39 changed the message from concatenation to a format string.
     custom = { method, _ ->
         method.indexOfFirstInstruction {
             getReference<StringReference>()?.string

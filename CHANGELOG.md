@@ -1,5 +1,7 @@
 ## Unreleased
 
+## [1.36.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.35.0...v1.36.0) (2026-11-15)
+
 ### Features
 
 * **Music - Settings shortcut:** Add an optional themed settings button beside the toolbar profile icon.
@@ -16,6 +18,11 @@
   downloaded playlists. Open playlists and albums to see their songs, with Play all at the top, and start the
   whole playlist from any available song. Choose online or local playback when selected, including cards cached
   by the car. Downloaded playlists now contains device-file playlists only.
+
+* **Music - Glass player and navigation bar:** Add Morphe's independent glass miniplayer and navigation bar,
+  off by default, under Player and Navigation bar. Configure blur, tint, opacity, size and rim brightness
+  with live previews, plus optional spinning artwork. Keep rounded artwork on comments and lyrics sheets
+  and align controls in RTL layouts. Available on Music 8.51 and newer; older versions skip with a warning.
 
 ### Bug Fixes
 
@@ -53,18 +60,6 @@
   requests already in flight. Keep native queue order, skip unavailable songs on Next/automatic advancement,
   and report explicit unavailable selections without replacing usable playback. Online lyrics and radio
   are unchanged.
-
-## [1.36.0-dev.1](https://github.com/lavinhoque33/revanced-patches/compare/v1.35.0...v1.36.0-dev.1) (2026-11-13)
-
-### Features
-
-* **Music - Glass player and navigation bar:** Add Morphe's independent glass miniplayer and navigation bar,
-  off by default, under Player and Navigation bar. Configure blur, tint, opacity, size and rim brightness
-  with live previews, plus optional spinning artwork. Keep rounded artwork on comments and lyrics sheets
-  and align controls in RTL layouts. Available on Music 8.51 and newer; older versions skip with a warning.
-
-### Bug Fixes
-
 * **YouTube - Overlay buttons:** Pause through the native controller after yellow repeat rewinds a finished video.
   Keep playback intent in sync so Play resumes the same video. Blue repeat and repeat-off autoplay stay unchanged.
 * **YouTube / Music - Hide handle:** Show the profile handle by default. Keep hiding available as an opt-in.
@@ -88,6 +83,7 @@
 * **YouTube - Video quality:** Keep live-stream buffers when a quality is selected to avoid catch-up stutter.
 * **YouTube - Compatibility:** Allow engagement-panel fingerprint validation after feed-layout hooks.
   Prevent end-of-video scrolling on 21.33+ and publish background notifications without artwork on 20.51+.
+* **Bug report template:** Rename URV Manager to UP Manager in the tool dropdown.
 
 ## [1.35.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.34.1...v1.35.0) (2026-11-13)
 

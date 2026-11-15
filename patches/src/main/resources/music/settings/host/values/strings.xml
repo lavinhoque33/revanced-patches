@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="revanced_settings_shortcut_title">Show settings shortcut</string>
+    <string name="revanced_settings_shortcut_summary">Show a settings button next to your profile.
+        Tap for YouTube Music settings; touch and hold for RVX settings.</string>
+    <string name="revanced_settings_shortcut_long_click">Open RVX settings</string>
     <string name="revanced_patches_update_notice_title">Patches update notice</string>
     <string name="revanced_patches_update_check_title">Check now</string>
     <string name="revanced_patches_update_check_summary">Check for newer patches now, including skipped versions. When notices are off, use the installed patches channel.</string>

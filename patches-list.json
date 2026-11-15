@@ -3086,6 +3086,24 @@
       "options": []
     },
     {
+      "name": "Settings shortcut",
+      "description": "Adds an optional toolbar settings button. Tap for YouTube Music settings; hold for RVX settings.",
+      "use": true,
+      "dependencies": [
+        "ResourcePatch"
+      ],
+      "compatiblePackages": {
+        "com.google.android.apps.youtube.music": [
+          "9.40.51",
+          "9.15.51",
+          "8.30.54",
+          "8.28.54",
+          "8.12.54"
+        ]
+      },
+      "options": []
+    },
+    {
       "name": "Shorts components",
       "description": "Adds options to hide or change components related to YouTube Shorts.",
       "use": true,

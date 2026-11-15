@@ -178,6 +178,7 @@ public class Settings extends SharedYouTubeSettings {
     public static final BooleanSetting FORCE_PORTRAIT_ORIENTATION = new BooleanSetting("revanced_force_portrait_orientation", FALSE, true);
     public static final BooleanSetting CUSTOM_FILTER = new BooleanSetting("revanced_custom_filter", FALSE);
     public static final StringSetting CUSTOM_FILTER_STRINGS = new StringSetting("revanced_custom_filter_strings", "", true);
+    public static final BooleanSetting SETTINGS_SHORTCUT = new BooleanSetting("revanced_settings_shortcut", FALSE, true);
 
     // Settings menu filter
     public static final StringSetting SETTINGS_MENU_FILTER_STRINGS = new StringSetting("morphe_settings_menu_filter_strings", "", true);

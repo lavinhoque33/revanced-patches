@@ -1,5 +1,11 @@
 ## Unreleased
 
+### Features
+
+* **Music - Settings shortcut:** Add an optional themed settings button beside the toolbar profile icon.
+  Tap to open YouTube Music settings, or touch and hold to open RVX settings. Enable it under General;
+  it is off by default.
+
 ### Bug Fixes
 
 * **Music - Glass player and navigation bar:** Align glass preference summaries with standard RVX rows,

@@ -1,5 +1,11 @@
 ## Unreleased
 
+### Bug Fixes
+
+* **Music - Glass player and navigation bar:** Align glass preference summaries with standard RVX rows,
+  including live-preview controls. Keep playlist and Liked Music Play buttons above the real miniplayer
+  and navigation bar heights, with either glass style enabled independently or together.
+
 ## [1.36.0-dev.1](https://github.com/lavinhoque33/revanced-patches/compare/v1.35.0...v1.36.0-dev.1) (2026-11-13)
 
 ### Features

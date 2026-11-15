@@ -40,6 +40,7 @@ import com.android.tools.smali.dexlib2.iface.reference.StringReference
 import com.android.tools.smali.dexlib2.iface.reference.TypeReference
 
 private const val REPLAY = "Lapp/morphe/extension/music/patches/downloads/OfflineReplayHooks;"
+private const val PLAYER_FALLBACK = "Lapp/morphe/extension/music/patches/downloads/PlayerFallback;"
 private const val PAGE_REQUEST = $$"Lapp/morphe/extension/music/patches/downloads/DownloadsPage$PageRequest;"
 private const val PAGE_RESPONSE = $$"Lapp/morphe/extension/music/patches/downloads/DownloadsPage$PageResponse;"
 private const val NEXT_REQUEST = $$"Lapp/morphe/extension/music/patches/downloads/OfflineReplay$NextRequest;"
@@ -59,7 +60,7 @@ private const val REGISTRY = "Lcom/google/protobuf/ExtensionRegistryLite;"
 /** The browse id the "No connection" sheet's "Go to downloads" button opens. */
 private const val SHEET_BROWSE = "FEmusic_offline"
 
-private val REPLAY_VERSIONS = setOf("9.45.51", "9.40.51", "9.15.51", "8.30.54")
+private val REPLAY_VERSIONS = setOf("9.45.51", "9.40.51", "9.15.51", "8.30.54", "8.28.54", "8.12.54")
 
 /** The experiment flag the offline watch command gate reads in every supported version (the id is the same). */
 private const val GATE_EXPERIMENT = 0x02b88604L
@@ -99,7 +100,10 @@ internal fun BytecodePatchContext.installOfflineReplay() {
         val installNext = prepareReplayNext(requestType, commandType)
 
         val installPage = prepareDownloadsPage()
-        val installBrowse = prepareBrowsePages()
+        // Keep the existing browse-page range; older versions gain player/next replay, not a new browse model.
+        val installBrowse = if (packageMetadata.versionName in setOf("9.45.51", "9.40.51", "9.15.51", "8.30.54")) {
+            prepareBrowsePages()
+        } else null
         val installSeek = prepareSeekSnap()
         val installSheet = prepareNoConnectionSheet()
 
@@ -773,10 +777,24 @@ private fun BytecodePatchContext.prepareReplayTail(): Pair<String, () -> Unit> {
     check(factories.isNotEmpty()) { "player: no response factory" }
     // The small one only wraps the bytes; the large one is the variant for a feature flag.
     val factory = factories.minBy { it.implementation?.instructions?.count() ?: Int.MAX_VALUE }
+    val installPlayerFallback = preparePlayerFallback(requestType, offlineOnly, videoId, wrapper, factory)
+    val cancelCallback = instructions.mapNotNull { it.getReference<MethodReference>() }.distinct().single {
+        it.definingClass == callbackType && it.returnType == "V" &&
+            it.parameterTypes.map(CharSequence::toString) == listOf(OBJECT, "Ljava/lang/Exception;")
+    }
 
     // Every failure of the lookup (an id the offline store lacks ends in a different catch block than a stale entry)
     // jumps to the guard: the hook takes over that jump target, so no failure path can skip it.
     return requestType to {
+        installPlayerFallback()
+        mutableClassDefBy(requestType).addDownloadsBridge("rvxCancelPlayer", listOf(OBJECT), "V", 5, """
+            check-cast p1, $callbackType
+            new-instance v1, Ljava/util/concurrent/CancellationException;
+            invoke-direct {v1}, Ljava/util/concurrent/CancellationException;-><init>()V
+            const/4 v0, 0x0
+            invoke-interface {p1, v0, v1}, $cancelCallback
+            return-void
+        """)
         owner.addDownloadsBridge("rvxTail", listOf(requestType, callbackType), "Z", 8, """
             invoke-virtual {p1}, ${offlineOnly.definingClass}->${offlineOnly.name}()Z
             move-result v0
@@ -785,7 +803,8 @@ private fun BytecodePatchContext.prepareReplayTail(): Pair<String, () -> Unit> {
             invoke-static {v1, v0}, $REPLAY->storedForPlayer(${STRING}Z)[B
             move-result-object v2
             if-nez v2, :stored
-            const/4 v0, 0x0
+            invoke-static {p1, p2}, $PLAYER_FALLBACK->rejectPlayer($OBJECT$OBJECT)Z
+            move-result v0
             return v0
             :stored
             invoke-static {}, Landroid/os/SystemClock;->elapsedRealtime()J
@@ -795,7 +814,8 @@ private fun BytecodePatchContext.prepareReplayTail(): Pair<String, () -> Unit> {
             invoke-static {v2, v1}, $REPLAY->finishPlayer($OBJECT$STRING)$OBJECT
             move-result-object v2
             if-nez v2, :deliver
-            const/4 v0, 0x0
+            invoke-static {p1, p2}, $PLAYER_FALLBACK->rejectPlayer($OBJECT$OBJECT)Z
+            move-result v0
             return v0
             :deliver
             const/4 v0, 0x0
@@ -809,6 +829,14 @@ private fun BytecodePatchContext.prepareReplayTail(): Pair<String, () -> Unit> {
             if-eqz v$scratch, :rvx_replay_player_stock
             return-void
             :rvx_replay_player_stock
+            nop
+        """)
+        method.addInstructionsWithLabels(0, """
+            invoke-virtual/range {p0 .. p2}, ${owner.type}->rvxTail($requestType$callbackType)Z
+            move-result v$scratch
+            if-eqz v$scratch, :rvx_replay_player_entry_stock
+            return-void
+            :rvx_replay_player_entry_stock
             nop
         """)
     }
@@ -879,6 +907,14 @@ private fun BytecodePatchContext.prepareReplayNext(requestType: String, commandT
             move-result-object v$future
         """)
         method.addInstruction(taskInit + 1, "move-object v$booleanArgument, v$request")
+        method.addInstructionsWithLabels(0, """
+            invoke-static {p1}, $REPLAY->localNext($OBJECT)$FUTURE
+            move-result-object v0
+            if-eqz v0, :rvx_next_network
+            return-object v0
+            :rvx_next_network
+            nop
+        """)
     }
 }
 
@@ -914,8 +950,9 @@ private fun BytecodePatchContext.nextResponseType(requestType: String): String {
 
 /** The response adapter [installStreamSwap] added [STREAM_RESPONSE] to; without it the replay cannot swap audio. */
 private fun BytecodePatchContext.streamSwapAdapterClass(): ClassDef = Fingerprint(
-    name = "<init>",
-    parameters = listOf("L", "Lj$/time/Instant;", "J", "L", "L", "Z"),
+    name = "rvxWithBytes",
+    returnType = OBJECT,
+    parameters = listOf("[B", "Z"),
     custom = { _, owner -> STREAM_RESPONSE in owner.interfaces },
 ).matchSingle().classDef
 

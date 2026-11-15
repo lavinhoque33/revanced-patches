@@ -38,7 +38,7 @@ private const val REQUEST = "$SWAP->swap(Ljava/lang/Object;)Ljava/lang/Object;"
  * Resolve every dependency before mutation; an unfamiliar ABI only warns and leaves playback online.
  */
 internal fun BytecodePatchContext.installStreamSwap() {
-    if (packageMetadata.versionName !in setOf("9.45.51", "9.40.51", "9.15.51", "8.30.54")) {
+    if (packageMetadata.versionName !in setOf("9.45.51", "9.40.51", "9.15.51", "8.30.54", "8.28.54", "8.12.54")) {
         printWarn("Play downloads locally is unavailable on this Music version; online playback unchanged.")
         return
     }
@@ -67,14 +67,15 @@ internal fun BytecodePatchContext.installStreamSwap() {
         val constructor = wrapperMatch.method
         val types = constructor.parameterTypes.map(CharSequence::toString)
         val proto = types[0]
-        val streaming = mutableClassDefBy(types[3])
-        // Follow constructor parameter assignments, including the request flag rather than a lazy boolean.
+        val streamIndex = if (types.size == 6) 3 else 2
+        val streaming = mutableClassDefBy(types[streamIndex])
+        // Follow constructor assignments on both the five- and six-parameter wrapper ABIs.
         val responseProto = constructor.streamSwapParameterField(0)
-        val instant = constructor.streamSwapParameterField(1)
-        val timestamp = constructor.streamSwapParameterField(2)
-        val streams = constructor.streamSwapParameterField(3)
-        val metadata = constructor.streamSwapParameterField(4)
-        val flag = constructor.streamSwapParameterField(5)
+        val instant = if (types.size == 6) constructor.streamSwapParameterField(1) else null
+        val timestamp = constructor.streamSwapParameterField(streamIndex - 1)
+        val streams = constructor.streamSwapParameterField(streamIndex)
+        val metadata = constructor.streamSwapParameterField(streamIndex + 1)
+        val flag = constructor.streamSwapParameterField(streamIndex + 2)
         val serialize = wrapper.methods.single { method ->
             method.parameterTypes.isEmpty() && method.returnType == "[B" &&
                 method.implementation?.instructions?.any {
@@ -139,6 +140,23 @@ internal fun BytecodePatchContext.installStreamSwap() {
         val network = streaming.fields.single { it.type == networkHolder.type }
         val networkValue = networkHolder.fields.single { !AccessFlags.STATIC.isSet(it.accessFlags) }
         val networkType = setNetwork.parameterTypes.single()
+        val allocation = if (instant != null) """
+            new-instance v2, ${wrapper.type}
+            iget-object v4, p0, $instant
+            iget-wide v5, p0, $timestamp
+            iget-object v8, p0, $metadata
+            iget-boolean v9, p0, $flag
+            invoke-direct/range {v2 .. v9}, $constructor
+            return-object v2
+        """ else """
+            move-object v6, v7
+            new-instance v2, ${wrapper.type}
+            iget-wide v4, p0, $timestamp
+            iget-object v7, p0, $metadata
+            iget-boolean v8, p0, $flag
+            invoke-direct/range {v2 .. v8}, $constructor
+            return-object v2
+        """
 
         wrapper.addDownloadsBridge("rvxVideoId", emptyList(), "Ljava/lang/String;", 2, """
             invoke-interface {p0}, $videoId
@@ -174,13 +192,7 @@ internal fun BytecodePatchContext.installStreamSwap() {
             :no_network_metadata
             invoke-virtual {v2}, $build
             move-result-object v7
-            new-instance v2, ${wrapper.type}
-            iget-object v4, p0, $instant
-            iget-wide v5, p0, $timestamp
-            iget-object v8, p0, $metadata
-            iget-boolean v9, p0, $flag
-            invoke-direct/range {v2 .. v9}, $constructor
-            return-object v2
+            $allocation
             :unchanged
             return-object p0
         """)

@@ -5,6 +5,7 @@
  *
  * See the included NOTICE file for GPLv3 Section 7 terms that apply to this code.
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-14.
  * Written by lavinhoque33, 2026-11-13.
  */
 
@@ -227,6 +228,12 @@ public final class MusicGlassNavigationBar {
      */
     private static final int FLOATING_ACTION_BUTTON =
             ResourceUtils.getIdentifier(ResourceType.ID, "floating_action_button");
+    private static final int EXTENDED_FLOATING_ACTION_BUTTON =
+            ResourceUtils.getIdentifier(ResourceType.ID, "extended_floating_action_button");
+    private static final int MINI_PLAYER = ResourceUtils.getIdentifier(ResourceType.ID, "mini_player");
+    private static final int NATIVE_MINIPLAYER_HEIGHT = ResourceUtils.getDimension("mini_player_height");
+    private static WeakReference<View> insetMiniplayer = new WeakReference<>(null);
+    private static final Map<View, Boolean> watchedFloatingButtons = new WeakHashMap<>();
 
     /**
      * The title and the buttons at the bottom of a video of Samples.
@@ -326,7 +333,8 @@ public final class MusicGlassNavigationBar {
         try {
             if (currentContent.get() != content) {
                 currentContent = new WeakReference<>(content);
-                if (ENABLED) watchContent(content);
+                insetMiniplayer.clear();
+                watchContent(content);
             }
             // The glass miniplayer only blurs the page, which is not laid out behind it.
             if (!ENABLED) return height;
@@ -401,7 +409,12 @@ public final class MusicGlassNavigationBar {
                         content.getViewTreeObserver().removeOnGlobalLayoutListener(this);
                         return;
                     }
-                    final int room = isKeyboardShown(content) ? 0 : getContentRoom();
+                    View miniplayer = insetMiniplayer.get();
+                    if ((miniplayer == null || !miniplayer.isAttachedToWindow()) && MINI_PLAYER != 0) {
+                        View found = content.getRootView().findViewById(MINI_PLAYER);
+                        if (found != null) insetMiniplayer = new WeakReference<>(found);
+                    }
+                    final int room = !ENABLED || isKeyboardShown(content) ? 0 : getContentRoom();
                     updateListPadding(group, group, room, 0);
                 } catch (Exception ex) {
                     Logger.printException(() -> "Glass navigation bar list padding failure", ex);
@@ -431,10 +444,8 @@ public final class MusicGlassNavigationBar {
         if (view.getVisibility() == View.GONE) return;
 
         final int id = view.getId();
-        if (id != View.NO_ID && id == FLOATING_ACTION_BUTTON) {
-            // The floating button at the bottom of the page, such as New in the library,
-            // is laid out above the miniplayer with its bottom margin.
-            setBottomRoom(view, room, true, true);
+        if (id != View.NO_ID && (id == FLOATING_ACTION_BUTTON || id == EXTENDED_FLOATING_ACTION_BUTTON)) {
+            watchFloatingButton(content, view);
             return;
         }
         if (id != View.NO_ID && id == OVERLAY_ELEMENTS_CONTAINER) {
@@ -469,6 +480,55 @@ public final class MusicGlassNavigationBar {
         for (int i = 0, count = group.getChildCount(); i < count; i++) {
             updateListPadding(content, group.getChildAt(i), room, depth + 1);
         }
+    }
+
+    /**
+     * Stock gives both FAB variants a bottom margin containing mini_player_height and the page's
+     * edge spacing (plus a snackbar inset on detail pages). Keep those margins and animations;
+     * replace only the fixed miniplayer reserve with the real collapsed player's occupied height.
+     */
+    private static int getFloatingButtonRoom(View content) {
+        if (isKeyboardShown(content)) return 0;
+
+        final int barRoom = ENABLED ? getContentRoom(content) : 0;
+        View miniplayer = insetMiniplayer.get();
+        if (miniplayer != null && !miniplayer.isAttachedToWindow()) miniplayer = null;
+        if (miniplayer == null || !miniplayer.isShown() || miniplayer.getAlpha() < 0.85f
+                || miniplayer.getHeight() == 0) {
+            return barRoom;
+        }
+
+        content.getLocationInWindow(layoutLocation);
+        final int contentBottom = layoutLocation[1] + content.getHeight();
+        miniplayer.getLocationInWindow(layoutLocation);
+        final int miniplayerTop = layoutLocation[1];
+        if (miniplayerTop <= contentBottom / 2) return barRoom;
+
+        return MusicGlassFloatingButtonInsets.extraRoom(
+                contentBottom, miniplayerTop, NATIVE_MINIPLAYER_HEIGHT, barRoom);
+    }
+
+    private static void watchFloatingButton(View content, View button) {
+        if (watchedFloatingButtons.put(button, true) != null) return;
+
+        final WeakReference<View> reference = new WeakReference<>(button);
+        content.getViewTreeObserver().addOnPreDrawListener(new ViewTreeObserver.OnPreDrawListener() {
+            @Override
+            public boolean onPreDraw() {
+                View current = reference.get();
+                if (current == null || !current.isAttachedToWindow() || currentContent.get() != content) {
+                    content.getViewTreeObserver().removeOnPreDrawListener(this);
+                    if (current != null) watchedFloatingButtons.remove(current);
+                    return true;
+                }
+                if (current.getVisibility() != View.VISIBLE) return true;
+
+                // Pre-draw also follows player translations that do not request a page layout.
+                final int room = getFloatingButtonRoom(content);
+                setBottomRoom(current, room, true, true);
+                return true;
+            }
+        });
     }
 
     /**

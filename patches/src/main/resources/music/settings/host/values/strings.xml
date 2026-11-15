@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="revanced_settings_shortcut_title">Show settings shortcut</string>
+    <string name="revanced_settings_shortcut_summary">Show a settings button next to your profile.
+        Tap for YouTube Music settings; touch and hold for RVX settings.</string>
+    <string name="revanced_settings_shortcut_long_click">Open RVX settings</string>
     <string name="revanced_patches_update_notice_title">Patches update notice</string>
     <string name="revanced_patches_update_check_title">Check now</string>
     <string name="revanced_patches_update_check_summary">Check for newer patches now, including skipped versions. When notices are off, use the installed patches channel.</string>
@@ -1378,16 +1382,11 @@ Side effect (Block request):
     <string name="revanced_webview_toast_unavailable">WebView is not available</string>
     <string name="revanced_webview_visitor_data" translatable="false">Visitor Data</string>
 
-    <!-- Morphe glass UI: PRs #4542, #4621 and #4742; port by lavinhoque33, 2026-11-13. -->
+    <!-- Morphe glass UI: PRs #4542, #4621 and #4742; modified by lavinhoque33, 2026-11-14. -->
     <string name="morphe_music_navigation_bar_glass_title">Enable glass navigation bar</string>
-    <string name="morphe_music_navigation_bar_glass_summary">
-        Shows the navigation bar as a floating, rounded, translucent capsule
-    </string>
+    <string name="morphe_music_navigation_bar_glass_summary">Shows the navigation bar as a floating, rounded, translucent capsule</string>
     <string name="morphe_music_navigation_bar_glass_size_title">Glass navigation bar size and style</string>
-    <string name="morphe_music_navigation_bar_glass_size_summary">
-        Adjust the height, the width, the button spacing, the opacity and the rim brightness of the glass
-        navigation bar, with a preview. Buttons that do not fit in the width of the screen are hidden
-    </string>
+    <string name="morphe_music_navigation_bar_glass_size_summary">Adjust the height, the width, the button spacing, the opacity and the rim brightness of the glass navigation bar, with a preview. Buttons that do not fit in the width of the screen are hidden</string>
     <string name="morphe_music_navigation_bar_glass_size_height">Height</string>
     <string name="morphe_music_navigation_bar_glass_size_width">Maximum width</string>
     <string name="morphe_music_navigation_bar_glass_size_button_spacing">Button spacing</string>
@@ -1395,56 +1394,31 @@ Side effect (Block request):
     <string name="morphe_music_navigation_bar_glass_opacity_title">Opacity</string>
     <string name="morphe_music_navigation_bar_glass_rim_title">Rim brightness</string>
     <string name="morphe_music_navigation_bar_glass_blur_title">Glass blur</string>
-    <string name="morphe_music_navigation_bar_glass_blur_summary">
-        How much the page behind the glass navigation bar is blurred (Android 14 and later). At 0 the page shows
-        through sharp, and before Android 14 the page is covered
-    </string>
+    <string name="morphe_music_navigation_bar_glass_blur_summary">How much the page behind the glass navigation bar is blurred (Android 14 and later). At 0 the page shows through sharp, and before Android 14 the page is covered</string>
     <string name="morphe_music_navigation_bar_glass_light_title">Light glass</string>
-    <string name="morphe_music_navigation_bar_glass_light_summary">
-        Tints the glass navigation bar white instead of dark, for a lighter and clearer glass
-    </string>
+    <string name="morphe_music_navigation_bar_glass_light_summary">Tints the glass navigation bar white instead of dark, for a lighter and clearer glass</string>
     <string name="morphe_music_navigation_bar_glass_album_tint_title">Album art tint</string>
-    <string name="morphe_music_navigation_bar_glass_album_tint_summary">
-        Tints the glass navigation bar with the color of the album art of the song that plays
-    </string>
+    <string name="morphe_music_navigation_bar_glass_album_tint_summary">Tints the glass navigation bar with the color of the album art of the song that plays</string>
     <string name="morphe_music_navigation_bar_glass_hide_indicator_title">Hide selected button indicator</string>
-    <string name="morphe_music_navigation_bar_glass_hide_indicator_summary">
-        Hides the rounded highlight behind the selected button of the glass navigation bar
-    </string>
+    <string name="morphe_music_navigation_bar_glass_hide_indicator_summary">Hides the rounded highlight behind the selected button of the glass navigation bar</string>
     <string name="morphe_music_miniplayer_glass_title">Enable glass miniplayer</string>
-    <string name="morphe_music_miniplayer_glass_summary">
-        Shows the floating miniplayer as a rounded, translucent glass card
-    </string>
+    <string name="morphe_music_miniplayer_glass_summary">Shows the floating miniplayer as a rounded, translucent glass card</string>
     <string name="morphe_music_miniplayer_glass_style_title">Glass miniplayer style</string>
-    <string name="morphe_music_miniplayer_glass_style_summary">
-        Adjust the corner radius, the artwork padding, the rim brightness and the opacity of the glass
-        miniplayer, with a preview
-    </string>
+    <string name="morphe_music_miniplayer_glass_style_summary">Adjust the corner radius, the artwork padding, the rim brightness and the opacity of the glass miniplayer, with a preview</string>
     <string name="morphe_music_miniplayer_glass_corner_radius_title">Corner radius</string>
     <string name="morphe_music_miniplayer_glass_artwork_padding_title">Artwork padding</string>
     <string name="morphe_music_miniplayer_glass_rim_title">Rim brightness</string>
     <string name="morphe_music_miniplayer_glass_opacity_title">Opacity</string>
     <string name="morphe_music_miniplayer_glass_blur_title">Glass blur</string>
-    <string name="morphe_music_miniplayer_glass_blur_summary">
-        How much the page behind the glass miniplayer is blurred (Android 14 and later). At 0 the page shows
-        through sharp, and before Android 14 the page is covered
-    </string>
+    <string name="morphe_music_miniplayer_glass_blur_summary">How much the page behind the glass miniplayer is blurred (Android 14 and later). At 0 the page shows through sharp, and before Android 14 the page is covered</string>
     <string name="morphe_music_miniplayer_glass_light_title">Light glass</string>
-    <string name="morphe_music_miniplayer_glass_light_summary">
-        Tints the glass miniplayer white instead of dark, for a lighter and clearer glass
-    </string>
+    <string name="morphe_music_miniplayer_glass_light_summary">Tints the glass miniplayer white instead of dark, for a lighter and clearer glass</string>
     <string name="morphe_music_miniplayer_glass_album_tint_title">Album art tint</string>
-    <string name="morphe_music_miniplayer_glass_album_tint_summary">
-        Tints the glass miniplayer with the color of the album art of the song that plays
-    </string>
+    <string name="morphe_music_miniplayer_glass_album_tint_summary">Tints the glass miniplayer with the color of the album art of the song that plays</string>
     <string name="morphe_music_miniplayer_glass_spinning_artwork_title">Spinning artwork</string>
-    <string name="morphe_music_miniplayer_glass_spinning_artwork_summary">
-        Makes the artwork of the glass miniplayer round, and spins it like a record while a song plays
-    </string>
+    <string name="morphe_music_miniplayer_glass_spinning_artwork_summary">Makes the artwork of the glass miniplayer round, and spins it like a record while a song plays</string>
     <string name="morphe_music_miniplayer_glass_hide_progress_bar_title">Hide progress bar</string>
-    <string name="morphe_music_miniplayer_glass_hide_progress_bar_summary">
-        Hides the progress bar at the bottom of the glass miniplayer
-    </string>
+    <string name="morphe_music_miniplayer_glass_hide_progress_bar_summary">Hides the progress bar at the bottom of the glass miniplayer</string>
     <string name="morphe_music_navigation_bar_glass_preview_home">Home</string>
     <string name="morphe_music_navigation_bar_glass_preview_samples">Samples</string>
     <string name="morphe_music_navigation_bar_glass_preview_explore">Explore</string>

@@ -1,5 +1,25 @@
 ## Unreleased
 
+### Features
+
+* **Music - Settings shortcut:** Add an optional themed settings button beside the toolbar profile icon.
+  Tap to open YouTube Music settings, or touch and hold to open RVX settings. Enable it under General;
+  it is off by default.
+
+### Bug Fixes
+
+* **Music - Glass player and navigation bar:** Align glass preference summaries with standard RVX rows,
+  including live-preview controls. Keep playlist and Liked Music Play buttons above the real miniplayer
+  and navigation bar heights, with either glass style enabled independently or together.
+
+* **YouTube - Hide player flyout menu:** Fix hiding the On-the-go entry in the player settings menu.
+
+* **Music - Track crossfade:** Stop retained playback when the miniplayer is swiped away, including a
+  dismissal that resets playback without loading another song. Keep normal background playback unchanged.
+
+* **YouTube - Shorts components:** Repeat the current Short while comments or another engagement panel is open
+  instead of advancing and misplacing the player controls. Resume normal autoplay after closing the panel.
+
 ## [1.36.0-dev.1](https://github.com/lavinhoque33/revanced-patches/compare/v1.35.0...v1.36.0-dev.1) (2026-11-13)
 
 ### Features

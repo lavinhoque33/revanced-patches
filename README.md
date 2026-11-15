@@ -219,6 +219,7 @@ Local imports do not update automatically; import the new `.mpp` for each update
 | `Scrobbling` | Adds options to add played tracks to Last.fm and ListenBrainz. | 9.40.51 ~ 8.12.54 |
 | `Settings for YouTube Music` | Applies mandatory patches to implement ReVanced Extended settings into the application. | 9.40.51 ~ 8.12.54 |
 | `Settings menu filter` | Adds an option to hide items on the standard YouTube Music settings screen by their visible name. | 9.40.51 ~ 8.12.54 |
+| `Settings shortcut` | Adds an optional toolbar settings button. Tap for YouTube Music settings; hold for RVX settings. | 9.40.51 ~ 8.12.54 |
 | `Skip silence` | Adds an option to automatically skip silent pauses in audio playback. | 9.40.51 ~ 8.12.54 |
 | `SponsorBlock` | Adds options to enable and configure SponsorBlock, which can skip undesired video segments, such as non-music sections. | 9.40.51 ~ 8.12.54 |
 | `Spoof app version` | Adds options to spoof the YouTube Music client version. This can be used to restore old UI elements and features. | 9.40.51 ~ 8.12.54 |

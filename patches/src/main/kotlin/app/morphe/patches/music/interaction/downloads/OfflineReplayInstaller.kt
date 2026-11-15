@@ -1,8 +1,8 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-14.
  * Written by lavinhoque33, 2026-11-08.
- * Modified by lavinhoque33, 2026-11-10.
  */
 package app.morphe.patches.music.interaction.downloads
 
@@ -59,7 +59,7 @@ private const val REGISTRY = "Lcom/google/protobuf/ExtensionRegistryLite;"
 /** The browse id the "No connection" sheet's "Go to downloads" button opens. */
 private const val SHEET_BROWSE = "FEmusic_offline"
 
-private val REPLAY_VERSIONS = setOf("9.40.51", "9.15.51", "8.30.54")
+private val REPLAY_VERSIONS = setOf("9.45.51", "9.40.51", "9.15.51", "8.30.54")
 
 /** The experiment flag the offline watch command gate reads in every supported version (the id is the same). */
 private const val GATE_EXPERIMENT = 0x02b88604L
@@ -78,9 +78,9 @@ private const val DETAIL_ERROR = "AbstractDetailPageFragment onEntityError."
 private const val UNPLAYABLE = "Unplayable Video"
 
 /**
- * Offline playback of stream copies, in 9.40.51 / 9.15.51 / 8.30.54 order:
- * gate `Lgup.c` / `Lkch.c` / `Ljto.c`, player lookup `Laalc.c` / `Laxlp.c` / `Lauhp.c`,
- * watch-next entry `Lhyv.b` / `Lntb.b` / `Lnez.b`, watch-next request `Labjm` / `Lazmi` / `Lawgh`.
+ * Offline playback of stream copies, in 9.45.51 / 9.40.51 / 9.15.51 / 8.30.54 order:
+ * gate `Lgsz.c` / `Lgup.c` / `Lkch.c` / `Ljto.c`, player lookup `Laaqf.c` / `Laalc.c` / `Laxlp.c` / `Lauhp.c`,
+ * watch-next entry `Lhyc.b` / `Lhyv.b` / `Lntb.b` / `Lnez.b`, requests `Labpl` / `Labjm` / `Lazmi` / `Lawgh`.
  * Every dependency of every hook is resolved before anything is changed, and the hooks go in together or not at all:
  * a version whose shape is unfamiliar only warns and plays as before. Needs [installStreamSwap]: the stored response
  * gets the same audio swap an online one does.
@@ -122,9 +122,9 @@ internal fun BytecodePatchContext.installOfflineReplay() {
 
 /**
  * The Library's Downloads chip view: the app builds the page itself from its own downloads, in the service the
- * string [PAGE_SERVICE] names (`Lhtd.c(request, options, callback)` in 9.40.51, `Lnck.c` in 9.15.51, `Lmpe.b` in
- * 8.30.54: the one method of the class that returns nothing and takes three objects). The callback, the third
- * argument, is replaced on entry by [REPLAY]'s wrapper, which adds the stream copies to the page the service
+ * string [PAGE_SERVICE] names (`Lhse.d(request, options, callback)` in 9.45.51, `Lhtd.c` in 9.40.51, `Lnck.c` in
+ * 9.15.51, `Lmpe.b` in 8.30.54: the one method of the class returning nothing and taking three objects). The callback,
+ * the third argument, is replaced on entry by [REPLAY]'s wrapper, which adds the stream copies to the page the service
  * delivers. Three bridges give the extension what it needs without a name of the app's: the request's message
  * serialized (its continuation token says which chip it is), and the response's section list serialized and built
  * again from other bytes. The response is the class whose instance the callback's consumer casts to before it calls
@@ -630,8 +630,13 @@ private fun BytecodePatchContext.prepareReplayGate(commandType: String): () -> U
     val literal = instructions.indexOfFirst {
         it.opcode == Opcode.CONST_WIDE_32 && (it as WideLiteralInstruction).wideLiteral == GATE_EXPERIMENT
     }
-    check(literal > 0 && instructions[literal - 1].opcode == Opcode.CHECK_CAST) { "gate: no message cast" }
-    val cast = instructions[literal - 1]
+    val castIndex = (literal - 1 downTo 0).firstOrNull { instructions[it].opcode == Opcode.CHECK_CAST }
+        ?: error("gate: no message cast")
+    // 9.45 inserts an integer experiment selector between the message cast and the flag id.
+    check(instructions.subList(castIndex + 1, literal).all { it.opcode == Opcode.CONST_16 }) {
+        "gate: unexpected instructions after the message cast"
+    }
+    val cast = instructions[castIndex]
     val messageType = cast.getReference<TypeReference>()!!.type
     val message = (cast as OneRegisterInstruction).registerA
     val scratch = (instructions[literal] as OneRegisterInstruction).registerA
@@ -640,7 +645,9 @@ private fun BytecodePatchContext.prepareReplayGate(commandType: String): () -> U
         instructions[it].opcode == Opcode.INVOKE_VIRTUAL
     }
     val flagMethod = instructions[flagCall].getReference<MethodReference>()!!
-    check(flagMethod.parameterTypes.map(CharSequence::toString) == listOf("J", "Z") && flagMethod.returnType == "Z") {
+    val flagParameters = flagMethod.parameterTypes.map(CharSequence::toString)
+    check(flagMethod.returnType == "Z" &&
+        flagParameters in listOf(listOf("J", "Z"), listOf("I", "J", "Z"))) {
         "gate: unexpected experiment flag reader"
     }
     val flagResult = instructions[flagCall + 1]
@@ -675,9 +682,9 @@ private fun BytecodePatchContext.prepareReplayGate(commandType: String): () -> U
     }.getReference<FieldReference>()!!
 
     // The run from the cast to the flag test is straight code: it must keep what the handler call needs.
-    for (index in literal - 1..flagCall + 1) {
+    for (index in castIndex..flagCall + 1) {
         val step = instructions[index]
-        check(index == literal - 1 || (!step.writes(message) && !step.writes(self) &&
+        check(index == castIndex || (!step.writes(message) && !step.writes(self) &&
             !step.writes(command) && !step.writes(context))) { "gate: handler registers overwritten" }
     }
     // The handler's registers are copies of the arguments made once at the start and never reassigned.

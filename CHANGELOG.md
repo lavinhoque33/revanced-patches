@@ -11,6 +11,15 @@
   or inserted offline, and downloaded-playlist playback is unchanged. Off by default; available on Music
   9.15.51 and 9.40.51, with 9.45.51 experimental. Music 8.x and forced 6.20 skip the feature with a warning.
 
+### Bug Fixes
+
+* **YouTube / Music - GmsCore support:** Fix non-root patching on experimental YouTube 21.45.90 and
+  Music 9.45.51 by handling the updated Primes initialization check. Keep existing versions unchanged.
+* **YouTube - Seekbar components:** Prevent media-key and timestamp crashes when the player extension loads
+  before the activity context is attached. Preserve timestamp menus and double-tap remaining-time toggling.
+  Early resource and string lookups now use the application context until the activity is attached.
+  Resolve the wide-search icon and Watch Later drag-handle description only when their views are available.
+
 ## [1.36.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.35.0...v1.36.0) (2026-11-15)
 
 ### Features

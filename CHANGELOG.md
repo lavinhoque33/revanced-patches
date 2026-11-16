@@ -11,6 +11,13 @@
   or inserted offline, and downloaded-playlist playback is unchanged. Off by default; available on Music
   9.15.51 and 9.40.51, with 9.45.51 experimental. Music 8.x and forced 6.20 skip the feature with a warning.
 
+### Bug Fixes
+
+* **YouTube - Hide player flyout menu:** Recognize numeric icons in newer player settings menus,
+  including Sleep timer, Quality, Playback speed, Help, Stats for nerds and Listen with YouTube Music.
+  Keep older icon variants working, hide active captions and loop rows too, and make the Listening controls
+  toggle hide its own row without changing which controls the account can use.
+
 ## [1.36.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.35.0...v1.36.0) (2026-11-15)
 
 ### Features

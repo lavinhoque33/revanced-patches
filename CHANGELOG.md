@@ -1,5 +1,7 @@
 ## Unreleased
 
+## [1.37.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.36.0...v1.37.0) (2026-11-16)
+
 ### Features
 
 * **Music - Smart Shuffle:** Mix playlist recommendations among your songs without delaying playback.

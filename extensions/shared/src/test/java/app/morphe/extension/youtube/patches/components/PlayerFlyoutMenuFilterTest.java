@@ -81,4 +81,20 @@ public class PlayerFlyoutMenuFilterTest {
         assertFalse(group.check(new byte[0]).isFiltered());
         assertFalse(group.check(hex("0a0a3208d23e050a0308b102")).isFiltered());
     }
+
+    @Test
+    public void additionalSettingsMatchesBothFlyoutIconFormsButNotMoreInformationOrQuality() {
+        ByteArrayFilterGroup group = PlayerFlyoutMenuFilter.menuItemGroup(null, new int[]{173},
+                "yt_outline_gear_", "yt_outline_experimental_gear_");
+
+        assertTrue(group.check(hex("0a0a3208d23e050a0308ad01")).isFiltered());
+        assertTrue(group.check("yt_outline_gear_black_24".getBytes(StandardCharsets.UTF_8)).isFiltered());
+        assertTrue(group.check("yt_outline_experimental_gear_black_24"
+                .getBytes(StandardCharsets.UTF_8)).isFiltered());
+        assertFalse(group.check(hex("0a0a3208d23e050a0308bd01")).isFiltered()); // INFO_CIRCLE 189.
+        assertFalse(group.check(hex("0a093207d23e040a020859")).isFiltered()); // ADJUST 89.
+        assertFalse(group.check("yt_outline_info_circle_black_24".getBytes(StandardCharsets.UTF_8)).isFiltered());
+        assertFalse(group.check("yt_outline_adjust_black_24".getBytes(StandardCharsets.UTF_8)).isFiltered());
+        assertFalse(group.check("More".getBytes(StandardCharsets.UTF_8)).isFiltered());
+    }
 }

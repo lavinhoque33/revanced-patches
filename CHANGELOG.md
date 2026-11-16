@@ -25,6 +25,9 @@
   including Sleep timer, Quality, Playback speed, Help, Stats for nerds and Listen with YouTube Music.
   Keep older icon variants working, hide active captions and loop rows too, and make the Listening controls
   toggle hide its own row without changing which controls the account can use.
+* **YouTube - Hide player flyout menu:** Add a Hide Additional settings / More switch. Hide More automatically
+  when all its child hide options are on, including Sleep timer, so it cannot open an empty sheet.
+  Keep More available when any child hide option is off.
 * **Music - Older versions:** Keep the accepted 8.04.51 browse client below Music 7.17 without changing
   playback's own version. Propagate resolved themes into nested Elements on Music 6.20, restore its
   native-supported multirow carousels, and supply playlist statistics' missing secondary text role.

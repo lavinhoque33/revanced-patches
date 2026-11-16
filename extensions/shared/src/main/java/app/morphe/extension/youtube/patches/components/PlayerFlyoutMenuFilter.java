@@ -12,6 +12,7 @@
 package app.morphe.extension.youtube.patches.components;
 
 import static app.morphe.extension.youtube.utils.ExtendedUtils.IS_20_31_OR_GREATER;
+import static app.morphe.extension.youtube.utils.ExtendedUtils.isSpoofingToLessThan;
 
 import app.morphe.extension.shared.patches.components.ByteArrayFilterGroup;
 import app.morphe.extension.shared.patches.components.ByteArrayFilterGroupList;
@@ -57,6 +58,7 @@ public final class PlayerFlyoutMenuFilter extends Filter {
     );
     private final ByteArrayFilterGroup flyoutLoopVideoButton;
     private final ByteArrayFilterGroup qualityMenuButton;
+    private final ByteArrayFilterGroup additionalSettingsMenu;
     private final ByteArrayFilterGroup byteArrayException;
     private final StringTrieSearch pathBuilderException = new StringTrieSearch();
     private final StringFilterGroup playerFlyoutMenu;
@@ -79,6 +81,13 @@ public final class PlayerFlyoutMenuFilter extends Filter {
                 "yt_outline_adjust_",
                 "quality_sheet_header.e",
                 "yt_outline_experimental_adjust_"
+        );
+
+        additionalSettingsMenu = menuItemGroup(
+                null,
+                new int[]{173}, // GEAR, not More information's INFO_CIRCLE.
+                "yt_outline_experimental_gear_",
+                "yt_outline_gear_"
         );
 
         byteArrayException = new ByteArrayFilterGroup(
@@ -171,12 +180,6 @@ public final class PlayerFlyoutMenuFilter extends Filter {
                         "yt_outline_experimental_play_circle_half_dashed_"
                 ),
                 menuItemGroup(
-                        Settings.HIDE_PLAYER_FLYOUT_MENU_ADDITIONAL_SETTINGS,
-                        new int[]{173}, // GEAR; internal all-additional-items-hidden aggregate.
-                        "yt_outline_experimental_gear_",
-                        "yt_outline_gear_"
-                ),
-                menuItemGroup(
                         Settings.HIDE_PLAYER_FLYOUT_MENU_REPORT,
                         new int[]{169}, // FLAG.
                         "yt_outline_experimental_flag_",
@@ -219,6 +222,28 @@ public final class PlayerFlyoutMenuFilter extends Filter {
                         "listen-first"
                 )
         );
+    }
+
+    private static boolean shouldHideAdditionalSettings() {
+        if (Settings.HIDE_PLAYER_FLYOUT_MENU_ADDITIONAL_SETTINGS.get()) {
+            return true;
+        }
+
+        // Older spoofed flyouts share the quality and Additional settings icons.
+        if (isSpoofingToLessThan("18.22.00")) {
+            return false;
+        }
+
+        return Settings.HIDE_PLAYER_FLYOUT_MENU_LOOP.get()
+                && Settings.HIDE_PLAYER_FLYOUT_MENU_AMBIENT.get()
+                && Settings.HIDE_PLAYER_FLYOUT_MENU_STABLE_VOLUME.get()
+                && Settings.HIDE_PLAYER_FLYOUT_MENU_SLEEP_TIMER.get()
+                && Settings.HIDE_PLAYER_FLYOUT_MENU_YT_MUSIC.get()
+                && Settings.HIDE_PLAYER_FLYOUT_MENU_WATCH_IN_VR.get()
+                && Settings.HIDE_PLAYER_FLYOUT_MENU_HELP.get()
+                && Settings.HIDE_PLAYER_FLYOUT_MENU_STATS_FOR_NERDS.get()
+                && Settings.HIDE_PLAYER_FLYOUT_MENU_PIP.get()
+                && Settings.HIDE_PLAYER_FLYOUT_MENU_PREMIUM_CONTROLS.get();
     }
 
     public static boolean hidePremiumControlsMenu(boolean original) {
@@ -301,6 +326,10 @@ public final class PlayerFlyoutMenuFilter extends Filter {
 
             if (byteArrayException.check(buffer).isFiltered()) {
                 return false;
+            }
+
+            if (additionalSettingsMenu.check(buffer).isFiltered() && shouldHideAdditionalSettings()) {
+                return true;
             }
 
             if (Settings.HIDE_PLAYER_FLYOUT_ON_THE_GO.get()

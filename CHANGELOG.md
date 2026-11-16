@@ -21,6 +21,10 @@
   before the activity context is attached. Preserve timestamp menus and double-tap remaining-time toggling.
   Early resource and string lookups now use the application context until the activity is attached.
   Resolve the wide-search icon and Watch Later drag-handle description only when their views are available.
+* **YouTube - Hide player flyout menu:** Recognize numeric icons in newer player settings menus,
+  including Sleep timer, Quality, Playback speed, Help, Stats for nerds and Listen with YouTube Music.
+  Keep older icon variants working, hide active captions and loop rows too, and make the Listening controls
+  toggle hide its own row without changing which controls the account can use.
 
 ## [1.36.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.35.0...v1.36.0) (2026-11-15)
 

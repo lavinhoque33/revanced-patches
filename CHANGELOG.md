@@ -25,6 +25,11 @@
   including Sleep timer, Quality, Playback speed, Help, Stats for nerds and Listen with YouTube Music.
   Keep older icon variants working, hide active captions and loop rows too, and make the Listening controls
   toggle hide its own row without changing which controls the account can use.
+* **Music - Older versions:** Keep the accepted 8.04.51 browse client below Music 7.17 without changing
+  playback's own version. Propagate resolved themes into nested Elements on Music 6.20, restore its
+  native-supported multirow carousels, and supply playlist statistics' missing secondary text role.
+  Keep custom toolbar headers and skip incompatible navigation-icon remapping with a warning.
+  Music 8.x and 9.x behavior is unchanged.
 
 ## [1.36.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.35.0...v1.36.0) (2026-11-15)
 

@@ -1,5 +1,16 @@
 ## Unreleased
 
+### Features
+
+* **Music - Smart Shuffle:** Mix playlist recommendations among your songs without delaying playback.
+  Touch and hold the playlist header's Shuffle button to turn Smart Shuffle on or off; a sparkle shows
+  when it is on. With native Shuffle enabled, start the playlist using Play or a song.
+  Suggested queue songs have a sparkle on the right, beside download checks. Keep adds a song to a playlist;
+  Dismiss removes only that queue entry. Android Auto labels these songs "Suggested".
+  Going offline removes unplayed suggestions but keeps the current song playing. No suggestions are fetched
+  or inserted offline, and downloaded-playlist playback is unchanged. Off by default; available on Music
+  9.15.51 and 9.40.51, with 9.45.51 experimental. Music 8.x and forced 6.20 skip the feature with a warning.
+
 ## [1.36.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.35.0...v1.36.0) (2026-11-15)
 
 ### Features

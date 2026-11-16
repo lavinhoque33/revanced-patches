@@ -11,6 +11,11 @@
   or inserted offline, and downloaded-playlist playback is unchanged. Off by default; available on Music
   9.15.51 and 9.40.51, with 9.45.51 experimental. Music 8.x and forced 6.20 skip the feature with a warning.
 
+### Bug Fixes
+
+* **Music - Settings shortcut:** Open the native settings list instead of a blank screen. Match the
+  shortcut gear to the selected Bold or Bold (stock size) icon style, using Music's native bold gear.
+
 ## [1.36.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.35.0...v1.36.0) (2026-11-15)
 
 ### Features

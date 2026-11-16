@@ -11,6 +11,14 @@
   or inserted offline, and downloaded-playlist playback is unchanged. Off by default; available on Music
   9.15.51 and 9.40.51, with 9.45.51 experimental. Music 8.x and forced 6.20 skip the feature with a warning.
 
+### Bug Fixes
+
+* **Music - Older versions:** Keep the accepted 8.04.51 browse client below Music 7.17 without changing
+  playback's own version. Propagate resolved themes into nested Elements on Music 6.20, restore its
+  native-supported multirow carousels, and supply playlist statistics' missing secondary text role.
+  Keep custom toolbar headers and skip incompatible navigation-icon remapping with a warning.
+  Music 8.x and 9.x behavior is unchanged.
+
 ## [1.36.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.35.0...v1.36.0) (2026-11-15)
 
 ### Features

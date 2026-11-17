@@ -6,6 +6,8 @@
   or any other non-comment panel, including panels without a subheader. Keep search available in comments.
 * **YouTube - Video action bar layout:** Restore the dislike icon in Classic One-Row and Classic Two-Rows
   when YouTube sends modern image icons, with or without Return YouTube Dislike.
+* **YouTube - Shorts custom actions:** Show Download and other enabled custom actions in the anchored
+  three-dot popup on newer layouts, including experimental 21.45.90. Keep the bottom-sheet menu unchanged.
 
 ## [1.37.1](https://github.com/lavinhoque33/revanced-patches/compare/v1.37.0...v1.37.1) (2026-11-17)
 

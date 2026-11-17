@@ -12,6 +12,9 @@ import android.content.Context;
 import android.content.pm.PackageInfo;
 import android.graphics.Bitmap;
 import android.graphics.BitmapRegionDecoder;
+import android.graphics.Canvas;
+import android.graphics.Color;
+import android.graphics.Paint;
 import android.graphics.Rect;
 import android.net.Uri;
 
@@ -23,6 +26,7 @@ import org.robolectric.RuntimeEnvironment;
 import org.robolectric.Shadows;
 import org.robolectric.shadows.ShadowBitmapFactory;
 import org.robolectric.annotation.Config;
+import org.robolectric.annotation.GraphicsMode;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -96,6 +100,60 @@ public class SeekbarCustomizationTest {
 
         assertFalse(stored.exists());
         assertEquals("", Settings.CUSTOM_SEEKBAR_THUMB_FILE.get());
+    }
+
+    @Test
+    @Config(sdk = 34)
+    @GraphicsMode(GraphicsMode.Mode.NATIVE)
+    public void preservesOpaqueShapeWithinTransparentImageBounds() throws Exception {
+        Bitmap selected = Bitmap.createBitmap(120, 60, Bitmap.Config.ARGB_8888);
+        Paint paint = new Paint();
+        paint.setColor(Color.BLUE);
+
+        // Run A's "oval" fixture was a circle offset inside a non-square transparent canvas.
+        new Canvas(selected).drawOval(70, 10, 111, 51, paint);
+        Rect circle = importAndDrawThumb(selected);
+
+        assertTrue(circle.width() > 0);
+        assertEquals(circle.width(), circle.height(), 1);
+        assertTrue("The transparent left margin must remain", circle.centerX() > 256);
+
+        selected.eraseColor(Color.TRANSPARENT);
+        new Canvas(selected).drawOval(10, 5, 110, 55, paint);
+        Rect oval = importAndDrawThumb(selected);
+
+        assertTrue("A genuinely non-square shape must stay non-square", oval.width() > oval.height());
+        assertEquals(2, (double) oval.width() / oval.height(), 0.15);
+    }
+
+    private Rect importAndDrawThumb(Bitmap selected) throws Exception {
+        File source = new File(context.getCacheDir(), "shape.png");
+        try (FileOutputStream out = new FileOutputStream(source)) {
+            selected.compress(Bitmap.CompressFormat.PNG, 100, out);
+        }
+        assertTrue(CustomSeekbarThumbPatch.importThumbFile(context, Uri.fromFile(source)));
+        Settings.CUSTOM_SEEKBAR_THUMB_FILE.save(source.getName());
+        Settings.CUSTOM_SEEKBAR_THUMB.save(true);
+        Settings.CUSTOM_SEEKBAR_THUMB_SCALE_TYPE.save(CustomSeekbarThumbPatch.ThumbScaleType.FIT_SEEKBAR);
+        CustomSeekbarThumbPatch.reloadThumb();
+
+        Bitmap rendered = Bitmap.createBitmap(512, 256, Bitmap.Config.ARGB_8888);
+        Paint stockPaint = new Paint();
+        stockPaint.setColor(Color.RED);
+        CustomSeekbarThumbPatch.drawCircle(
+                new Canvas(rendered), 256, 128, Utils.dipToPixels(6), stockPaint);
+
+        Rect bounds = new Rect();
+        for (int y = 0; y < rendered.getHeight(); y++) {
+            for (int x = 0; x < rendered.getWidth(); x++) {
+                int pixel = rendered.getPixel(x, y);
+                if (Color.alpha(pixel) != 0) {
+                    assertEquals("Must render the imported image, not the stock red circle", 0, Color.red(pixel));
+                    bounds.union(x, y, x + 1, y + 1);
+                }
+            }
+        }
+        return bounds;
     }
 
     @Test

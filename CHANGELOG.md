@@ -1,5 +1,10 @@
 ## Unreleased
 
+### Bug Fixes
+
+* **YouTube - Search comments:** Hide the search button when a comments header is reused for Description
+  or any other non-comment panel, including panels without a subheader. Keep search available in comments.
+
 ## [1.37.1](https://github.com/lavinhoque33/revanced-patches/compare/v1.37.0...v1.37.1) (2026-11-17)
 
 ### Bug Fixes

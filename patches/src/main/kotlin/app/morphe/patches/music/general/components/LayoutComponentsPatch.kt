@@ -9,7 +9,7 @@
  * - inotia00 (https://github.com/inotia00)
  *
  * Licensed under the GNU General Public License v3.0.
- * Modified by lavinhoque33, 2026-10-21.
+ * Modified by lavinhoque33, 2026-11-17.
  *
  * ------------------------------------------------------------------------
  * GPLv3 Section 7 – Additional Terms & Attribution Requirements
@@ -166,8 +166,8 @@ val layoutComponentsPatch = bytecodePatch(
             )
         }
 
-        // modified by lavinhoque33, 2026-10-16: Morphe's view based Library "New" button hook, controlled
-        // by the existing "Hide floating button" setting. Skipped when the Library button is not bound this way.
+        // Morphe's view-based Library "New" button hook uses the existing "Hide floating button" setting.
+        // Skip it when the Library button is not bound this way.
         runCatching { LibraryNewButtonFingerprint.match() }.getOrNull()?.let {
             val moveResult = it.instructionMatches[1]
             val register = it.method.getInstruction<OneRegisterInstruction>(moveResult.index).registerA
@@ -400,7 +400,6 @@ val layoutComponentsPatch = bytecodePatch(
                 "false"
             )
         }
-        // modified by lavinhoque33, 2026-10-16: podcast episode Download button ported from Morphe.
         addSwitchPreference(
             CategoryType.GENERAL,
             "revanced_hide_podcast_episode_download_button",
@@ -438,6 +437,11 @@ val layoutComponentsPatch = bytecodePatch(
         addSwitchPreference(
             CategoryType.GENERAL,
             "revanced_hide_playlist_card_shelf",
+            "false"
+        )
+        addSwitchPreference(
+            CategoryType.GENERAL,
+            "morphe_music_hide_your_downloads_shelf",
             "false"
         )
 

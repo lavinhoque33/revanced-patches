@@ -115,8 +115,8 @@ Restart the app, check if the behavior is present, then answer below"</string>
         2.0.&lt;/p&gt;
         &lt;p&gt;=============&lt;/p&gt;
         &lt;p&gt;Reseam NOTICE&lt;/p&gt;
-        &lt;p&gt;Portions of this software incorporate or are derived from code provided by the Reseam software
-        project:&lt;br&gt;https://reseam.app.&lt;/p&gt;
+        &lt;p&gt;Portions of this software incorporate or are derived from code provided by the Reseam
+        project:&lt;br&gt;https://git.reseam.app/reseam/patches.&lt;/p&gt;
         &lt;p&gt;=============&lt;/p&gt;
         &lt;p&gt;Morphe NOTICE&lt;/p&gt;
         &lt;p&gt;Portions of this software incorporate or are derived from code provided by the Morphe software
@@ -1074,19 +1074,18 @@ Settings → Autoplay / Playback → Autoplay next video"</string>
     <string name="revanced_disable_landscape_mode_summary_off">Video orientation follows device settings in fullscreen</string>
     <string name="revanced_disable_landscape_mode_summary_on">Video orientation is portrait mode in fullscreen</string>
     <string name="revanced_disable_landscape_mode_title">Disable landscape mode</string>
-    <string name="revanced_disable_layout_updates_summary_off">Layout will be updated by the server</string>
-    <string name="revanced_disable_layout_updates_summary_on">Layout will not be updated by the server</string>
+    <string name="revanced_disable_layout_updates_summary_off">YouTube can receive hot/cold configuration updates</string>
+    <string name="revanced_disable_layout_updates_summary_on">YouTube\'s hot/cold configuration headers are blocked</string>
     <string name="revanced_disable_layout_updates_title">Disable layout updates</string>
-    <string name="revanced_disable_layout_updates_user_dialog_message">"App layout reverts to the layout it was using when it was first installed
+    <string name="revanced_disable_layout_updates_user_dialog_message">"Blocks YouTube's hot/cold configuration headers to prevent some layout updates
 
-Some server-side layouts may not revert
+The server still delivers the navigation bar. This setting does not restore or keep the old Library tab
 
-Changes include:
-• Components in player flyout menu (or related settings) may not work
-• Rolling numbers are not animated
-• The Library tab is used
-• The Music section of video description may not work
-• Account switch button may not appear on the Library tab. Use the 'Enable wide search bar in You tab' setting"</string>
+Possible effects include:
+• Components in the player flyout menu (or related settings) may not work
+• Rolling numbers may not animate
+• The Music section of video descriptions may not work
+• The account switch button may not appear in the You tab. Use the 'Enable wide search bar in You tab' setting"</string>
     <string name="revanced_disable_like_dislike_glow_summary_off">Like and Dislike buttons will glow when mentioned</string>
     <string name="revanced_disable_like_dislike_glow_summary_on">Like and Dislike buttons will not glow when mentioned</string>
     <string name="revanced_disable_like_dislike_glow_title">Disable Like and Dislike buttons glow</string>
@@ -1456,9 +1455,12 @@ Store"</string>
     <string name="revanced_hide_comments_by_members_title">Hide Comments by members banner</string>
     <string name="revanced_hide_comments_carousel_filter_strings_summary">Enter the comments carousel names to filter by, separated by new lines</string>
     <string name="revanced_hide_comments_carousel_filter_strings_title">Comments carousel filter</string>
+    <string name="revanced_hide_comments_carousel_filter_type_summary_off">Filter if matches.&lt;br&gt;&lt;br&gt;Enter the full carousel title to hide it. Matching is case-sensitive</string>
+    <string name="revanced_hide_comments_carousel_filter_type_summary_on">Filter if contains.&lt;br&gt;&lt;br&gt;Enter &lt;b&gt;community&lt;/b&gt; to hide every carousel whose title contains that text. Matching is case-sensitive. Wildcards are not needed</string>
+    <string name="revanced_hide_comments_carousel_filter_type_title">Comments carousel filter type</string>
     <string name="revanced_hide_comments_carousel_title">Enable comments carousel filter</string>
     <string name="revanced_hide_comments_carousel_user_dialog_message">"Note:
-• Make sure to enter the exact name of the carousel item (e.g. Ask, Hype this video, Listen on YouTube Music, etc.)
+• Enter a full carousel title for exact matching, or part of a title for substring matching. Matching is case-sensitive
 • Hiding carousel items may have unintended side effects
 • If all carousel items are hidden, the entire comments section will also be hidden"</string>
     <string name="revanced_hide_comments_create_a_short_button_summary_off">Create a Short button is shown</string>

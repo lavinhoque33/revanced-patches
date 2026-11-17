@@ -6,7 +6,6 @@ import app.morphe.extension.shared.patches.components.StringFilterGroup;
 
 @SuppressWarnings("unused")
 public final class LayoutComponentsFilter extends Filter {
-    // modified by lavinhoque33, 2026-10-16: podcast episode Download button ported from Morphe.
     private static final String LIST_ITEM_EXTRA_DETAILS_PATH = "music_list_item_extra_details.";
 
     private final StringFilterGroup podcastEpisodeDownloadButton;
@@ -32,6 +31,13 @@ public final class LayoutComponentsFilter extends Filter {
                 Settings.HIDE_SAMPLE_SHELF,
                 "immersive_card_shelf."
         );
+
+        final StringFilterGroup yourDownloadsShelf = new StringFilterGroup(
+                Settings.HIDE_YOUR_DOWNLOADS_SHELF,
+                "music_downloads_shelf.e"
+        );
+
+        addPathCallbacks(yourDownloadsShelf);
 
         // Download button under the description of a podcast episode in episode lists.
         podcastEpisodeDownloadButton = new StringFilterGroup(

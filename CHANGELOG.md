@@ -1,5 +1,22 @@
 ## Unreleased
 
+### Features
+
+* **YouTube - Hide comments components:** Choose exact-title or substring matching for carousel filters.
+  Substring matching stays the default; existing saved lists and case-sensitive matching are unchanged.
+* **Music - Hide layout components:** Optionally hide the Your downloads shelf without hiding the
+  Library Downloads chip. Off by default.
+
+### Bug Fixes
+
+* **YouTube - System share sheet:** Keep sharing in the current activity task to avoid accidental PiP,
+  and leave playlist-only Mix links to the in-app share sheet instead of creating invalid links.
+* **YouTube / Music - Translation:** Recognize Hebrew and Yiddish aliases for DeepL and Kurdish `kmr`
+  for Google Translate.
+* **YouTube - Disable layout updates:** Explain the blocked hot/cold configuration headers and clarify
+  that the server-delivered navigation bar does not restore the old Library tab.
+* **Notices:** Correct Reseam's project name and source URL while retaining the other notices.
+
 ## [1.37.3](https://github.com/lavinhoque33/revanced-patches/compare/v1.37.2...v1.37.3) (2026-11-17)
 
 ### Bug Fixes

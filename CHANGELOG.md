@@ -8,6 +8,9 @@
   Library Downloads chip. Off by default.
 * **YouTube - Seekbar components:** Choose an image or animated GIF as the seekbar thumb, with fitted or
   original sizing and a reset action. Animated images require Android 9 or newer.
+* **YouTube - Gemini:** Edit the model fallback order and optionally ground summaries and chat with
+  Google Search, including source links and Search attribution. Search is off by default and does not
+  affect transcription or JSON requests. Existing Gemini settings and the default model order are preserved.
 
 ### Bug Fixes
 

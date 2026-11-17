@@ -4,6 +4,14 @@
 
 * **YouTube - Video action bar layout:** Match the modern action-bar icon weight for the outlined and filled
   dislike button in both Classic layouts, including when YouTube supplies an older icon name.
+* **YouTube - Shorts components:** Keep navigation when preview comments are hidden, collapse their empty
+  bottom bar on 20.51+, and keep Shorts player state open until the last attached player closes.
+* **YouTube - Hide layout components:** Collapse empty fullscreen metadata boxes after their content is hidden.
+* **YouTube - Hide feed flyout menu:** Remove filtered popup and toolbar overflow entries without blank rows.
+* **YouTube - Theme:** Restore the selected runtime palette after rotation without changing Stock colors.
+* **YouTube - Change form factor:** Keep the selected phone layout in newer responsive feed containers on 21.30+.
+* **YouTube - Return YouTube Dislike:** Load counts for Shorts opened in the regular player without prefetching
+  Shorts shelves or enabling counts in the Shorts feed.
 
 ## [1.37.2](https://github.com/lavinhoque33/revanced-patches/compare/v1.37.1...v1.37.2) (2026-11-17)
 

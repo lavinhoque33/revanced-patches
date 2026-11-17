@@ -1,5 +1,7 @@
 ## Unreleased
 
+## [1.37.2](https://github.com/lavinhoque33/revanced-patches/compare/v1.37.1...v1.37.2) (2026-11-17)
+
 ### Bug Fixes
 
 * **YouTube - Search comments:** Hide the search button when a comments header is reused for Description

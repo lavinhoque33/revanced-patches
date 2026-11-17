@@ -2,7 +2,7 @@
  * Original author(s):
  * - anddea (https://github.com/anddea)
  * - COOLak (https://github.com/COOLak)
- * Modified by lavinhoque33, 2026-11-16
+ * Modified by lavinhoque33, 2026-11-17
  */
 
 package app.morphe.extension.youtube.settings.preference;
@@ -14,6 +14,7 @@ import static app.morphe.extension.youtube.settings.Settings.HIDE_PREVIEW_COMMEN
 import android.annotation.SuppressLint;
 import android.app.Dialog;
 import android.content.SharedPreferences;
+import android.content.Intent;
 import android.preference.Preference;
 import android.preference.PreferenceScreen;
 import android.preference.SwitchPreference;
@@ -132,6 +133,14 @@ public class YouTubePreferenceFragment extends ToolbarPreferenceFragment {
             return;
         }
 
+        if (pref instanceof CustomSeekbarThumbPreference thumbPreference
+                && setting == Settings.CUSTOM_SEEKBAR_THUMB_FILE) {
+            if (applySettingToPreference) {
+                thumbPreference.updateSummary();
+            }
+            return;
+        }
+
         if (pref instanceof GlassNavigationBarPreference) {
             // The dialog reads and saves its settings directly, so there is no UI value to sync.
             return;
@@ -143,6 +152,11 @@ public class YouTubePreferenceFragment extends ToolbarPreferenceFragment {
     @Override
     protected void onSettingChanged(Setting<?> setting) {
         TranslationPlaybackController.onSettingChanged(setting.key);
+        if (setting == Settings.CUSTOM_SEEKBAR_THUMB_FILE
+                || setting == Settings.CUSTOM_SEEKBAR_THUMB
+                || setting == Settings.CUSTOM_SEEKBAR_THUMB_SCALE_TYPE) {
+            app.morphe.extension.youtube.patches.CustomSeekbarThumbPatch.reloadThumb();
+        }
     }
 
     /**
@@ -376,6 +390,15 @@ public class YouTubePreferenceFragment extends ToolbarPreferenceFragment {
             if (preference != null) {
                 preference.setEnabled(enabled);
             }
+        }
+    }
+
+    @Override
+    public void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+
+        if (requestCode == CustomSeekbarThumbPreference.PICK_THUMB_REQUEST_CODE) {
+            CustomSeekbarThumbPreference.handleActivityResult(getActivity(), resultCode, data);
         }
     }
 }

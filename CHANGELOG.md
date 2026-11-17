@@ -6,6 +6,8 @@
   Substring matching stays the default; existing saved lists and case-sensitive matching are unchanged.
 * **Music - Hide layout components:** Optionally hide the Your downloads shelf without hiding the
   Library Downloads chip. Off by default.
+* **YouTube - Seekbar components:** Choose an image or animated GIF as the seekbar thumb, with fitted or
+  original sizing and a reset action. Animated images require Android 9 or newer.
 
 ### Bug Fixes
 
@@ -17,12 +19,6 @@
   that the server-delivered navigation bar does not restore the old Library tab.
 * **Notices:** Correct Reseam's project name and source URL while retaining the other notices.
 
-## [1.37.3](https://github.com/lavinhoque33/revanced-patches/compare/v1.37.2...v1.37.3) (2026-11-17)
-
-### Bug Fixes
-
-* **YouTube - Video action bar layout:** Match the modern action-bar icon weight for the outlined and filled
-  dislike button in both Classic layouts, including when YouTube supplies an older icon name.
 * **Music - Player components:** Preserve older clients' public resource names while assigning their IDs
   to the added previous and next controls, including forced Music 6.20.
 * **YouTube - Navigation bar:** Repair missing notification icons in newer pair-built icon maps without
@@ -30,6 +26,15 @@
 * **YouTube - GmsCore support:** Match both account network-error text hooks without relying on obsolete
   controller parameters or artwork. Keep the existing experimental 21.45 fixes.
 * **YouTube - SponsorBlock:** Supply the skip-next icon instead of relying on a stock drawable.
+* **YouTube - Seekbar components:** Correct storyboard frame cropping and match fullscreen seek previews
+  to the zoomed video size.
+
+## [1.37.3](https://github.com/lavinhoque33/revanced-patches/compare/v1.37.2...v1.37.3) (2026-11-17)
+
+### Bug Fixes
+
+* **YouTube - Video action bar layout:** Match the modern action-bar icon weight for the outlined and filled
+  dislike button in both Classic layouts, including when YouTube supplies an older icon name.
 
 ## [1.37.2](https://github.com/lavinhoque33/revanced-patches/compare/v1.37.1...v1.37.2) (2026-11-17)
 

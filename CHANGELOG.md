@@ -1,9 +1,16 @@
 ## Unreleased
 
+### Features
+
+* **YouTube - Seekbar components:** Choose an image or animated GIF as the seekbar thumb, with fitted or
+  original sizing and a reset action. Animated images require Android 9 or newer.
+
 ### Bug Fixes
 
 * **YouTube - Video action bar layout:** Match the modern action-bar icon weight for the outlined and filled
   dislike button in both Classic layouts, including when YouTube supplies an older icon name.
+* **YouTube - Seekbar components:** Correct storyboard frame cropping and match fullscreen seek previews
+  to the zoomed video size.
 
 ## [1.37.2](https://github.com/lavinhoque33/revanced-patches/compare/v1.37.1...v1.37.2) (2026-11-17)
 

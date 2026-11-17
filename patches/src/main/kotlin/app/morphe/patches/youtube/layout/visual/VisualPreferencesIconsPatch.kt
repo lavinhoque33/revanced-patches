@@ -8,7 +8,7 @@
  * - anddea (https://github.com/anddea)
  *
  * Licensed under the GNU General Public License v3.0.
- * Modified by lavinhoque33, 2026-11-16.
+ * Modified by lavinhoque33, 2026-11-17.
  *
  * ------------------------------------------------------------------------
  * GPLv3 Section 7 – Additional Terms & Attribution Requirements
@@ -1037,6 +1037,9 @@ private val rvxPreferenceKey = mapOf(
     "morphe_custom_branding_apply_to_rvx_settings" to "morphe_custom_branding_icon",
     "morphe_custom_branding_splash_animation_size" to "morphe_custom_dpi",
     "morphe_custom_branding_use_as_system_splash" to "morphe_custom_branding_icon",
+    "morphe_custom_seekbar_thumb" to "morphe_seekbar_thumbnail_preview",
+    "morphe_custom_seekbar_thumb_file" to "morphe_seekbar_thumbnail_preview",
+    "morphe_custom_seekbar_thumb_scale_type" to "morphe_fullscreen_large_seekbar",
     "morphe_dark_theme_custom_color" to "morphe_dark_theme",
     "morphe_dearrow_casual_mode" to "morphe_restore_original_titles",
     "morphe_dearrow_casual_mode_min_votes" to "sb_voting_button",

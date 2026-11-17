@@ -603,6 +603,17 @@ Not used while Unlock queue or Premium-style queue is on"</string>
     <string name="morphe_seekbar_thumbnail_heatmap_peak_point">Most replayed</string>
     <string name="morphe_seekbar_thumbnail_preview_summary">Shows a video thumbnail while dragging the seekbar</string>
     <string name="morphe_seekbar_thumbnail_preview_title">Enable seekbar thumbnails</string>
+    <!-- Custom seekbar thumb. Modified by lavinhoque33, 2026-11-17. -->
+    <string name="morphe_custom_seekbar_thumb_title">Enable custom seekbar thumb</string>
+    <string name="morphe_custom_seekbar_thumb_summary">Replace the seekbar thumb with an image or animated GIF. Animated images require Android 9 or newer</string>
+    <string name="morphe_custom_seekbar_thumb_file_title">Thumb image</string>
+    <string name="morphe_custom_seekbar_thumb_file_select">Select image</string>
+    <string name="morphe_custom_seekbar_thumb_file_summary">Select an image or animated GIF from device storage, or reset to the default thumb</string>
+    <string name="morphe_custom_seekbar_thumb_file_invalid">The selected file is not a supported image</string>
+    <string name="morphe_custom_seekbar_thumb_file_not_found">Custom seekbar thumb image not found</string>
+    <string name="morphe_custom_seekbar_thumb_scale_type_title">Thumb size</string>
+    <string name="morphe_custom_seekbar_thumb_scale_type_entry_fit_seekbar">Fit seekbar</string>
+    <string name="morphe_custom_seekbar_thumb_scale_type_entry_original">Original size</string>
     <string name="morphe_settings_menu_copy_path">Copied: %s</string>
     <string name="morphe_settings_menu_filter_picker_empty">Open the standard app settings screen once to populate the list</string>
     <string name="morphe_settings_menu_filter_screen_summary">Hide items on the standard app settings screen by their visible name</string>

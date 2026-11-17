@@ -2285,6 +2285,7 @@ Miniplayer can be dragged off-screen to the left or right"</string>
     <string name="revanced_navigation_bar_order_hide">Hide %s</string>
     <string name="revanced_navigation_bar_order_instructions">Tap an item to show or hide it, and drag its handle to reorder. Create and Notifications share a slot. Explore is available only in supported YouTube layouts</string>
     <string name="revanced_navigation_bar_order_show">Show %s</string>
+    <string name="revanced_navigation_bar_order_you">You</string>
     <string name="revanced_navigation_bar_visibility_instructions">Tap an item to show or hide it. Create and Notifications share a slot. Changes apply after restarting</string>
     <string name="revanced_open_links_externally_summary_off">Opens links in in-app browser</string>
     <string name="revanced_open_links_externally_summary_on">Opens links in external browser</string>

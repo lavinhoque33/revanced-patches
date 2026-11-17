@@ -11,6 +11,7 @@
 * **YouTube - Gemini:** Edit the model fallback order and optionally ground summaries and chat with
   Google Search, including source links and Search attribution. Search is off by default and does not
   affect transcription or JSON requests. Existing Gemini settings and the default model order are preserved.
+  Model and Search controls use the existing Gemini settings icon.
 * **YouTube - Ambient mode control:** Add opt-in Enhanced Ambient mode on Android 10 and newer, with
   readable-text dimming, dimming while scrolling, and an adjustable dim duration. Keep the existing
   Ambient mode toggle, battery-saver controls, themes and glass navigation.

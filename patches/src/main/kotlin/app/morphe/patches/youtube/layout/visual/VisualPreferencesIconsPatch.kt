@@ -1136,6 +1136,8 @@ private val rvxPreferenceKey = mapOf(
     "revanced_external_downloader_package_name_video_long_press" to "revanced_overlay_button_external_downloader",
     "revanced_feed_card_layout_dynamic_colors" to "revanced_enable_gradient_loading_screen",
     "revanced_force_hdr_video" to "video_quality_settings_key",
+    "revanced_gemini_google_search" to "revanced_preference_screen_gemini",
+    "revanced_gemini_models" to "revanced_preference_screen_gemini",
     "revanced_gms_show_dialog" to "gms_core_settings",
     "revanced_hide_account_menu_filter_strings" to "revanced_custom_filter_strings",
     "revanced_hide_account_menu_filter_type" to "revanced_hide_account_menu",

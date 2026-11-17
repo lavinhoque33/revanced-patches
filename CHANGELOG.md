@@ -2,6 +2,14 @@
 
 ### Bug Fixes
 
+* **YouTube - Video playback:** Use the configured hold speed and matching indicator for Shorts on 21.11+.
+  Reset non-remembered playback speeds for the next player, including an explicit return to normal speed.
+* **YouTube - Player components:** Respect the chapter-skip preference even when account configuration disables
+  the gesture on 21.11+. Keep fullscreen More videos working when the related-videos panel is not peeking.
+* **YouTube - Seekbar components:** Complete tap-to-seek gestures when the time bar is disabled on 21.04+.
+* **YouTube - Swipe controls:** Keep two-finger taps from starting pinch-to-zoom prematurely, and count consumed
+  swipe and volume-key events as user activity so autoplay does not mistake the user for being idle.
+
 * **YouTube - Video action bar layout:** Match the modern action-bar icon weight for the outlined and filled
   dislike button in both Classic layouts, including when YouTube supplies an older icon name.
 

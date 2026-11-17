@@ -187,10 +187,10 @@ public final class VideoActionBarLayoutPatch {
             DislikeButtonViewModel dislike = segmented.getDislikeButton().getDislikeButton();
             ToggleButtonViewModelHolder holder = dislike.getToggleButtonViewModel();
             ToggleButtonViewModel toggle = holder.getToggleButtonViewModel();
-            ButtonViewModelHolder defaultButton = classicDislikeIcon(
-                    toggle.getDefaultButtonViewModel(), "yt_outline_thumb_down_black_24");
-            ButtonViewModelHolder toggledButton = classicDislikeIcon(
-                    toggle.getToggledButtonViewModel(), "yt_fill_thumb_down_black_24");
+            ButtonViewModelHolder defaultButton = classicDislikeIcon(toggle.getDefaultButtonViewModel(),
+                    "yt_outline_thumb_down_black_24", "yt_outline_experimental_thumb_down_black_24");
+            ButtonViewModelHolder toggledButton = classicDislikeIcon(toggle.getToggledButtonViewModel(),
+                    "yt_fill_thumb_down_black_24", "yt_fill_experimental_thumb_down_black_24");
             if (defaultButton == toggle.getDefaultButtonViewModel()
                     && toggledButton == toggle.getToggledButtonViewModel()) {
                 continue;
@@ -210,13 +210,15 @@ public final class VideoActionBarLayoutPatch {
         return builder == null ? actionBar : builder.build();
     }
 
-    private static ButtonViewModelHolder classicDislikeIcon(ButtonViewModelHolder holder, String iconName) {
+    private static ButtonViewModelHolder classicDislikeIcon(
+            ButtonViewModelHolder holder, String legacyIconName, String modernIconName) {
         ButtonViewModel button = holder.getButtonViewModel();
-        if (!button.getIconName().isEmpty()) return holder;
+        String iconName = button.getIconName();
+        if (!iconName.isEmpty() && !iconName.equals(legacyIconName)) return holder;
 
-        // The classic segmented template reads iconName, not the newer yticonImage.
-        // Unlike the animated like icon, the dislike icon has no independent source.
-        return holder.toBuilder().setButtonViewModel(button.toBuilder().setIconName(iconName)).build();
+        // Classic templates only read iconName. Use the native modern thumb glyph, not its thin predecessor,
+        // both for modern image-only responses and for server-supplied legacy names.
+        return holder.toBuilder().setButtonViewModel(button.toBuilder().setIconName(modernIconName)).build();
     }
 
     private static VideoActionBarViewModel.Builder toMinimal(

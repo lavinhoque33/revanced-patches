@@ -9,6 +9,9 @@
   YouTube's order without storing an override. Recognize Create in both labeled and icon-only layouts.
   Show “You” in the order editor while preserving existing saved `LIBRARY` values; this does not restore
   the old Library tab.
+* **Music - Glass player and navigation bar:** Keep Library New above the glass player when native code
+  rewrites its margin. Verify clearance before drawing, preserve native Play-button animations and snackbar
+  spacing, and keep tracking controls when they are detached or hidden and shown again.
 
 ## [1.37.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.36.0...v1.37.0) (2026-11-16)
 

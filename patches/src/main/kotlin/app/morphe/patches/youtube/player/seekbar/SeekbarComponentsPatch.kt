@@ -158,7 +158,32 @@ val seekbarComponentsPatch = bytecodePatch(
                     )
                 }
             }
+
+            // Disabled time bars ignore the event that ends a tap-opened scrub.
+            // Complete it through the same methods used when the player controls are hidden.
+            TimeBarCompleteHiddenScrubFingerprint.match().let {
+                val isScrubbingMethod = it.instructionMatches.first().methodReference
+                val completeScrubMethod = it.instructionMatches[3].methodReference
+                val completeScrubHook = "$PLAYER_CLASS_DESCRIPTOR->" +
+                        "shouldCompleteScrub(Landroid/view/View;Landroid/view/MotionEvent;)Z"
+
+                it.method.addInstructionsWithLabels(
+                    0,
+                    """
+                        invoke-static { p0, p1 }, $completeScrubHook
+                        move-result v0
+                        if-eqz v0, :ignore
+                        invoke-virtual { p0 }, $isScrubbingMethod
+                        move-result v0
+                        if-eqz v0, :ignore
+                        invoke-virtual { p0 }, $completeScrubMethod
+                        :ignore
+                        nop
+                    """
+                )
+            }
         } else {
+            printWarn("Disabled-timebar scrub completion requires YouTube 21.04+; keeping legacy tap-to-seek.")
             SeekbarTappingFingerprint.method.apply {
                 val pointIndex = indexOfPointInstruction(this)
                 val pointInstruction = getInstruction<FiveRegisterInstruction>(pointIndex)

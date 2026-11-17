@@ -1,9 +1,16 @@
 ## Unreleased
 
+### Features
+
+* **YouTube Music - Hide layout components:** Optionally hide the "You may also like" search shelves
+  before typing on Music 9.00 and newer, without changing typed-query suggestions.
+
 ### Bug Fixes
 
 * **YouTube - Video action bar layout:** Match the modern action-bar icon weight for the outlined and filled
   dislike button in both Classic layouts, including when YouTube supplies an older icon name.
+* **YouTube Music - GmsCore support:** Restore Device files song, album and artist search using
+  Android's media library, including on Music 6.20. Private stream-cache downloads remain separate.
 
 ## [1.37.2](https://github.com/lavinhoque33/revanced-patches/compare/v1.37.1...v1.37.2) (2026-11-17)
 

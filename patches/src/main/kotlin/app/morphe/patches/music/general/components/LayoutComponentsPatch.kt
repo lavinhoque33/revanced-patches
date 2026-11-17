@@ -61,6 +61,7 @@ import app.morphe.patches.music.utils.playservice.is_6_42_or_greater
 import app.morphe.patches.music.utils.playservice.is_6_48_or_greater
 import app.morphe.patches.music.utils.playservice.is_8_05_or_greater
 import app.morphe.patches.music.utils.playservice.is_8_15_or_greater
+import app.morphe.patches.music.utils.playservice.is_9_00_or_greater
 import app.morphe.patches.music.utils.playservice.versionCheckPatch
 import app.morphe.patches.music.utils.resourceid.musicTasteBuilderShelf
 import app.morphe.patches.music.utils.resourceid.playerOverlayChip
@@ -75,6 +76,7 @@ import app.morphe.patches.music.utils.settings.settingsPatch
 import app.morphe.patches.shared.misc.settings.preference.InputType
 import app.morphe.patches.shared.litho.addLithoFilter
 import app.morphe.patches.shared.litho.lithoFilterPatch
+import app.morphe.util.Utils.printWarn
 import app.morphe.util.fingerprint.injectLiteralInstructionBooleanCall
 import app.morphe.util.fingerprint.matchOrNull
 import app.morphe.util.fingerprint.matchOrThrow
@@ -444,6 +446,19 @@ val layoutComponentsPatch = bytecodePatch(
             "morphe_music_hide_your_downloads_shelf",
             "false"
         )
+
+        if (is_9_00_or_greater) {
+            hideSuggestedSearchShelves()
+
+            addSwitchPreference(
+                CategoryType.GENERAL,
+                "morphe_music_hide_you_may_also_like_section",
+                "false",
+                setSummary = false
+            )
+        } else {
+            printWarn("Hide 'You may also like' search suggestions requires YouTube Music 9.00 or newer.")
+        }
 
         updatePatchStatus(HIDE_LAYOUT_COMPONENTS)
 

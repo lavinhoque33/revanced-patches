@@ -14,6 +14,8 @@
 * **YouTube - Ambient mode control:** Add opt-in Enhanced Ambient mode on Android 10 and newer, with
   readable-text dimming, dimming while scrolling, and an adjustable dim duration. Keep the existing
   Ambient mode toggle, battery-saver controls, themes and glass navigation.
+* **YouTube Music - Hide layout components:** Optionally hide the "You may also like" search shelves
+  before typing on Music 9.00 and newer, without changing typed-query suggestions.
 
 ### Bug Fixes
 
@@ -36,6 +38,8 @@
   to the zoomed video size.
 * **YouTube - Hide status bar:** Remove empty top-bar space without covering camera cutouts, keep settings
   activities and submenus consistent, and preserve glass focus restoration and picture-in-picture behavior.
+* **YouTube Music - GmsCore support:** Restore Device files song, album and artist search using
+  Android's media library, including on Music 6.20. Private stream-cache downloads remain separate.
 
 
 ## [1.37.3](https://github.com/lavinhoque33/revanced-patches/compare/v1.37.2...v1.37.3) (2026-11-17)

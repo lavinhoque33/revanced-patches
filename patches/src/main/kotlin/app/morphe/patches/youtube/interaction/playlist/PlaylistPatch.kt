@@ -3,9 +3,11 @@
  * https://github.com/MorpheApp/morphe-patches/pull/4324
  *
  * See the included NOTICE file for GPLv3 Section 7 terms that apply to Morphe contributions.
+ *
+ * Modified by lavinhoque33, 2026-11-17.
  */
 
-package app.morphe.patches.youtube.interaction.watchlater
+package app.morphe.patches.youtube.interaction.playlist
 
 import app.morphe.patcher.extensions.InstructionExtensions.addInstruction
 import app.morphe.patcher.extensions.InstructionExtensions.addInstructions
@@ -13,6 +15,7 @@ import app.morphe.patcher.extensions.InstructionExtensions.addInstructionsWithLa
 import app.morphe.patcher.patch.bytecodePatch
 import app.morphe.patches.shared.misc.bridge.addBridge
 import app.morphe.patches.youtube.interaction.feedactions.FeedComponentHostLayoutFingerprint
+import app.morphe.patches.youtube.interaction.feedactions.FeedComponentHostTouchFingerprint
 import app.morphe.patches.youtube.utils.commandrouter.parseProtoInstructions
 import app.morphe.patches.youtube.utils.extension.sharedExtensionPatch
 import app.morphe.patches.youtube.utils.navigation.addBrowseIdHook
@@ -22,29 +25,32 @@ import app.morphe.patches.youtube.utils.playertype.playerTypeHookPatch
 import app.morphe.patches.youtube.utils.playservice.is_21_05_or_greater
 import app.morphe.patches.youtube.utils.playservice.versionCheckPatch
 import app.morphe.patches.youtube.utils.settings.ResourceUtils.addPreference
-import app.morphe.patches.youtube.utils.patch.PatchList.WATCH_LATER_IMPROVEMENTS
+import app.morphe.patches.youtube.utils.patch.PatchList.PLAYLIST_IMPROVEMENTS
 import app.morphe.patches.shared.misc.fix.proto.fixProtoLibraryPatch
 import app.morphe.patches.youtube.utils.settings.settingsPatch
 import app.morphe.patches.youtube.utils.compatibility.Constants.COMPATIBILITY_YOUTUBE
 import app.morphe.util.addInstructionsAtControlFlowLabel
 import app.morphe.util.findInstructionIndicesReversedOrThrow
+import app.morphe.util.Utils.printWarn
 import com.android.tools.smali.dexlib2.Opcode
 
-private const val EXTENSION_CLASS = "Lapp/morphe/extension/youtube/patches/WatchLaterPatch;"
+private const val EXTENSION_CLASS = "Lapp/morphe/extension/youtube/patches/PlaylistPatch;"
 private const val PLAYLIST_EDIT_CALLBACK_INTERFACE =
-    "Lapp/morphe/extension/youtube/patches/WatchLaterPatch\$PlaylistEditCallback;"
+    "Lapp/morphe/extension/youtube/patches/PlaylistPatch\$PlaylistEditCallback;"
+private const val COMPONENT_HOST_TOUCH_PARAMETERS =
+    "(Lcom/facebook/litho/ComponentHost;Landroid/view/MotionEvent;)Z"
 
 @Suppress("unused")
-val watchLaterPatch = bytecodePatch(
-    name = "Watch later improvements",
-    description = "Adds options to widen the drag handles of the Watch later videos " +
-            "and to hide the snackbar shown after removing a video.",
+val playlistPatch = bytecodePatch(
+    name = "Playlist improvements",
+    description = "Adds options to widen playlist drag handles, reorder videos by long press, " +
+            "and hide removal confirmations.",
 ) {
     dependsOn(
         sharedExtensionPatch,
         fixProtoLibraryPatch,
         settingsPatch,
-        // Finds if the Watch later playlist is shown.
+        // Finds if a playlist is shown.
         browseIdHookPatch,
         // Finds if the player covers the playlist.
         playerTypeHookPatch,
@@ -55,8 +61,8 @@ val watchLaterPatch = bytecodePatch(
 
     execute {
         addPreference(
-            arrayOf("PREFERENCE_SCREEN: FEED", "SETTINGS: WATCH_LATER_IMPROVEMENTS"),
-            WATCH_LATER_IMPROVEMENTS,
+            arrayOf("PREFERENCE_SCREEN: FEED", "SETTINGS: PLAYLIST_IMPROVEMENTS"),
+            PLAYLIST_IMPROVEMENTS,
         )
 
         addBrowseIdHook("$EXTENSION_CLASS->setBrowseId(Ljava/lang/String;)V")
@@ -93,6 +99,23 @@ val watchLaterPatch = bytecodePatch(
                     :original
                     nop
                 """
+            )
+
+            addPreference(arrayOf("PREFERENCE_SCREEN: FEED", "SETTINGS: PLAYLIST_LONG_PRESS_DRAG"))
+            FeedComponentHostTouchFingerprint.method.addInstructionsWithLabels(
+                0,
+                """
+                    invoke-static { p0, p1 }, $EXTENSION_CLASS->onComponentHostTouch$COMPONENT_HOST_TOUCH_PARAMETERS
+                    move-result v0
+                    if-eqz v0, :original
+                    return v0
+                    :original
+                    nop
+                """
+            )
+        } else {
+            printWarn(
+                "Playlist improvements: Litho drag handles and long-press reordering require YouTube 21.05 or later."
             )
         }
 

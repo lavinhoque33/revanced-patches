@@ -533,9 +533,18 @@
         <SwitchPreference android:title="@string/morphe_feed_long_press_menu_title" android:key="morphe_feed_long_press_menu" android:summary="@string/morphe_feed_long_press_menu_summary" />
         <SwitchPreference android:title="@string/morphe_feed_watch_later_button_title" android:key="morphe_feed_watch_later_button" android:summary="@string/morphe_feed_watch_later_button_summary" />SETTINGS: FEED_VIDEO_ACTIONS -->
 
-        <!-- SETTINGS: WATCH_LATER_IMPROVEMENTS
-        <SwitchPreference android:key="morphe_watch_later_wide_drag_handles" android:title="@string/morphe_watch_later_wide_drag_handles_title" android:summary="@string/morphe_watch_later_wide_drag_handles_summary" />
-        <SwitchPreference android:key="morphe_watch_later_hide_removal_snackbar" android:title="@string/morphe_watch_later_hide_removal_snackbar_title" android:summary="@string/morphe_watch_later_hide_removal_snackbar_summary" />SETTINGS: WATCH_LATER_IMPROVEMENTS -->
+        <!-- SETTINGS: PLAYLIST_IMPROVEMENTS
+        <SwitchPreference android:key="morphe_playlist_wide_drag_handles"
+            android:title="@string/morphe_playlist_wide_drag_handles_title"
+            android:summary="@string/morphe_playlist_wide_drag_handles_summary" />
+        <SwitchPreference android:key="morphe_playlist_hide_removal_snackbar"
+            android:title="@string/morphe_playlist_hide_removal_snackbar_title"
+            android:summary="@string/morphe_playlist_hide_removal_snackbar_summary" />SETTINGS: PLAYLIST_IMPROVEMENTS -->
+
+        <!-- SETTINGS: PLAYLIST_LONG_PRESS_DRAG
+        <SwitchPreference android:key="morphe_playlist_long_press_drag"
+            android:title="@string/morphe_playlist_long_press_drag_title"
+            android:summary="@string/morphe_playlist_long_press_drag_summary" />SETTINGS: PLAYLIST_LONG_PRESS_DRAG -->
 
     <!-- PREFERENCE_SCREEN: FEED
     </PreferenceScreen>PREFERENCE_SCREEN: FEED -->

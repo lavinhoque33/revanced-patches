@@ -16,6 +16,8 @@
   Ambient mode toggle, battery-saver controls, themes and glass navigation.
 * **YouTube Music - Hide layout components:** Optionally hide the "You may also like" search shelves
   before typing on Music 9.00 and newer, without changing typed-query suggestions.
+* **YouTube - Playlist improvements:** Widen drag handles and hide removal confirmations on all playlists.
+  Add optional long-press reordering on YouTube 21.05 and later, keeping existing Watch later preferences.
 
 ### Bug Fixes
 
@@ -26,7 +28,6 @@
 * **YouTube - Disable layout updates:** Explain the blocked hot/cold configuration headers and clarify
   that the server-delivered navigation bar does not restore the old Library tab.
 * **Notices:** Correct Reseam's project name and source URL while retaining the other notices.
-
 * **Music - Player components:** Preserve older clients' public resource names while assigning their IDs
   to the added previous and next controls, including forced Music 6.20.
 * **YouTube - Navigation bar:** Repair missing notification icons in newer pair-built icon maps without
@@ -40,12 +41,6 @@
   activities and submenus consistent, and preserve glass focus restoration and picture-in-picture behavior.
 * **YouTube Music - GmsCore support:** Restore Device files song, album and artist search using
   Android's media library, including on Music 6.20. Private stream-cache downloads remain separate.
-
-
-## [1.37.3](https://github.com/lavinhoque33/revanced-patches/compare/v1.37.2...v1.37.3) (2026-11-17)
-
-### Bug Fixes
-
 * **YouTube - Video playback:** Use the configured hold speed and matching indicator for Shorts on 21.11+.
   Reset non-remembered playback speeds for the next player, including an explicit return to normal speed.
 * **YouTube - Player components:** Respect the chapter-skip preference even when account configuration disables
@@ -54,8 +49,6 @@
 * **YouTube - Swipe controls:** Keep two-finger taps from starting pinch-to-zoom prematurely, and count consumed
   swipe and volume-key events as user activity so autoplay does not mistake the user for being idle.
 
-* **YouTube - Video action bar layout:** Match the modern action-bar icon weight for the outlined and filled
-  dislike button in both Classic layouts, including when YouTube supplies an older icon name.
 * **YouTube - Shorts components:** Keep navigation when preview comments are hidden, collapse their empty
   bottom bar on 20.51+, and keep Shorts player state open until the last attached player closes.
 * **YouTube - Hide layout components:** Collapse empty fullscreen metadata boxes after their content is hidden.
@@ -64,6 +57,15 @@
 * **YouTube - Change form factor:** Keep the selected phone layout in newer responsive feed containers on 21.30+.
 * **YouTube - Return YouTube Dislike:** Load counts for Shorts opened in the regular player without prefetching
   Shorts shelves or enabling counts in the Shorts feed.
+* **YouTube - Queue manager:** Use a fresh request for each playlist create, edit or save operation,
+  so repeated actions do not reuse stale results. Keep the fork's queue behavior and precedence.
+
+## [1.37.3](https://github.com/lavinhoque33/revanced-patches/compare/v1.37.2...v1.37.3) (2026-11-17)
+
+### Bug Fixes
+
+* **YouTube - Video action bar layout:** Match the modern action-bar icon weight for the outlined and filled
+  dislike button in both Classic layouts, including when YouTube supplies an older icon name.
 
 ## [1.37.2](https://github.com/lavinhoque33/revanced-patches/compare/v1.37.1...v1.37.2) (2026-11-17)
 

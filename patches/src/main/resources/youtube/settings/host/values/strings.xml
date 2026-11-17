@@ -828,10 +828,16 @@ Tap here to open OpenRouter.ai"</string>
     <string name="morphe_vot_voice_gender_female_multilingual">Multilingual female</string>
     <string name="morphe_vot_voice_gender_male">Male</string>
     <string name="morphe_vot_voice_gender_male_multilingual">Multilingual male</string>
-    <string name="morphe_watch_later_hide_removal_snackbar_summary">The confirmation is not shown after a video is removed from Watch later</string>
-    <string name="morphe_watch_later_hide_removal_snackbar_title">Hide Watch later removal snackbar</string>
-    <string name="morphe_watch_later_wide_drag_handles_summary">The drag handles of the Watch later videos are easier to grab</string>
-    <string name="morphe_watch_later_wide_drag_handles_title">Widen Watch later drag handles</string>
+    <string name="morphe_playlist_wide_drag_handles_title">Widen playlist drag handles</string>
+    <string name="morphe_playlist_wide_drag_handles_summary">Playlist drag handles are easier to grab</string>
+    <string name="morphe_playlist_hide_removal_snackbar_title">Hide playlist removal snackbar</string>
+    <string name="morphe_playlist_hide_removal_snackbar_summary">
+        The confirmation is not shown after a video is removed from a playlist
+    </string>
+    <string name="morphe_playlist_long_press_drag_title">Long press to reorder playlist videos</string>
+    <string name="morphe_playlist_long_press_drag_summary">
+        Touch and hold a video of your playlist to drag it to a new position
+    </string>
     <string name="revanced_advanced_video_quality_menu_summary_off">Advanced video quality menu is not shown</string>
     <string name="revanced_advanced_video_quality_menu_summary_on">Advanced video quality menu is shown</string>
     <string name="revanced_advanced_video_quality_menu_title">Show advanced video quality menu</string>

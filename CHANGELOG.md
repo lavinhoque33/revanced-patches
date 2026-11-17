@@ -1,5 +1,10 @@
 ## Unreleased
 
+### Bug Fixes
+
+* **YouTube - Video action bar layout:** Restore the dislike icon in Classic One-Row and Classic Two-Rows
+  when YouTube sends modern image icons, with or without Return YouTube Dislike.
+
 ## [1.37.1](https://github.com/lavinhoque33/revanced-patches/compare/v1.37.0...v1.37.1) (2026-11-17)
 
 ### Bug Fixes

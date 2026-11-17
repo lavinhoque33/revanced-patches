@@ -8,7 +8,7 @@
  * - anddea (https://github.com/anddea)
  *
  * Licensed under the GNU General Public License v3.0.
- * Modified by lavinhoque33, 2026-11-16.
+ * Modified by lavinhoque33, 2026-11-17.
  *
  * ------------------------------------------------------------------------
  * GPLv3 Section 7 – Additional Terms & Attribution Requirements
@@ -1134,6 +1134,7 @@ private val rvxPreferenceKey = mapOf(
     "revanced_hide_carousel_shelf_about" to "about_key",
     "revanced_hide_channel_tab_filter_strings" to "revanced_custom_filter_strings",
     "revanced_hide_comments_carousel_filter_strings" to "revanced_custom_filter_strings",
+    "revanced_hide_comments_carousel_filter_type" to "revanced_hide_comments_carousel",
     "revanced_hide_feed_flyout_menu_filter_strings" to "revanced_custom_filter_strings",
     "revanced_hide_feed_flyout_menu_filter_type" to "revanced_hide_feed_flyout_menu",
     "revanced_hide_keyword_content_phrases" to "revanced_custom_filter_strings",

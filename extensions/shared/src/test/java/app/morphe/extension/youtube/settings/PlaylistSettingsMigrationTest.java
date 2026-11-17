@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0 or later.
+ * Modified by lavinhoque33, 2026-11-17.
  * Written by lavinhoque33, 2026-11-17.
  */
 package app.morphe.extension.youtube.settings;
@@ -13,8 +14,10 @@ import android.content.pm.PackageInfo;
 import org.json.JSONObject;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.FixMethodOrder;
 import org.junit.runner.RunWith;
 import org.robolectric.RobolectricTestRunner;
+import org.junit.runners.MethodSorters;
 import org.robolectric.RuntimeEnvironment;
 import org.robolectric.Shadows;
 import org.robolectric.annotation.Config;
@@ -25,7 +28,10 @@ import app.morphe.extension.shared.settings.Setting;
 import app.morphe.extension.shared.utils.Utils;
 
 @RunWith(RobolectricTestRunner.class)
-@Config(manifest = Config.NONE, sdk = 28)
+// Startup migration must run in a fresh Settings class loader, before the import tests initialize it.
+@Config(manifest = Config.NONE, sdk = 28,
+        instrumentedPackages = "app.morphe.extension.youtube.settings.PlaylistSettingsMigrationTest")
+@FixMethodOrder(MethodSorters.NAME_ASCENDING)
 public class PlaylistSettingsMigrationTest {
     @Before
     public void setUp() throws Exception {
@@ -42,8 +48,8 @@ public class PlaylistSettingsMigrationTest {
     }
 
     @Test
-    public void storedWatchLaterPreferencesMigrateOnStartup() {
-        Setting.preferences.preferences.edit()
+    public void aStoredWatchLaterPreferencesMigrateOnStartup() {
+        RuntimeEnvironment.getApplication().getSharedPreferences("revanced", 0).edit()
                 .putBoolean("morphe_watch_later_wide_drag_handles", false)
                 .putBoolean("morphe_watch_later_hide_removal_snackbar", true)
                 .commit();

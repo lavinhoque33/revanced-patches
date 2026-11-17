@@ -443,6 +443,8 @@ public class Settings extends SharedYouTubeSettings {
     public static final BooleanSetting HIDE_STATUS_BAR = new BooleanSetting("revanced_hide_status_bar", FALSE, true);
     /** Device layout observation, not a user preference or an exported setting. */
     public static final BooleanSetting WINDOW_ABOVE_NAVIGATION_BAR = new BooleanSetting("morphe_window_above_navigation_bar", FALSE, false, false);
+    public static final BooleanSetting WINDOW_BELOW_STATUS_BAR =
+            new BooleanSetting("revanced_window_below_status_bar", FALSE, false, false);
     public static final EnumSetting<StatusBarTranslucency> STATUS_BAR_TRANSLUCENCY = new EnumSetting<>("revanced_status_bar_translucency", StatusBarTranslucency.DEFAULT, true);
     public static final BooleanSetting FIX_HYPE_BUTTON_ICON = new BooleanSetting("revanced_fix_hype_button_icon", TRUE, true, "revanced_fix_hype_button_icon_user_dialog_message");
     public static final BooleanSetting RESTORE_OLD_SETTINGS_MENUS = new BooleanSetting("revanced_restore_old_settings_menus", FALSE, true);

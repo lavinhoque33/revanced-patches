@@ -1,5 +1,10 @@
 ## Unreleased
 
+### Bug Fixes
+
+* **YouTube - Shorts custom actions:** Show Download and other enabled custom actions in the anchored
+  three-dot popup on newer layouts, including experimental 21.45.90. Keep the bottom-sheet menu unchanged.
+
 ## [1.37.1](https://github.com/lavinhoque33/revanced-patches/compare/v1.37.0...v1.37.1) (2026-11-17)
 
 ### Bug Fixes

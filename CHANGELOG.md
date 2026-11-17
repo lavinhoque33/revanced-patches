@@ -4,6 +4,13 @@
 
 * **YouTube - Video action bar layout:** Match the modern action-bar icon weight for the outlined and filled
   dislike button in both Classic layouts, including when YouTube supplies an older icon name.
+* **Music - Player components:** Preserve older clients' public resource names while assigning their IDs
+  to the added previous and next controls, including forced Music 6.20.
+* **YouTube - Navigation bar:** Repair missing notification icons in newer pair-built icon maps without
+  replacing the existing navigation state or modifying immutable app maps.
+* **YouTube - GmsCore support:** Match both account network-error text hooks without relying on obsolete
+  controller parameters or artwork. Keep the existing experimental 21.45 fixes.
+* **YouTube - SponsorBlock:** Supply the skip-next icon instead of relying on a stock drawable.
 
 ## [1.37.2](https://github.com/lavinhoque33/revanced-patches/compare/v1.37.1...v1.37.2) (2026-11-17)
 

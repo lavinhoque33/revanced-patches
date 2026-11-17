@@ -1,5 +1,11 @@
 ## Unreleased
 
+### Features
+
+* **YouTube - Gemini:** Edit the model fallback order and optionally ground summaries and chat with
+  Google Search, including source links and Search attribution. Search is off by default and does not
+  affect transcription or JSON requests. Existing Gemini settings and the default model order are preserved.
+
 ### Bug Fixes
 
 * **YouTube - Video action bar layout:** Match the modern action-bar icon weight for the outlined and filled

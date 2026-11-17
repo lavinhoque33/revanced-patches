@@ -11,6 +11,9 @@
 * **YouTube - Gemini:** Edit the model fallback order and optionally ground summaries and chat with
   Google Search, including source links and Search attribution. Search is off by default and does not
   affect transcription or JSON requests. Existing Gemini settings and the default model order are preserved.
+* **YouTube - Ambient mode control:** Add opt-in Enhanced Ambient mode on Android 10 and newer, with
+  readable-text dimming, dimming while scrolling, and an adjustable dim duration. Keep the existing
+  Ambient mode toggle, battery-saver controls, themes and glass navigation.
 
 ### Bug Fixes
 
@@ -31,13 +34,13 @@
 * **YouTube - SponsorBlock:** Supply the skip-next icon instead of relying on a stock drawable.
 * **YouTube - Seekbar components:** Correct storyboard frame cropping and match fullscreen seek previews
   to the zoomed video size.
+* **YouTube - Hide status bar:** Remove empty top-bar space without covering camera cutouts, keep settings
+  activities and submenus consistent, and preserve glass focus restoration and picture-in-picture behavior.
+
 
 ## [1.37.3](https://github.com/lavinhoque33/revanced-patches/compare/v1.37.2...v1.37.3) (2026-11-17)
 
 ### Bug Fixes
-
-* **YouTube - Hide status bar:** Remove empty top-bar space without covering camera cutouts, keep settings
-  activities and submenus consistent, and preserve glass focus restoration and picture-in-picture behavior.
 
 * **YouTube - Video action bar layout:** Match the modern action-bar icon weight for the outlined and filled
   dislike button in both Classic layouts, including when YouTube supplies an older icon name.

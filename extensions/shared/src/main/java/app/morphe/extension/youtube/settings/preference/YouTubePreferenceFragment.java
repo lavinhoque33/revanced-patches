@@ -2,7 +2,7 @@
  * Original author(s):
  * - anddea (https://github.com/anddea)
  * - COOLak (https://github.com/COOLak)
- * Modified by lavinhoque33, 2026-11-16
+ * Modified by lavinhoque33, 2026-11-17.
  */
 
 package app.morphe.extension.youtube.settings.preference;
@@ -27,6 +27,7 @@ import app.morphe.extension.shared.settings.preference.NewSettingsIndicator;
 import app.morphe.extension.shared.settings.preference.ToolbarPreferenceFragment;
 import app.morphe.extension.shared.utils.Logger;
 import app.morphe.extension.shared.utils.Utils;
+import app.morphe.extension.youtube.patches.HideStatusBarPatch;
 import app.morphe.extension.youtube.patches.general.ChangeFormFactorPatch;
 import app.morphe.extension.youtube.patches.utils.PatchStatus;
 import app.morphe.extension.youtube.patches.utils.ReturnYouTubeDislikePatch;
@@ -189,6 +190,8 @@ public class YouTubePreferenceFragment extends ToolbarPreferenceFragment {
      */
     @Override
     protected void onPostToolbarSetup(Toolbar toolbar, Dialog preferenceScreenDialog) {
+        HideStatusBarPatch.hideStatusBar(preferenceScreenDialog);
+
         if (YouTubeActivityHook.searchViewController != null
                 && YouTubeActivityHook.searchViewController.isSearchActive()) {
             toolbar.post(() -> YouTubeActivityHook.searchViewController.closeSearch());

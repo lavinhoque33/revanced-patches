@@ -2,6 +2,9 @@
 
 ### Bug Fixes
 
+* **YouTube - Hide status bar:** Remove empty top-bar space without covering camera cutouts, keep settings
+  activities and submenus consistent, and preserve glass focus restoration and picture-in-picture behavior.
+
 * **YouTube - Video action bar layout:** Match the modern action-bar icon weight for the outlined and filled
   dislike button in both Classic layouts, including when YouTube supplies an older icon name.
 

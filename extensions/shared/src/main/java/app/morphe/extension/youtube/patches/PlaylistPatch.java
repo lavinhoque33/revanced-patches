@@ -4,25 +4,27 @@
  *
  * See the included NOTICE file for GPLv3 Section 7 terms that apply to Morphe contributions.
  *
- * Modified by lavinhoque33, 2026-11-16.
+ * Modified by lavinhoque33, 2026-11-17.
  */
 
 package app.morphe.extension.youtube.patches;
 
-import static app.morphe.extension.youtube.patches.SaveToWatchLaterPatch.WATCH_LATER_PLAYLIST_ID;
-
 import android.graphics.Rect;
+import android.view.GestureDetector;
+import android.view.HapticFeedbackConstants;
 import android.view.MotionEvent;
 import android.view.TouchDelegate;
 import android.view.View;
 import android.view.ViewGroup;
 
+import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import com.facebook.litho.ComponentHost;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.MessageLite;
 
+import java.lang.ref.WeakReference;
 import java.util.List;
 
 import app.morphe.extension.shared.utils.Logger;
@@ -35,7 +37,7 @@ import app.morphe.extension.youtube.settings.Settings;
 import app.morphe.extension.youtube.shared.PlayerType;
 
 @SuppressWarnings("unused")
-public final class WatchLaterPatch {
+public final class PlaylistPatch {
 
     /**
      * Added to the playlist edit callback of the app during patching.
@@ -47,19 +49,26 @@ public final class WatchLaterPatch {
         MessageLite patch_parsePlaylistEditResponse(byte[] bytes);
     }
 
-    private static final String WATCH_LATER_BROWSE_ID = "VLWL";
+    private static final String PLAYLIST_BROWSE_ID_PREFIX = "VL";
 
     /**
      * Width of a widened drag handle and of its touch area.
      */
     private static final int DRAG_HANDLE_WIDTH_DIP = 32;
 
+    private static final int MENU_BUTTON_WIDTH_DIP = 48;
+
     private static final int DRAG_HANDLE_CONTAINER_ID = ResourceUtils.getIdentifier(
             ResourceType.ID, "drag_handle_container");
 
     private static int dragHandleDescriptionId;
 
-    private static volatile boolean watchLaterShown;
+    private static volatile boolean playlistShown;
+
+    @Nullable
+    private static RowLongPress rowLongPress;
+
+    private static boolean dispatchingCancel;
 
     /**
      * Touch delegate of a row host that gives the touches of the drag handle area to the handle.
@@ -77,22 +86,23 @@ public final class WatchLaterPatch {
      * Injection point.
      */
     public static void setBrowseId(@Nullable String browseId) {
-        watchLaterShown = WATCH_LATER_BROWSE_ID.equals(browseId);
+        playlistShown = browseId != null && browseId.startsWith(PLAYLIST_BROWSE_ID_PREFIX)
+                && browseId.length() > PLAYLIST_BROWSE_ID_PREFIX.length();
     }
 
     /**
      * Injection point.
      */
     public static void clearBrowseId() {
-        watchLaterShown = false;
+        playlistShown = false;
     }
 
-    private static boolean isWatchLaterShown() {
-        return watchLaterShown && !PlayerType.getCurrent().isMaximizedOrFullscreen();
+    private static boolean isPlaylistShown() {
+        return playlistShown && !PlayerType.getCurrent().isMaximizedOrFullscreen();
     }
 
     private static boolean isWideDragHandlesActive() {
-        return Settings.WATCH_LATER_WIDE_DRAG_HANDLES.get() && isWatchLaterShown();
+        return Settings.PLAYLIST_WIDE_DRAG_HANDLES.get() && isPlaylistShown();
     }
 
     private static int dipToPixels(View view, int dip) {
@@ -157,9 +167,9 @@ public final class WatchLaterPatch {
      */
     public static void onComponentHostLayout(ComponentHost host) {
         try {
-            if (!Settings.WATCH_LATER_WIDE_DRAG_HANDLES.get()) return;
+            if (!Settings.PLAYLIST_WIDE_DRAG_HANDLES.get()) return;
 
-            if (isWatchLaterShown()) {
+            if (isPlaylistShown()) {
                 // Litho mounts the views of the host after it is laid out.
                 host.post(() -> updateDragHandleTouchDelegate(host));
             } else {
@@ -203,14 +213,147 @@ public final class WatchLaterPatch {
      */
     public static boolean onComponentHostInterceptTouch(ComponentHost host, MotionEvent event) {
         try {
-            return Settings.WATCH_LATER_WIDE_DRAG_HANDLES.get()
+            return Settings.PLAYLIST_WIDE_DRAG_HANDLES.get()
                     && event.getActionMasked() == MotionEvent.ACTION_DOWN
                     && host.getTouchDelegate() instanceof DragHandleTouchDelegate delegate
-                    && isWatchLaterShown()
+                    && isPlaylistShown()
                     && delegate.area.contains((int) event.getX(), (int) event.getY());
         } catch (Exception ex) {
             Logger.printException(() -> "onComponentHostInterceptTouch failure", ex);
             return false;
+        }
+    }
+
+    /**
+     * Injection point. A long press of an editable playlist row starts its native handle drag.
+     */
+    public static boolean onComponentHostTouch(ComponentHost host, MotionEvent event) {
+        if (dispatchingCancel || !Settings.PLAYLIST_LONG_PRESS_DRAG.get()) return false;
+
+        try {
+            final int action = event.getActionMasked();
+            if (action == MotionEvent.ACTION_DOWN) {
+                onRowTouchDown(host, event);
+            }
+
+            RowLongPress longPress = rowLongPress;
+            if (longPress == null || longPress.hostRef.get() != host) return false;
+
+            if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) {
+                rowLongPress = null;
+            }
+            if (longPress.dragging) {
+                longPress.forwardToHandle(event);
+                return true;
+            }
+
+            longPress.detector.onTouchEvent(event);
+            return false;
+        } catch (Exception ex) {
+            rowLongPress = null;
+            Logger.printException(() -> "onComponentHostTouch failure", ex);
+            return false;
+        }
+    }
+
+    private static void onRowTouchDown(ComponentHost host, MotionEvent event) {
+        // A recycled row may not have seen the end of its previous touch.
+        if (rowLongPress != null && rowLongPress.hostRef.get() == host) {
+            rowLongPress = null;
+        }
+        if (!isPlaylistShown()) return;
+
+        View handle = findDragHandle(host);
+        if (handle == null) return;
+
+        // Keep direct touches on the drag handle and overflow menu unchanged.
+        final int hostWidth = host.getWidth();
+        final float x = host.getLayoutDirection() == View.LAYOUT_DIRECTION_RTL
+                ? hostWidth - event.getX()
+                : event.getX();
+        if (x < dipToPixels(host, DRAG_HANDLE_WIDTH_DIP)
+                || x > hostWidth - dipToPixels(host, MENU_BUTTON_WIDTH_DIP)) {
+            return;
+        }
+
+        rowLongPress = new RowLongPress(host, handle);
+    }
+
+    private static final class RowLongPress extends GestureDetector.SimpleOnGestureListener {
+        private final WeakReference<ComponentHost> hostRef;
+        private final WeakReference<View> handleRef;
+        private final GestureDetector detector;
+        private final int[] downLocation = new int[2];
+        private final int[] currentLocation = new int[2];
+        private boolean dragging;
+
+        RowLongPress(ComponentHost host, View handle) {
+            hostRef = new WeakReference<>(host);
+            handleRef = new WeakReference<>(handle);
+            host.getLocationOnScreen(downLocation);
+            detector = new GestureDetector(host.getContext().getApplicationContext(), this);
+        }
+
+        @Override
+        public void onLongPress(@NonNull MotionEvent event) {
+            try {
+                ComponentHost host = hostRef.get();
+                View handle = handleRef.get();
+                if (rowLongPress != this || host == null || handle == null
+                        || !host.isAttachedToWindow() || !isPlaylistShown()
+                        || findDragHandle(host) != handle) {
+                    return;
+                }
+
+                // A fling can move the list without delivering another touch event.
+                host.getLocationOnScreen(currentLocation);
+                if (currentLocation[0] != downLocation[0] || currentLocation[1] != downLocation[1]) {
+                    return;
+                }
+
+                cancelChildrenTouch(host, event);
+                host.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS);
+                dragging = true;
+
+                MotionEvent down = MotionEvent.obtain(event);
+                try {
+                    down.setAction(MotionEvent.ACTION_DOWN);
+                    dispatchToHandleCenter(handle, down);
+                } finally {
+                    down.recycle();
+                }
+            } catch (Exception ex) {
+                Logger.printException(() -> "onLongPress failure", ex);
+            }
+        }
+
+        private static void cancelChildrenTouch(ComponentHost host, MotionEvent event) {
+            MotionEvent cancel = MotionEvent.obtain(event);
+            dispatchingCancel = true;
+            try {
+                cancel.setAction(MotionEvent.ACTION_CANCEL);
+                host.dispatchTouchEvent(cancel);
+            } finally {
+                dispatchingCancel = false;
+                cancel.recycle();
+            }
+        }
+
+        void forwardToHandle(MotionEvent event) {
+            View handle = handleRef.get();
+            if (handle != null) {
+                dispatchToHandleCenter(handle, event);
+            }
+        }
+
+        private static void dispatchToHandleCenter(View handle, MotionEvent event) {
+            MotionEvent copy = MotionEvent.obtain(event);
+            try {
+                copy.setLocation(handle.getWidth() / 2f, handle.getHeight() / 2f);
+                handle.dispatchTouchEvent(copy);
+            } finally {
+                copy.recycle();
+            }
         }
     }
 
@@ -225,10 +368,10 @@ public final class WatchLaterPatch {
                                                      @Nullable String playlistId,
                                                      List<? extends MessageLite> actions,
                                                      MessageLite response) {
-        if (!Settings.WATCH_LATER_HIDE_REMOVAL_SNACKBAR.get()) return response;
+        if (!Settings.PLAYLIST_HIDE_REMOVAL_SNACKBAR.get()) return response;
 
         try {
-            if (!RemovalSnackbar.isWatchLaterRemoval(playlistId, actions)) return response;
+            if (!RemovalSnackbar.isPlaylistRemoval(playlistId, actions)) return response;
 
             var result = QueueSaveEditResponse.parseFrom(response.toByteArray());
             var filtered = RemovalSnackbar.removeToasts(result);
@@ -252,11 +395,11 @@ public final class WatchLaterPatch {
         private static final int STATUS_SUCCEEDED = 1;
 
         /**
-         * @return If all actions of the edit remove videos from Watch later.
+         * @return If all actions of the edit remove videos from a playlist.
          */
-        static boolean isWatchLaterRemoval(@Nullable String playlistId, List<? extends MessageLite> actions)
+        static boolean isPlaylistRemoval(@Nullable String playlistId, List<? extends MessageLite> actions)
                 throws InvalidProtocolBufferException {
-            if (!WATCH_LATER_PLAYLIST_ID.equals(playlistId) || actions.isEmpty()) return false;
+            if (playlistId == null || playlistId.isEmpty() || actions.isEmpty()) return false;
 
             for (MessageLite appAction : actions) {
                 var action = PlaylistEditAction.parseFrom(appAction.toByteArray()).getAction();

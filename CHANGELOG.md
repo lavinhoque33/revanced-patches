@@ -1,9 +1,16 @@
 ## Unreleased
 
+### Features
+
+* **YouTube - Playlist improvements:** Widen drag handles and hide removal confirmations on all playlists.
+  Add optional long-press reordering on YouTube 21.05 and later, keeping existing Watch later preferences.
+
 ### Bug Fixes
 
 * **YouTube - Video action bar layout:** Match the modern action-bar icon weight for the outlined and filled
   dislike button in both Classic layouts, including when YouTube supplies an older icon name.
+* **YouTube - Queue manager:** Use a fresh request for each playlist create, edit or save operation,
+  so repeated actions do not reuse stale results. Keep the fork's queue behavior and precedence.
 
 ## [1.37.2](https://github.com/lavinhoque33/revanced-patches/compare/v1.37.1...v1.37.2) (2026-11-17)
 

@@ -3,9 +3,11 @@
  * https://github.com/MorpheApp/morphe-patches/pull/4324
  *
  * See the included NOTICE file for GPLv3 Section 7 terms that apply to Morphe contributions.
+ *
+ * Modified by lavinhoque33, 2026-11-17.
  */
 
-package app.morphe.patches.youtube.interaction.watchlater
+package app.morphe.patches.youtube.interaction.playlist
 
 import app.morphe.patcher.Fingerprint
 import app.morphe.patcher.InstructionLocation.MatchAfterImmediately

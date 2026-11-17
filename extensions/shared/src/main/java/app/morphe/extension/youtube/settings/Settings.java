@@ -1032,9 +1032,13 @@ public class Settings extends SharedYouTubeSettings {
     public static final BooleanSetting VIDEO_DELAY_OVERLAY_BUTTON = new BooleanSetting("morphe_video_delay_button_overlay", FALSE);
     public static final BooleanSetting VIDEO_DELAY_FLYOUT_BUTTON = new BooleanSetting("morphe_video_delay_button_flyout", FALSE);
 
-    // Watch later
-    public static final BooleanSetting WATCH_LATER_WIDE_DRAG_HANDLES = new BooleanSetting("morphe_watch_later_wide_drag_handles", TRUE);
-    public static final BooleanSetting WATCH_LATER_HIDE_REMOVAL_SNACKBAR = new BooleanSetting("morphe_watch_later_hide_removal_snackbar", FALSE);
+    // Playlists
+    public static final BooleanSetting PLAYLIST_WIDE_DRAG_HANDLES =
+            new BooleanSetting("morphe_playlist_wide_drag_handles", TRUE);
+    public static final BooleanSetting PLAYLIST_HIDE_REMOVAL_SNACKBAR =
+            new BooleanSetting("morphe_playlist_hide_removal_snackbar", FALSE);
+    public static final BooleanSetting PLAYLIST_LONG_PRESS_DRAG =
+            new BooleanSetting("morphe_playlist_long_press_drag", FALSE);
 
     public static final BooleanSetting SAVE_TO_WATCH_LATER_BUTTON = new BooleanSetting("morphe_save_to_watch_later_button", FALSE);
     public static final BooleanSetting SWAP_SAVE_AND_QUEUE_ACTIONS = new BooleanSetting("morphe_swap_save_and_queue_actions", TRUE, true, parent(SAVE_TO_WATCH_LATER_BUTTON));
@@ -1326,6 +1330,10 @@ public class Settings extends SharedYouTubeSettings {
     public static final BooleanSetting SB_SEEN_GUIDELINES = new BooleanSetting("sb_seen_guidelines", FALSE, false, false);
 
     // Deprecated migrations
+    private static final BooleanSetting DEPRECATED_WATCH_LATER_WIDE_DRAG_HANDLES =
+            new BooleanSetting("morphe_watch_later_wide_drag_handles", TRUE, false, false);
+    private static final BooleanSetting DEPRECATED_WATCH_LATER_HIDE_REMOVAL_SNACKBAR =
+            new BooleanSetting("morphe_watch_later_hide_removal_snackbar", FALSE, false, false);
     private static final BooleanSetting DEPRECATED_MORPHE_OVERRIDE_YOUTUBE_MUSIC_BUTTON = new BooleanSetting("morphe_override_youtube_music_button", FALSE, true);
     private static final BooleanSetting DEPRECATED_REVANCED_OVERRIDE_YOUTUBE_MUSIC_BUTTON = new BooleanSetting("revanced_override_youtube_music_button", FALSE, true);
     private static final StringSetting DEPRECATED_REVANCED_THIRD_PARTY_YOUTUBE_MUSIC_PACKAGE_NAME = new StringSetting("revanced_third_party_youtube_music_package_name", PackageNameYouTubeMusic(), true);
@@ -1381,6 +1389,20 @@ public class Settings extends SharedYouTubeSettings {
         }
     }
 
+    private static void migratePlaylistImport(JSONObject json, String suffix) throws JSONException {
+        String oldKey = "watch_later_" + suffix;
+        String newKey = "playlist_" + suffix;
+        if (!json.has(newKey) && !json.has("morphe_" + newKey)) {
+            if (json.has(oldKey)) {
+                json.put(newKey, json.get(oldKey));
+            } else if (json.has("morphe_" + oldKey)) {
+                json.put(newKey, json.get("morphe_" + oldKey));
+            }
+        }
+        json.remove(oldKey);
+        json.remove("morphe_" + oldKey);
+    }
+
     /**
      * Converts legacy-only imports without overriding the new setting when both keys are present.
      */
@@ -1388,6 +1410,9 @@ public class Settings extends SharedYouTubeSettings {
             new Setting.ImportExportCallback() {
                 @Override
                 public void settingsImporting(JSONObject json) throws JSONException {
+                    migratePlaylistImport(json, "wide_drag_handles");
+                    migratePlaylistImport(json, "hide_removal_snackbar");
+
                     // Normalize both supported key forms before import comparisons and persistence.
                     for (String key : new String[]{"miniplayer_type", MINIPLAYER_TYPE.key}) {
                         if ("phone".equalsIgnoreCase(json.optString(key))) {
@@ -1415,6 +1440,9 @@ public class Settings extends SharedYouTubeSettings {
                 20, LIVE_CHAT_TRANSLATE_MAX_LENGTH_NO_LIMIT, 20, "", 1,
                 StringRef.sfc("morphe_live_chat_translate_max_length_no_limit")));
         // region Migration initialized
+
+        migrateOldSettingToNew(DEPRECATED_WATCH_LATER_WIDE_DRAG_HANDLES, PLAYLIST_WIDE_DRAG_HANDLES);
+        migrateOldSettingToNew(DEPRECATED_WATCH_LATER_HIDE_REMOVAL_SNACKBAR, PLAYLIST_HIDE_REMOVAL_SNACKBAR);
 
         if (DEPRECATED_DISABLE_TRANSLUCENT_NAVIGATION_BAR.get()) {
             NAVIGATION_BAR_STYLE.save(NavigationBarStyle.OPAQUE);

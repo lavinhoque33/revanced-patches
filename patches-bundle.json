@@ -1,5 +1,5 @@
 {
-  "created_at": "2026-11-17T14:42:55",
+  "created_at": "2026-11-17T14:43:36",
   "description": "<!-- Modified by lavinhoque33, 2026-11-17. -->\n## YouTube\n\n- **Search comments (#58):** Keep the search button out of Description and other non-comment panels.\n  Search remains available in comments.\n- **Video action bar layout (#59):** Show the dislike icon again in **Classic One-Row** and\n  **Classic Two-Rows**, with or without Return YouTube Dislike.\n- **Shorts custom actions:** Show **Download** and other enabled custom actions again when YouTube opens\n  the three-dot menu as a small pop-up, including on experimental **21.45.90**. The bottom-sheet menu\n  stays unchanged.\n",
   "download_url": "https://github.com/lavinhoque33/revanced-patches/releases/download/v1.37.2/patches-1.37.2.mpp",
   "version": "1.37.2"

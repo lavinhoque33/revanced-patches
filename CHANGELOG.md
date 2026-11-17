@@ -1,5 +1,15 @@
 ## Unreleased
 
+### Bug Fixes
+
+* **YouTube - Theme:** Apply selected colors to the feed and native settings on experimental 21.45.90,
+  including its Mainstage palette. Preserve Stock colors, player whites and foreground-disabled shades.
+* **YouTube - Navigation bar:** Honor edited orders, including Create in the middle, on newer layouts.
+  Show the native button order before editing; Reset or accepting that unchanged order returns to following
+  YouTube's order without storing an override. Recognize Create in both labeled and icon-only layouts.
+  Show “You” in the order editor while preserving existing saved `LIBRARY` values; this does not restore
+  the old Library tab.
+
 ## [1.37.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.36.0...v1.37.0) (2026-11-16)
 
 ### Features

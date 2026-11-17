@@ -1,5 +1,7 @@
 ## Unreleased
 
+## [1.37.3](https://github.com/lavinhoque33/revanced-patches/compare/v1.37.2...v1.37.3) (2026-11-17)
+
 ### Bug Fixes
 
 * **YouTube - Video action bar layout:** Match the modern action-bar icon weight for the outlined and filled

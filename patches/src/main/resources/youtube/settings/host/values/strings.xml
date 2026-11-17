@@ -871,6 +871,14 @@ Tap and hold to toggle the appended information type"</string>
     <string name="revanced_bypass_ambient_mode_restrictions_summary_off">Ambient mode is disabled in battery saver mode</string>
     <string name="revanced_bypass_ambient_mode_restrictions_summary_on">Ambient mode is enabled in battery saver mode</string>
     <string name="revanced_bypass_ambient_mode_restrictions_title">Bypass Ambient mode restrictions</string>
+    <string name="morphe_enhanced_ambient_mode_title">Enhanced Ambient mode</string>
+    <string name="morphe_enhanced_ambient_mode_summary">Lights the whole watch page and black bars with the video, in place of Ambient mode. Requires Android 10 or newer</string>
+    <string name="morphe_enhanced_ambient_mode_readable_text_title">Keep text readable</string>
+    <string name="morphe_enhanced_ambient_mode_readable_text_summary">Dims the light on bright videos so the text on the page stays readable</string>
+    <string name="morphe_enhanced_ambient_mode_dim_while_scrolling_title">Dim while scrolling</string>
+    <string name="morphe_enhanced_ambient_mode_dim_while_scrolling_summary">Dims the light while the page is scrolled or touched</string>
+    <string name="morphe_enhanced_ambient_mode_dim_duration_title">Dim duration</string>
+    <string name="morphe_enhanced_ambient_mode_dim_duration_summary">How long the light stays dim after scrolling stops. With 0, the light starts returning as soon as scrolling stops</string>
     <string name="revanced_bypass_image_region_restrictions_domain_summary">The domain to fetch images from\nNote: Only enter the domain name, i.e., without the \"https\:\/\/\" prefix</string>
     <string name="revanced_bypass_image_region_restrictions_domain_title">Alternative domain</string>
     <string name="revanced_bypass_image_region_restrictions_summary_off">Using original image host\n\nEnabling this can fix missing images that are blocked in some regions</string>

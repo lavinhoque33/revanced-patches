@@ -705,9 +705,24 @@ public class Settings extends SharedYouTubeSettings {
 
 
     // PreferenceScreen: Player - Ambient mode
-    public static final BooleanSetting DISABLE_AMBIENT_MODE = new BooleanSetting("revanced_disable_ambient_mode", FALSE, true);
-    public static final BooleanSetting BYPASS_AMBIENT_MODE_RESTRICTIONS = new BooleanSetting("revanced_bypass_ambient_mode_restrictions", FALSE, parentInverted(DISABLE_AMBIENT_MODE));
-    public static final BooleanSetting DISABLE_AMBIENT_MODE_IN_FULLSCREEN = new BooleanSetting("revanced_disable_ambient_mode_in_fullscreen", FALSE, true, parentInverted(DISABLE_AMBIENT_MODE));
+    public static final BooleanSetting ENHANCED_AMBIENT_MODE = new BooleanSetting(
+            "morphe_enhanced_ambient_mode", FALSE, true,
+            () -> Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q);
+    public static final BooleanSetting ENHANCED_AMBIENT_MODE_READABLE_TEXT = new BooleanSetting(
+            "morphe_enhanced_ambient_mode_readable_text", FALSE, parent(ENHANCED_AMBIENT_MODE));
+    public static final BooleanSetting ENHANCED_AMBIENT_MODE_DIM_WHILE_SCROLLING = new BooleanSetting(
+            "morphe_enhanced_ambient_mode_dim_while_scrolling", TRUE, parent(ENHANCED_AMBIENT_MODE));
+    public static final IntegerSetting ENHANCED_AMBIENT_MODE_DIM_DURATION = new IntegerSetting(
+            "morphe_enhanced_ambient_mode_dim_duration", 3, new SliderConfig(0, 10, 1, "s"),
+            parentsAll(ENHANCED_AMBIENT_MODE, ENHANCED_AMBIENT_MODE_DIM_WHILE_SCROLLING));
+    public static final BooleanSetting DISABLE_AMBIENT_MODE = new BooleanSetting(
+            "revanced_disable_ambient_mode", FALSE, true, parentInverted(ENHANCED_AMBIENT_MODE));
+    public static final BooleanSetting BYPASS_AMBIENT_MODE_RESTRICTIONS = new BooleanSetting(
+            "revanced_bypass_ambient_mode_restrictions", FALSE,
+            parentsAny(parent(ENHANCED_AMBIENT_MODE), parentInverted(DISABLE_AMBIENT_MODE)));
+    public static final BooleanSetting DISABLE_AMBIENT_MODE_IN_FULLSCREEN = new BooleanSetting(
+            "revanced_disable_ambient_mode_in_fullscreen", FALSE, true,
+            parentsAll(parentInverted(ENHANCED_AMBIENT_MODE), parentInverted(DISABLE_AMBIENT_MODE)));
 
     // PreferenceScreen: Player - Channel bar
     public static final BooleanSetting HIDE_JOIN_BUTTON = new BooleanSetting("revanced_hide_join_button", TRUE);

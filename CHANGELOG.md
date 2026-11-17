@@ -1,5 +1,11 @@
 ## Unreleased
 
+### Features
+
+* **YouTube - Ambient mode control:** Add opt-in Enhanced Ambient mode on Android 10 and newer, with
+  readable-text dimming, dimming while scrolling, and an adjustable dim duration. Keep the existing
+  Ambient mode toggle, battery-saver controls, themes and glass navigation.
+
 ### Bug Fixes
 
 * **YouTube - Video action bar layout:** Match the modern action-bar icon weight for the outlined and filled

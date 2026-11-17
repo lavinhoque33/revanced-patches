@@ -1,5 +1,7 @@
 ## Unreleased
 
+## [1.37.1](https://github.com/lavinhoque33/revanced-patches/compare/v1.37.0...v1.37.1) (2026-11-17)
+
 ### Bug Fixes
 
 * **YouTube - Theme:** Apply selected colors to the feed and native settings on experimental 21.45.90,

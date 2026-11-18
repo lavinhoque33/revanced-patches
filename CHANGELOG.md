@@ -1,5 +1,15 @@
 ## Unreleased
 
+### Features
+
+* **Music - Settings:** Use the modern capsule restart dialog for settings changes and the first-run prompt.
+  Refs #61.
+
+### Bug Fixes
+
+* **YouTube / Music - Settings:** Prevent duplicate restart prompts while a dialog or delayed restart is pending.
+  Refs #61.
+
 ## [1.38.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.37.3...v1.38.0) (2026-11-18)
 
 ### Features

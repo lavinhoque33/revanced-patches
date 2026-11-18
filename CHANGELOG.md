@@ -1,5 +1,10 @@
 ## Unreleased
 
+### Features
+
+* **Music - Stream download:** Keep saved playlists up to date on unmetered Wi-Fi while Music is open.
+  The last playable offline list stays available if a refresh cannot finish.
+
 ## [1.39.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.38.0...v1.39.0) (2026-11-18)
 
 ### Features

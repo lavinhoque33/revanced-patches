@@ -1,5 +1,7 @@
 ## Unreleased
 
+## [1.38.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.37.3...v1.38.0) (2026-11-18)
+
 ### Features
 
 * **YouTube - Hide comments components:** Choose exact-title or substring matching for carousel filters.

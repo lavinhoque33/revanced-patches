@@ -1060,4 +1060,8 @@ SABR-воспроизведение (подмена видеопотоков о�
     <string name="revanced_webview_toast_unavailable">WebView недоступен</string>
     <string name="morphe_music_auto_song_version_title">Всегда воспроизводить версию песни</string>
     <string name="morphe_music_auto_song_version_summary">Заменяет официальные клипы в очереди соответствующими песнями. Требуется включить настройку приложения «Не воспроизводить видеоклипы». Треки без точного совпадения остаются без изменений</string>
+    <string name="morphe_music_playlist_download_connect">Подключитесь к интернету, чтобы продолжить скачивание</string>
+    <string name="morphe_music_playlist_ready">Готово: %1$d из %2$d</string>
+    <string name="morphe_music_playlist_resume">Готово: %1$d из %2$d · Продолжить</string>
+    <string name="morphe_music_playlist_partial_failed">Готово: %1$d из %2$d (ошибок: %3$d) · Продолжить</string>
 </resources>

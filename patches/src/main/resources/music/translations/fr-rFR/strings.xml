@@ -1014,4 +1014,8 @@ L'identifiant de la vidéo que vous regardez est envoyé à l'API de Return YouT
     <string name="revanced_webview_toast_unavailable">WebView n\'est pas disponible</string>
     <string name="morphe_music_auto_song_version_title">Toujours lire la version chanson</string>
     <string name="morphe_music_auto_song_version_summary">Remplace les clips officiels dans la file par la chanson correspondante. Nécessite d’activer « Ne pas lire les clips musicaux » dans l’application. Les titres sans correspondance exacte restent inchangés</string>
+    <string name="morphe_music_playlist_download_connect">Connectez-vous à Internet pour poursuivre ce téléchargement</string>
+    <string name="morphe_music_playlist_ready">%1$d sur %2$d prêtes</string>
+    <string name="morphe_music_playlist_resume">%1$d sur %2$d prêtes · Reprendre</string>
+    <string name="morphe_music_playlist_partial_failed">%1$d sur %2$d prêtes (%3$d en échec) · Reprendre</string>
 </resources>

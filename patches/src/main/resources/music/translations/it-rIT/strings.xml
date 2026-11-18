@@ -1059,4 +1059,8 @@ L'ID del video che guardi viene inviato all'API di Return YouTube Dislike, e i t
     <string name="revanced_webview_toast_unavailable">WebView non è disponibile</string>
     <string name="morphe_music_auto_song_version_title">Riproduci sempre la versione brano</string>
     <string name="morphe_music_auto_song_version_summary">Sostituisce i video musicali ufficiali in coda con il brano corrispondente. Richiede di attivare «Non riprodurre video musicali» nelle impostazioni dell’app. I brani senza corrispondenza esatta restano invariati</string>
+    <string name="morphe_music_playlist_download_connect">Connettiti a Internet per continuare il download</string>
+    <string name="morphe_music_playlist_ready">%1$d di %2$d pronti</string>
+    <string name="morphe_music_playlist_resume">%1$d di %2$d pronti · Riprendi</string>
+    <string name="morphe_music_playlist_partial_failed">%1$d di %2$d pronti (%3$d non riusciti) · Riprendi</string>
 </resources>

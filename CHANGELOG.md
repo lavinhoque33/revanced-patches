@@ -1,5 +1,10 @@
 ## Unreleased
 
+### Features
+
+* **Music - Stream download:** Playlist and album headers show how many tracks are ready. Resume an interrupted
+  download without downloading saved tracks again; an individual failure no longer stops the rest of the list.
+
 ## [1.40.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.39.0...v1.40.0) (2026-11-18)
 
 ### Features

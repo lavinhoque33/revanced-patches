@@ -593,4 +593,8 @@ Die ID des Videos, das du dir ansiehst, wird an die Return YouTube Dislike-API g
     <string name="revanced_spoof_app_version_title">App-Version spoofen</string>
     <string name="morphe_music_auto_song_version_title">Immer die Songversion abspielen</string>
     <string name="morphe_music_auto_song_version_summary">Ersetzt offizielle Musikvideos in der Warteschlange durch den passenden Song. Erfordert die App-Einstellung „Keine Musikvideos abspielen“. Titel ohne exakte Übereinstimmung bleiben unverändert</string>
+    <string name="morphe_music_playlist_download_connect">Stelle eine Internetverbindung her, um den Download fortzusetzen</string>
+    <string name="morphe_music_playlist_ready">%1$d von %2$d bereit</string>
+    <string name="morphe_music_playlist_resume">%1$d von %2$d bereit · Fortsetzen</string>
+    <string name="morphe_music_playlist_partial_failed">%1$d von %2$d bereit (%3$d fehlgeschlagen) · Fortsetzen</string>
 </resources>

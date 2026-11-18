@@ -1,5 +1,10 @@
 ## Unreleased
 
+### Bug Fixes
+
+* **YouTube - Shorts:** Rename "Show external downloader menu" to "Show download menu", covering both
+  the built-in and external downloaders. Clarify the backend setting and the matching player download button.
+
 ## [1.38.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.37.3...v1.38.0) (2026-11-18)
 
 ### Features

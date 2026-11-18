@@ -1,5 +1,7 @@
 ## Unreleased
 
+## [1.39.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.38.0...v1.39.0) (2026-11-18)
+
 ### Features
 
 * **Music - Settings:** Use the modern capsule restart dialog for settings changes and the first-run prompt.

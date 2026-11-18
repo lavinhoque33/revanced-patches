@@ -1,5 +1,7 @@
 ## Unreleased
 
+## [1.41.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.40.0...v1.41.0) (2026-11-18)
+
 ### Features
 
 * **YouTube - Miniplayer:** Add optional glass styling for Minimal and Minimal 2 when Glass navigation bar

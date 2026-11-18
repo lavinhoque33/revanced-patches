@@ -1,5 +1,7 @@
 ## Unreleased
 
+## [1.40.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.39.0...v1.40.0) (2026-11-18)
+
 ### Features
 
 * **Music - Stream download:** Keep saved playlists up to date on unmetered Wi-Fi while Music is open.

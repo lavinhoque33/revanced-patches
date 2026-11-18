@@ -1,5 +1,5 @@
 {
-  "created_at": "2026-11-18T06:38:29",
+  "created_at": "2026-11-18T06:40:01",
   "description": "<!-- Modified by lavinhoque33, 2026-11-18. -->\n## YouTube Music\n\n- **Stream download playlist sync:** Keep saved playlists up to date on unmetered Wi-Fi while Music is open.\n  Existing local copies are reused; the refreshed offline list is published only when its new songs are ready.\n  If a refresh cannot finish, the last playable offline list stays available. No new setting is needed.\n  Available on Music **8.30.54, 9.15.51, 9.40.51 and experimental 9.45.51**; older versions keep their existing\n  download behavior.\n",
   "download_url": "https://github.com/lavinhoque33/revanced-patches/releases/download/v1.40.0/patches-1.40.0.mpp",
   "version": "1.40.0"

@@ -1049,4 +1049,8 @@
     <string name="revanced_webview_toast_unavailable">WebView недоступний</string>
     <string name="morphe_music_auto_song_version_title">Завжди відтворювати версію пісні</string>
     <string name="morphe_music_auto_song_version_summary">Замінює офіційні кліпи в черзі відповідними піснями. Потрібно ввімкнути налаштування додатка «Не відтворювати музичні відео». Треки без точного збігу залишаються без змін</string>
+    <string name="morphe_music_playlist_download_connect">Підключіться до Інтернету, щоб продовжити завантаження</string>
+    <string name="morphe_music_playlist_ready">Готово: %1$d з %2$d</string>
+    <string name="morphe_music_playlist_resume">Готово: %1$d з %2$d · Продовжити</string>
+    <string name="morphe_music_playlist_partial_failed">Готово: %1$d з %2$d (помилок: %3$d) · Продовжити</string>
 </resources>

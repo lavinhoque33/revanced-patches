@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-18.
  * Modified by lavinhoque33, 2026-11-17.
  * Written by lavinhoque33, 2026-11-09.
  * Modified by lavinhoque33, 2026-11-10
@@ -18,6 +19,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
+import java.util.function.BooleanSupplier;
 import java.util.function.Function;
 
 import app.morphe.extension.music.patches.misc.requests.MusicBrowseRequest;
@@ -66,7 +68,8 @@ final class VideoCopyDownloader {
      *
      * @param songIds The downloaded (available) tracks of the list, in order.
      */
-    static Outcome ensure(String sourceId, String title, List<String> songIds, DownloadQuality quality) {
+    static Outcome ensure(String sourceId, String title, List<String> songIds, DownloadQuality quality,
+                          Function<String, String> copyId, BooleanSupplier canTransfer) {
         try {
             Utils.verifyOffMainThread();
             if (!StreamSwap.supported() || songIds.isEmpty()) return Outcome.NONE;
@@ -82,7 +85,12 @@ final class VideoCopyDownloader {
                 return Outcome.NONE;
             }
             logDecisions(sourceId, pairing);
-            return download(sourceId, title, pairing.pairs(), quality);
+            Set<VideoPairingLogic.Pair> pairs = new java.util.LinkedHashSet<>();
+            for (VideoPairingLogic.Pair pair : pairing.pairs()) {
+                String id = copyId.apply(pair.songId());
+                if (!id.equals(pair.videoId())) pairs.add(new VideoPairingLogic.Pair(id, pair.videoId()));
+            }
+            return download(sourceId, title, pairs, quality, canTransfer);
         } catch (Exception ex) {
             Logger.printException(() -> "VideoCopy: video pairing failed, list=" + sourceId, ex);
             return Outcome.NONE;
@@ -104,7 +112,7 @@ final class VideoCopyDownloader {
             VideoPairingLogic.Pair canonical = new VideoPairingLogic.Pair(id, pair.videoId());
             if (seen.add(canonical)) pairs.add(canonical);
         }
-        if (!pairs.isEmpty() && download(sourceId, title, pairs, quality).failed() > 0) {
+        if (!pairs.isEmpty() && download(sourceId, title, pairs, quality, () -> true).failed() > 0) {
             throw new IOException("An added playlist video could not be saved");
         }
     }
@@ -157,14 +165,15 @@ final class VideoCopyDownloader {
         return items;
     }
 
-    private static Outcome download(String sourceId, String title, List<VideoPairingLogic.Pair> pairs,
-                                    DownloadQuality quality) {
+    private static Outcome download(String sourceId, String title, java.util.Collection<VideoPairingLogic.Pair> pairs,
+                                    DownloadQuality quality, BooleanSupplier canTransfer) {
         Set<String> audioCopies = RawAudioStore.copyIds();
         int present = 0;
         int saved = 0;
         int failed = 0;
-        for (int index = 0; index < pairs.size(); index++) {
-            VideoPairingLogic.Pair pair = pairs.get(index);
+        int index = 0;
+        for (VideoPairingLogic.Pair pair : pairs) {
+            int position = index++;
             if (!audioCopies.contains(pair.songId())) continue;
 
             VideoCopyFiles.Entry existing = VideoCopyStore.find(pair.videoId());
@@ -173,12 +182,14 @@ final class VideoCopyDownloader {
                 continue;
             }
 
+            if (!canTransfer.getAsBoolean()) break;
+
             if (LocalDownloadManager.canPostProgress()) {
                 LocalDownloadManager.showDownloadNotification("playlist:" + sourceId, title,
-                        index * 100 / pairs.size(), true,
-                        str("morphe_music_playlist_video_progress", index + 1, pairs.size()));
+                        position * 100 / pairs.size(), true,
+                        str("morphe_music_playlist_video_progress", position + 1, pairs.size()));
             }
-            if (saveOne(pair, sourceId, title, quality)) saved++;
+            if (saveOne(pair, sourceId, title, quality, canTransfer)) saved++;
             else failed++;
         }
         Outcome outcome = new Outcome(present, saved, failed);
@@ -189,9 +200,10 @@ final class VideoCopyDownloader {
 
     private record Candidate(PlayerResponse response, VideoCopyLogic.Selection selection, ClientType client) {}
 
-    private static boolean saveOne(VideoPairingLogic.Pair pair, String sourceId, String title, DownloadQuality quality) {
+    private static boolean saveOne(VideoPairingLogic.Pair pair, String sourceId, String title, DownloadQuality quality,
+                                   BooleanSupplier canTransfer) {
         DownloadCandidates<Candidate> candidates = videoCandidates(pair.videoId(), quality);
-        while (true) {
+        while (canTransfer.getAsBoolean()) {
             Candidate candidate = candidates.next();
             if (candidate == null) break;
             try {
@@ -283,7 +295,7 @@ final class VideoCopyDownloader {
             download(pair.songId(), title, selection.audio(), audioTemporary);
             long durationMs = durationOf(selection.video(), response);
             byte[] stored = OfflineResponseTrim.fromVideoDownload(response, selection);
-            boolean kept = PlaylistSync.publishMedia(() -> VideoCopyStore.retain(videoId, pair.songId(), sourceId,
+            boolean kept = PlaylistDownloads.publishMedia(() -> VideoCopyStore.retain(videoId, pair.songId(), sourceId,
                     videoTemporary, audioTemporary, new VideoCopyLogic.Download(VideoCopyLogic.Stream.of(
                             selection.video()), VideoCopyLogic.Stream.of(selection.audio()), durationMs, stored)));
             Logger.printWarn(() -> "VideoCopy: v=" + videoId + " song=" + pair.songId() + " client=" + candidate.client()

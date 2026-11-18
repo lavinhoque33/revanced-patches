@@ -4,6 +4,7 @@
  *
  * See the included NOTICE file for GPLv3 Section 7 terms that apply to this code.
  *
+ * Modified by lavinhoque33, 2026-11-18.
  * Modified by lavinhoque33, 2026-11-07.
  * Modified by lavinhoque33, 2026-11-10
  * Modified by lavinhoque33, 2026-11-17.
@@ -375,7 +376,7 @@ public final class LocalDownloadManager {
                 File completed = temporary;
                 Format savedFormat = format;
                 ResolvedStream selected = resolved;
-                PlaylistSync.publishMedia(() -> {
+                PlaylistDownloads.publishMedia(() -> {
                     if (!RawAudioStore.retain(videoId, completed, savedFormat, request.individual())) {
                         throw new IOException("Could not keep the stream copy");
                     }

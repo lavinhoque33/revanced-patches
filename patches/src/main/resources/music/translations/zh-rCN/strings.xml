@@ -934,4 +934,8 @@ SABR 播放（模拟视频流已关闭）"</string>
     <string name="revanced_webview_toast_unavailable">WebView 不可用。</string>
     <string name="morphe_music_auto_song_version_title">始终播放歌曲版本</string>
     <string name="morphe_music_auto_song_version_summary">将队列中的官方音乐视频替换为匹配的歌曲。需要开启应用的“不播放音乐视频”设置。没有精确匹配的曲目将保持不变</string>
+    <string name="morphe_music_playlist_download_connect">连接互联网以继续下载</string>
+    <string name="morphe_music_playlist_ready">%2$d 首中有 %1$d 首可离线播放</string>
+    <string name="morphe_music_playlist_resume">%2$d 首中有 %1$d 首可离线播放 · 继续下载</string>
+    <string name="morphe_music_playlist_partial_failed">%2$d 首中有 %1$d 首可离线播放（%3$d 首失败） · 继续下载</string>
 </resources>

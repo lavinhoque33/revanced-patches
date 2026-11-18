@@ -4,6 +4,8 @@
 
 * **Music - Settings:** Use the modern capsule restart dialog for settings changes and the first-run prompt.
   Refs #61.
+* **Music - Hide 'Get Music Premium' label:** Add a restart-required option for the account-menu footer.
+  Enabled by default, with stock visibility restored when disabled, including Music 9.45.51. Refs #62.
 
 ### Bug Fixes
 

@@ -1,5 +1,19 @@
 ## Unreleased
 
+### Features
+
+* **YouTube / Music - Spoof video streams:** Add Android VR Experimental, visionOS Experimental, and signed-out
+  Mobile Web playback on devices with a compatible WebView. Music also gains the standard Android VR choice. Refs #67.
+* **YouTube - Shorts:** Toggle top and bottom dimming in RVX settings. Dimming remains enabled by default. Refs #65.
+
+### Bug Fixes
+
+* **Music - Player:** Hide overlay filter also removes dimming behind Playback speed, Quality, and Sleep timer.
+  Refs #65.
+* **YouTube - Snack bar:** Restore the theme-aware Chip border preset without replacing saved custom colors. Refs #65.
+* **YouTube - About:** Clean up the recorded patch inclusion description and show unrecorded statuses in orange
+  without treating them as exclusions. Refs #65.
+
 ## [1.41.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.40.0...v1.41.0) (2026-11-18)
 
 ### Features

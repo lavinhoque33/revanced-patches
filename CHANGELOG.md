@@ -1,5 +1,7 @@
 ## Unreleased
 
+## [1.42.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.41.0...v1.42.0) (2026-11-19)
+
 ### Features
 
 * **YouTube / Music - Spoof video streams:** Add Android VR Experimental, visionOS Experimental, and signed-out

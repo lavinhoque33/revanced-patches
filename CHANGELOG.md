@@ -1,5 +1,7 @@
 ## Unreleased
 
+## [1.44.1-dev.1](https://github.com/lavinhoque33/revanced-patches/compare/v1.44.0...v1.44.1-dev.1) (2026-11-20)
+
 ### Bug fixes
 
 * **YouTube – Fullscreen:** Leave YouTube's video transform alone at Default scale and preserve native

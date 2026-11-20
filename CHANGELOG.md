@@ -1,5 +1,21 @@
 ## Unreleased
 
+## [1.44.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.43.0...v1.44.0) (2026-11-20)
+
+### Features
+
+* **YouTube – Snack bar:** Apply the configured border width and color to the native playlist bottom bar with
+  a separate switch. The switch is off by default and is independent of corner radius. Refs #65.
+
+### Bug fixes
+
+* **YouTube / Music – Theme:** Use AMOLED black for a fresh dark theme instead of gray. Saved theme selections
+  still take precedence. Refs #68.
+* **YouTube / Music – Translations:** Apply the list of languages to keep to the packaged resources, including
+  regional translations, and to the app language selectors. Default English is always kept. Refs #68.
+* **YouTube – Player icon style:** Keep the native Shorts Clear Screen icon stock on YouTube 21.39+ without
+  changing the chosen fullscreen player button style. Refs #69.
+
 ## [1.43.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.42.0...v1.43.0) (2026-11-19)
 
 ### Features

@@ -1,5 +1,5 @@
 {
-  "version": "v1.43.0",
+  "version": "v1.44.0",
   "patches": [
     {
       "name": "Add to queue",
@@ -2324,6 +2324,7 @@
         "BytecodePatch",
         "BytecodePatch",
         "ResourcePatch",
+        "ResourcePatch",
         "ResourcePatch"
       ],
       "compatiblePackages": {
@@ -2603,6 +2604,7 @@
         "BytecodePatch",
         "ResourcePatch",
         "ResourcePatch",
+        "BytecodePatch",
         "BytecodePatch"
       ],
       "compatiblePackages": {
@@ -3900,8 +3902,7 @@
       "description": "Add translations or remove string resources.",
       "use": true,
       "dependencies": [
-        "BytecodePatch",
-        "ResourcePatch"
+        "BytecodePatch"
       ],
       "compatiblePackages": {
         "com.google.android.youtube": [
@@ -3925,7 +3926,7 @@
           "key": "selectedTranslations",
           "title": "Translations to add",
           "description": "A list of translations to be added for the RVX settings, separated by commas.",
-          "required": true,
+          "required": false,
           "type": "kotlin.String",
           "default": "ar, az-rAZ, bn, cs-rCZ, de-rDE, el-rGR, es-rES, fa-rIR, fr-rFR, hu-rHU, in, it-rIT, iw-rIL, ja-rJP, ko-rKR, pl-rPL, pt-rBR, ru-rRU, th-rTH, tr-rTR, uk-rUA, vi-rVN, zh-rCN, zh-rTW",
           "values": null
@@ -3933,8 +3934,8 @@
         {
           "key": "selectedStringResources",
           "title": "String resources to keep",
-          "description": "A list of string resources to be kept, separated by commas.\nString resources not in the list will be removed from the app.\n\nDefault string resource, English, is not removed.",
-          "required": true,
+          "description": "A list of locales to keep, separated by commas. Choosing a language also keeps its regional variants.\nLocale-specific resources outside the selection are removed. Use \"all\" to keep every locale.\n\nThe default English resources are always kept.",
+          "required": false,
           "type": "kotlin.String",
           "default": "af, am, ar, ar-rXB, as, az, b+es+419, b+sr+Latn, be, bg, bn, bs, ca, cs, da, de, el, en-rAU, en-rCA, en-rGB, en-rIN, en-rXA, en-rXC, es, es-rUS, et, eu, fa, fi, fil-rPH, fr, fr-rCA, gl, gu, hi, hr, hu, hy, id, in, is, it, iw, ja, ka, kk, km, kn, ko, ky, lo, lt, lv, mk, ml, mn, mr, ms, my, nb, ne, nl, no, or, pa, pl, pt, pt-rBR, pt-rPT, ro, ru, si, sk, sl, sq, sr, sv, sw, ta, te, th, tl, tr, uk, ur, uz, vi, zh, zh-rCN, zh-rHK, zh-rTW, zu",
           "values": null
@@ -3946,8 +3947,7 @@
       "description": "Add translations or remove string resources.",
       "use": true,
       "dependencies": [
-        "BytecodePatch",
-        "ResourcePatch"
+        "BytecodePatch"
       ],
       "compatiblePackages": {
         "com.google.android.apps.youtube.music": [
@@ -3973,7 +3973,7 @@
           "key": "selectedTranslations",
           "title": "Translations to add",
           "description": "A list of translations to be added for the RVX settings, separated by commas.",
-          "required": true,
+          "required": false,
           "type": "kotlin.String",
           "default": "ar, de-rDE, es-rES, fr-rFR, hu-rHU, in, it-rIT, ja-rJP, ko-rKR, pl-rPL, pt-rBR, ru-rRU, tr-rTR, uk-rUA, zh-rCN, zh-rTW",
           "values": null
@@ -3981,8 +3981,8 @@
         {
           "key": "selectedStringResources",
           "title": "String resources to keep",
-          "description": "A list of string resources to be kept, separated by commas.\nString resources not in the list will be removed from the app.\n\nDefault string resource, English, is not removed.",
-          "required": true,
+          "description": "A list of locales to keep, separated by commas. Choosing a language also keeps its regional variants.\nLocale-specific resources outside the selection are removed. Use \"all\" to keep every locale.\n\nThe default English resources are always kept.",
+          "required": false,
           "type": "kotlin.String",
           "default": "af, am, ar, ar-rXB, as, az, b+es+419, b+sr+Latn, be, bg, bn, bs, ca, cs, da, de, el, en-rAU, en-rCA, en-rGB, en-rIN, en-rXA, en-rXC, es, es-rUS, et, eu, fa, fi, fil-rPH, fr, fr-rCA, gl, gu, hi, hr, hu, hy, id, in, is, it, iw, ja, ka, kk, km, kn, ko, ky, lo, lt, lv, mk, ml, mn, mr, ms, my, nb, ne, nl, no, or, pa, pl, pt, pt-rBR, pt-rPT, ro, ru, si, sk, sl, sq, sr, sv, sw, ta, te, th, tl, tr, uk, ur, uz, vi, zh, zh-rCN, zh-rHK, zh-rTW, zu",
           "values": null

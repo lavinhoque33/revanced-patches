@@ -27,7 +27,7 @@ public class AuthUtils {
     private static String pageId = "";
     @NonNull
     private static String visitorId = "";
-    private static boolean incognitoStatus = false;
+    private static volatile boolean incognitoStatus;
 
     /**
      * Injection point.
@@ -87,6 +87,11 @@ public class AuthUtils {
     @NonNull
     public static String getVisitorId() {
         return visitorId;
+    }
+
+    /** Whether account headers must not be reused by background requests. */
+    public static boolean isIncognito() {
+        return incognitoStatus;
     }
 
     public static boolean isNotLoggedIn() {

@@ -1831,7 +1831,9 @@ Shorts
     <string name="revanced_icon_youtube">Иконка YouTube</string>
     <string name="revanced_icon_youtube_black">YouTube (черная)</string>
     <string name="revanced_in_app_downloader_summary_off">Для скачивания видео применяется ваш внешний загрузчик</string>
-    <string name="revanced_in_app_downloader_summary_on">"Кнопки загрузки видео используют встроенный загрузчик и сохраняют файлы в Movies/RVX. Выбор качества отображается при каждой загрузке"</string>
+    <string name="revanced_in_app_downloader_summary_on">"Кнопки загрузки видео открывают встроенный загрузчик.
+
+Выбирайте качество при каждой загрузке. Папки сохранения можно изменить в настройках загрузки"</string>
     <string name="revanced_in_app_downloader_title">Встроенный загрузчик</string>
     <string name="revanced_invert_snack_bar_theme_summary_off">Тема панели взаимодействия не инвертирована</string>
     <string name="revanced_invert_snack_bar_theme_summary_on">Тема панели взаимодействия инвертирована</string>
@@ -1979,14 +1981,15 @@ Shorts
     <string name="revanced_offline_download_progress">Скачивание %d%%</string>
     <string name="revanced_offline_download_queued">Добавлено в очередь</string>
     <string name="revanced_offline_download_queued_count">Добавлено в очередь: %d</string>
-    <string name="revanced_offline_download_saving">Сохранение в Movies/RVX…</string>
+    <string name="revanced_offline_download_saving">Сохранение…</string>
+    <string name="revanced_offline_download_options_title">Настройки загрузки</string>
     <string name="revanced_offline_download_started">Начато скачивание</string>
     <string name="revanced_offline_download_starting">Запуск…</string>
     <string name="revanced_offline_download_unavailable">Не удаётся скачать это видео</string>
     <string name="revanced_offline_error_forbidden">Сервер видео отклонил запрос на скачивание</string>
     <string name="revanced_offline_error_space">Не хватает свободного места: требуется %s</string>
     <string name="revanced_offline_error_time_limit">Время фоновой загрузки Android истекло</string>
-    <string name="revanced_offline_library_empty">Скачанных видео пока нет</string>
+    <string name="revanced_offline_library_empty">Загрузок пока нет</string>
     <string name="revanced_offline_library_no_results">По вашему запросу ничего не найдено среди скачанного</string>
     <string name="revanced_offline_library_resume">Продолжить с %s</string>
     <string name="revanced_offline_library_search">Поиск скачанных видео</string>
@@ -2005,10 +2008,11 @@ Shorts
     <string name="revanced_offline_pause">Пауза</string>
     <string name="revanced_offline_picker_av1_hint">Файл меньшего размера</string>
     <string name="revanced_offline_picker_av1_unplayable">Невозможно воспроизвести на этом устройстве</string>
-    <string name="revanced_offline_picker_footer">Сохранено в Movies/RVX (MP4 или WebM для VP9)</string>
+    <string name="revanced_offline_picker_footer">"Видео сохраняются в %1$s
+Аудио сохраняются в %2$s"</string>
     <string name="revanced_offline_picker_h264_hint">Воспроизводится везде</string>
     <string name="revanced_offline_picker_subtitle">Качество загрузки</string>
-    <string name="revanced_offline_picker_vp9_hint">Воспроизводится на этом устройстве</string>
+    <string name="revanced_offline_picker_vp9_hint">WebM со звуком Opus</string>
     <string name="revanced_offline_play">Воспроизвести</string>
     <string name="revanced_offline_playback_error">Не удаётся воспроизвести это видео</string>
     <string name="revanced_offline_playing_background">Играет в фоне</string>
@@ -2018,7 +2022,7 @@ Shorts
     <string name="revanced_open_links_externally_summary_off">Открывает ссылки в браузере приложения</string>
     <string name="revanced_open_links_externally_summary_on">Открывает ссылки во внешнем браузере</string>
     <string name="revanced_open_links_externally_title">Открывать внешние ссылки</string>
-    <string name="revanced_open_offline_library_summary">Видео, скачанные через встроенный загрузчик</string>
+    <string name="revanced_open_offline_library_summary">Видео и аудио, скачанные через встроенный загрузчик</string>
     <string name="revanced_open_offline_library_title">Открыть офлайн-библиотеку</string>
     <string name="revanced_overlay_button">Компоненты в плеере</string>
     <string name="revanced_overlay_button_always_repeat_summary">"Нажать - все время повтор

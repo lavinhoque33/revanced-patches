@@ -32,6 +32,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import app.morphe.extension.shared.utils.BaseThemeUtils;
+import app.morphe.extension.shared.utils.Logger;
 import app.morphe.extension.shared.utils.Utils;
 
 /**
@@ -413,6 +414,7 @@ public class SheetBottomDialog {
         private boolean isDismissing = false;
         private int duration;
         private final int screenHeight;
+        private ValueAnimator dimAnimator;
 
         /**
          * Constructs a new {@link SlideDialog} with the specified context.
@@ -452,6 +454,37 @@ public class SheetBottomDialog {
                     .start();
         }
 
+        @Override
+        public void onDetachedFromWindow() {
+            if (dimAnimator != null) {
+                dimAnimator.removeAllUpdateListeners();
+                dimAnimator.removeAllListeners();
+                dimAnimator.cancel();
+                dimAnimator = null;
+            }
+            if (animView != null) {
+                animView.animate().setListener(null);
+                animView.animate().cancel();
+            }
+            isDismissing = false;
+            super.onDetachedFromWindow();
+        }
+
+        /**
+         * Activity teardown (for example a font size change) removes the window of a dialog that is still
+         * showing, and a running animation then ends on a window the manager no longer knows. The platform
+         * rejects that removal, but only after it has marked the dialog dismissed and sent the dismiss
+         * callback, which is what the owner of the dialog waits for.
+         */
+        private void finishDismiss() {
+            isDismissing = false;
+            try {
+                super.dismiss();
+            } catch (IllegalArgumentException ex) {
+                Logger.printDebug(() -> "The dialog window was already removed", ex);
+            }
+        }
+
         /**
          * Cancels the dialog, triggering a dismissal animation.
          */
@@ -466,13 +499,12 @@ public class SheetBottomDialog {
          */
         @Override
         public void dismiss() {
-            if (isDismissing) return;
+            if (isDismissing || !isShowing()) return;
             isDismissing = true;
 
             Window window = getWindow();
-            if (window == null) {
-                super.dismiss();
-                isDismissing = false;
+            if (window == null || !window.getDecorView().isAttachedToWindow()) {
+                finishDismiss();
                 return;
             }
 
@@ -480,10 +512,10 @@ public class SheetBottomDialog {
             float startDim = params != null ? params.dimAmount : 0f;
 
             // Animate dimming effect.
-            ValueAnimator dimAnimator = ValueAnimator.ofFloat(startDim, 0f);
+            dimAnimator = ValueAnimator.ofFloat(startDim, 0f);
             dimAnimator.setDuration(duration);
             dimAnimator.addUpdateListener(animation -> {
-                if (params != null) {
+                if (params != null && window.getDecorView().isAttachedToWindow()) {
                     params.dimAmount = (float) animation.getAnimatedValue();
                     window.setAttributes(params);
                 }
@@ -493,8 +525,7 @@ public class SheetBottomDialog {
                 dimAnimator.addListener(new AnimatorListenerAdapter() {
                     @Override
                     public void onAnimationEnd(Animator animation) {
-                        SlideDialog.super.dismiss();
-                        isDismissing = false;
+                        finishDismiss();
                     }
                 });
                 dimAnimator.start();
@@ -508,8 +539,7 @@ public class SheetBottomDialog {
                     .setListener(new AnimatorListenerAdapter() {
                         @Override
                         public void onAnimationEnd(Animator animation) {
-                            SlideDialog.super.dismiss();
-                            isDismissing = false;
+                            finishDismiss();
                         }
                     })
                     .start();

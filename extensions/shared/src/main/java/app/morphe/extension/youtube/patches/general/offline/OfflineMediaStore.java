@@ -5,6 +5,7 @@
  * https://github.com/anddea/revanced-patches
  *
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-10-24.
  * Written by lavinhoque33, 2026-10-10.
  */
 
@@ -21,6 +22,7 @@ import android.content.Context;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.Build;
+import android.os.Bundle;
 import android.os.Environment;
 import android.os.ParcelFileDescriptor;
 import android.provider.MediaStore;
@@ -32,24 +34,51 @@ import java.io.FileDescriptor;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.Collections;
+import java.util.Locale;
 
 import app.morphe.extension.shared.utils.Logger;
 
 /**
- * Stores finished videos in {@code Movies/RVX}. Android 10+ uses MediaStore, which needs no
- * storage permission for files the app inserts itself. Older versions use the app-specific
- * movies directory, which needs no permission either.
+ * Stores finished downloads: videos below {@code Movies}, audio below {@code Music} and thumbnails
+ * below {@code Pictures}, each in the folder of its setting. Android 10+ uses MediaStore, which
+ * needs no storage permission for files the app inserts itself. Older versions use the
+ * app-specific directories of the same names, which need no permission either.
  */
 @SuppressLint("NewApi")
 final class OfflineMediaStore {
-    static final String RELATIVE_PATH = Environment.DIRECTORY_MOVIES + "/RVX";
+    /** The MediaStore collection of a download, and the top-level directory it must be in. */
+    enum Collection {
+        VIDEO(Environment.DIRECTORY_MOVIES),
+        AUDIO(Environment.DIRECTORY_MUSIC),
+        IMAGE(Environment.DIRECTORY_PICTURES),
+        SUBTITLE(Environment.DIRECTORY_MOVIES);
+
+        final String directory;
+
+        Collection(String directory) {
+            this.directory = directory;
+        }
+
+        Uri contentUri() {
+            final String volume = MediaStore.VOLUME_EXTERNAL_PRIMARY;
+            return switch (this) {
+                case VIDEO -> MediaStore.Video.Media.getContentUri(volume);
+                case AUDIO -> MediaStore.Audio.Media.getContentUri(volume);
+                case IMAGE -> MediaStore.Images.Media.getContentUri(volume);
+                case SUBTITLE -> MediaStore.Files.getContentUri(volume);
+            };
+        }
+
+        /** The folder as the user sees it, e.g. {@code Movies/RVX/Video}. */
+        String relativePath(String folder) {
+            return directory + "/" + folder;
+        }
+    }
 
     private OfflineMediaStore() {
     }
 
-    // the merged video is written straight into the pending item,
-    // so it is not written to the cache first and copied again.
-    /** A video being written to its final place. Either {@link #commit} or {@link #abort} it. */
+    /** A download being written to its final place. Either {@link #commit} or {@link #abort} it. */
     static final class Pending {
         private final ContentResolver resolver;
         private final Uri uri;
@@ -81,7 +110,6 @@ final class OfflineMediaStore {
         Uri commit() throws IOException {
             descriptor.close();
             if (uri == null) {
-                // an earlier finished download is only replaced once the new one is complete.
                 if (!file.renameTo(destination)) {
                     //noinspection ResultOfMethodCallIgnored
                     file.delete();
@@ -112,35 +140,52 @@ final class OfflineMediaStore {
     }
 
     static String mimeType(String displayName) {
-        return displayName.toLowerCase(java.util.Locale.ROOT).endsWith(".webm") ? "video/webm" : "video/mp4";
+        String name = displayName.toLowerCase(Locale.ROOT);
+        String extension = name.substring(name.lastIndexOf('.') + 1);
+        return switch (extension) {
+            case "webm" -> "video/webm";
+            case "opus" -> "audio/ogg";
+            case "m4a" -> "audio/mp4";
+            case "jpg" -> "image/jpeg";
+            case "webp" -> "image/webp";
+            case "png" -> "image/png";
+            case "srt" -> "application/x-subrip";
+            case "vtt" -> "text/vtt";
+            default -> "video/mp4";
+        };
     }
 
-    static Pending create(Context context, String displayName) throws IOException {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            ContentResolver resolver = context.getContentResolver();
-            ContentValues values = new ContentValues();
-            values.put(MediaStore.Video.Media.DISPLAY_NAME, displayName);
-            // VP9 downloads are WebM files.
-            values.put(MediaStore.Video.Media.MIME_TYPE, mimeType(displayName));
-            values.put(MediaStore.Video.Media.RELATIVE_PATH, RELATIVE_PATH);
-            values.put(MediaStore.Video.Media.IS_PENDING, 1);
+    static void retainSubtitleMime(Context context, Uri uri, String displayName) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R || !"content".equals(uri.getScheme())
+                || !"text/vtt".equals(mimeType(displayName))) return;
 
-            Uri collection = MediaStore.Video.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY);
-            deleteStaleRows(context, collection, displayName);
-            Uri uri = resolver.insert(collection, values);
-            if (uri == null) throw new IOException("MediaStore refused the new video");
-            try {
-                // "t" truncates: a leftover of an earlier attempt must not survive.
-                ParcelFileDescriptor descriptor = resolver.openFileDescriptor(uri, "rwt");
-                if (descriptor == null) throw new IOException("Could not open the MediaStore item");
-                return new Pending(resolver, uri, null, null, descriptor);
-            } catch (IOException | RuntimeException ex) {
-                resolver.delete(uri, null, null);
-                throw ex;
+        // Publishing forces a scan, which can replace an unrecognised .vtt MIME with octet-stream.
+        // Android's provider permits MIME-only updates. Disable placement recomputation so this
+        // update does not add DATA and trigger a second scan. No file is moved or renamed.
+        ContentValues values = new ContentValues();
+        values.put(MediaStore.MediaColumns.MIME_TYPE, "text/vtt");
+        Bundle options = new Bundle();
+        options.putBoolean("android:query-arg-allow-movement", false);
+        try {
+            if (context.getContentResolver().update(uri, values, options) < 1) {
+                Logger.printInfo(() -> "MediaProvider did not retain the VTT MIME type");
             }
+        } catch (RuntimeException ex) {
+            // The published sidecar remains usable even if an OEM provider declines this metadata update.
+            Logger.printInfo(() -> "MediaProvider could not retain the VTT MIME type", ex);
+        }
+    }
+
+    /**
+     * @param folder Relative to the collection's directory, already sanitized by {@link OfflineOptions}.
+     */
+    static Pending create(Context context, Collection collection, String folder, String displayName)
+            throws IOException {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            return createMediaStoreItem(context, collection, collection.relativePath(folder), displayName);
         }
 
-        File directory = new File(context.getExternalFilesDir(Environment.DIRECTORY_MOVIES), "RVX");
+        File directory = new File(context.getExternalFilesDir(collection.directory), folder);
         if (!directory.isDirectory() && !directory.mkdirs()) {
             throw new IOException("Could not create " + directory);
         }
@@ -153,15 +198,66 @@ final class OfflineMediaStore {
     }
 
     /**
+     * Must be called off the main thread.
+     *
+     * @return The uri of a readable file with this name in the folder, or null if there is none.
+     */
+    @Nullable
+    static Uri find(Context context, Collection collection, String folder, String displayName) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+            File file = new File(new File(context.getExternalFilesDir(collection.directory), folder), displayName);
+            return file.isFile() ? Uri.fromFile(file) : null;
+        }
+
+        Uri contentUri = collection.contentUri();
+        try (Cursor cursor = context.getContentResolver().query(contentUri,
+                new String[]{MediaStore.MediaColumns._ID},
+                MediaStore.MediaColumns.DISPLAY_NAME + "=? AND " + MediaStore.MediaColumns.RELATIVE_PATH + "=?",
+                new String[]{displayName, collection.relativePath(folder) + "/"}, null)) {
+            while (cursor != null && cursor.moveToNext()) {
+                Uri row = ContentUris.withAppendedId(contentUri, cursor.getLong(0));
+                if (exists(context, row.toString())) return row;
+            }
+        } catch (Exception ex) {
+            Logger.printDebug(() -> "Could not look up " + displayName, ex);
+        }
+        return null;
+    }
+
+    private static Pending createMediaStoreItem(Context context, Collection collection, String relativePath,
+                                                String displayName) throws IOException {
+        ContentResolver resolver = context.getContentResolver();
+        ContentValues values = new ContentValues();
+        values.put(MediaStore.MediaColumns.DISPLAY_NAME, displayName);
+        values.put(MediaStore.MediaColumns.MIME_TYPE, mimeType(displayName));
+        values.put(MediaStore.MediaColumns.RELATIVE_PATH, relativePath);
+        values.put(MediaStore.MediaColumns.IS_PENDING, 1);
+
+        Uri contentUri = collection.contentUri();
+        deleteStaleRows(context, contentUri, relativePath, displayName);
+        Uri uri = resolver.insert(contentUri, values);
+        if (uri == null) throw new IOException("MediaStore refused the new file");
+        try {
+            // "t" truncates: a leftover of an earlier attempt must not survive.
+            ParcelFileDescriptor descriptor = resolver.openFileDescriptor(uri, "rwt");
+            if (descriptor == null) throw new IOException("Could not open the MediaStore item");
+            return new Pending(resolver, uri, null, null, descriptor);
+        } catch (IOException | RuntimeException ex) {
+            resolver.delete(uri, null, null);
+            throw ex;
+        }
+    }
+
+    /**
      * A row whose file was removed behind MediaStore's back (root shell, raw-path file managers)
      * still owns the path, and publishing a new file with the same name then fails.
      */
-    private static void deleteStaleRows(Context context, Uri collection, String displayName) {
+    private static void deleteStaleRows(Context context, Uri collection, String relativePath, String displayName) {
         ContentResolver resolver = context.getContentResolver();
         try (Cursor cursor = resolver.query(collection,
                 new String[]{MediaStore.MediaColumns._ID},
                 MediaStore.MediaColumns.DISPLAY_NAME + "=? AND " + MediaStore.MediaColumns.RELATIVE_PATH + "=?",
-                new String[]{displayName, RELATIVE_PATH + "/"}, null)) {
+                new String[]{displayName, relativePath + "/"}, null)) {
             if (cursor == null) return;
             while (cursor.moveToNext()) {
                 Uri row = ContentUris.withAppendedId(collection, cursor.getLong(0));

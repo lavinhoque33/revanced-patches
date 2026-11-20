@@ -5,6 +5,7 @@
  * https://github.com/anddea/revanced-patches
  *
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-10-24.
  * Written by lavinhoque33, 2026-10-10.
  */
 
@@ -52,6 +53,7 @@ public final class OfflineServiceHooks {
     static final String ACTION_PLAYBACK_CLOSE = ACTION_PREFIX + "PLAYBACK_CLOSE";
     static final String ACTION_DOWNLOAD_START = ACTION_PREFIX + "DOWNLOAD_START";
     static final String ACTION_DOWNLOAD_CANCEL = ACTION_PREFIX + "DOWNLOAD_CANCEL";
+    static final String ACTION_DOWNLOAD_CANCEL_ALL = ACTION_PREFIX + "DOWNLOAD_CANCEL_ALL";
 
     private static final class ServiceState {
         final String name;
@@ -333,8 +335,10 @@ public final class OfflineServiceHooks {
                         OfflineDownloader.buildProgressNotification(service));
                 if (!OfflineDownloader.hasWork()) stopDownloadForeground();
             } else if (ACTION_DOWNLOAD_CANCEL.equals(action)) {
-                String videoId = intent.getStringExtra(OfflineScreens.EXTRA_VIDEO_ID);
-                if (videoId != null) OfflineDownloader.cancel(videoId);
+                String key = intent.getStringExtra(OfflineScreens.EXTRA_VIDEO_ID);
+                if (key != null) OfflineDownloader.cancel(key);
+            } else if (ACTION_DOWNLOAD_CANCEL_ALL.equals(action)) {
+                OfflineDownloader.cancelAll(false);
             }
         } catch (Exception ex) {
             Logger.printException(() -> "Download command failed: " + action, ex);

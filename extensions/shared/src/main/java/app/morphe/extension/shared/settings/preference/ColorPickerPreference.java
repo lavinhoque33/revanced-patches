@@ -1,5 +1,7 @@
 package app.morphe.extension.shared.settings.preference;
 
+import static app.morphe.extension.shared.settings.BaseSettings.SETTINGS_COLOR_HISTORY;
+import static app.morphe.extension.shared.utils.BaseThemeUtils.getAppForegroundColor;
 import static app.morphe.extension.shared.utils.StringRef.str;
 import static app.morphe.extension.shared.utils.Utils.dipToPixels;
 
@@ -20,15 +22,22 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewParent;
+import android.widget.Button;
 import android.widget.EditText;
+import android.widget.FrameLayout;
+import android.widget.HorizontalScrollView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
+import android.widget.TextView;
 
 import androidx.annotation.ColorInt;
 import androidx.annotation.Nullable;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 import java.util.regex.Pattern;
+import java.util.function.IntConsumer;
 
 import app.morphe.extension.shared.settings.Setting;
 import app.morphe.extension.shared.settings.StringSetting;
@@ -56,6 +65,9 @@ public class ColorPickerPreference extends EditTextPreference {
      * Matches everything that is not a hex number/letter.
      */
     private static final Pattern PATTERN_NOT_HEX = Pattern.compile("[^0-9A-Fa-f]");
+
+    private static final int COLOR_HISTORY_LIMIT = 8;
+    private static final Pattern PATTERN_HISTORY_COLOR = Pattern.compile("#(?:[0-9A-Fa-f]{6}|[0-9A-Fa-f]{8})");
 
     /**
      * Alpha for dimming when the preference is disabled.
@@ -87,6 +99,12 @@ public class ColorPickerPreference extends EditTextPreference {
      * Dialog TextWatcher for the EditText to monitor color input changes.
      */
     private TextWatcher colorTextWatcher;
+
+    @Nullable
+    private Runnable transientDismiss;
+
+    @Nullable
+    private Dialog currentDialog;
 
     /**
      * Dialog color picker view.
@@ -175,6 +193,29 @@ public class ColorPickerPreference extends EditTextPreference {
     public ColorPickerPreference(Context context, AttributeSet attrs, int defStyleAttr) {
         super(context, attrs, defStyleAttr);
         init();
+    }
+
+    /** Uses the existing RGB picker, hex editor and recent colours without a registered preference. */
+    public static Dialog showRgbPicker(Context context, String title, int initialColor, int defaultColor,
+                                     IntConsumer onApplied, Runnable onDismiss) {
+        ColorPickerPreference picker = new ColorPickerPreference(context) {
+            @Override
+            protected void onDialogOkClicked() {
+                onApplied.accept(Color.parseColor(getText()) | 0xFF000000);
+            }
+
+            @Override
+            protected void onDialogNeutralClicked() {
+                dialogColorPickerView.setColor(defaultColor | 0xFF000000);
+            }
+        };
+        picker.setPersistent(false);
+        picker.setTitle(title);
+        picker.setOpacitySliderEnabled(false);
+        picker.setText(getColorString(initialColor, false));
+        picker.transientDismiss = onDismiss;
+        picker.showDialog(null);
+        return picker.currentDialog;
     }
 
     /**
@@ -306,6 +347,128 @@ public class ColorPickerPreference extends EditTextPreference {
         }
     }
 
+    private static List<Integer> loadColorHistory() {
+        List<Integer> history = new ArrayList<>(COLOR_HISTORY_LIMIT);
+        for (String colorString : SETTINGS_COLOR_HISTORY.get().split(",")) {
+            if (!PATTERN_HISTORY_COLOR.matcher(colorString).matches()) {
+                continue;
+            }
+
+            int color = Color.parseColor(colorString);
+            if (findHistoryColor(history, color) < 0) {
+                history.add(color);
+                if (history.size() == COLOR_HISTORY_LIMIT) {
+                    break;
+                }
+            }
+        }
+        return history;
+    }
+
+    private static int findHistoryColor(List<Integer> history, @ColorInt int color) {
+        for (int index = 0; index < history.size(); index++) {
+            // Treat different opacity values of the same RGB color as one history entry.
+            if ((history.get(index) & 0x00FFFFFF) == (color & 0x00FFFFFF)) {
+                return index;
+            }
+        }
+        return -1;
+    }
+
+    private static void moveHistoryColorToFront(List<Integer> history, @ColorInt int color) {
+        int existingIndex = findHistoryColor(history, color);
+        if (existingIndex >= 0) {
+            history.remove(existingIndex);
+        }
+
+        history.add(0, color);
+        if (history.size() > COLOR_HISTORY_LIMIT) {
+            history.remove(history.size() - 1);
+        }
+    }
+
+    private static void saveColorHistory(@ColorInt int originalColor, @ColorInt int appliedColor) {
+        if (originalColor == appliedColor) {
+            return;
+        }
+
+        List<Integer> history = loadColorHistory();
+        moveHistoryColorToFront(history, originalColor);
+        moveHistoryColorToFront(history, appliedColor);
+
+        StringBuilder savedColors = new StringBuilder();
+        for (int color : history) {
+            if (savedColors.length() > 0) {
+                savedColors.append(',');
+            }
+            savedColors.append(getColorString(color, Color.alpha(color) != 255));
+        }
+        SETTINGS_COLOR_HISTORY.save(savedColors.toString());
+    }
+
+    private View createColorHistoryView(Context context) {
+        LinearLayout historyContainer = new LinearLayout(context);
+        historyContainer.setOrientation(LinearLayout.VERTICAL);
+        historyContainer.setPadding(dipToPixels(10), 0, dipToPixels(10), dipToPixels(8));
+
+        List<Integer> history = loadColorHistory();
+        if (history.isEmpty()) {
+            historyContainer.setVisibility(View.GONE);
+            return historyContainer;
+        }
+
+        LinearLayout header = new LinearLayout(context);
+        header.setGravity(Gravity.CENTER_VERTICAL);
+
+        TextView title = new TextView(context);
+        title.setText(str("revanced_settings_color_history"));
+        title.setTextColor(getAppForegroundColor());
+        header.addView(title, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+        Button clearButton = CustomDialog.createButton(context, null,
+                str("revanced_settings_color_history_clear"), () -> {
+                    SETTINGS_COLOR_HISTORY.resetToDefault();
+                    historyContainer.setVisibility(View.GONE);
+                }, false, false);
+        clearButton.setLayoutParams(new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, dipToPixels(48)));
+        header.addView(clearButton);
+        historyContainer.addView(header);
+
+        HorizontalScrollView scrollView = new HorizontalScrollView(context);
+        scrollView.setHorizontalScrollBarEnabled(true);
+        LinearLayout swatches = new LinearLayout(context);
+        for (int color : history) {
+            swatches.addView(createHistorySwatch(context, color));
+        }
+        scrollView.addView(swatches);
+        historyContainer.addView(scrollView);
+
+        return historyContainer;
+    }
+
+    private View createHistorySwatch(Context context, @ColorInt int color) {
+        int selectedColor = opacitySliderEnabled ? color : color | 0xFF000000;
+        String colorString = getColorString(selectedColor, opacitySliderEnabled);
+
+        // A 48 dp touch target leaves 12 dp between the 36 dp color circles.
+        FrameLayout target = new FrameLayout(context);
+        target.setLayoutParams(new LinearLayout.LayoutParams(dipToPixels(48), dipToPixels(48)));
+        target.setFocusable(true);
+        target.setContentDescription(str("revanced_settings_color_history_select", colorString));
+        target.setOnClickListener(view -> {
+            EditText editText = getEditText();
+            editText.setText(colorString);
+            editText.setSelection(colorString.length());
+        });
+
+        View swatch = new View(context);
+        ColorDot.applyColorDot(swatch, selectedColor, true);
+        target.addView(swatch, new FrameLayout.LayoutParams(dipToPixels(36), dipToPixels(36), Gravity.CENTER));
+
+        return target;
+    }
+
     @Override
     protected void showDialog(Bundle state) {
         Context context = getContext();
@@ -371,6 +534,9 @@ public class ColorPickerPreference extends EditTextPreference {
         inputLayout.addView(paddingView);
 
         contentContainer.addView(inputLayout);
+        if (transientDismiss != null) {
+            contentContainer.addView(createColorHistoryView(context));
+        }
 
         // Create ScrollView to wrap the content container.
         ScrollView contentScrollView = new ScrollView(context);
@@ -403,6 +569,9 @@ public class ColorPickerPreference extends EditTextPreference {
                             return;
                         }
                         setText(colorString);
+                        if (transientDismiss != null) {
+                            saveColorHistory(originalColor, Color.parseColor(colorString));
+                        }
 
                         onDialogOkClicked();
                     } catch (Exception ex) {
@@ -448,17 +617,24 @@ public class ColorPickerPreference extends EditTextPreference {
 
         // Configure and show the dialog.
         Dialog dialog = dialogPair.first;
+        currentDialog = dialog;
+        dialog.setOnDismissListener(dialogInterface -> {
+            clearDialogViews();
+            currentDialog = null;
+            if (transientDismiss != null) transientDismiss.run();
+        });
         dialog.setCanceledOnTouchOutside(false);
         dialog.show();
     }
 
-    @Override
-    protected void onDialogClosed(boolean positiveResult) {
-        super.onDialogClosed(positiveResult);
-
+    private void clearDialogViews() {
         if (colorTextWatcher != null) {
             getEditText().removeTextChangedListener(colorTextWatcher);
             colorTextWatcher = null;
+        }
+
+        if (dialogColorPickerView != null) {
+            dialogColorPickerView.setOnColorChangedListener(null);
         }
 
         dialogColorDot = null;

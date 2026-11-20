@@ -5,6 +5,7 @@
  * https://github.com/anddea/revanced-patches
  *
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-19.
  * Written by lavinhoque33, 2026-10-10.
  */
 
@@ -42,6 +43,7 @@ import app.morphe.extension.youtube.settings.Settings;
 public final class OfflineScreens {
     public static final String LIBRARY_INTENT = "rvx_offline_library_intent";
     public static final String PLAYER_INTENT = "rvx_offline_player_intent";
+    /** {@link OfflineVideo#key()} of a library entry, or {@link OfflineDownloader.Task#key} of a download. */
     static final String EXTRA_VIDEO_ID = "rvx_offline_video_id";
 
     private static final String LICENSE_ACTIVITY = "com.google.android.libraries.social.licenses.LicenseActivity";
@@ -83,9 +85,9 @@ public final class OfflineScreens {
         return hostIntent(context, LIBRARY_INTENT);
     }
 
-    static Intent playerIntent(Context context, @Nullable String videoId) {
+    static Intent playerIntent(Context context, @Nullable String key) {
         Intent intent = hostIntent(context, PLAYER_INTENT);
-        if (videoId != null) intent.putExtra(EXTRA_VIDEO_ID, videoId);
+        if (key != null) intent.putExtra(EXTRA_VIDEO_ID, key);
         return intent;
     }
 
@@ -112,9 +114,9 @@ public final class OfflineScreens {
         start(context, libraryIntent(base));
     }
 
-    static void openPlayer(@Nullable Context context, @Nullable String videoId) {
+    static void openPlayer(@Nullable Context context, @Nullable String key) {
         Context base = context != null ? context : Utils.getContext();
-        start(context, playerIntent(base, videoId));
+        start(context, playerIntent(base, key));
     }
 
     // endregion
@@ -169,7 +171,9 @@ public final class OfflineScreens {
      * @return True to cancel YouTube's navigation.
      */
     public static boolean openLibraryInsteadOfBrowse(@Nullable String browseId) {
-        return DOWNLOADS_BROWSE_ID.equals(browseId) && openLibraryInsteadOfDownloadsPage();
+        return DOWNLOADS_BROWSE_ID.equals(browseId)
+                && shouldReplaceDownloadsPage()
+                && openLibraryInsteadOfDownloadsPage();
     }
 
     // the You tab library row opens the Downloads page with a
@@ -186,9 +190,7 @@ public final class OfflineScreens {
      * @return True to cancel YouTube's command.
      */
     public static boolean openLibraryInsteadOfCommand(@Nullable Object command) {
-        if (InAppDownloadsPatch.isEnabled() || !(command instanceof MessageLite message)
-                || !Settings.IN_APP_DOWNLOADER.get()
-                || !Settings.REPLACE_DOWNLOADS_PAGE.get()) {
+        if (!shouldReplaceDownloadsPage() || !(command instanceof MessageLite message)) {
             return false;
         }
         try {
@@ -200,10 +202,15 @@ public final class OfflineScreens {
     }
 
     private static boolean openLibraryInsteadOfDownloadsPage() {
-        if (InAppDownloadsPatch.isEnabled() || !Settings.IN_APP_DOWNLOADER.get() || !Settings.REPLACE_DOWNLOADS_PAGE.get()) return false;
         Logger.printInfo(() -> "Replacing the Downloads page with the offline library");
         Utils.runOnMainThread(() -> openLibrary(Utils.getActivity()));
         return true;
+    }
+
+    private static boolean shouldReplaceDownloadsPage() {
+        return !InAppDownloadsPatch.isEnabled()
+                && Settings.IN_APP_DOWNLOADER.get()
+                && Settings.REPLACE_DOWNLOADS_PAGE.get();
     }
 
     /**
@@ -335,9 +342,9 @@ public final class OfflineScreens {
     }
 
     static List<String> order() {
-        List<String> ids = new ArrayList<>();
-        for (OfflineVideo video : sorted(OfflineIndex.getAll())) ids.add(video.videoId);
-        return ids;
+        List<String> keys = new ArrayList<>();
+        for (OfflineVideo video : sorted(OfflineIndex.getAll())) keys.add(video.key());
+        return keys;
     }
 
     // endregion

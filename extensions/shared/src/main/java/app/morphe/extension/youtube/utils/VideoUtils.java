@@ -10,7 +10,7 @@
  * - Jav1x (https://github.com/Jav1x)
  *
  * Licensed under the GNU General Public License v3.0.
- * Modified by lavinhoque33, 2026-10-21.
+ * Modified by lavinhoque33, 2026-11-19.
  *
  * ------------------------------------------------------------------------
  * GPLv3 Section 7 – Additional Terms & Attribution Requirements
@@ -227,6 +227,13 @@ public class VideoUtils extends IntentUtils {
         setClipboard(timeStamp, str("revanced_share_copy_timestamp_success", timeStamp));
     }
 
+    @NonNull
+    public static String getVideoDownloadLabel() {
+        return str(InAppDownloadsPatch.isEnabled() || Settings.IN_APP_DOWNLOADER.get()
+                ? "revanced_video_download_label"
+                : "revanced_shorts_custom_actions_external_downloader_label");
+    }
+
     public static void launchVideoExternalDownloader() {
         launchVideoExternalDownloader(VideoInformation.getVideoId());
     }
@@ -236,7 +243,6 @@ public class VideoUtils extends IntentUtils {
             InAppDownloadsPatch.saveVideo(videoId);
             return;
         }
-        // every video download entry point funnels through here.
         if (Settings.IN_APP_DOWNLOADER.get()) {
             OfflineDownloader.download(videoId);
             return;
@@ -283,6 +289,11 @@ public class VideoUtils extends IntentUtils {
             InAppDownloadsPatch.savePlaylist(playlistId);
             return;
         }
+        if (Settings.IN_APP_DOWNLOADER.get()) {
+            OfflineDownloader.downloadPlaylist(playlistId);
+            return;
+        }
+
         try {
             final String downloaderPackageName = Settings.EXTERNAL_DOWNLOADER_PACKAGE_NAME_PLAYLIST.get();
             // If the package is not installed, show a dialog.

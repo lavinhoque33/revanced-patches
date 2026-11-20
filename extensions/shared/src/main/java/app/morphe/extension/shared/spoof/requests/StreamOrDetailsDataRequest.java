@@ -582,7 +582,8 @@ public class StreamOrDetailsDataRequest {
                 }
 
                 StreamingData streamingData = playerResponse.getStreamingData();
-                if (streamingData.getAdaptiveFormatsCount() == 0) {
+                if (streamingData.getAdaptiveFormatsCount() == 0
+                        && !(forDownload && streamingData.hasHlsManifestUrl())) {
                     return null;
                 }
 

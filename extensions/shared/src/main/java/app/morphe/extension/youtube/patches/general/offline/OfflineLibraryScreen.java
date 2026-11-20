@@ -5,6 +5,8 @@
  * https://github.com/anddea/revanced-patches
  *
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-05.
+ * Modified by lavinhoque33, 2026-10-26.
  * Written by lavinhoque33, 2026-10-10.
  */
 
@@ -12,31 +14,44 @@ package app.morphe.extension.youtube.patches.general.offline;
 
 import static app.morphe.extension.shared.utils.StringRef.str;
 
+import android.app.Dialog;
+import android.content.ClipData;
+import android.content.ClipboardManager;
+import android.content.Context;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
+import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.text.TextUtils;
 import android.text.format.Formatter;
+import android.text.InputType;
 import android.util.LruCache;
 import android.util.TypedValue;
+import android.util.Pair;
+import android.view.CollapsibleActionView;
 import android.view.Gravity;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.inputmethod.EditorInfo;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.BaseAdapter;
 import android.widget.FrameLayout;
 import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ListView;
+import android.widget.EditText;
 import android.widget.ProgressBar;
-import android.widget.SearchView;
+import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toolbar;
 
@@ -47,7 +62,9 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.IntConsumer;
 
+import app.morphe.extension.shared.ui.CustomDialog;
 import app.morphe.extension.shared.utils.BaseThemeUtils;
 import app.morphe.extension.shared.utils.Logger;
 import app.morphe.extension.shared.utils.Utils;
@@ -79,8 +96,9 @@ final class OfflineLibraryScreen implements OfflineScreens.Screen {
     private final int secondary;
     private final Adapter adapter = new Adapter();
     private final TextView emptyView;
-    private final SearchView searchView;
+    private final LibrarySearchView searchView;
     private final MenuItem searchItem;
+    private final MenuItem cancelAllItem;
 
     private final List<Object> rows = new ArrayList<>();
     private String query = "";
@@ -108,11 +126,11 @@ final class OfflineLibraryScreen implements OfflineScreens.Screen {
         Toolbar toolbar = new Toolbar(activity);
         toolbar.setBackgroundColor(ThemeUtils.getToolbarBackgroundColor());
         toolbar.setNavigationIcon(ThemeUtils.getBackButtonDrawable());
+        toolbar.setCollapseIcon(ThemeUtils.getBackButtonDrawable());
+        tintToolbarOverflowIcon(toolbar);
         toolbar.setNavigationContentDescription(str("revanced_settings_navigate_up"));
         toolbar.setNavigationOnClickListener(v -> activity.finish());
-        // The Toolbar's own title view sits lower than the back arrow when the theme gives it
-        // a title margin or the font has extra padding. Use a plain TextView centered in a toolbar
-        // of the same height as the RVX settings toolbar.
+        // A centered TextView avoids the Toolbar theme's title margins and extra font padding.
         TextView toolbarTitle = new TextView(activity);
         toolbarTitle.setText(str("revanced_offline_library_title"));
         toolbarTitle.setTextColor(foreground);
@@ -131,24 +149,7 @@ final class OfflineLibraryScreen implements OfflineScreens.Screen {
                 : Utils.dipToPixels(56);
         root.addView(toolbar, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, toolbarHeight));
 
-        searchView = new SearchView(activity);
-        searchView.setQueryHint(str("revanced_offline_library_search"));
-        searchView.setMaxWidth(Integer.MAX_VALUE);
-        tintSearchView(searchView);
-        searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
-            @Override
-            public boolean onQueryTextSubmit(String text) {
-                searchView.clearFocus();
-                return true;
-            }
-
-            @Override
-            public boolean onQueryTextChange(String text) {
-                query = text == null ? "" : text.trim().toLowerCase(Locale.ROOT);
-                reload();
-                return true;
-            }
-        });
+        searchView = new LibrarySearchView();
 
         Menu menu = toolbar.getMenu();
         searchItem = menu.add(str("revanced_offline_library_search"));
@@ -163,7 +164,7 @@ final class OfflineLibraryScreen implements OfflineScreens.Screen {
 
             @Override
             public boolean onMenuItemActionCollapse(MenuItem item) {
-                searchView.setQuery("", false);
+                searchView.input.setText("");
                 return true;
             }
         });
@@ -176,6 +177,24 @@ final class OfflineLibraryScreen implements OfflineScreens.Screen {
             return true;
         });
 
+        // A playlist queues many downloads, so they can be cancelled together.
+        cancelAllItem = menu.add(str("revanced_offline_cancel_all"));
+        cancelAllItem.setIcon(OfflineUi.icon(activity, "close", foreground));
+        cancelAllItem.setShowAsAction(MenuItem.SHOW_AS_ACTION_IF_ROOM);
+        cancelAllItem.setVisible(false);
+        cancelAllItem.setOnMenuItemClickListener(clicked -> {
+            confirmCancelAll();
+            return true;
+        });
+
+        MenuItem playlistItem = menu.add(str("revanced_offline_batch_menu"));
+        playlistItem.setIcon(OfflineUi.icon(activity, "download", foreground));
+        playlistItem.setShowAsAction(MenuItem.SHOW_AS_ACTION_IF_ROOM);
+        playlistItem.setOnMenuItemClickListener(clicked -> {
+            askPlaylist();
+            return true;
+        });
+
         FrameLayout content = new FrameLayout(activity);
         ListView list = new ListView(activity);
         list.setDivider(null);
@@ -183,7 +202,7 @@ final class OfflineLibraryScreen implements OfflineScreens.Screen {
         list.setOnItemClickListener((parent, view, position, id) -> {
             Object row = rows.get(position);
             if (row instanceof OfflineVideo video) {
-                OfflineScreens.openPlayer(activity, video.videoId);
+                OfflineScreens.openPlayer(activity, video.key());
             }
         });
         list.setOnItemLongClickListener((parent, view, position, id) -> {
@@ -217,6 +236,15 @@ final class OfflineLibraryScreen implements OfflineScreens.Screen {
         verifyFiles();
     }
 
+    private void tintToolbarOverflowIcon(Toolbar toolbar) {
+        Drawable overflowIcon = toolbar.getOverflowIcon();
+        if (overflowIcon != null) {
+            overflowIcon = overflowIcon.mutate();
+            overflowIcon.setTint(foreground);
+            toolbar.setOverflowIcon(overflowIcon);
+        }
+    }
+
     private void showSortDialog() {
         String[] labels = new String[SORTS.length];
         for (int i = 0; i < SORTS.length; i++) {
@@ -227,23 +255,137 @@ final class OfflineLibraryScreen implements OfflineScreens.Screen {
         for (int i = 0; i < SORTS.length; i++) {
             if (SORTS[i].equals(currentSort)) selected = i;
         }
-        OfflineUi.showChoices(activity, str("revanced_offline_library_sort"), labels, selected, foreground, which -> {
+        showLibraryChoices(str("revanced_offline_library_sort"), labels, selected, which -> {
             Settings.OFFLINE_LIBRARY_SORT.save(SORTS[which]);
             reload();
         });
     }
 
-    private void tintSearchView(SearchView view) {
-        try {
-            int id = activity.getResources().getIdentifier("android:id/search_src_text", null, null);
-            TextView text = view.findViewById(id);
-            if (text != null) {
-                text.setTextColor(foreground);
-                text.setHintTextColor(secondary);
-            }
-        } catch (Exception ex) {
-            Logger.printDebug(() -> "Could not tint the search view", ex);
+    /** A plain input avoids the platform SearchView's underline and magnifier inside its hint. */
+    private final class LibrarySearchView extends FrameLayout implements CollapsibleActionView {
+        private final EditText input;
+
+        LibrarySearchView() {
+            super(activity);
+            setPaddingRelative(0, 0, Utils.dipToPixels(8), 0);
+
+            input = new EditText(activity);
+            input.setSingleLine();
+            input.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
+            input.setTextColor(foreground);
+            input.setHintTextColor(secondary);
+            input.setHint(str("revanced_offline_library_search"));
+            input.setImeOptions(EditorInfo.IME_ACTION_SEARCH);
+            input.setInputType(InputType.TYPE_CLASS_TEXT);
+            input.setPaddingRelative(Utils.dipToPixels(16), 0, Utils.dipToPixels(16), 0);
+            input.setGravity(Gravity.CENTER_VERTICAL);
+
+            GradientDrawable pill = new GradientDrawable();
+            pill.setCornerRadius(Utils.dipToPixels(20));
+            pill.setColor(ThemeUtils.adjustColorBrightness(
+                    ThemeUtils.getAppBackgroundColor(), 0.95f, 1.18f));
+            input.setBackground(pill);
+            addView(input, new FrameLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, Utils.dipToPixels(40), Gravity.CENTER_VERTICAL));
+
+            input.setOnEditorActionListener((view, action, event) -> {
+                hideKeyboard();
+                input.clearFocus();
+                return true;
+            });
+            input.addTextChangedListener(new TextWatcher() {
+                @Override
+                public void beforeTextChanged(CharSequence text, int start, int count, int after) {
+                }
+
+                @Override
+                public void onTextChanged(CharSequence text, int start, int before, int count) {
+                    query = text.toString().trim().toLowerCase(Locale.ROOT);
+                    reload();
+                }
+
+                @Override
+                public void afterTextChanged(Editable text) {
+                }
+            });
         }
+
+        private void hideKeyboard() {
+            InputMethodManager keyboard = activity.getSystemService(InputMethodManager.class);
+            keyboard.hideSoftInputFromWindow(input.getWindowToken(), 0);
+        }
+
+        @Override
+        public void onActionViewExpanded() {
+            // Toolbar replaces the action view's LayoutParams with WRAP_CONTENT during expansion.
+            // Keep its expanded-view metadata, but fill the space between collapse and overflow.
+            ViewGroup.LayoutParams layoutParams = getLayoutParams();
+            layoutParams.width = ViewGroup.LayoutParams.MATCH_PARENT;
+            layoutParams.height = ViewGroup.LayoutParams.MATCH_PARENT;
+            setLayoutParams(layoutParams);
+
+            input.requestFocus();
+            input.post(() -> activity.getSystemService(InputMethodManager.class)
+                    .showSoftInput(input, InputMethodManager.SHOW_IMPLICIT));
+        }
+
+        @Override
+        public void onActionViewCollapsed() {
+            hideKeyboard();
+            input.clearFocus();
+        }
+    }
+
+    /** Uses the settings dialog layout, but keeps even AMOLED surfaces equal to the library background. */
+    private Pair<Dialog, LinearLayout> createLibraryDialog(String title, @Nullable String message,
+                                                          @Nullable EditText input, @Nullable Runnable onConfirm) {
+        Pair<Dialog, LinearLayout> dialog = CustomDialog.create(
+                activity, title, message, input, null, onConfirm,
+                onConfirm == null ? null : () -> {}, null, null, true);
+        dialog.second.getBackground().mutate().setTint(ThemeUtils.getAppBackgroundColor());
+        if (input != null && message != null) {
+            TextView description = text(16, foreground, Integer.MAX_VALUE);
+            description.setText(message);
+            description.setPadding(0, 0, 0, Utils.dipToPixels(16));
+            dialog.second.addView(description, 1);
+        }
+
+        return dialog;
+    }
+
+    private void showLibraryChoices(String title, String[] labels, int selected, IntConsumer onChosen) {
+        Pair<Dialog, LinearLayout> dialog = createLibraryDialog(title, null, null, null);
+        LinearLayout choices = new LinearLayout(activity);
+        choices.setOrientation(LinearLayout.VERTICAL);
+
+        for (int index = 0; index < labels.length; index++) {
+            final int choice = index;
+            TextView row = text(16, foreground, 2);
+            row.setText(labels[index]);
+            row.setGravity(Gravity.CENTER_VERTICAL);
+            row.setMinHeight(Utils.dipToPixels(52));
+            row.setPaddingRelative(Utils.dipToPixels(8), 0, Utils.dipToPixels(8), 0);
+            TypedValue selectable = new TypedValue();
+            activity.getTheme().resolveAttribute(android.R.attr.selectableItemBackground, selectable, true);
+            row.setBackgroundResource(selectable.resourceId);
+            if (index == selected) {
+                row.setCompoundDrawablesRelativeWithIntrinsicBounds(
+                        null, null, OfflineUi.icon(activity, "check", foreground), null);
+                row.setCompoundDrawablePadding(Utils.dipToPixels(16));
+            }
+            row.setOnClickListener(view -> {
+                dialog.first.dismiss();
+                onChosen.accept(choice);
+            });
+            choices.addView(row, new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        }
+
+        ScrollView scroll = new ScrollView(activity);
+        scroll.addView(choices);
+        dialog.second.addView(scroll, 1, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        dialog.first.show();
     }
 
     // region data
@@ -251,7 +393,9 @@ final class OfflineLibraryScreen implements OfflineScreens.Screen {
     private void reload() {
         if (destroyed) return;
         rows.clear();
-        for (OfflineDownloader.Task task : OfflineDownloader.getTasks()) {
+        List<OfflineDownloader.Task> tasks = OfflineDownloader.getTasks();
+        cancelAllItem.setVisible(tasks.size() > 1);
+        for (OfflineDownloader.Task task : tasks) {
             if (matches(task.title)) rows.add(task);
         }
         for (OfflineVideo video : OfflineScreens.sorted(OfflineIndex.getAll())) {
@@ -273,9 +417,9 @@ final class OfflineLibraryScreen implements OfflineScreens.Screen {
         Utils.runOnBackgroundThread(() -> {
             for (OfflineVideo video : videos) {
                 if (!OfflineMediaStore.exists(activity.getApplicationContext(), video.contentUri)) {
-                    Logger.printInfo(() -> "File of " + video.videoId + " is gone, removing it from the library");
-                    Utils.runOnMainThread(() -> OfflinePlayer.closeIfPlaying(video.videoId));
-                    OfflineIndex.remove(video.videoId);
+                    Logger.printInfo(() -> "File of " + video.key() + " is gone, removing it from the library");
+                    Utils.runOnMainThread(() -> OfflinePlayer.closeIfPlaying(video.key()));
+                    OfflineIndex.remove(video.key());
                 }
             }
         });
@@ -290,24 +434,21 @@ final class OfflineLibraryScreen implements OfflineScreens.Screen {
                 str("revanced_offline_action_play_background"),
                 str("revanced_offline_action_share"),
                 str("revanced_offline_action_open_youtube"),
-                str("revanced_offline_action_delete"),
+                str("revanced_offline_action_delete")
         };
-        Utils.getDialogBuilder(activity)
-                .setTitle(video.title)
-                .setItems(actions, (dialog, which) -> {
-                    switch (which) {
-                        case 0 -> {
-                            OfflinePlayer.play(video, OfflineScreens.order());
-                            Utils.showToastShort(str("revanced_offline_playing_background"));
-                        }
-                        case 1 -> share(video);
-                        case 2 -> openOnYouTube(video);
-                        case 3 -> confirmDelete(video);
-                        default -> {
-                        }
-                    }
-                })
-                .show();
+        showLibraryChoices(video.title, actions, -1, which -> {
+            switch (which) {
+                case 0 -> {
+                    OfflinePlayer.play(video, OfflineScreens.order());
+                    Utils.showToastShort(str("revanced_offline_playing_background"));
+                }
+                case 1 -> share(video);
+                case 2 -> openOnYouTube(video);
+                case 3 -> confirmDelete(video);
+                default -> {
+                }
+            }
+        });
     }
 
     private void share(OfflineVideo video) {
@@ -318,7 +459,7 @@ final class OfflineLibraryScreen implements OfflineScreens.Screen {
             return;
         }
         Intent intent = new Intent(Intent.ACTION_SEND)
-                .setType(OfflineMediaStore.mimeType(video.displayName)) // WebM downloads
+                .setType(OfflineMediaStore.mimeType(video.displayName))
                 .putExtra(Intent.EXTRA_STREAM, uri)
                 .putExtra(Intent.EXTRA_SUBJECT, video.title)
                 .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
@@ -341,20 +482,53 @@ final class OfflineLibraryScreen implements OfflineScreens.Screen {
     }
 
     private void confirmDelete(OfflineVideo video) {
-        Utils.getDialogBuilder(activity)
-                .setTitle(str("revanced_offline_delete_title"))
-                .setMessage(str("revanced_offline_delete_message", video.title))
-                .setPositiveButton(android.R.string.ok, (dialog, which) -> {
-                    OfflinePlayer.closeIfPlaying(video.videoId);
+        createLibraryDialog(str("revanced_offline_delete_title"),
+                str("revanced_offline_delete_message", video.title), null, () -> {
+                    OfflinePlayer.closeIfPlaying(video.key());
                     if (OfflineMediaStore.delete(activity, video.contentUri)) {
-                        Logger.printInfo(() -> "Deleted " + video.videoId);
-                        OfflineIndex.remove(video.videoId);
+                        Logger.printInfo(() -> "Deleted " + video.key());
+                        OfflineIndex.remove(video.key());
                     }
                     // Otherwise the system asks for consent, and the next resume drops the entry
                     // if the user agreed.
-                })
-                .setNegativeButton(android.R.string.cancel, null)
-                .show();
+                }).first.show();
+    }
+
+    private void confirmCancelAll() {
+        createLibraryDialog(str("revanced_offline_cancel_all"),
+                str("revanced_offline_cancel_all_message", OfflineDownloader.getTasks().size()),
+                null, () -> OfflineDownloader.cancelAll(false)).first.show();
+    }
+
+    /** YouTube shows its own playlist download button only to some accounts, so the library offers a way in. */
+    private void askPlaylist() {
+        EditText input = CustomDialog.createEditText(activity);
+        input.setHintTextColor(secondary);
+        input.setHint(str("revanced_offline_batch_input_hint"));
+        input.setSingleLine();
+        input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_URI);
+        try {
+            ClipboardManager clipboard = (ClipboardManager) activity.getSystemService(Context.CLIPBOARD_SERVICE);
+            ClipData clip = clipboard == null ? null : clipboard.getPrimaryClip();
+            CharSequence copied = clip == null || clip.getItemCount() == 0
+                    ? null : clip.getItemAt(0).coerceToText(activity);
+            if (copied != null && OfflinePlaylist.parseId(copied.toString()) != null) {
+                input.setText(copied.toString().trim());
+                input.selectAll();
+            }
+        } catch (Exception ex) {
+            Logger.printException(() -> "Could not read the playlist clipboard", ex);
+        }
+        createLibraryDialog(str("revanced_offline_batch_menu"),
+                str("revanced_offline_batch_input_message"), input, () -> {
+                    String playlistId = OfflinePlaylist.parseId(input.getText().toString());
+                    Logger.printInfo(() -> "Library playlist dialog confirmed, parsed id: " + playlistId);
+                    if (playlistId == null) {
+                        Utils.showToastLong(str("revanced_offline_batch_input_invalid"));
+                    } else {
+                        OfflineDownloader.downloadPlaylist(activity, playlistId);
+                    }
+                }).first.show();
     }
 
     // endregion
@@ -454,7 +628,7 @@ final class OfflineLibraryScreen implements OfflineScreens.Screen {
         private final TextView title = text(15, foreground, 2);
         private final TextView status = text(13, secondary, 1);
         private final ProgressBar progress = new ProgressBar(activity, null, android.R.attr.progressBarStyleHorizontal);
-        private String videoId;
+        private String taskKey;
 
         TaskRow() {
             super(activity);
@@ -474,15 +648,15 @@ final class OfflineLibraryScreen implements OfflineScreens.Screen {
             ImageButton cancel = new ImageButton(activity);
             cancel.setImageDrawable(OfflineUi.icon(activity, "close", foreground));
             cancel.setBackgroundColor(Color.TRANSPARENT);
-            cancel.setContentDescription(str("revanced_cancel"));
+            cancel.setContentDescription(str("revanced_offline_cancel"));
             cancel.setOnClickListener(v -> {
-                if (videoId != null) OfflineDownloader.cancel(videoId);
+                if (taskKey != null) OfflineDownloader.cancel(taskKey);
             });
             addView(cancel, new LayoutParams(Utils.dipToPixels(48), Utils.dipToPixels(48)));
         }
 
         void bind(OfflineDownloader.Task task) {
-            videoId = task.videoId;
+            taskKey = task.key;
             title.setText(task.title);
             final int percent = task.getPercent();
             final boolean determinate = task.getState() == OfflineDownloader.State.DOWNLOADING && percent >= 0;
@@ -496,7 +670,11 @@ final class OfflineLibraryScreen implements OfflineScreens.Screen {
                         ? str("revanced_offline_download_starting")
                         : str("revanced_offline_download_progress", percent);
             };
-            status.setText(task.qualityLabel + " · " + state);
+            List<String> parts = new ArrayList<>();
+            if (task.batch != null) parts.add(task.index + "/" + task.batch.total);
+            if (!task.qualityLabel.isEmpty()) parts.add(task.qualityLabel);
+            parts.add(state);
+            status.setText(TextUtils.join(" · ", parts));
         }
     }
 
@@ -505,8 +683,8 @@ final class OfflineLibraryScreen implements OfflineScreens.Screen {
         private final TextView duration = text(12, Color.WHITE, 1);
         private final TextView title = text(15, foreground, 2);
         private final TextView channel = text(13, secondary, 1);
-        private final TextView details = text(13, secondary, 1);
-        private String videoId;
+        private final TextView details = text(13, secondary, 2);
+        private String videoKey;
 
         VideoRow() {
             super(activity);
@@ -546,38 +724,85 @@ final class OfflineLibraryScreen implements OfflineScreens.Screen {
         }
 
         void bind(OfflineVideo video) {
-            videoId = video.videoId;
+            videoKey = video.key();
             title.setText(video.title);
             channel.setText(video.author);
             channel.setVisibility(video.author.isEmpty() ? GONE : VISIBLE);
-            List<String> parts = new ArrayList<>();
-            if (!video.qualityLabel.isEmpty()) parts.add(video.qualityLabel);
-            if (video.sizeBytes > 0) parts.add(Formatter.formatShortFileSize(activity, video.sizeBytes));
-            if (video.lastPositionMs > 0 && video.lengthMs > 0) {
-                parts.add(str("revanced_offline_library_resume", formatDuration(video.lastPositionMs)));
-            }
-            details.setText(TextUtils.join(" · ", parts));
+            details.setText(describe(video));
             duration.setText(formatDuration(video.lengthMs));
             duration.setVisibility(video.lengthMs > 0 ? VISIBLE : GONE);
             loadThumbnail(video);
         }
 
+        /**
+         * The meta line of the card: the quality and the size, then the codec and the format id.
+         * The resume position gets a line of its own.
+         */
+        private CharSequence describe(OfflineVideo video) {
+            StringBuilder text = new StringBuilder();
+            appendPart(text, video.audioOnly ? audioCodecName(video) : video.qualityLabel);
+            if (video.sizeBytes > 0) {
+                appendPart(text, Formatter.formatShortFileSize(activity, video.sizeBytes));
+            }
+            appendPart(text, technicalDetails(video));
+
+            if (video.lastPositionMs > 0 && video.lengthMs > 0) {
+                if (text.length() > 0) text.append('\n');
+                text.append(str("revanced_offline_library_resume", formatDuration(video.lastPositionMs)));
+            }
+            return text;
+        }
+
+        /**
+         * The codec and the format id of a video, or the bitrate and the format id of an audio
+         * download. Entries made before these were stored show nothing here.
+         */
+        private String technicalDetails(OfflineVideo video) {
+            if (video.codec.isEmpty()) return "";
+
+            List<String> parts = new ArrayList<>(2);
+            if (video.audioOnly) {
+                if (video.bitrateKbps > 0) parts.add(str("revanced_offline_library_bitrate", video.bitrateKbps));
+            } else {
+                parts.add(video.codec);
+            }
+            if (video.itag > 0) parts.add(str("revanced_offline_picker_format_id", video.itag));
+            return TextUtils.join(" · ", parts);
+        }
+
+        /** {@code Opus} and {@code M4A} instead of the {@code Opus audio} label of the picker. */
+        private String audioCodecName(OfflineVideo video) {
+            if (OfflineFormats.CODEC_OPUS.equals(video.codec)) {
+                return str("revanced_offline_picker_audio_opus");
+            }
+            if (OfflineFormats.CODEC_AAC.equals(video.codec)) {
+                return str("revanced_offline_picker_audio_m4a");
+            }
+            return video.qualityLabel;
+        }
+
+        private void appendPart(StringBuilder text, String part) {
+            if (part.isEmpty()) return;
+            if (text.length() > 0) text.append(" · ");
+            text.append(part);
+        }
+
         private void loadThumbnail(OfflineVideo video) {
-            Bitmap cached = thumbnails.get(video.videoId);
+            final String key = video.key();
+            Bitmap cached = thumbnails.get(key);
             thumbnail.setImageBitmap(cached);
-            if (cached != null || video.thumbnailPath.isEmpty()
-                    || !thumbnailsLoading.add(video.videoId)) {
+            if (cached != null || video.thumbnailPath.isEmpty() || !thumbnailsLoading.add(key)) {
                 return;
             }
             Utils.runOnBackgroundThread(() -> {
                 BitmapFactory.Options options = new BitmapFactory.Options();
                 options.inSampleSize = 2;
                 Bitmap bitmap = BitmapFactory.decodeFile(video.thumbnailPath, options);
-                thumbnailsLoading.remove(video.videoId);
+                thumbnailsLoading.remove(key);
                 if (bitmap == null) return;
-                thumbnails.put(video.videoId, bitmap);
+                thumbnails.put(key, bitmap);
                 Utils.runOnMainThread(() -> {
-                    if (video.videoId.equals(videoId)) thumbnail.setImageBitmap(bitmap);
+                    if (key.equals(videoKey)) thumbnail.setImageBitmap(bitmap);
                 });
             });
         }

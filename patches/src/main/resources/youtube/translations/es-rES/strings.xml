@@ -1840,9 +1840,9 @@ Problema conocido: Cuando este ajuste está activado, no se puede pulsar en los 
     <string name="revanced_icon_youtube">YouTube</string>
     <string name="revanced_icon_youtube_black">YouTube Negro</string>
     <string name="revanced_in_app_downloader_summary_off">Botones de descarga de vídeo usa tu descarga externa</string>
-    <string name="revanced_in_app_downloader_summary_on">"Botones de descarga de vídeo descargan con el descargador integrado y guardan en Películas/RVX
+    <string name="revanced_in_app_downloader_summary_on">"Los botones de descarga de vídeo abren el descargador integrado.
 
-El selector de calidad aparece en cada descarga"</string>
+Elige la calidad de cada descarga. Cambia las carpetas en Opciones de descarga"</string>
     <string name="revanced_in_app_downloader_title">Descargador integrado</string>
     <string name="revanced_invert_snack_bar_theme_summary_off">El tema de la barra de notificaciones no está invertido</string>
     <string name="revanced_invert_snack_bar_theme_summary_on">El tema de la barra de notificaciones está invertido</string>
@@ -1990,14 +1990,15 @@ El mini reproductor puede ser arrastrado de la pantalla a la izquierda o derecha
     <string name="revanced_offline_download_progress">Descargando %d%%</string>
     <string name="revanced_offline_download_queued">Cola</string>
     <string name="revanced_offline_download_queued_count">%d en cola</string>
-    <string name="revanced_offline_download_saving">Guardando para Películas/RVX...</string>
+    <string name="revanced_offline_download_saving">Guardando…</string>
+    <string name="revanced_offline_download_options_title">Opciones de descarga</string>
     <string name="revanced_offline_download_started">Descarga iniciada</string>
     <string name="revanced_offline_download_starting">Empezando...</string>
     <string name="revanced_offline_download_unavailable">Este vídeo no se puede descargar</string>
     <string name="revanced_offline_error_forbidden">El servidor de vídeo rechazó la descarga</string>
     <string name="revanced_offline_error_space">No hay suficiente espacio libre, se necesitan porcentajes</string>
     <string name="revanced_offline_error_time_limit">Se ha alcanzado el tiempo de descarga en segundo plano de Android</string>
-    <string name="revanced_offline_library_empty">Aún no hay vídeos descargados</string>
+    <string name="revanced_offline_library_empty">Aún no hay descargas</string>
     <string name="revanced_offline_library_no_results">Ninguna descarga coincide con tu búsqueda</string>
     <string name="revanced_offline_library_resume">Reanudar en %s</string>
     <string name="revanced_offline_library_search">Descargas de búsqueda</string>
@@ -2016,10 +2017,11 @@ El mini reproductor puede ser arrastrado de la pantalla a la izquierda o derecha
     <string name="revanced_offline_pause">Pausa</string>
     <string name="revanced_offline_picker_av1_hint">Archivo más pequeño</string>
     <string name="revanced_offline_picker_av1_unplayable">No se puede reproducir en este dispositivo</string>
-    <string name="revanced_offline_picker_footer">Guardado en Películas/RVX (MP4, o WebM para VP9)</string>
+    <string name="revanced_offline_picker_footer">"Los vídeos se guardan en %1$s
+El audio se guarda en %2$s"</string>
     <string name="revanced_offline_picker_h264_hint">Se puede reproducir en cualquier sitio</string>
     <string name="revanced_offline_picker_subtitle">Calidad de descarga</string>
-    <string name="revanced_offline_picker_vp9_hint">Se reproduce en este dispositivo</string>
+    <string name="revanced_offline_picker_vp9_hint">WebM con audio Opus</string>
     <string name="revanced_offline_play">Reproducir</string>
     <string name="revanced_offline_playback_error">Este vídeo no se puede reproducir</string>
     <string name="revanced_offline_playing_background">Reproducción en segundo plano</string>
@@ -2029,7 +2031,7 @@ El mini reproductor puede ser arrastrado de la pantalla a la izquierda o derecha
     <string name="revanced_open_links_externally_summary_off">Abre enlaces en el navegador de la app</string>
     <string name="revanced_open_links_externally_summary_on">Abre enlaces en el navegador externo</string>
     <string name="revanced_open_links_externally_title">Abrir enlaces en el navegador</string>
-    <string name="revanced_open_offline_library_summary">Vídeos descargados con el descargador integrado</string>
+    <string name="revanced_open_offline_library_summary">Vídeo y audio descargados con el descargador integrado</string>
     <string name="revanced_open_offline_library_title">Abrir biblioteca offline</string>
     <string name="revanced_overlay_button">Botón superpuesto</string>
     <string name="revanced_overlay_button_always_repeat_summary">"Pulsa para activar los estados de repetición continua

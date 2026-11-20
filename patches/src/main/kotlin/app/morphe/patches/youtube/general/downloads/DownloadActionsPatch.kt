@@ -9,7 +9,7 @@
  * - inotia00 (https://github.com/inotia00)
  *
  * Licensed under the GNU General Public License v3.0.
- * Modified by lavinhoque33, 2026-10-21.
+ * Modified by lavinhoque33, 2026-11-19.
  *
  * ------------------------------------------------------------------------
  * GPLv3 Section 7 – Additional Terms & Attribution Requirements
@@ -84,6 +84,8 @@ import app.morphe.patches.youtube.utils.settings.ResourceUtils.addPreference
 import app.morphe.patches.youtube.utils.toolBarButtonFingerprint
 import app.morphe.patches.youtube.utils.toolbar.hookToolBar
 import app.morphe.patches.youtube.utils.toolbar.toolBarHookPatch
+import app.morphe.patches.youtube.video.information.hookPlayWhenReady
+import app.morphe.patches.youtube.video.information.videoInformationPatch
 import app.morphe.util.Utils.printWarn
 import app.morphe.util.findInstructionIndicesReversedOrThrow
 import app.morphe.util.findMethodOrThrow
@@ -121,6 +123,9 @@ private const val EXTENSION_OFFLINE_SERVICE_HOOKS =
 private const val EXTENSION_OFFLINE_SCREENS =
     "$GENERAL_PATH/offline/OfflineScreens;"
 
+private const val EXTENSION_OFFLINE_PLAYER =
+    "$GENERAL_PATH/offline/OfflinePlayer;"
+
 private const val EXTENSION_NAVIGATION_BUTTONS =
     "$GENERAL_PATH/NavigationButtonsPatch;"
 
@@ -157,6 +162,7 @@ val downloadActionsPatch = bytecodePatch(
         // Downloads button in the "You" tab.
         fixProtoLibraryPatch,
         toolBarHookPatch,
+        videoInformationPatch,
     )
 
     execute {
@@ -169,6 +175,7 @@ val downloadActionsPatch = bytecodePatch(
                     "PREFERENCE_SCREEN: GENERAL",
                     "SETTINGS: HOOK_BUTTONS",
                     "SETTINGS: HOOK_DOWNLOAD_ACTIONS",
+                    "SETTINGS: OFFLINE_DOWNLOAD_OPTIONS",
                     "SETTINGS: OVERRIDE_PLAY_NEXT_IN_QUEUE",
                 )
                 // the setting is not shown when it has no effect.
@@ -404,6 +411,76 @@ val downloadActionsPatch = bytecodePatch(
 
         // endregion
 
+        val playlistDownloadAction = "$EXTENSION_CLASS_DESCRIPTOR->" +
+                "inAppPlaylistDownloadMenuOnClick(Ljava/lang/String;)Z"
+
+        fun hookPlaylistDownloadCommand() {
+            offlinePlaylistEndpointFingerprint.method.apply {
+                val playlistIdParameter = parameterTypes.indexOf("Ljava/lang/String;") + 1
+                if (playlistIdParameter > 0) {
+                    addInstructionsWithLabels(
+                        0,
+                        """
+                            invoke-static/range {p$playlistIdParameter .. p$playlistIdParameter}, $playlistDownloadAction
+                            move-result v0
+                            if-eqz v0, :show_native_downloader
+                            return-void
+                        """,
+                        ExternalLabel("show_native_downloader", getInstruction(0)),
+                    )
+                    return
+                }
+
+                // Older command handlers read the playlist ID from the endpoint rather than a parameter.
+                if (is_21_04_or_greater) throw PatchException("The playlist command has no playlist id")
+
+                val scratchRegister = implementation!!.registerCount - parameters.size - 2
+                val playlistIdIndex = indexOfFirstInstructionOrThrow {
+                    val reference = getReference<FieldReference>()
+                    opcode == Opcode.IGET_OBJECT &&
+                            reference?.definingClass == OFFLINE_PLAYLIST_ENDPOINT_OUTER_CLASS_DESCRIPTOR &&
+                            reference.type == "Ljava/lang/String;"
+                }
+                val playlistIdReference = getInstruction<ReferenceInstruction>(playlistIdIndex).reference
+
+                val castIndex = indexOfFirstInstructionOrThrow {
+                    opcode == Opcode.CHECK_CAST &&
+                            getReference<TypeReference>()?.type == OFFLINE_PLAYLIST_ENDPOINT_OUTER_CLASS_DESCRIPTOR
+                }
+                val endpointRegister = getInstruction<OneRegisterInstruction>(castIndex).registerA
+
+                addInstructionsWithLabels(
+                    castIndex + 1,
+                    """
+                        iget-object v$scratchRegister, v$endpointRegister, $playlistIdReference
+                        invoke-static {v$scratchRegister}, $playlistDownloadAction
+                        move-result v$scratchRegister
+                        if-eqz v$scratchRegister, :show_native_downloader
+                        return-void
+                    """,
+                    ExternalLabel("show_native_downloader", getInstruction(castIndex + 1)),
+                )
+            }
+        }
+
+        fun hookPlaylistDownloadButtonVisibility() {
+            val visibilityHook = "$EXTENSION_CLASS_DESCRIPTOR->overridePlaylistDownloadButtonVisibility(Z)Z"
+            val match = setPlaylistDownloadButtonVisibilityFingerprint
+                .match(accessibilityOfflineButtonSyncFingerprint.classDef)
+
+            match.method.apply {
+                val insertIndex = match.instructionMatches.first().index + 2
+                val visibleRegister = getInstruction<OneRegisterInstruction>(insertIndex).registerA
+                addInstructions(
+                    insertIndex,
+                    """
+                        invoke-static {v$visibleRegister}, $visibilityHook
+                        move-result v$visibleRegister
+                    """,
+                )
+            }
+        }
+
         if (!is_21_04_or_greater) {
             // region patch for hook download actions (video action bar and flyout panel)
 
@@ -454,68 +531,8 @@ val downloadActionsPatch = bytecodePatch(
                 )
             }
 
-            offlinePlaylistEndpointFingerprint.method.apply {
-                val playlistIdParameter = parameterTypes.indexOf("Ljava/lang/String;") + 1
-                if (playlistIdParameter > 0) {
-                    addInstructionsWithLabels(
-                        0, """
-                            invoke-static {p$playlistIdParameter}, $EXTENSION_CLASS_DESCRIPTOR->inAppPlaylistDownloadMenuOnClick(Ljava/lang/String;)Z
-                            move-result v0
-                            if-eqz v0, :show_native_downloader
-                            return-void
-                            """, ExternalLabel("show_native_downloader", getInstruction(0))
-                    )
-                } else {
-                    val freeRegister = implementation!!.registerCount - parameters.size - 2
-
-                    val playlistIdIndex = indexOfFirstInstructionOrThrow {
-                        val reference = getReference<FieldReference>()
-                        opcode == Opcode.IGET_OBJECT &&
-                                reference?.definingClass == OFFLINE_PLAYLIST_ENDPOINT_OUTER_CLASS_DESCRIPTOR &&
-                                reference.type == "Ljava/lang/String;"
-                    }
-                    val playlistIdReference =
-                        getInstruction<ReferenceInstruction>(playlistIdIndex).reference
-
-                    val targetIndex = indexOfFirstInstructionOrThrow {
-                        opcode == Opcode.CHECK_CAST &&
-                                (this as? ReferenceInstruction)?.reference?.toString() == OFFLINE_PLAYLIST_ENDPOINT_OUTER_CLASS_DESCRIPTOR
-                    }
-                    val targetRegister = getInstruction<OneRegisterInstruction>(targetIndex).registerA
-
-                    addInstructionsWithLabels(
-                        targetIndex + 1,
-                        """
-                            iget-object v$freeRegister, v$targetRegister, $playlistIdReference
-                            invoke-static {v$freeRegister}, $EXTENSION_CLASS_DESCRIPTOR->inAppPlaylistDownloadMenuOnClick(Ljava/lang/String;)Z
-                            move-result v$freeRegister
-                            if-eqz v$freeRegister, :show_native_downloader
-                            return-void
-                            """,
-                        ExternalLabel("show_native_downloader", getInstruction(targetIndex + 1))
-                    )
-                }
-            }
-
-            // endregion
-
-            // region patch for show the playlist download button
-
-            setPlaylistDownloadButtonVisibilityFingerprint
-                .match(accessibilityOfflineButtonSyncFingerprint.classDef).let {
-                    it.method.apply {
-                        val insertIndex = it.instructionMatches.first().index + 2
-                        val insertRegister =
-                            getInstruction<OneRegisterInstruction>(insertIndex).registerA
-
-                        addInstructions(
-                            insertIndex, """
-                                invoke-static {v$insertRegister}, $EXTENSION_CLASS_DESCRIPTOR->overridePlaylistDownloadButtonVisibility(Z)Z
-                                move-result v$insertRegister
-                                """
-                        )
-                    }
-                }
+            hookPlaylistDownloadCommand()
+            hookPlaylistDownloadButtonVisibility()
 
             // endregion
         }
@@ -525,6 +542,12 @@ val downloadActionsPatch = bytecodePatch(
         // Every hook is optional: a missing match only disables that part and is logged.
         fun hookOptional(name: String, block: () -> Unit) {
             runCatching(block).onFailure { printWarn("$name: ${it.message}") }
+        }
+
+        // Modern targets still use the playlist command when YouTube exposes a native download action.
+        if (is_21_04_or_greater) {
+            hookOptional("Playlist download command", ::hookPlaylistDownloadCommand)
+            hookOptional("Playlist download button visibility", ::hookPlaylistDownloadButtonVisibility)
         }
 
         // The first local register, which the hooked method must have and must not read afterwards.
@@ -685,6 +708,11 @@ val downloadActionsPatch = bytecodePatch(
                     "return-void",
                 )
             }
+        }
+
+        // YouTube does not request audio focus for its own player, so pause the offline player explicitly.
+        hookOptional("Main player playback") {
+            hookPlayWhenReady("$EXTENSION_OFFLINE_PLAYER->onMainPlayerPlayWhenReady(Ljava/lang/Object;Z)Z")
         }
 
         // Replace the Downloads page: cancel the navigation to "FEdownloads" in the browse

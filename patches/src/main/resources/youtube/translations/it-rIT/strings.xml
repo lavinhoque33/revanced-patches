@@ -1845,9 +1845,9 @@ Nota: il doodle di YouTube non è toccabile"</string>
     <string name="revanced_icon_youtube">YouTube</string>
     <string name="revanced_icon_youtube_black">YouTube Scuro</string>
     <string name="revanced_in_app_downloader_summary_off">I pulsanti di scaricamento dei video utilizzano il tuo programma di scaricamento esterno</string>
-    <string name="revanced_in_app_downloader_summary_on">"I pulsanti di scaricamento dei video avviano lo scaricamento tramite il programma di scaricamento integrato e salvano i documenti nella cartella Movies/RVX
+    <string name="revanced_in_app_downloader_summary_on">"I pulsanti di scaricamento dei video aprono lo scaricatore integrato.
 
-Per ogni scaricamento viene visualizzato il menu di selezione della qualità"</string>
+Scegli la qualità di ogni download. Modifica le cartelle in Opzioni di download"</string>
     <string name="revanced_in_app_downloader_title">Scaricatore integrato</string>
     <string name="revanced_invert_snack_bar_theme_summary_off">Il tema delle notifiche snackbar non è invertito</string>
     <string name="revanced_invert_snack_bar_theme_summary_on">Il tema delle notifiche snackbar è invertito</string>
@@ -1995,14 +1995,15 @@ Il riproduttore minimizzato può essere trascinato fuori dallo schermo a sinistr
     <string name="revanced_offline_download_progress">Scaricando %d%%</string>
     <string name="revanced_offline_download_queued">In coda</string>
     <string name="revanced_offline_download_queued_count">%d in coda</string>
-    <string name="revanced_offline_download_saving">Salvando in Movies/RVX…</string>
+    <string name="revanced_offline_download_saving">Salvataggio in corso…</string>
+    <string name="revanced_offline_download_options_title">Opzioni di download</string>
     <string name="revanced_offline_download_started">Scaricamento iniziato</string>
     <string name="revanced_offline_download_starting">Iniziando…</string>
     <string name="revanced_offline_download_unavailable">Questo video non può essere scaricato</string>
     <string name="revanced_offline_error_forbidden">Il server video ha rifiutato lo scaricamento</string>
     <string name="revanced_offline_error_space">Spazio libero insufficiente, sono necessari %s</string>
     <string name="revanced_offline_error_time_limit">È stato raggiunto il limite di tempo per lo scaricamento in sottofondo su Android</string>
-    <string name="revanced_offline_library_empty">Nessun video scaricato</string>
+    <string name="revanced_offline_library_empty">Nessun download</string>
     <string name="revanced_offline_library_no_results">Nessun contenuto scaricato corrisponde alla tua ricerca</string>
     <string name="revanced_offline_library_resume">Riprende a %s</string>
     <string name="revanced_offline_library_search">Cerca contenuti scaricati</string>
@@ -2021,10 +2022,11 @@ Il riproduttore minimizzato può essere trascinato fuori dallo schermo a sinistr
     <string name="revanced_offline_pause">Pausa</string>
     <string name="revanced_offline_picker_av1_hint">Documento più piccolo</string>
     <string name="revanced_offline_picker_av1_unplayable">non è possibile riprodurre su questo dispositivo</string>
-    <string name="revanced_offline_picker_footer">Salvato in Movies/RVX (MP4 o WebM per VP9)</string>
+    <string name="revanced_offline_picker_footer">"I video vengono salvati in %1$s
+L\'audio viene salvato in %2$s"</string>
     <string name="revanced_offline_picker_h264_hint">Funziona ovunque</string>
     <string name="revanced_offline_picker_subtitle">Qualità scaricamento</string>
-    <string name="revanced_offline_picker_vp9_hint">Funziona su questo dispositivo</string>
+    <string name="revanced_offline_picker_vp9_hint">WebM con audio Opus</string>
     <string name="revanced_offline_play">Riproduci</string>
     <string name="revanced_offline_playback_error">Questo video non può essere riprodotto</string>
     <string name="revanced_offline_playing_background">Riproduzione in sottofondo</string>
@@ -2034,7 +2036,7 @@ Il riproduttore minimizzato può essere trascinato fuori dallo schermo a sinistr
     <string name="revanced_open_links_externally_summary_off">Browser dell\'app</string>
     <string name="revanced_open_links_externally_summary_on">Browser esterno</string>
     <string name="revanced_open_links_externally_title">Apri i collegamenti esternamente</string>
-    <string name="revanced_open_offline_library_summary">Video scaricati con lo scaricatore integrato</string>
+    <string name="revanced_open_offline_library_summary">Video e audio scaricati con lo scaricatore integrato</string>
     <string name="revanced_open_offline_library_title">Apri la libreria locale</string>
     <string name="revanced_overlay_button">Pulsanti in sovrapposizione</string>
     <string name="revanced_overlay_button_always_repeat_summary">"Tocca per attivare le ripetizioni dei video

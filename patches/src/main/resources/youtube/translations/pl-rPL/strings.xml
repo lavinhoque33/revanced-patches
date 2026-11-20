@@ -1848,9 +1848,9 @@ Znany problem: gdy opcja jest włączona, YouTube Doodles stają się nieklikaln
     <string name="revanced_icon_youtube">YouTube</string>
     <string name="revanced_icon_youtube_black">YouTube Czarny</string>
     <string name="revanced_in_app_downloader_summary_off">Przyciski pobierania wideo korzystają z zewnętrznego programu do pobierania</string>
-    <string name="revanced_in_app_downloader_summary_on">"Przyciski pobierania wideo umożliwiają pobieranie za pomocą wbudowanego programu do pobierania i zapisywanie w folderze Filmy/RVX
+    <string name="revanced_in_app_downloader_summary_on">"Przyciski pobierania wideo otwierają wbudowany program do pobierania.
 
-Przy każdym pobieraniu wyświetlany jest selektor jakości"</string>
+Wybierz jakość każdego pobrania. Foldery zapisu można zmienić w opcjach pobierania"</string>
     <string name="revanced_in_app_downloader_title">Wbudowany program do pobierania</string>
     <string name="revanced_invert_snack_bar_theme_summary_off">Nie</string>
     <string name="revanced_invert_snack_bar_theme_summary_on">Tak</string>
@@ -1998,14 +1998,15 @@ Miniodtwarzacz można przeciągnąć poza ekran w lewo lub prawo"</string>
     <string name="revanced_offline_download_progress">Ściąganie %d%%</string>
     <string name="revanced_offline_download_queued">W kolejce</string>
     <string name="revanced_offline_download_queued_count">%d w kolejce</string>
-    <string name="revanced_offline_download_saving">Zapisywanie do Filmów/RVX…</string>
+    <string name="revanced_offline_download_saving">Zapisywanie…</string>
+    <string name="revanced_offline_download_options_title">Opcje pobierania</string>
     <string name="revanced_offline_download_started">Pobieranie rozpoczęte</string>
     <string name="revanced_offline_download_starting">Startowy…</string>
     <string name="revanced_offline_download_unavailable">Tego filmu nie można pobrać</string>
     <string name="revanced_offline_error_forbidden">Serwer wideo odmówił pobrania</string>
     <string name="revanced_offline_error_space">Za mało wolnego miejsca, %s wymagane</string>
     <string name="revanced_offline_error_time_limit">Osiągnięto \' limit czasu pobierania w tle na Androidzie</string>
-    <string name="revanced_offline_library_empty">Nie ma jeszcze pobranych filmów</string>
+    <string name="revanced_offline_library_empty">Nie ma jeszcze pobranych plików</string>
     <string name="revanced_offline_library_no_results">Brak plików do pobrania odpowiadających twojemu wyszukiwaniu</string>
     <string name="revanced_offline_library_resume">Wznów w %s</string>
     <string name="revanced_offline_library_search">Wyszukaj pliki do pobrania</string>
@@ -2024,10 +2025,11 @@ Miniodtwarzacz można przeciągnąć poza ekran w lewo lub prawo"</string>
     <string name="revanced_offline_pause">Pauza</string>
     <string name="revanced_offline_picker_av1_hint">Mniejszy plik</string>
     <string name="revanced_offline_picker_av1_unplayable">nie \' może grać na tym urządzeniu</string>
-    <string name="revanced_offline_picker_footer">Zapisano w filmach/RVX (MP4 lub WebM dla VP9)</string>
+    <string name="revanced_offline_picker_footer">"Folder zapisu wideo: %1$s
+Folder zapisu dźwięku: %2$s"</string>
     <string name="revanced_offline_picker_h264_hint">Gra wszędzie</string>
     <string name="revanced_offline_picker_subtitle">Jakość pobierania</string>
-    <string name="revanced_offline_picker_vp9_hint">Odtwarza się na tym urządzeniu</string>
+    <string name="revanced_offline_picker_vp9_hint">WebM z dźwiękiem Opus</string>
     <string name="revanced_offline_play">Graj</string>
     <string name="revanced_offline_playback_error">Nie można odtworzyć tego filmu</string>
     <string name="revanced_offline_playing_background">Odtwarzanie w tle</string>
@@ -2037,7 +2039,7 @@ Miniodtwarzacz można przeciągnąć poza ekran w lewo lub prawo"</string>
     <string name="revanced_open_links_externally_summary_off">Wyłączona</string>
     <string name="revanced_open_links_externally_summary_on">Włączona</string>
     <string name="revanced_open_links_externally_title">Zewnętrzna przeglądarka</string>
-    <string name="revanced_open_offline_library_summary">Filmy pobrane za pomocą wbudowanego programu do pobierania</string>
+    <string name="revanced_open_offline_library_summary">Wideo i dźwięk pobrane za pomocą wbudowanego programu do pobierania</string>
     <string name="revanced_open_offline_library_title">Otwórz bibliotekę offline</string>
     <string name="revanced_overlay_button">Przyciski w odtwarzaczu</string>
     <string name="revanced_overlay_button_always_repeat_summary">"Stuknij, by zmienić stan pętli

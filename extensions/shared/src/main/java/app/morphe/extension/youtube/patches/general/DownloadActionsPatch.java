@@ -9,7 +9,7 @@
  * - inotia00 (https://github.com/inotia00)
  *
  * Licensed under the GNU General Public License v3.0.
- * Modified by lavinhoque33, 2026-10-21.
+ * Modified by lavinhoque33, 2026-11-19.
  *
  * ------------------------------------------------------------------------
  * GPLv3 Section 7 – Additional Terms & Attribution Requirements
@@ -452,25 +452,30 @@ public final class DownloadActionsPatch {
      * <p>
      * Appears to always be called from the main thread.
      */
-    public static boolean inAppVideoDownloadButtonOnClick(@Nullable Map<Object, Object> map, Object offlineVideoEndpointOuterClass,
-                                                          @Nullable String videoId) {
+    public static boolean inAppVideoDownloadButtonOnClick(@Nullable Map<Object, Object> map,
+                                                         Object offlineVideoEndpointOuterClass,
+                                                         @Nullable String videoId) {
         try {
-            // the built-in downloader replaces the native
-            // (Premium) downloader on its own, without the external-downloader override.
-            if (!InAppDownloadsPatch.isEnabled() && (OVERRIDE_VIDEO_DOWNLOAD_BUTTON || Settings.IN_APP_DOWNLOADER.get())
-                    && StringUtils.isNotEmpty(videoId)) {
-                if (OVERRIDE_VIDEO_DOWNLOAD_BUTTON_QUEUE_MANAGER) {
-                    PlaylistPatch.prepareDialogBuilder(videoId);
-                } else {
-                    launchVideoExternalDownloader(videoId);
-                }
-
-                return true;
+            if (InAppDownloadsPatch.isEnabled() || StringUtils.isEmpty(videoId)) {
+                return false;
             }
+
+            boolean useBuiltInDownloader = Settings.IN_APP_DOWNLOADER.get();
+            if (!useBuiltInDownloader && !OVERRIDE_VIDEO_DOWNLOAD_BUTTON) {
+                return false;
+            }
+
+            if (!useBuiltInDownloader && OVERRIDE_VIDEO_DOWNLOAD_BUTTON_QUEUE_MANAGER) {
+                PlaylistPatch.prepareDialogBuilder(videoId);
+            } else {
+                launchVideoExternalDownloader(videoId);
+            }
+
+            return true;
         } catch (Exception ex) {
             Logger.printException(() -> "inAppVideoDownloadButtonOnClick failure", ex);
+            return false;
         }
-        return false;
     }
 
     /**
@@ -481,15 +486,7 @@ public final class DownloadActionsPatch {
      * Appears to always be called from the main thread.
      */
     public static String inAppPlaylistDownloadButtonOnClick(String playlistId) {
-        try {
-            if (!InAppDownloadsPatch.isEnabled() && OVERRIDE_PLAYLIST_DOWNLOAD_BUTTON && StringUtils.isNotEmpty(playlistId)) {
-                launchPlaylistExternalDownloader(playlistId);
-                return "";
-            }
-        } catch (Exception ex) {
-            Logger.printException(() -> "inAppPlaylistDownloadButtonOnClick failure", ex);
-        }
-        return playlistId;
+        return inAppPlaylistDownloadMenuOnClick(playlistId) ? "" : playlistId;
     }
 
     /**
@@ -501,7 +498,7 @@ public final class DownloadActionsPatch {
      */
     public static boolean inAppPlaylistDownloadMenuOnClick(String playlistId) {
         try {
-            if (!InAppDownloadsPatch.isEnabled() && OVERRIDE_PLAYLIST_DOWNLOAD_BUTTON && StringUtils.isNotEmpty(playlistId)) {
+            if (shouldOverridePlaylistDownload() && StringUtils.isNotEmpty(playlistId)) {
                 launchPlaylistExternalDownloader(playlistId);
                 return true;
             }
@@ -515,7 +512,12 @@ public final class DownloadActionsPatch {
      * Injection point.
      */
     public static boolean overridePlaylistDownloadButtonVisibility(boolean original) {
-        return OVERRIDE_PLAYLIST_DOWNLOAD_BUTTON || original;
+        return original || shouldOverridePlaylistDownload();
+    }
+
+    private static boolean shouldOverridePlaylistDownload() {
+        return !InAppDownloadsPatch.isEnabled()
+                && (Settings.IN_APP_DOWNLOADER.get() || OVERRIDE_PLAYLIST_DOWNLOAD_BUTTON);
     }
 
 }

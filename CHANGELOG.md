@@ -1,3 +1,13 @@
+## Unreleased
+
+### YouTube – Built-in downloader
+
+* Use direct-download clients independently of the playback client when listing or retrying formats.
+* Add codec and quality filters, audio-only downloads, thumbnails, and configurable save folders.
+* Select playlist items and choose their formats before queuing them.
+* Save subtitle tracks and SponsorBlock segments for offline playback.
+* Add aspect-ratio controls and improve search and playback controls in the offline library and player.
+
 # [4.4.0-dev.7](https://github.com/anddea/revanced-patches/compare/v4.4.0-dev.6...v4.4.0-dev.7) (2026-11-13)
 
 

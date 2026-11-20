@@ -1867,9 +1867,9 @@ Known issue: When this setting is enabled, YouTube Doodles are not clickable"</s
     <string name="revanced_icon_youtube">YouTube</string>
     <string name="revanced_icon_youtube_black">YouTube Black</string>
     <string name="revanced_in_app_downloader_summary_off">Video download buttons use your external downloader</string>
-    <string name="revanced_in_app_downloader_summary_on">"Video download buttons download with the built-in downloader and save to Movies/RVX
+    <string name="revanced_in_app_downloader_summary_on">"Video download buttons open the built-in downloader.
 
-The quality picker is shown for every download"</string>
+Choose a quality for each download. Change save folders in Download options"</string>
     <string name="revanced_in_app_downloader_title">Built-in downloader</string>
     <string name="revanced_invert_snack_bar_theme_summary_off">Theme of the snack bar is not inverted</string>
     <string name="revanced_invert_snack_bar_theme_summary_on">Theme of the snack bar is inverted</string>
@@ -2017,14 +2017,14 @@ Miniplayer can be dragged off-screen to the left or right"</string>
     <string name="revanced_offline_download_progress">Downloading %d%%</string>
     <string name="revanced_offline_download_queued">Queued</string>
     <string name="revanced_offline_download_queued_count">%d queued</string>
-    <string name="revanced_offline_download_saving">Saving to Movies/RVX…</string>
+    <string name="revanced_offline_download_saving">Saving…</string>
     <string name="revanced_offline_download_started">Download started</string>
     <string name="revanced_offline_download_starting">Starting…</string>
     <string name="revanced_offline_download_unavailable">This video cannot be downloaded</string>
     <string name="revanced_offline_error_forbidden">The video server refused the download</string>
     <string name="revanced_offline_error_space">Not enough free space, %s needed</string>
     <string name="revanced_offline_error_time_limit">Android\'s background download time limit was reached</string>
-    <string name="revanced_offline_library_empty">No downloaded videos yet</string>
+    <string name="revanced_offline_library_empty">No downloads yet</string>
     <string name="revanced_offline_library_no_results">No downloads match your search</string>
     <string name="revanced_offline_library_resume">Resume at %s</string>
     <string name="revanced_offline_library_search">Search downloads</string>
@@ -2043,20 +2043,189 @@ Miniplayer can be dragged off-screen to the left or right"</string>
     <string name="revanced_offline_pause">Pause</string>
     <string name="revanced_offline_picker_av1_hint">Smaller file</string>
     <string name="revanced_offline_picker_av1_unplayable">can\'t play on this device</string>
-    <string name="revanced_offline_picker_footer">Saved in Movies/RVX (MP4, or WebM for VP9)</string>
+    <string name="revanced_offline_picker_footer">"Videos are saved to %1$s
+Audio is saved to %2$s"</string>
     <string name="revanced_offline_picker_h264_hint">Plays everywhere</string>
     <string name="revanced_offline_picker_subtitle">Download quality</string>
-    <string name="revanced_offline_picker_vp9_hint">Plays on this device</string>
+    <string name="revanced_offline_picker_vp9_hint">WebM with Opus audio</string>
     <string name="revanced_offline_play">Play</string>
     <string name="revanced_offline_playback_error">This video cannot be played</string>
     <string name="revanced_offline_playing_background">Playing in background</string>
     <string name="revanced_offline_previous">Previous</string>
     <string name="revanced_offline_share_unsupported">Sharing is not supported on this Android version</string>
     <string name="revanced_offline_video_missing">This download no longer exists</string>
+    <string name="revanced_offline_aspect_fit">Fit</string>
+    <string name="revanced_offline_aspect_original">Original (100%)</string>
+    <string name="revanced_offline_aspect_stretch">Stretch</string>
+    <string name="revanced_offline_aspect_zoom">Zoom</string>
+    <string name="revanced_offline_audio_aac_summary_off">Audio-only M4A downloads are hidden</string>
+    <string name="revanced_offline_audio_aac_summary_on">Audio-only M4A (AAC) downloads are offered</string>
+    <string name="revanced_offline_audio_aac_title">M4A audio</string>
+    <string name="revanced_offline_audio_folder_summary">Folder inside Music for downloaded audio</string>
+    <string name="revanced_offline_audio_folder_title">Audio folder</string>
+    <string name="revanced_offline_audio_label">%s audio</string>
+    <string name="revanced_offline_audio_opus_summary_off">Audio-only Opus downloads are hidden</string>
+    <string name="revanced_offline_audio_opus_summary_on">Audio-only Opus downloads are offered</string>
+    <string name="revanced_offline_audio_opus_title">Opus audio</string>
+    <string name="revanced_offline_batch_audio">Audio only</string>
+    <string name="revanced_offline_batch_best">Best available</string>
+    <string name="revanced_offline_batch_count">%d videos</string>
+    <string name="revanced_offline_batch_download_selected">Download (%d selected)</string>
+    <string name="revanced_offline_batch_edit">Edit</string>
+    <string name="revanced_offline_batch_footer">"Choose video or audio only for each item.
+The codec determines the container; no transcoding. Already-downloaded items are skipped."</string>
+    <string name="revanced_offline_batch_global_quality">Maximum video quality: %s</string>
+    <string name="revanced_offline_batch_input_hint">youtube.com/playlist?list=…</string>
+    <string name="revanced_offline_batch_input_invalid">This is not a playlist link or ID</string>
+    <string name="revanced_offline_batch_input_message">
+        Paste a playlist link or ID. Copied links appear here automatically.
+    </string>
+    <string name="revanced_offline_batch_loading">Loading playlist…</string>
+    <string name="revanced_offline_batch_menu">Download playlist</string>
+    <string name="revanced_offline_batch_no_quality">No quality within the limit</string>
+    <string name="revanced_offline_batch_nothing_new">
+        Every video in this playlist is already downloaded or downloading
+    </string>
+    <string name="revanced_offline_batch_part_already_downloaded">%d already downloaded</string>
+    <string name="revanced_offline_batch_part_cancelled">%d cancelled</string>
+    <string name="revanced_offline_batch_part_downloaded">%d downloaded</string>
+    <string name="revanced_offline_batch_part_failed">%d failed</string>
+    <string name="revanced_offline_batch_queued">%d items queued</string>
+    <string name="revanced_offline_batch_range">Quality range in Download options: %1$s to %2$s</string>
+    <string name="revanced_offline_batch_select_all">Select all</string>
+    <string name="revanced_offline_batch_select_none">Select none</string>
+    <string name="revanced_offline_batch_subtitle">Maximum quality</string>
+    <string name="revanced_offline_batch_subtitles_limited">
+        Subtitles rate-limited; remaining subtitle requests skipped
+    </string>
+    <string name="revanced_offline_batch_subtitles_saved">%d subtitle tracks saved</string>
+    <string name="revanced_offline_batch_subtitles_skipped">%d subtitle tracks skipped</string>
+    <string name="revanced_offline_batch_title">Playlist</string>
+    <string name="revanced_offline_batch_unavailable">This playlist could not be loaded, or it has no videos</string>
+    <string name="revanced_offline_batch_video">Video · %s</string>
+    <string name="revanced_offline_cancel">Cancel</string>
+    <string name="revanced_offline_cancel_all">Cancel all</string>
+    <string name="revanced_offline_cancel_all_message">Cancel %d queued and running downloads?</string>
+    <string name="revanced_offline_category_folders">Folders</string>
+    <string name="revanced_offline_category_formats">Formats</string>
+    <string name="revanced_offline_category_quality">Quality range</string>
+    <string name="revanced_offline_category_thumbnails">Thumbnails</string>
+    <string name="revanced_offline_codec_av1_summary_off">AV1 qualities are hidden</string>
+    <string name="revanced_offline_codec_av1_summary_on">AV1 (MP4) qualities are offered</string>
+    <string name="revanced_offline_codec_av1_title">AV1 video</string>
+    <string name="revanced_offline_codec_h264_summary_off">H.264 qualities are hidden</string>
+    <string name="revanced_offline_codec_h264_summary_on">H.264 (MP4) qualities are offered</string>
+    <string name="revanced_offline_codec_h264_title">H.264 video</string>
+    <string name="revanced_offline_codec_vp9_summary_off">VP9 qualities are hidden</string>
+    <string name="revanced_offline_codec_vp9_summary_on">VP9 (WebM) qualities are offered</string>
+    <string name="revanced_offline_codec_vp9_title">VP9 video</string>
+    <string name="revanced_offline_codecs_all_off">
+        Every video codec is turned off in Download options, so all codecs are used
+    </string>
+    <string name="revanced_offline_download_options_summary">
+        Codecs, quality range, folders and thumbnails of the built-in downloader
+    </string>
+    <string name="revanced_offline_download_options_title">Download options</string>
+    <string name="revanced_offline_library_bitrate">%d kbps</string>
+    <string name="revanced_offline_max_height_title">Highest quality</string>
+    <string name="revanced_offline_min_height_title">Lowest quality</string>
+    <string name="revanced_offline_picker_audio_m4a">M4A</string>
+    <string name="revanced_offline_picker_audio_opus">Opus</string>
+    <string name="revanced_offline_picker_audio_section">Audio only</string>
+    <string name="revanced_offline_picker_format_id">ID: %d</string>
+    <string name="revanced_offline_picker_m4a_hint">Plays everywhere</string>
+    <string name="revanced_offline_picker_no_video_match">
+        No video quality matches the selected codecs and quality range
+    </string>
+    <string name="revanced_offline_picker_opus_hint">Ogg file</string>
+    <string name="revanced_offline_picker_thumbnail">Thumbnail image</string>
+    <string name="revanced_offline_picker_thumbnail_hint">Original size, saved to %s</string>
+    <string name="revanced_offline_picker_thumbnail_section">Thumbnail</string>
+    <string name="revanced_offline_player_aspect">Aspect ratio</string>
+    <string name="revanced_offline_player_fullscreen">Fullscreen</string>
+    <string name="revanced_offline_player_speed">Playback speed</string>
+    <string name="revanced_offline_player_speed_normal">Normal</string>
+    <string name="revanced_offline_premium">Premium</string>
+    <string name="revanced_offline_save_thumbnail_summary_off">Only the downloaded video or audio is saved</string>
+    <string name="revanced_offline_save_thumbnail_summary_on">
+        Save the video\'s thumbnail to the thumbnail folder with every download
+    </string>
+    <string name="revanced_offline_save_thumbnail_title">Save thumbnail with downloads</string>
+    <string name="revanced_offline_show_format_ids_summary_off">Format IDs are hidden</string>
+    <string name="revanced_offline_show_format_ids_summary_on">
+        The quality picker shows the format ID of each stream
+    </string>
+    <string name="revanced_offline_show_format_ids_title">Show format IDs</string>
+    <string name="revanced_offline_show_option_icons_summary">
+        Show icons beside Include subtitles and Include SponsorBlock
+    </string>
+    <string name="revanced_offline_show_option_icons_title">Show download option icons</string>
+    <string name="revanced_offline_sponsorblock_error">SponsorBlock lookup failed</string>
+    <string name="revanced_offline_sponsorblock_include">Include SponsorBlock</string>
+    <string name="revanced_offline_sponsorblock_loading">Checking SponsorBlock segments…</string>
+    <string name="revanced_offline_sponsorblock_none">No SponsorBlock segments available</string>
+    <string name="revanced_offline_sponsorblock_summary">
+        Skip selected interruptions in the built-in player using your SponsorBlock category settings
+    </string>
+    <string name="revanced_offline_subtitles_background">Background opacity</string>
+    <string name="revanced_offline_subtitles_bottom">Bottom</string>
+    <string name="revanced_offline_subtitles_cap">Choose up to %d subtitle tracks</string>
+    <string name="revanced_offline_subtitles_cc">Subtitles</string>
+    <string name="revanced_offline_subtitles_colour">Colour</string>
+    <string name="revanced_offline_subtitles_custom">Custom…</string>
+    <string name="revanced_offline_subtitles_custom_colour">Custom (%s)</string>
+    <string name="revanced_offline_subtitles_custom_colour_title">Custom subtitle colour</string>
+    <string name="revanced_offline_subtitles_cyan">Cyan</string>
+    <string name="revanced_offline_subtitles_delete_failed">A subtitle file could not be deleted</string>
+    <string name="revanced_offline_subtitles_done">Done</string>
+    <string name="revanced_offline_subtitles_extra_large">Extra large</string>
+    <string name="revanced_offline_subtitles_failed">Download saved. Could not download %s subtitles</string>
+    <string name="revanced_offline_subtitles_font">Font</string>
+    <string name="revanced_offline_subtitles_font_casual">Casual</string>
+    <string name="revanced_offline_subtitles_font_condensed">Condensed</string>
+    <string name="revanced_offline_subtitles_font_cursive">Cursive</string>
+    <string name="revanced_offline_subtitles_font_default">Default (sans-serif)</string>
+    <string name="revanced_offline_subtitles_font_medium">Sans-serif medium</string>
+    <string name="revanced_offline_subtitles_font_monospace">Monospace</string>
+    <string name="revanced_offline_subtitles_font_serif">Serif</string>
+    <string name="revanced_offline_subtitles_footer">Subtitles (if available) are saved to Movies/RVX/Subtitles</string>
+    <string name="revanced_offline_subtitles_format">Format: %s</string>
+    <string name="revanced_offline_subtitles_format_title">Subtitle format</string>
+    <string name="revanced_offline_subtitles_green">Green</string>
+    <string name="revanced_offline_subtitles_include">Include subtitles</string>
+    <string name="revanced_offline_subtitles_languages">Languages (%1$d/%2$d selected)</string>
+    <string name="revanced_offline_subtitles_languages_title">Subtitle languages</string>
+    <string name="revanced_offline_subtitles_large">Large</string>
+    <string name="revanced_offline_subtitles_limited">
+        Download saved. %s subtitles rate-limited; remaining tracks skipped
+    </string>
+    <string name="revanced_offline_subtitles_medium">Medium</string>
+    <string name="revanced_offline_subtitles_middle">Middle</string>
+    <string name="revanced_offline_subtitles_none">No subtitles to download</string>
+    <string name="revanced_offline_subtitles_off">Off</string>
+    <string name="revanced_offline_subtitles_percentage">%1$s · %2$d%%</string>
+    <string name="revanced_offline_subtitles_position">Position</string>
+    <string name="revanced_offline_subtitles_preparing">
+        Saving subtitles (auto-translation may take about a minute)…
+    </string>
+    <string name="revanced_offline_subtitles_preview">Subtitle appearance preview</string>
+    <string name="revanced_offline_subtitles_size">Size</string>
+    <string name="revanced_offline_subtitles_small">Small</string>
+    <string name="revanced_offline_subtitles_top">Top</string>
+    <string name="revanced_offline_subtitles_translated">Auto-translated</string>
+    <string name="revanced_offline_subtitles_vertical_position">Vertical position (centre from top)</string>
+    <string name="revanced_offline_subtitles_white">White</string>
+    <string name="revanced_offline_subtitles_yellow">Yellow</string>
+    <string name="revanced_offline_thumbnail_failed">The thumbnail could not be saved</string>
+    <string name="revanced_offline_thumbnail_folder_summary">Folder inside Pictures for saved thumbnails</string>
+    <string name="revanced_offline_thumbnail_folder_title">Thumbnail folder</string>
+    <string name="revanced_offline_thumbnail_saved">Thumbnail saved to %s</string>
+    <string name="revanced_offline_video_folder_summary">Folder inside Movies for downloaded videos</string>
+    <string name="revanced_offline_video_folder_title">Video folder</string>
     <string name="revanced_open_links_externally_summary_off">Opens links in in-app browser</string>
     <string name="revanced_open_links_externally_summary_on">Opens links in external browser</string>
     <string name="revanced_open_links_externally_title">Open links externally</string>
-    <string name="revanced_open_offline_library_summary">Videos downloaded with the built-in downloader</string>
+    <string name="revanced_open_offline_library_summary">Video and audio downloaded with the built-in downloader</string>
     <string name="revanced_open_offline_library_title">Open offline library</string>
     <string name="revanced_overlay_button">Overlay buttons</string>
     <string name="revanced_overlay_button_always_repeat_summary">"Tap to toggle always repeat states
@@ -2645,6 +2814,9 @@ This may not work if:
 • Cookies have expired
 • Invalid Cookies are being used
 • YouTube Transcript API no longer validates Cookies"</string>
+    <string name="revanced_settings_color_history">Recent colors</string>
+    <string name="revanced_settings_color_history_clear">Clear history</string>
+    <string name="revanced_settings_color_history_select">Select recent color %s</string>
     <string name="revanced_settings_color_invalid">Invalid color</string>
     <string name="revanced_settings_color_picker">Color picker</string>
     <string name="revanced_settings_disable_bold_icons_summary_off">Icons are bold</string>
@@ -3148,4 +3320,5 @@ Authorization is required to request translation with live voices for videos tha
     <string name="revanced_yandex_transcribe_subtitles_title">Yandex transcription</string>
     <string name="sb_offline_segments_summary">Save SponsorBlock segments for downloaded videos</string>
     <string name="sb_offline_segments_title">Offline segments</string>
+    <string name="revanced_video_download_label">Download</string>
 </resources>

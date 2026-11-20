@@ -5,6 +5,7 @@
  * https://github.com/anddea/revanced-patches
  *
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-10-24.
  * Written by lavinhoque33, 2026-10-10.
  */
 
@@ -32,7 +33,7 @@ import app.morphe.extension.shared.utils.Logger;
 /**
  * Joins the separately downloaded DASH video and audio files into one MP4 without re-encoding.
  * <p>
- * // {@link Mp4Remuxer} copies the sample data in blocks and
+ * {@link Mp4Remuxer} copies the sample data in blocks and
  * rebuilds only the sample tables, which is several times faster than feeding MediaMuxer sample by
  * sample. The platform muxer remains for inputs the remuxer does not handle.
  */
@@ -65,7 +66,6 @@ final class Mp4Merger {
         mergeWithMuxer(video, audio, output, cancelled, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4);
     }
 
-    // VP9 + Opus downloads are joined by WebmRemuxer, the platform muxer is the fallback.
     /** Same contract as {@link #merge}, for WebM inputs (VP9 video, Opus audio) and a WebM output.
      * {@link WebmRemuxer} joins them; the platform muxer takes what it does not handle. */
     static void mergeWebm(File video, File audio, FileDescriptor output, BooleanSupplier cancelled)
@@ -85,6 +85,16 @@ final class Mp4Merger {
         } catch (ErrnoException ex) {
             throw new IOException("Could not restart the video file", ex);
         }
+        mergeWithMuxer(video, audio, output, cancelled, MediaMuxer.OutputFormat.MUXER_OUTPUT_WEBM);
+    }
+
+    /**
+     * Same contract as {@link #merge}, for the 1080p Premium stream: VP9 in fragmented MP4 (the
+     * joined HLS segments) and Opus in WebM, written as WebM. Only the platform muxer reads both
+     * containers.
+     */
+    static void mergeHlsVp9(File video, File audio, FileDescriptor output, BooleanSupplier cancelled)
+            throws IOException {
         mergeWithMuxer(video, audio, output, cancelled, MediaMuxer.OutputFormat.MUXER_OUTPUT_WEBM);
     }
 

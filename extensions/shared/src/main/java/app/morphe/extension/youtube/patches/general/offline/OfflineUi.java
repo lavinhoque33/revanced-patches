@@ -5,6 +5,7 @@
  * https://github.com/anddea/revanced-patches
  *
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-10.
  * Written by lavinhoque33, 2026-10-20.
  */
 
@@ -25,12 +26,15 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.TextView;
+import android.widget.Switch;
 
 import androidx.annotation.Nullable;
 
+import java.util.function.BiConsumer;
 import java.util.function.IntConsumer;
 
 import app.morphe.extension.shared.utils.Utils;
+import app.morphe.extension.youtube.settings.Settings;
 
 /**
  * Icons and dialogs shared by the offline library and player, drawn like the rest of the RVX screens.
@@ -53,13 +57,66 @@ final class OfflineUi {
         return drawable;
     }
 
+    /** Optional icon, wrapping title/summary and a textless switch, shared by download pickers. */
+    static Switch toggleRow(Context context, LinearLayout parent, String iconName, String title,
+                            String summary, int foreground, boolean enabled, boolean checked) {
+        int padding = Utils.dipToPixels(16);
+        LinearLayout row = new LinearLayout(context);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(padding, Utils.dipToPixels(10), padding, Utils.dipToPixels(10));
+        row.setAlpha(enabled ? 1f : 0.4f);
+
+        boolean showIcons = Settings.OFFLINE_SHOW_OPTION_ICONS.get();
+        if (showIcons) {
+            ImageView image = new ImageView(context);
+            image.setImageDrawable(icon(context, iconName, foreground));
+            int iconSize = Utils.dipToPixels(24);
+            row.addView(image, new LinearLayout.LayoutParams(iconSize, iconSize));
+        }
+
+        LinearLayout labels = new LinearLayout(context);
+        labels.setOrientation(LinearLayout.VERTICAL);
+        labels.setPadding(showIcons ? padding : 0, 0, padding, 0);
+        TextView heading = new TextView(context);
+        heading.setText(title);
+        heading.setTextSize(16);
+        heading.setTextColor(foreground);
+        labels.addView(heading);
+        if (!summary.isEmpty()) {
+            TextView caption = new TextView(context);
+            caption.setText(summary);
+            caption.setTextSize(13);
+            caption.setTextColor(foreground);
+            caption.setAlpha(0.7f);
+            labels.addView(caption);
+        }
+        row.addView(labels, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+        Switch toggle = new Switch(context);
+        toggle.setContentDescription(title);
+        toggle.setEnabled(enabled);
+        toggle.setChecked(enabled && checked);
+        row.addView(toggle);
+        row.setOnClickListener(view -> {
+            if (toggle.isEnabled()) toggle.toggle();
+        });
+        parent.addView(row);
+        return toggle;
+    }
+
     /**
      * Shows the choices as a list with a check mark behind the selected one.
      *
      * @param title Optional dialog title.
      */
-    static void showChoices(Activity activity, @Nullable String title, String[] labels, int selected,
-                            int foreground, IntConsumer onChosen) {
+    static AlertDialog showChoices(Activity activity, @Nullable String title, String[] labels, int selected,
+                                   int foreground, IntConsumer onChosen) {
+        return showChoices(activity, title, labels, selected, foreground, onChosen, null);
+    }
+
+    static AlertDialog showChoices(Activity activity, @Nullable String title, String[] labels, int selected,
+                                   int foreground, IntConsumer onChosen,
+                                   @Nullable BiConsumer<TextView, Integer> decorate) {
         final int padding = Utils.dipToPixels(24);
         final int checkSize = Utils.dipToPixels(24);
 
@@ -93,6 +150,7 @@ final class OfflineUi {
                 text.setText(labels[position]);
                 text.setTextColor(foreground);
                 text.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
+                if (decorate != null) decorate.accept(text, position);
                 row.addView(text, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
                 ImageView check = new ImageView(activity);
@@ -114,6 +172,7 @@ final class OfflineUi {
         if (dialog.getWindow() != null) {
             dialog.getWindow().setBackgroundDrawable(dialogBackground(foreground));
         }
+        return dialog;
     }
 
     private static Drawable dialogBackground(int foreground) {

@@ -1,5 +1,11 @@
 ## Unreleased
 
+### Bug fixes
+
+* **YouTube – Fullscreen:** Leave YouTube's video transform alone at Default scale and preserve native
+  animation when leaving Stretch or Zoom. Align overlay buttons without searching the player on every draw.
+  In dark theme, let YouTube choose its elevated player layout; keep the light-theme readability fix. Refs #66.
+
 ## [1.44.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.43.0...v1.44.0) (2026-11-20)
 
 ### Features

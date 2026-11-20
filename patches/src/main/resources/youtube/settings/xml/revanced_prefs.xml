@@ -247,6 +247,12 @@
             <!-- SETTINGS: HIDE_IMAGE_SEARCH_BUTTON
             <SwitchPreference android:title="@string/revanced_hide_image_search_button_title" android:key="revanced_hide_image_search_button" android:summaryOn="@string/revanced_hide_image_search_button_summary_on" android:summaryOff="@string/revanced_hide_image_search_button_summary_off" />SETTINGS: HIDE_IMAGE_SEARCH_BUTTON -->
 
+            <!-- SETTINGS: HIDE_SEARCH_ASK
+            <SwitchPreference
+                android:key="morphe_hide_search_ask"
+                android:title="@string/morphe_hide_search_ask_title"
+                android:summary="@string/morphe_hide_search_ask_summary" />SETTINGS: HIDE_SEARCH_ASK -->
+
             <!-- SETTINGS: TOOLBAR_COMPONENTS
             <SwitchPreference android:title="@string/revanced_hide_search_bar_back_button_title" android:key="revanced_hide_search_bar_back_button" android:summaryOn="@string/revanced_hide_search_bar_back_button_summary_on" android:summaryOff="@string/revanced_hide_search_bar_back_button_summary_off" />
             <SwitchPreference android:title="@string/revanced_hide_voice_search_button_title" android:key="revanced_hide_voice_search_button" android:summaryOn="@string/revanced_hide_voice_search_button_summary_on" android:summaryOff="@string/revanced_hide_voice_search_button_summary_off" />SETTINGS: TOOLBAR_COMPONENTS -->
@@ -1012,6 +1018,16 @@
         <!-- SETTINGS: DISABLE_PLAYLIST_AUTOPLAY
         <SwitchPreference android:title="@string/revanced_disable_playlist_autoplay_title" android:key="revanced_disable_playlist_autoplay" android:summaryOn="@string/revanced_disable_playlist_autoplay_summary_on" android:summaryOff="@string/revanced_disable_playlist_autoplay_summary_off" />SETTINGS: DISABLE_PLAYLIST_AUTOPLAY -->
 
+        <!-- SETTINGS: DIRECTIONAL_DOUBLE_TAP_SEEK
+        <ListPreference android:title="@string/revanced_double_tap_seek_backward_title"
+            android:key="revanced_double_tap_seek_backward"
+            android:entries="@array/revanced_double_tap_seek_length_entries"
+            android:entryValues="@array/revanced_double_tap_seek_length_entry_values" />
+        <ListPreference android:title="@string/revanced_double_tap_seek_forward_title"
+            android:key="revanced_double_tap_seek_forward"
+            android:entries="@array/revanced_double_tap_seek_length_entries"
+            android:entryValues="@array/revanced_double_tap_seek_length_entry_values" />SETTINGS: DIRECTIONAL_DOUBLE_TAP_SEEK -->
+
         <!-- SETTINGS: PLAYER_COMPONENTS
         <app.morphe.extension.shared.settings.preference.SliderPreference android:title="@string/revanced_custom_player_overlay_opacity_title" android:key="revanced_custom_player_overlay_opacity" android:summary="@string/revanced_custom_player_overlay_opacity_summary" android:inputType="number" />
         <SwitchPreference android:title="@string/revanced_disable_auto_switch_mix_playlists_title" android:key="revanced_disable_auto_switch_mix_playlists" android:summaryOn="@string/revanced_disable_auto_switch_mix_playlists_summary_on" android:summaryOff="@string/revanced_disable_auto_switch_mix_playlists_summary_off" />
@@ -1049,6 +1065,18 @@
             android:key="revanced_hide_shorts_dimming"
             android:summaryOn="@string/revanced_hide_shorts_dimming_summary_on"
             android:summaryOff="@string/revanced_hide_shorts_dimming_summary_off" />SETTINGS: HIDE_SHORTS_DIMMING -->
+
+        <!-- SETTINGS: SHORTS_OVERLAY_OPACITY
+        <app.morphe.extension.shared.settings.preference.SliderPreference
+            android:title="@string/revanced_shorts_overlay_opacity_title"
+            android:key="revanced_shorts_overlay_opacity"
+            android:summary="@string/revanced_shorts_overlay_opacity_summary"
+            android:inputType="number" />SETTINGS: SHORTS_OVERLAY_OPACITY -->
+
+        <!-- SETTINGS: SHORTS_IMMERSIVE_STATUS_BAR
+        <SwitchPreference android:title="@string/revanced_shorts_immersive_status_bar_title"
+            android:key="revanced_shorts_immersive_status_bar"
+            android:summary="@string/revanced_shorts_immersive_status_bar_summary" />SETTINGS: SHORTS_IMMERSIVE_STATUS_BAR -->
 
         <!-- SETTINGS: SHORTS_COMPONENTS
         <PreferenceScreen android:title="@string/revanced_preference_screen_shorts_player_title" android:key="revanced_preference_screen_shorts_player" android:summary="@string/revanced_preference_screen_shorts_player_summary">
@@ -1291,8 +1319,21 @@
         <SwitchPreference android:title="@string/revanced_enable_opus_codec_title" android:key="revanced_enable_opus_codec" android:summary="@string/revanced_enable_opus_codec_summary" />
         <PreferenceCategory android:title="@string/revanced_preference_category_playback" android:layout="@layout/revanced_settings_preferences_category"/>PREFERENCE_SCREEN: VIDEO -->
 
+        <!-- SETTINGS: PAUSE_ON_AUDIO_INTERRUPT
+        <SwitchPreference
+            android:title="@string/morphe_pause_on_audio_interrupt_title"
+            android:key="morphe_pause_on_audio_interrupt"
+            android:summary="@string/morphe_pause_on_audio_interrupt_summary"
+            android:defaultValue="false" />SETTINGS: PAUSE_ON_AUDIO_INTERRUPT -->
+
         <!-- SETTINGS: REMEMBER_LIVESTREAM_POSITION
         <SwitchPreference android:title="@string/morphe_remember_livestream_position_title" android:key="morphe_remember_livestream_position" android:summary="@string/morphe_remember_livestream_position_summary" />SETTINGS: REMEMBER_LIVESTREAM_POSITION -->
+
+        <!-- SETTINGS: RESTORE_CAST_PLAY_QUEUE
+        <SwitchPreference
+            android:key="morphe_restore_cast_play_queue"
+            android:title="@string/morphe_restore_cast_play_queue_title"
+            android:summary="@string/morphe_restore_cast_play_queue_summary" />SETTINGS: RESTORE_CAST_PLAY_QUEUE -->
 
         <!-- SETTINGS: PLAYBACK_BUFFER
         <app.morphe.extension.shared.settings.preference.CustomDialogListPreference android:title="@string/morphe_playback_buffer_size_title" android:key="morphe_playback_buffer_size" android:entries="@array/morphe_playback_buffer_size_entries" android:entryValues="@array/morphe_playback_buffer_size_entry_values" android:defaultValue="DEFAULT" />SETTINGS: PLAYBACK_BUFFER -->

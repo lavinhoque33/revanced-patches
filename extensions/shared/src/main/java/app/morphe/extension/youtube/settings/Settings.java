@@ -136,6 +136,8 @@ public class Settings extends SharedYouTubeSettings {
 
     public static final EnumSetting<PlaybackBufferSize> PLAYBACK_BUFFER_SIZE = new EnumSetting<>(
             "morphe_playback_buffer_size", PlaybackBufferSize.DEFAULT, true);
+    public static final BooleanSetting PAUSE_ON_AUDIO_INTERRUPT = new BooleanSetting(
+            "morphe_pause_on_audio_interrupt", FALSE, true);
     public static final BooleanSetting RESTORE_ORIGINAL_TITLES = new BooleanSetting("morphe_restore_original_titles", FALSE, true);
     /** Enables arbitrary runtime colors only when the API 30 resource overlay is available. */
     private static Setting.Availability customThemeAvailability(StringSetting selector) {
@@ -630,6 +632,7 @@ public class Settings extends SharedYouTubeSettings {
             parentsAll(parentInverted(HIDE_TOOLBAR_SEARCH_BUTTON), parent(SEARCH_IN_CHANNEL_DIALOG)));
     public static final BooleanSetting CHANNEL_SEARCH = new BooleanSetting("morphe_channel_search", FALSE);
     public static final BooleanSetting HIDE_IMAGE_SEARCH_BUTTON = new BooleanSetting("revanced_hide_image_search_button", FALSE, true);
+    public static final BooleanSetting HIDE_SEARCH_ASK = new BooleanSetting("morphe_hide_search_ask", FALSE, true);
     public static final BooleanSetting HIDE_SEARCH_BAR_BACK_BUTTON = new BooleanSetting("revanced_hide_search_bar_back_button", FALSE, true);
     public static final BooleanSetting HIDE_VOICE_SEARCH_BUTTON = new BooleanSetting("revanced_hide_voice_search_button", FALSE, true);
     public static final BooleanSetting HIDE_YOU_MAY_LIKE_SECTION = new BooleanSetting("revanced_hide_you_may_like_section", FALSE, true);
@@ -671,6 +674,10 @@ public class Settings extends SharedYouTubeSettings {
     public static final BooleanSetting DISABLE_CONTINUE_WATCHING_PROMPT = new BooleanSetting("revanced_disable_continue_watching_prompt", FALSE);
     public static final BooleanSetting DISABLE_PLAYLIST_AUTOPLAY = new BooleanSetting("revanced_disable_playlist_autoplay", FALSE, true);
     public static final BooleanSetting DISABLE_CHAPTER_SKIP_DOUBLE_TAP = new BooleanSetting("revanced_disable_chapter_skip_double_tap", FALSE);
+    public static final IntegerSetting DOUBLE_TAP_SEEK_BACKWARD =
+            new IntegerSetting("revanced_double_tap_seek_backward", 0);
+    public static final IntegerSetting DOUBLE_TAP_SEEK_FORWARD =
+            new IntegerSetting("revanced_double_tap_seek_forward", 0);
     public static final BooleanSetting DISABLE_SPEED_OVERLAY = new BooleanSetting("revanced_disable_speed_overlay", FALSE, true);
     public static final FloatSetting SPEED_OVERLAY_VALUE = new FloatSetting("revanced_speed_overlay_value", 2.0f,
             true, new SliderConfig(0, 8, 0.1, "x"), parentInverted(DISABLE_SPEED_OVERLAY));
@@ -1034,6 +1041,10 @@ public class Settings extends SharedYouTubeSettings {
     public static final BooleanSetting SKIP_LIVE_SHORTS = new BooleanSetting("morphe_skip_live_shorts", FALSE);
     public static final BooleanSetting HIDE_SHORTS_DIMMING =
             new BooleanSetting("revanced_hide_shorts_dimming", FALSE);
+    public static final IntegerSetting SHORTS_OVERLAY_OPACITY =
+            new IntegerSetting("revanced_shorts_overlay_opacity", 100, true, new SliderConfig(0, 100, 1, "%"));
+    public static final BooleanSetting SHORTS_IMMERSIVE_STATUS_BAR =
+            new BooleanSetting("revanced_shorts_immersive_status_bar", FALSE, true);
     public static final EnumSetting<ShortsIcons.Style> SHORTS_ICON_STYLE = new EnumSetting<>("morphe_shorts_icon_style", ShortsIcons.Style.AUTO, true);
 
     // PreferenceScreen: Shorts - Shorts player components
@@ -1257,6 +1268,8 @@ public class Settings extends SharedYouTubeSettings {
     public static final BooleanSetting REMEMBER_VIDEO_QUALITY_SHORTS_LAST_SELECTED_TOAST = new BooleanSetting("revanced_remember_video_quality_shorts_last_selected_toast", TRUE, parent(REMEMBER_VIDEO_QUALITY_SHORTS_LAST_SELECTED));
     public static final BooleanSetting REMEMBER_LIVESTREAM_POSITION = new BooleanSetting("morphe_remember_livestream_position", FALSE, "morphe_remember_livestream_position_user_dialog_message");
     public static final StringSetting REMEMBER_LIVESTREAM_POSITION_TIMES = new StringSetting("morphe_remember_livestream_position_times", "", false, false);
+    public static final BooleanSetting RESTORE_CAST_PLAY_QUEUE =
+            new BooleanSetting("morphe_restore_cast_play_queue", FALSE);
     public static final IntegerSetting VIDEO_DELAY = new IntegerSetting("morphe_video_delay", 0, new SliderConfig(0, 5000, 25, "ms"));
     public static final BooleanSetting VIDEO_DELAY_BLUETOOTH_ONLY = new BooleanSetting("morphe_video_delay_bluetooth_only", TRUE);
     public static final BooleanSetting ADVANCED_VIDEO_QUALITY_MENU = new BooleanSetting("revanced_advanced_video_quality_menu", TRUE, true);

@@ -371,6 +371,8 @@ To show the \'Audio Track\' menu, change \'Spoof video streams\' to any client e
     <string name="morphe_hide_post_share_button_summary">The download button of the post images is drawn next to the share button, so it\'s hidden too</string>
     <string name="morphe_hide_post_share_button_title">Hide share button</string>
     <string name="morphe_hide_privacy_tos_footer_title">Hide legal and privacy footers</string>
+    <string name="morphe_hide_search_ask_summary">Hides the Ask button and its hint in the search field</string>
+    <string name="morphe_hide_search_ask_title">Hide Ask in search</string>
     <string name="morphe_hide_shopping_menu_title">Hide Shopping menu</string>
     <string name="morphe_hide_sports_menu_title">Hide Sports menu</string>
     <string name="morphe_hide_stats_hidden_24h_reset_title">Reset last 24 hours counter?</string>
@@ -471,6 +473,10 @@ Info: The next queued video only starts while YouTube is on screen"</string>
     <string name="morphe_open_videos_fullscreen_title">Open videos in fullscreen mode</string>
     <string name="morphe_override_youtube_music_buttons_summary">Opens your preferred music app instead of the stock YouTube Music app</string>
     <string name="morphe_override_youtube_music_buttons_title">Override YouTube Music buttons</string>
+    <string name="morphe_pause_on_audio_interrupt_summary">
+        Pauses instead of lowering the volume when another app briefly takes audio focus
+    </string>
+    <string name="morphe_pause_on_audio_interrupt_title">Pause on audio interruptions</string>
     <string name="morphe_pip_button_flyout_name">Switch to Picture-in-Picture</string>
     <string name="morphe_pip_button_flyout_title">Show Picture-in-Picture menu</string>
     <string name="morphe_pip_button_overlay_title">Show Picture-in-Picture button</string>
@@ -565,6 +571,9 @@ Not used while Unlock queue or Premium-style queue is on"</string>
     <string name="morphe_replace_music_with_youtube_summary_off">Shared links use music.youtube.com</string>
     <string name="morphe_replace_music_with_youtube_summary_on">Shared links use youtube.com</string>
     <string name="morphe_replace_music_with_youtube_title">Change share links to youtube.com</string>
+    <string name="morphe_restore_cast_play_queue_summary">Shows Play or Queue when you select another video
+        while casting, without leaving the receiver session</string>
+    <string name="morphe_restore_cast_play_queue_title">Restore Cast Play/Queue</string>
     <string name="morphe_restore_old_player_buttons_summary">Uses the older video player layout for custom overlay buttons</string>
     <string name="morphe_restore_old_player_buttons_title">Restore old player button style</string>
     <string name="morphe_restore_original_titles_loading">Loading title…</string>
@@ -1076,6 +1085,9 @@ Settings → Autoplay / Playback → Autoplay next video"</string>
     <string name="revanced_disable_chapter_skip_double_tap_summary_off">Double tap can occasionally trigger a skip to the next / previous chapter</string>
     <string name="revanced_disable_chapter_skip_double_tap_summary_on">Double tap can never trigger a skip to the next / previous chapter</string>
     <string name="revanced_disable_chapter_skip_double_tap_title">Disable double tap chapter skip</string>
+    <string name="revanced_double_tap_seek_backward_title">Double-tap to seek backward</string>
+    <string name="revanced_double_tap_seek_forward_title">Double-tap to seek forward</string>
+    <string name="revanced_double_tap_seek_length_entry_youtube">Use YouTube setting</string>
     <string name="revanced_disable_default_playback_speed_music_off">Default playback speed is enabled for music</string>
     <string name="revanced_disable_default_playback_speed_music_on">Default playback speed is disabled for music</string>
     <string name="revanced_disable_default_playback_speed_music_title">Disable playback speed for music</string>
@@ -1988,6 +2000,10 @@ Info:
     <string name="revanced_hide_shorts_dimming_summary_off">Top and bottom dimming on Shorts is shown</string>
     <string name="revanced_hide_shorts_dimming_summary_on">Top and bottom dimming on Shorts is hidden</string>
     <string name="revanced_hide_shorts_dimming_title">Hide Shorts dimming</string>
+    <string name="revanced_shorts_overlay_opacity_title">Shorts overlay opacity</string>
+    <string name="revanced_shorts_overlay_opacity_summary">Adjust the opacity of Shorts controls, including the toolbar and progress bar. 100% uses the original opacity. Does not change video brightness.</string>
+    <string name="revanced_shorts_immersive_status_bar_title">Immersive status bar</string>
+    <string name="revanced_shorts_immersive_status_bar_summary">Hide the system status bar only while the Shorts player is open. Swipe down from the top to temporarily show it.</string>
     <string name="revanced_hide_shorts_floating_button_summary_off">Floating buttons in Shorts pages are shown</string>
     <string name="revanced_hide_shorts_floating_button_summary_on">Floating buttons in Shorts pages are hidden</string>
     <string name="revanced_hide_shorts_floating_button_title">Hide floating buttons</string>

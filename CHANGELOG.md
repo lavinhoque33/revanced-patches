@@ -1,5 +1,29 @@
 ## Unreleased
 
+### Features
+
+* **YouTube – Player:** Choose separate backward and forward double-tap seek lengths. Either side can still
+  follow YouTube’s setting. A separate playback option pauses on the first duckable audio interruption.
+* **YouTube – Search:** Hide Ask in the search field and its hint without changing Ask on the watch page.
+* **YouTube – Cast:** Optionally show Play/Queue when selecting another video during a Cast session.
+* **YouTube – Shorts:** Adjust reel control opacity or hide the status bar only while watching a Short.
+  These settings leave the video and the Clear screen Restore button visible.
+* **YouTube Music – Home:** Hide the Speed dial shelf without hiding Pin or Unpin in song menus.
+* **YouTube Music – Device files:** Open a newly saved file from its completion notification. New M4A and
+  Ogg files include the original album track number when it can be verified.
+* **YouTube and YouTube Music – Downloads:** Export a published device file or a saved playlist to a folder
+  you choose. Playlist exports include an ordered M3U8. Exporting does not change the download method or copy
+  private stream caches.
+  Music includes loose device files in one playlist even before its native playlist database is opened.
+
+### Bug fixes
+
+* **YouTube – Navigation:** Rapid Back gestures no longer let a timed-out tab lookup release the next lookup.
+* **YouTube – Minimal miniplayer:** Expanding and minimizing again no longer starts a second refresh timer.
+  The title and channel now follow player metadata updates instead of polling.
+* **YouTube Music – Player:** Hide overlay filter skips dialogs whose `onStart` cannot be overridden.
+  Creating that override made Music 6.20.51 crash at launch when forced.
+
 ## [1.44.1-dev.2](https://github.com/lavinhoque33/revanced-patches/compare/v1.44.1-dev.1...v1.44.1-dev.2) (2026-11-20)
 
 ### Bug fixes

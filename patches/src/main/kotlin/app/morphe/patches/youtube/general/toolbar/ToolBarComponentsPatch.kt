@@ -9,6 +9,7 @@
  * - inotia00 (https://github.com/inotia00)
  *
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-20.
  *
  * ------------------------------------------------------------------------
  * GPLv3 Section 7 – Additional Terms & Attribution Requirements
@@ -68,6 +69,7 @@ import app.morphe.patcher.util.getFreeRegisterProvider
 import app.morphe.patcher.util.getReference
 import app.morphe.patcher.util.proxy.mutableTypes.MutableMethod.Companion.toMutable
 import app.morphe.patcher.util.smali.ExternalLabel
+import app.morphe.patches.shared.mapping.resourceMappingPatch
 import app.morphe.patches.shared.misc.fix.proto.fixProtoLibraryPatch
 import app.morphe.patches.shared.misc.fix.proto.immutableMethodRef
 import app.morphe.patches.shared.misc.fix.proto.mutableCopyMethodRef
@@ -171,6 +173,7 @@ val toolBarComponentsPatch = bytecodePatch(
         castButtonPatch,
         fixProtoLibraryPatch,
         playerTypeHookPatch,
+        resourceMappingPatch,
         sharedResourceIdPatch,
         settingsPatch,
         toolBarHookPatch,
@@ -182,6 +185,9 @@ val toolBarComponentsPatch = bytecodePatch(
             "PREFERENCE_SCREEN: GENERAL",
             "SETTINGS: TOOLBAR_COMPONENTS"
         )
+        if (patchSearchAsk()) {
+            settingArray += "SETTINGS: HIDE_SEARCH_ASK"
+        }
 
         // region patch for change YouTube header
 

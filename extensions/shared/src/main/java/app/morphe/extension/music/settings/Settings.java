@@ -201,6 +201,8 @@ public class Settings extends SharedYouTubeSettings {
     public static final BooleanSetting HIDE_SAMPLE_SHELF = new BooleanSetting("revanced_hide_samples_shelf", FALSE, true);
     public static final BooleanSetting HIDE_SEARCH_BUTTON = new BooleanSetting("revanced_hide_search_button", FALSE, true);
     public static final BooleanSetting HIDE_SOUND_SEARCH_BUTTON = new BooleanSetting("revanced_hide_sound_search_button", FALSE, true);
+    public static final BooleanSetting HIDE_SPEED_DIAL_SHELF = new BooleanSetting(
+            "revanced_hide_speed_dial_shelf", FALSE, true);
     public static final BooleanSetting HIDE_TAP_TO_UPDATE_BUTTON = new BooleanSetting("revanced_hide_tap_to_update_button", FALSE, true);
     public static final BooleanSetting HIDE_VOICE_SEARCH_BUTTON = new BooleanSetting("revanced_hide_voice_search_button", FALSE, true);
     public static final BooleanSetting REMOVE_VIEWER_DISCRETION_DIALOG = new BooleanSetting("revanced_remove_viewer_discretion_dialog", FALSE);

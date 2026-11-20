@@ -5,6 +5,7 @@
  * https://github.com/anddea/revanced-patches
  *
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-20.
  * Modified by lavinhoque33, 2026-11-05.
  * Written by lavinhoque33, 2026-10-10.
  * Modified by lavinhoque33, 2026-10-25.
@@ -446,7 +447,7 @@ public final class OfflineDownloader {
         try {
             sheet.showPlaylist(playlist, items, selected -> {
                 sheet.dismiss();
-                enqueuePlaylist(playlist.title(), selected, sheet.playlistSubtitles(), sheet.sponsorSelection());
+                enqueuePlaylist(playlistId, playlist, selected, sheet.playlistSubtitles(), sheet.sponsorSelection());
             });
             Logger.printInfo(() -> "Offline playlist " + playlistId + ": selection sheet ready");
         } catch (Exception ex) {
@@ -456,10 +457,12 @@ public final class OfflineDownloader {
         }
     }
 
-    private static void enqueuePlaylist(String playlistTitle, List<OfflinePlaylistSelection.Item> selected,
+    private static void enqueuePlaylist(String playlistId, OfflinePlaylist.Result playlist,
+                                        List<OfflinePlaylistSelection.Item> selected,
                                         OfflineCaptions.Selection subtitles, OfflineSponsorBlock.Selection sponsor) {
         Utils.runOnBackgroundThread(() -> {
             final Context context = Utils.getContext();
+            final String playlistTitle = playlist.title();
             List<OfflinePlaylistSelection.Item> pending = new ArrayList<>();
             int alreadyDownloaded = 0;
             for (OfflinePlaylistSelection.Item item : selected) {
@@ -484,6 +487,7 @@ public final class OfflineDownloader {
                     }
                 }
             }
+            OfflineExportPlaylists.remember(playlistId, playlist, selected);
 
             final int count = queued;
             final int skipped = alreadyDownloaded;

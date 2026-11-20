@@ -9,7 +9,7 @@
  * - inotia00 (https://github.com/inotia00)
  *
  * Licensed under the GNU General Public License v3.0.
- * Modified by lavinhoque33, 2026-11-06.
+ * Modified by lavinhoque33, 2026-11-20.
  *
  * ------------------------------------------------------------------------
  * GPLv3 Section 7 – Additional Terms & Attribution Requirements
@@ -1670,6 +1670,10 @@ public class GeneralPatch {
 
     public static boolean hideSearchTermThumbnail(boolean original) {
         return !hideSearchTermThumbnail() && original;
+    }
+
+    public static boolean showSearchAsk(boolean original) {
+        return original && !Settings.HIDE_SEARCH_ASK.get();
     }
 
     private static final boolean hideImageSearchButton = Settings.HIDE_IMAGE_SEARCH_BUTTON.get();

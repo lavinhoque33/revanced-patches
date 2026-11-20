@@ -5,7 +5,7 @@
  *
  * See the included NOTICE file for GPLv3 Section 7 terms that apply to this code.
  *
- * Modified by lavinhoque33, 2026-11-05
+ * Modified by lavinhoque33, 2026-11-20
  */
 
 package app.morphe.patches.youtube.player.icons
@@ -797,6 +797,7 @@ val playerIconStylePatch = resourcePatch(
         settingsPatch,
         versionCheckPatch,
         playerButtonIconStylePatch,
+        shortsClearScreenIconPatch,
     )
 
     compatibleWith(COMPATIBILITY_YOUTUBE)

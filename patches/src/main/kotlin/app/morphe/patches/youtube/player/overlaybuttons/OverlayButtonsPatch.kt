@@ -26,7 +26,7 @@
  *
  * Licensed under the GNU General Public License v3.0.
  *
- * Modified by lavinhoque33, 2026-10-25
+ * Modified by lavinhoque33, 2026-11-20
  *
  * ------------------------------------------------------------------------
  * GPLv3 Section 7 – Additional Terms & Attribution Requirements
@@ -73,6 +73,7 @@ import app.morphe.patcher.util.smali.ExternalLabel
 import app.morphe.patcher.util.proxy.mutableTypes.MutableMethod
 import app.morphe.patches.youtube.player.icons.PLAYER_ICONS_RESOURCE_DIRECTORY
 import app.morphe.patches.youtube.player.icons.copyPlayerIconStyles
+import app.morphe.patches.youtube.player.icons.shortsClearScreenIconResourcePatch
 import app.morphe.patches.youtube.utils.compatibility.Constants.COMPATIBILITY_YOUTUBE
 import app.morphe.patches.youtube.utils.dismiss.dismissPlayerHookPatch
 import app.morphe.patches.youtube.utils.dismiss.hookDismissObserver
@@ -254,6 +255,7 @@ val overlayButtonsPatch = resourcePatch(
         playlistPatch,
         sharedResourceIdPatch,
         settingsPatch,
+        shortsClearScreenIconResourcePatch,
     )
 
     val iconTypeOption = stringOption(

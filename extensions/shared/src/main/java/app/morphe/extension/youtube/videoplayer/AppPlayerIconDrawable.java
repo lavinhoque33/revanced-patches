@@ -5,7 +5,7 @@
  *
  * See the included NOTICE file for GPLv3 Section 7 terms that apply to this code.
  *
- * Modified by lavinhoque33, 2026-10-25
+ * Modified by lavinhoque33, 2026-11-20
  */
 
 package app.morphe.extension.youtube.videoplayer;
@@ -96,6 +96,23 @@ public abstract class AppPlayerIconDrawable extends DrawableWrapper {
         public Settings() {
             super("morphe_player_settings", "yt_outline_gear_white_24");
         }
+    }
+
+    /** Injection point for the native Shorts menu, not the player fullscreen button. */
+    public static boolean isFullscreenEnterIcon(@Nullable Drawable icon) {
+        return icon instanceof FullscreenEnter || icon instanceof FullscreenEnterAlt
+                || icon instanceof FullscreenEnterPortrait;
+    }
+
+    /** Called only for a fullscreen-enter icon on a Reel content clear-mode action. */
+    @NonNull
+    public static Drawable useStockClearScreenIcon(@NonNull Drawable icon) {
+        Drawable stockIcon = ResourceUtils.getDrawable("morphe_shorts_clear_screen");
+        if (stockIcon == null) return icon;
+
+        // Some sheet items are tinted before binding; others get the tint from the ImageView.
+        stockIcon.mutate().setColorFilter(icon.getColorFilter());
+        return stockIcon;
     }
 
     // The opacity of the app's disabled transport icons, white at 30 percent.

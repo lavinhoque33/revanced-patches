@@ -1,5 +1,7 @@
 ## Unreleased
 
+## [1.43.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.42.0...v1.43.0) (2026-11-19)
+
 ### Features
 
 * **Music - Stream download:** Playlist and album headers show how many tracks are ready. Resume an interrupted

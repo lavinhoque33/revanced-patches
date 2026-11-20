@@ -102,6 +102,7 @@ val visualPreferencesIconsPatch = resourcePatch(
             False: icons only on parent screens and About rows for Regular and Bold styles.
 
             YouTube style shows icons on rows that open a settings screen and on About rows.
+            True also adds icons to SponsorBlock's duration and segment step rows in this style.
             """.trimIndentMultiline(),
         required = true
     )
@@ -117,11 +118,11 @@ val visualPreferencesIconsPatch = resourcePatch(
         ),
         title = "Icon style",
         description = """
-            The icon design, weight and size. YouTube uses the app's rounded settings icons at stock size
-            on rows that open a settings screen and on About rows, with rounded RVX fallbacks where unavailable.
+            The icon design, weight and size. YouTube uses the app's rounded settings icons at stock size,
+            with rounded RVX fallbacks where unavailable.
             Its RVX entry uses YouTube's magic wand when available.
 
-            Individual setting icons in Regular and Bold styles require Apply to all settings menu = true.
+            Individual setting icons require Apply to all settings menu = true.
             """.trimIndentMultiline(),
         required = true,
     )
@@ -145,16 +146,15 @@ val visualPreferencesIconsPatch = resourcePatch(
             makeSettingsToolbarIconsBold()
         }
 
-        if (applyToAll == true) {
-            preferenceKey.putAll(rvxPreferenceKey)
-        }
-
         // region copy shared resources
 
         if (!useYouTubeIcons) {
-            copyResourcesWithRename("youtube/visual/icons", preferenceKey)
+            val icons = if (applyToAll == true) allPreferenceIcons else preferenceKey
+            copyResourcesWithRename("youtube/visual/icons", icons)
 
-            preferenceKey.filterValues { it !in preferenceKey }.keys.forEach { title ->
+            icons.forEach { (title, path) ->
+                if (path in icons) return@forEach
+
                 val drawable = "res/drawable/${title}_icon.xml"
                 if (useBoldIcons) makeBold(drawable)
                 if (useStockIconSize) setStockPreferenceIconGeometry(drawable)
@@ -211,9 +211,12 @@ val visualPreferencesIconsPatch = resourcePatch(
 
     finalize {
         if (iconStyleOption.lowerCaseOrThrow() == YOUTUBE_ICON_STYLE) {
-            applyYouTubeScreenIcons(preferenceKey + rvxPreferenceKey)
+            val runtimeIconKeys = if (applyToAll == true) sponsorBlockDetailIconSources.keys else emptySet()
+            applyYouTubeScreenIcons(allPreferenceIcons, runtimeIconKeys)
             return@finalize
         }
+
+        val icons = if (applyToAll == true) allPreferenceIcons else preferenceKey
 
         // region set visual preferences icon
 
@@ -246,8 +249,8 @@ val visualPreferencesIconsPatch = resourcePatch(
                             null
                         } else {
                             when (title) {
-                                in preferenceKey.keys -> {
-                                    val iconKey = preferenceKey[title]?.takeIf { it in preferenceKey } ?: title
+                                in icons -> {
+                                    val iconKey = icons[title]?.takeIf { it in icons } ?: title
 
                                     check(get("res/drawable/${iconKey}_icon.xml").exists()) {
                                         "Missing icon or cyclic preference mapping for $title"
@@ -295,7 +298,7 @@ val visualPreferencesIconsPatch = resourcePatch(
     }
 }
 
-private var preferenceKey = mutableMapOf(
+private val preferenceKey = mapOf(
     // YouTube settings
     "parent_tools_key" to "M 677.462 535.154 Q 645.289 535.154 622.645 512.509 Q 600 489.865 600 457.692 Q 600 425.52 622.768 402.875 Q 645.535 380.231 677.077 380.231 Q 709.634 380.231 731.894 402.999 Q 754.154 425.766 754.154 457.308 Q 754.154 489.865 731.894 512.509 Q 709.634 535.154 677.462 535.154 Z M 498.769 744.616 L 498.769 710.539 Q 498.769 691.462 507.333 677.169 Q 515.897 662.877 532.308 656 Q 566.333 640.077 602.359 632.231 Q 638.385 624.385 677.462 624.385 Q 714.98 624.385 751.067 632.115 Q 787.154 639.846 822.615 656 Q 838.192 662.923 846.789 677.192 Q 855.385 691.462 855.385 710.539 L 855.385 744.616 L 498.769 744.616 Z M 384.615 455.154 Q 335.115 455.154 302.173 422.212 Q 269.231 389.269 269.231 339.385 Q 269.231 289.5 302.173 256.942 Q 335.115 224.384 384.615 224.384 Q 434.116 224.384 467.058 256.942 Q 500 289.5 500 339.385 Q 500 389.269 467.058 422.212 Q 434.116 455.154 384.615 455.154 Z M 384.615 339.769 Z M 104.615 744.616 L 104.615 686.769 Q 104.615 660.817 118.923 639.062 Q 133.231 617.308 159.205 606.923 Q 216.538 580.769 271.851 567.308 Q 327.164 553.846 384.315 553.846 Q 407.385 553.846 427 554.923 Q 446.616 556 467.923 559.692 Q 461.327 565.904 454.731 573.269 Q 448.135 580.635 441.539 586.846 Q 428.539 586 414.308 585.308 Q 400.077 584.615 384.615 584.615 Q 331.042 584.615 278.79 595.346 Q 226.539 606.077 173.538 634 Q 158.769 641.769 147.077 655.616 Q 135.385 669.462 135.385 686.769 L 135.385 713.846 L 397.231 713.846 L 397.231 744.616 L 104.615 744.616 Z M 397.231 713.846 Z M 384.615 424.385 Q 420.539 424.385 444.885 400.038 Q 469.231 375.692 469.231 339.769 Q 469.231 303.846 444.885 279.5 Q 420.539 255.154 384.615 255.154 Q 348.692 255.154 324.346 279.5 Q 300 303.846 300 339.769 Q 300 375.692 324.346 400.038 Q 348.692 424.385 384.615 424.385 Z",
     "general_key" to "M 702.308 766.923 Q 652.877 766.923 618.746 732.793 Q 584.615 698.662 584.615 649.231 Q 584.615 599.8 618.746 565.669 Q 652.877 531.538 702.308 531.538 Q 751.739 531.538 785.869 565.669 Q 820 599.8 820 649.231 Q 820 698.662 785.869 732.793 Q 751.739 766.923 702.308 766.923 Z M 702.121 736.154 Q 738.769 736.154 764 711.11 Q 789.231 686.065 789.231 649.417 Q 789.231 612.769 764.187 587.539 Q 739.142 562.308 702.494 562.308 Q 665.846 562.308 640.615 587.352 Q 615.385 612.396 615.385 649.044 Q 615.385 685.692 640.429 710.923 Q 665.473 736.154 702.121 736.154 Z M 181.538 664.616 L 181.538 633.846 L 489.231 633.846 L 489.231 664.616 L 181.538 664.616 Z M 257.692 428.462 Q 208.261 428.462 174.131 394.331 Q 140 360.2 140 310.769 Q 140 261.338 174.131 227.207 Q 208.261 193.077 257.692 193.077 Q 307.123 193.077 341.254 227.207 Q 375.385 261.338 375.385 310.769 Q 375.385 360.2 341.254 394.331 Q 307.123 428.462 257.692 428.462 Z M 257.506 397.692 Q 294.154 397.692 319.385 372.648 Q 344.615 347.604 344.615 310.956 Q 344.615 274.308 319.571 249.077 Q 294.527 223.846 257.879 223.846 Q 221.231 223.846 196 248.89 Q 170.769 273.935 170.769 310.583 Q 170.769 347.231 195.813 372.461 Q 220.858 397.692 257.506 397.692 Z M 470.769 326.154 L 470.769 295.384 L 778.462 295.384 L 778.462 326.154 L 470.769 326.154 Z M 702.308 649.231 Z M 257.692 310.769 Z",
@@ -1286,6 +1289,20 @@ private val rvxPreferenceKey = mapOf(
         "L 340 391 L 480 251 L 620 391 L 598 413 L 496 310 L 496 550 Z " +
         "M 160 620 L 800 620 L 800 800 L 160 800 Z M 191 651 L 191 769 L 769 769 L 769 651 Z",
 )
+
+private val sponsorBlockDetailIconSources = mapOf(
+    "sb_auto_hide_skip_button_duration" to "revanced_swipe_overlay_timeout",
+    "sb_toast_on_skip_duration" to "morphe_expand_livestream_dvr_duration",
+    "sb_create_new_segment_step" to "general_key",
+)
+
+private val allPreferenceIcons = buildMap(preferenceKey.size + rvxPreferenceKey.size + sponsorBlockDetailIconSources.size) {
+    putAll(preferenceKey)
+    putAll(rvxPreferenceKey)
+
+    // SponsorBlock creates these rows at runtime, so each needs its own drawable rather than an XML alias.
+    sponsorBlockDetailIconSources.forEach { (key, source) -> put(key, getValue(source)) }
+}
 
 private val intentKey = setOf(
     "revanced_settings_key",

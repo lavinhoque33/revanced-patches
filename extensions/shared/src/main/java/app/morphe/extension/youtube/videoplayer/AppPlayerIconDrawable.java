@@ -38,6 +38,22 @@ import app.morphe.extension.shared.utils.ResourceUtils;
 @SuppressWarnings("unused")
 public abstract class AppPlayerIconDrawable extends DrawableWrapper {
 
+    private static final String FULLSCREEN_EXIT = "yt_outline_experimental_player_full_exit_vd_theme_24";
+    private static final String FULLSCREEN_EXIT_ALT = "yt_outline_experimental_player_full_exit_alt_vd_theme_24";
+
+    private static final class FullscreenExitIds {
+        private static final int EXIT = drawableId(FULLSCREEN_EXIT);
+        private static final int EXIT_BITMAP = drawableId("yt_outline_experimental_player_full_exit_black_24");
+        private static final int STYLED_EXIT = drawableId("morphe_" + FULLSCREEN_EXIT);
+        private static final int EXIT_ALT = drawableId(FULLSCREEN_EXIT_ALT);
+        private static final int EXIT_ALT_BITMAP = drawableId("yt_outline_experimental_player_full_exit_alt_black_24");
+        private static final int STYLED_EXIT_ALT = drawableId("morphe_" + FULLSCREEN_EXIT_ALT);
+
+        private static int drawableId(String name) {
+            return ResourceUtils.getIdentifier(name, ResourceType.DRAWABLE);
+        }
+    }
+
     public static final class FullscreenEnter extends AppPlayerIconDrawable {
         public FullscreenEnter() {
             super("morphe_fullscreen_enter", "morphe_yt_player_full_enter");
@@ -58,14 +74,26 @@ public abstract class AppPlayerIconDrawable extends DrawableWrapper {
 
     public static final class FullscreenExit extends AppPlayerIconDrawable {
         public FullscreenExit() {
-            super("morphe_fullscreen_exit", "morphe_yt_player_full_exit");
+            super("morphe_fullscreen_exit", FULLSCREEN_EXIT);
         }
     }
 
     public static final class FullscreenExitAlt extends AppPlayerIconDrawable {
         public FullscreenExitAlt() {
-            super("morphe_fullscreen_exit", "morphe_yt_player_full_exit_alt");
+            super("morphe_fullscreen_exit", FULLSCREEN_EXIT_ALT);
         }
+    }
+
+    /** Styles exit icons only when the app loads them for the watch player's fullscreen button. */
+    @SuppressWarnings("deprecation")
+    public static Drawable loadWatchPlayerFullscreenIcon(Resources resources, int resId) {
+        if (resId == FullscreenExitIds.EXIT || resId == FullscreenExitIds.EXIT_BITMAP) {
+            if (FullscreenExitIds.STYLED_EXIT != 0) resId = FullscreenExitIds.STYLED_EXIT;
+        } else if (resId == FullscreenExitIds.EXIT_ALT || resId == FullscreenExitIds.EXIT_ALT_BITMAP) {
+            if (FullscreenExitIds.STYLED_EXIT_ALT != 0) resId = FullscreenExitIds.STYLED_EXIT_ALT;
+        }
+
+        return resources.getDrawable(resId);
     }
 
     public static final class SkipNext extends AppPlayerIconDrawable {

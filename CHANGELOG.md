@@ -1,5 +1,12 @@
 ## Unreleased
 
+### Bug fixes
+
+* **YouTube – SponsorBlock:** Show icons for Skip button duration, Skip toast duration, and Adjust new segment
+  step in all four visual preference icon styles when **Apply to all settings menu** is on. Refs #70.
+* **YouTube – Player icon style:** Keep the stock Restore screen icon in Shorts clear mode without changing
+  the selected fullscreen icon in the regular player. Refs #70.
+
 ## [1.44.1-dev.1](https://github.com/lavinhoque33/revanced-patches/compare/v1.44.0...v1.44.1-dev.1) (2026-11-20)
 
 ### Bug fixes

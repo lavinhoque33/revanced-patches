@@ -608,6 +608,8 @@ public class Settings extends SharedYouTubeSettings {
             "revanced_snack_bar_stroke_width", 0f, new SliderConfig(0, 8, 0.5, "dp"));
     public static final BooleanSetting SNACK_BAR_PLAYLIST_RADIUS = new BooleanSetting(
             "revanced_snack_bar_playlist_radius", FALSE);
+    public static final BooleanSetting SNACK_BAR_PLAYLIST_BORDER = new BooleanSetting(
+            "revanced_snack_bar_playlist_border", FALSE);
 
     // PreferenceScreen: General - Toolbar
     public static final BooleanSetting CHANGE_YOUTUBE_HEADER = new BooleanSetting("revanced_change_youtube_header", TRUE, true);

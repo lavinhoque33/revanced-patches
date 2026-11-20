@@ -8,7 +8,7 @@
  * - anddea (https://github.com/anddea)
  *
  * Licensed under the GNU General Public License v3.0.
- * Modified by lavinhoque33, 2026-11-19.
+ * Modified by lavinhoque33, 2026-11-20.
  *
  * ------------------------------------------------------------------------
  * GPLv3 Section 7 – Additional Terms & Attribution Requirements
@@ -1207,6 +1207,7 @@ private val rvxPreferenceKey = mapOf(
     "revanced_snack_bar_corner_radius" to "morphe_feed_card_layout_corner_radius",
     "revanced_snack_bar_dark_fill" to "morphe_dark_theme",
     "revanced_snack_bar_light_fill" to "morphe_light_theme",
+    "revanced_snack_bar_playlist_border" to "revanced_enable_custom_seekbar_color",
     "revanced_snack_bar_playlist_radius" to "revanced_hide_category_bar_in_playlist",
     "revanced_snack_bar_stroke_color" to "revanced_enable_custom_seekbar_color",
     "revanced_snack_bar_stroke_width" to "morphe_custom_dpi",

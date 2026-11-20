@@ -943,6 +943,8 @@ If there are server-side changes, the background color of the snack bar may not 
     <string name="revanced_snack_bar_stroke_width_summary">Set to zero for no border</string>
     <string name="revanced_snack_bar_playlist_radius_title">Apply corner radius to playlist bottom bar</string>
     <string name="revanced_snack_bar_playlist_radius_summary">Use the snack bar radius instead of the playlist bar’s original radius</string>
+    <string name="revanced_snack_bar_playlist_border_title">Apply border color to playlist bottom bar</string>
+    <string name="revanced_snack_bar_playlist_border_summary">Use the snack bar border color and width on the playlist bar</string>
     <string name="revanced_change_share_sheet_summary_off">In-app share sheet is used</string>
     <string name="revanced_change_share_sheet_summary_on">System share sheet is used</string>
     <string name="revanced_change_share_sheet_title">Change share sheet</string>

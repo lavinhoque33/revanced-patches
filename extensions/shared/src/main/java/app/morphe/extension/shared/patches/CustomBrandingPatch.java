@@ -8,7 +8,7 @@
  * - anddea (https://github.com/anddea)
  *
  * Licensed under the GNU General Public License v3.0.
- * Modified by lavinhoque33, 2026-10-29
+ * Modified by lavinhoque33, 2026-11-20
  *
  * ------------------------------------------------------------------------
  * GPLv3 Section 7 – Additional Terms & Attribution Requirements
@@ -88,6 +88,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import app.morphe.extension.music.patches.utils.DrawableColorPatch;
 import app.morphe.extension.shared.settings.Setting;
 import app.morphe.extension.shared.settings.SharedYouTubeSettings;
 import app.morphe.extension.shared.settings.preference.IconListPreference;
@@ -95,6 +96,7 @@ import app.morphe.extension.shared.utils.BaseThemeUtils;
 import app.morphe.extension.shared.utils.ResourceType;
 import app.morphe.extension.shared.utils.ResourceUtils;
 import app.morphe.extension.shared.utils.Utils;
+import app.morphe.extension.youtube.patches.theme.ThemePatch;
 
 /**
  * Enables the launcher alias selected in the custom branding settings.
@@ -381,7 +383,7 @@ public final class CustomBrandingPatch {
         String baseThemeName = SYSTEM_SPLASH_STYLE_PREFIX + selectedIcon;
 
         boolean hasYouTubeThemes = ResourceUtils.getIdentifier(
-                YOUTUBE_LIGHT_SPLASH_THEME_PREFIX + "white",
+                YOUTUBE_LIGHT_SPLASH_THEME_PREFIX + ThemePatch.DEFAULT_LIGHT_THEME,
                 ResourceType.STYLE,
                 context) != 0;
         if (hasYouTubeThemes) {
@@ -392,7 +394,7 @@ public final class CustomBrandingPatch {
                             BaseThemeUtils.isDarkModeEnabled());
             String themeKey = Setting.preferences.getString(
                     dark ? DARK_THEME_KEY : LIGHT_THEME_KEY,
-                    dark ? "stock" : "white");
+                    dark ? ThemePatch.DEFAULT_DARK_THEME : ThemePatch.DEFAULT_LIGHT_THEME);
             String appearanceKey = (dark ? "dark_" : "light_") + themeKey;
             String combinedThemeName = baseThemeName
                     + SYSTEM_SPLASH_THEME_SEPARATOR + appearanceKey;
@@ -411,11 +413,11 @@ public final class CustomBrandingPatch {
         }
 
         boolean hasMusicThemes = ResourceUtils.getIdentifier(
-                MUSIC_SPLASH_THEME_PREFIX + "modern_youtube",
+                MUSIC_SPLASH_THEME_PREFIX + DrawableColorPatch.DEFAULT_DARK_THEME,
                 ResourceType.STYLE,
                 context) != 0;
         if (hasMusicThemes) {
-            String themeKey = Setting.preferences.getString(DARK_THEME_KEY, "modern_youtube");
+            String themeKey = Setting.preferences.getString(DARK_THEME_KEY, DrawableColorPatch.DEFAULT_DARK_THEME);
             String combinedThemeName = baseThemeName
                     + SYSTEM_SPLASH_THEME_SEPARATOR + themeKey;
             if (ResourceUtils.getIdentifier(
@@ -424,7 +426,7 @@ public final class CustomBrandingPatch {
             }
 
             String fallbackThemeName = baseThemeName
-                    + SYSTEM_SPLASH_THEME_SEPARATOR + "modern_youtube";
+                    + SYSTEM_SPLASH_THEME_SEPARATOR + DrawableColorPatch.DEFAULT_DARK_THEME;
             if (ResourceUtils.getIdentifier(
                     fallbackThemeName, ResourceType.STYLE, context) != 0) {
                 return fallbackThemeName;

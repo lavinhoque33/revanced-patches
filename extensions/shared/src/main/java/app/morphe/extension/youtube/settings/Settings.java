@@ -165,7 +165,7 @@ public class Settings extends SharedYouTubeSettings {
         return new Setting.Availability() {
             @Override
             public boolean isAvailable() {
-                return !DARK_THEME.isSetToDefault() || !LIGHT_THEME.isSetToDefault();
+                return !ThemePatch.isStockDarkTheme() || !LIGHT_THEME.isSetToDefault();
             }
 
             @Override

@@ -1,5 +1,7 @@
 ## Unreleased
 
+## [1.44.1-dev.2](https://github.com/lavinhoque33/revanced-patches/compare/v1.44.1-dev.1...v1.44.1-dev.2) (2026-11-20)
+
 ### Bug fixes
 
 * **YouTube – SponsorBlock:** Show icons for Skip button duration, Skip toast duration, and Adjust new segment

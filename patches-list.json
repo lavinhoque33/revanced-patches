@@ -1,5 +1,5 @@
 {
-  "version": "v1.44.1-dev.1",
+  "version": "v1.44.1-dev.2",
   "patches": [
     {
       "name": "Add to queue",
@@ -4131,7 +4131,7 @@
         {
           "key": "applyToAll",
           "title": "Apply to all settings menu",
-          "description": "Add icons to the native settings entry and the RVX settings screens.\n\nTrue (default): also add icons to individual settings inside RVX sub-screens.\n\nFalse: icons only on parent screens and About rows for Regular and Bold styles.\n\nYouTube style shows icons on rows that open a settings screen and on About rows.",
+          "description": "Add icons to the native settings entry and the RVX settings screens.\n\nTrue (default): also add icons to individual settings inside RVX sub-screens.\n\nFalse: icons only on parent screens and About rows for Regular and Bold styles.\n\nYouTube style shows icons on rows that open a settings screen and on About rows.\nTrue also adds icons to SponsorBlock's duration and segment step rows in this style.",
           "required": true,
           "type": "kotlin.Boolean",
           "default": true,
@@ -4140,7 +4140,7 @@
         {
           "key": "iconStyle",
           "title": "Icon style",
-          "description": "The icon design, weight and size. YouTube uses the app's rounded settings icons at stock size\non rows that open a settings screen and on About rows, with rounded RVX fallbacks where unavailable.\nIts RVX entry uses YouTube's magic wand when available.\n\nIndividual setting icons in Regular and Bold styles require Apply to all settings menu = true.",
+          "description": "The icon design, weight and size. YouTube uses the app's rounded settings icons at stock size,\nwith rounded RVX fallbacks where unavailable.\nIts RVX entry uses YouTube's magic wand when available.\n\nIndividual setting icons require Apply to all settings menu = true.",
           "required": true,
           "type": "kotlin.String",
           "default": "regular",

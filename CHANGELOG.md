@@ -1,4 +1,4 @@
-## Unreleased
+## [1.45.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.44.0...v1.45.0) (2026-11-20)
 
 ### Features
 
@@ -23,6 +23,9 @@
   The title and channel now follow player metadata updates instead of polling.
 * **YouTube Music – Player:** Hide overlay filter skips dialogs whose `onStart` cannot be overridden.
   Creating that override made Music 6.20.51 crash at launch when forced.
+
+This stable release also includes the fullscreen, SponsorBlock icon, and Shorts restore icon fixes
+listed in `1.44.1-dev.1` and `1.44.1-dev.2` below.
 
 ## [1.44.1-dev.2](https://github.com/lavinhoque33/revanced-patches/compare/v1.44.1-dev.1...v1.44.1-dev.2) (2026-11-20)
 

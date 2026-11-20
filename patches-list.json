@@ -1,5 +1,5 @@
 {
-  "version": "v1.44.1-dev.2",
+  "version": "v1.45.0",
   "patches": [
     {
       "name": "Add to queue",
@@ -616,10 +616,11 @@
     },
     {
       "name": "Custom double tap length",
-      "description": "Adds Double-tap to seek values that are specified in patch options.",
+      "description": "Adds custom seek lengths to YouTube settings and separate backward and forward choices to RVX settings.",
       "use": true,
       "dependencies": [
-        "ResourcePatch"
+        "ResourcePatch",
+        "BytecodePatch"
       ],
       "compatiblePackages": {
         "com.google.android.youtube": [
@@ -633,7 +634,7 @@
         {
           "key": "doubleTapLengthArrays",
           "title": "Double-tap to seek values",
-          "description": "A list of custom Double-tap to seek lengths to be added, separated by commas.",
+          "description": "A comma-separated list of seek lengths in seconds for the YouTube and RVX settings.",
           "required": true,
           "type": "kotlin.String",
           "default": "3, 5, 10, 15, 20, 30, 60, 120, 180",
@@ -1053,6 +1054,7 @@
         "ResourcePatch",
         "BytecodePatch",
         "BytecodePatch",
+        "ResourcePatch",
         "ResourcePatch",
         "BytecodePatch"
       ],
@@ -1654,13 +1656,14 @@
     },
     {
       "name": "Hide Shorts dimming",
-      "description": "Adds an in-app setting to hide the dimming effect at the top and bottom of Shorts videos.",
+      "description": "Adds settings to hide the stock Shorts dimming, adjust the overlay opacity, and hide the status bar in Shorts.",
       "use": true,
       "dependencies": [
         "ResourcePatch",
         "BytecodePatch",
         "ResourcePatch",
-        "ResourcePatch"
+        "ResourcePatch",
+        "BytecodePatch"
       ],
       "compatiblePackages": {
         "com.google.android.youtube": [
@@ -2089,6 +2092,7 @@
         "BytecodePatch",
         "ResourcePatch",
         "ResourcePatch",
+        "ResourcePatch",
         "BytecodePatch",
         "BytecodePatch",
         "BytecodePatch",
@@ -2437,6 +2441,24 @@
       "dependencies": [
         "BytecodePatch",
         "ResourcePatch",
+        "BytecodePatch",
+        "ResourcePatch"
+      ],
+      "compatiblePackages": {
+        "com.google.android.youtube": [
+          "21.39.525",
+          "21.45.90",
+          "21.13.164",
+          "20.05.46"
+        ]
+      },
+      "options": []
+    },
+    {
+      "name": "Pause on audio interruptions",
+      "description": "Adds an option to pause YouTube instead of lowering the volume during short audio interruptions.",
+      "use": true,
+      "dependencies": [
         "BytecodePatch",
         "ResourcePatch"
       ],
@@ -2839,6 +2861,25 @@
       "use": true,
       "dependencies": [
         "BytecodePatch",
+        "ResourcePatch"
+      ],
+      "compatiblePackages": {
+        "com.google.android.youtube": [
+          "21.39.525",
+          "21.45.90",
+          "21.13.164",
+          "20.05.46"
+        ]
+      },
+      "options": []
+    },
+    {
+      "name": "Restore Cast Play/Queue",
+      "description": "Adds an option to restore the Play/Queue prompt when selecting another video during an active Cast session.",
+      "use": true,
+      "dependencies": [
+        "BytecodePatch",
+        "ResourcePatch",
         "ResourcePatch"
       ],
       "compatiblePackages": {
@@ -3839,6 +3880,7 @@
         "BytecodePatch",
         "BytecodePatch",
         "BytecodePatch",
+        "ResourcePatch",
         "ResourcePatch",
         "ResourcePatch",
         "BytecodePatch",

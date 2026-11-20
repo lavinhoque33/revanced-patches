@@ -1,13 +1,16 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-19.
  * Written by lavinhoque33, 2026-11-18.
  */
 package app.morphe.extension.music.patches.downloads;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.BooleanSupplier;
@@ -19,6 +22,39 @@ final class PlaylistTransfer {
     record Progress(int ready, int total) {
         boolean complete() {
             return total != 0 && ready == total;
+        }
+    }
+
+    /** Counts all positions of a copy while transferring it only once. */
+    static final class ProgressCounter {
+        private final Map<String, Integer> missing = new HashMap<>();
+        private int ready;
+        private int total;
+
+        ProgressCounter(List<String> tracks, UnaryOperator<String> canonical, Predicate<String> isReady) {
+            for (String track : tracks) {
+                if (!PlaylistPage.isAvailable(track)) continue;
+
+                total++;
+                missing.merge(canonical.apply(track), 1, Integer::sum);
+            }
+            var copies = missing.entrySet().iterator();
+            while (copies.hasNext()) {
+                var copy = copies.next();
+                if (!isReady.test(copy.getKey())) continue;
+
+                ready += copy.getValue();
+                copies.remove();
+            }
+        }
+
+        Progress snapshot() {
+            return new Progress(ready, total);
+        }
+
+        void saved(String id) {
+            Integer positions = missing.remove(id);
+            if (positions != null) ready += positions;
         }
     }
 

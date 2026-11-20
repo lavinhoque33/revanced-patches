@@ -136,6 +136,7 @@ SABR 프로토콜을 사용하여 재생하는 경우 (동영상 스트림 속�
     <string name="morphe_music_downloads_sort">정렬</string>
     <string name="morphe_music_downloads_started">다운로드 시작</string>
     <string name="morphe_music_downloads_starting">다운로드 시작 중…</string>
+    <string name="morphe_music_downloads_waiting_for_connection">연결 대기 중</string>
     <string name="morphe_music_downloads_storage_permission">저장소 접근 권한을 허용한 다음 다운로드를 다시 탭하세요</string>
     <string name="morphe_music_downloads_unknown_track">다운로드할 트랙을 식별할 수 없습니다</string>
     <string name="morphe_music_hide_you_may_also_like_section_title">\'추천 콘텐츠\' 섹션 숨기기</string>

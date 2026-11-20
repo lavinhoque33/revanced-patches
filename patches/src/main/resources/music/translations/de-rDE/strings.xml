@@ -130,6 +130,7 @@ Schritte:
     <string name="morphe_music_downloads_sort">Sortieren</string>
     <string name="morphe_music_downloads_started">Download gestartet</string>
     <string name="morphe_music_downloads_starting">Download wird gestartet…</string>
+    <string name="morphe_music_downloads_waiting_for_connection">Warten auf Verbindung</string>
     <string name="morphe_music_downloads_storage_permission">Erlaube der App Speicherzugriff, dann tippe Download erneut</string>
     <string name="morphe_music_downloads_unknown_track">Der Titel zum Herunterladen konnte nicht identifiziert werden</string>
     <string name="morphe_music_hide_you_may_also_like_section_title">Bereich „Das könnte dir auch gefallen“ ausblenden</string>

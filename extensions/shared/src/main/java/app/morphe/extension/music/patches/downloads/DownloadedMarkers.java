@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-19.
  * Modified by lavinhoque33, 2026-11-18.
  * Modified by lavinhoque33, 2026-11-17.
  * Modified by lavinhoque33, 2026-11-13
@@ -102,6 +103,11 @@ public final class DownloadedMarkers {
 
     static boolean isPlaylistPending(String sourceId) {
         return registry.isPending(sourceId);
+    }
+
+    /** The automatic worker can start on cold launch, before the header registry is loaded. */
+    static boolean hasPendingDownload(String sourceId) {
+        return pendingPreferences().contains(sourceId);
     }
 
     @Nullable
@@ -262,7 +268,6 @@ public final class DownloadedMarkers {
 
     /** Called when a downloaded playlist or album was removed: its track list and its header check go. */
     static void onSourceRemoved(String sourceId) {
-        PlaylistDownloads.onSourceRemoved(sourceId);
         registry.removeSource(sourceId);
         boolean tracksRemoved = trackPreferences().edit().remove(sourceId).commit();
         boolean pendingRemoved = pendingPreferences().edit().remove(sourceId).commit();

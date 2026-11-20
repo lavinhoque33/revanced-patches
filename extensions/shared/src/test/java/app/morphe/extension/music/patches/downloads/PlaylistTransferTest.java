@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-19.
  * Written by lavinhoque33, 2026-11-18.
  */
 package app.morphe.extension.music.patches.downloads;
@@ -38,6 +39,17 @@ public class PlaylistTransferTest {
     private static final byte[] AUDIO = {0x1a, 0x45, (byte) 0xdf, (byte) 0xa3, 1, 2, 3, 4};
 
     @Rule public TemporaryFolder temporary = new TemporaryFolder();
+
+    @Test public void transferProgressCountsReadyPositionsWithoutDownloadingDuplicateCopies() {
+        var counter = new PlaylistTransfer.ProgressCounter(List.of(FIRST, SECOND, GHOST, ALIAS, SECOND),
+                id -> ALIAS.equals(id) ? FIRST : id, FIRST::equals);
+        assertEquals(new PlaylistTransfer.Progress(2, 4), counter.snapshot());
+
+        counter.saved(SECOND);
+        assertEquals(new PlaylistTransfer.Progress(4, 4), counter.snapshot());
+        counter.saved(SECOND);
+        assertEquals(new PlaylistTransfer.Progress(4, 4), counter.snapshot());
+    }
 
     @Test public void failureDoesNotStopLaterTracksAndColdResumeFetchesOnlyMissingMedia() throws Exception {
         var before = new Copies();

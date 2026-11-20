@@ -136,6 +136,7 @@ SABR-воспроизведение (подмена видеопотоков о�
     <string name="morphe_music_downloads_sort">Сортировка</string>
     <string name="morphe_music_downloads_started">Скачивание началось</string>
     <string name="morphe_music_downloads_starting">Загрузка началась…</string>
+    <string name="morphe_music_downloads_waiting_for_connection">Ожидание подключения</string>
     <string name="morphe_music_downloads_storage_permission">Разрешите доступ к хранилищу, затем снова нажмите Скачать</string>
     <string name="morphe_music_downloads_unknown_track">Не удалось определить трек для скачивания</string>
     <string name="morphe_music_hide_you_may_also_like_section_title">Скрыть раздел «Вам также может понравиться»</string>

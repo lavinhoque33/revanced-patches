@@ -128,6 +128,7 @@ Lecture SABR (Falsifier les flux vidéo désactivés)"</string>
     <string name="morphe_music_downloads_sort">Trier</string>
     <string name="morphe_music_downloads_started">Téléchargement démarré</string>
     <string name="morphe_music_downloads_starting">Démarrage du téléchargement…</string>
+    <string name="morphe_music_downloads_waiting_for_connection">En attente de connexion</string>
     <string name="morphe_music_downloads_unknown_track">Impossible d\'identifier le morceau à télécharger</string>
     <string name="morphe_music_hide_you_may_also_like_section_title">Masquer la section \'Vous aimerez aussi\'</string>
     <string name="morphe_music_hide_your_downloads_shelf_title">Masquer l\'étagère \'Vos téléchargements\'</string>

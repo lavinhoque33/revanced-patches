@@ -129,6 +129,7 @@ SABR再生（動画ストリームのスプーフがオフ）"</string>
     <string name="morphe_music_downloads_sort">並べ替え</string>
     <string name="morphe_music_downloads_started">ダウンロードを開始しました</string>
     <string name="morphe_music_downloads_starting">ダウンロードを開始しています…</string>
+    <string name="morphe_music_downloads_waiting_for_connection">接続を待機しています</string>
     <string name="morphe_music_downloads_unknown_track">ダウンロードする楽曲を特定できませんでした</string>
     <string name="morphe_music_hide_you_may_also_like_section_title">「おすすめ」セクションを非表示</string>
     <string name="morphe_music_hide_your_downloads_shelf_title">「ダウンロード済み」欄を非表示</string>

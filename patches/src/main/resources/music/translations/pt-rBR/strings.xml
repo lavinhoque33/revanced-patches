@@ -136,6 +136,7 @@ Etapas:
     <string name="morphe_music_downloads_sort">Ordenar</string>
     <string name="morphe_music_downloads_started">Download iniciado</string>
     <string name="morphe_music_downloads_starting">Iniciando download…</string>
+    <string name="morphe_music_downloads_waiting_for_connection">Aguardando conexão</string>
     <string name="morphe_music_downloads_unknown_track">Não foi possível identificar a faixa para download</string>
     <string name="morphe_music_hide_you_may_also_like_section_title">Ocultar a seção \"Você também pode gostar\"</string>
     <string name="morphe_music_hide_your_downloads_shelf_title">Ocultar a estante \"Seus downloads\"</string>

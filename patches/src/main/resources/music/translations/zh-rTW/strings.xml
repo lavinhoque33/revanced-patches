@@ -129,6 +129,7 @@ SABR 播放（影片串流模擬已關閉）"</string>
     <string name="morphe_music_downloads_sort">排序</string>
     <string name="morphe_music_downloads_started">已開始下載</string>
     <string name="morphe_music_downloads_starting">正在開始下載…</string>
+    <string name="morphe_music_downloads_waiting_for_connection">正在等待網路連線</string>
     <string name="morphe_music_downloads_unknown_track">無法識別要下載的曲目</string>
     <string name="morphe_music_hide_you_may_also_like_section_title">隱藏「你可能也喜歡」區塊</string>
     <string name="morphe_music_hide_your_downloads_shelf_title">隱藏「您的下載」區塊</string>

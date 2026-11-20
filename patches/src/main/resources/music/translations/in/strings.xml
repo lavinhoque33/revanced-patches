@@ -136,6 +136,7 @@ Langkah-langkah:
     <string name="morphe_music_downloads_sort">Urutkan</string>
     <string name="morphe_music_downloads_started">Pengunduhan dimulai</string>
     <string name="morphe_music_downloads_starting">Memulai pengunduhan…</string>
+    <string name="morphe_music_downloads_waiting_for_connection">Menunggu koneksi</string>
     <string name="morphe_music_downloads_storage_permission">Izinkan akses penyimpanan, lalu ketuk Download lagi</string>
     <string name="morphe_music_downloads_unknown_track">Tidak dapat mengidentifikasi lagu untuk diunduh</string>
     <string name="morphe_music_hide_you_may_also_like_section_title">Sembunyikan bagian \'Anda mungkin juga suka\'</string>

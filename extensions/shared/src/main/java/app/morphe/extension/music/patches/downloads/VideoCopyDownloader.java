@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-19.
  * Modified by lavinhoque33, 2026-11-18.
  * Modified by lavinhoque33, 2026-11-17.
  * Written by lavinhoque33, 2026-11-09.
@@ -38,7 +39,7 @@ import app.morphe.extension.shared.utils.Utils;
  * between. Runs after the audio copies of the list. The music video of each song is found from the queue
  * the server lists for the list ({@link VideoPairingLogic}); each video is then downloaded on its own, one at a time,
  * with the downloader's own ranged, retried download. A video that cannot be saved is only counted: it never fails
- * the song or the list. Videos are saved only here, never later in the background.
+ * the song or the list. Videos are saved within the playlist download or sync that needs them.
  */
 final class VideoCopyDownloader {
     /** What a list ended with: videos already saved, saved now, and tried but failed. */
@@ -69,12 +70,12 @@ final class VideoCopyDownloader {
      * @param songIds The downloaded (available) tracks of the list, in order.
      */
     static Outcome ensure(String sourceId, String title, List<String> songIds, DownloadQuality quality,
-                          Function<String, String> copyId, BooleanSupplier canTransfer) {
+                          Function<String, String> copyId, DownloadNetwork network, DownloadKeepAlive.Hold hold) {
         try {
             Utils.verifyOffMainThread();
             if (!StreamSwap.supported() || songIds.isEmpty()) return Outcome.NONE;
 
-            VideoPairingLogic.Result pairing = pairing(sourceId, songIds);
+            VideoPairingLogic.Result pairing = network.transfer(() -> pairing(sourceId, songIds));
             if (pairing.skipReason() != null) {
                 Logger.printWarn(() -> "VideoCopy: video pairing skipped: " + pairing.skipReason() + " list="
                         + sourceId);
@@ -90,18 +91,23 @@ final class VideoCopyDownloader {
                 String id = copyId.apply(pair.songId());
                 if (!id.equals(pair.videoId())) pairs.add(new VideoPairingLogic.Pair(id, pair.videoId()));
             }
-            return download(sourceId, title, pairs, quality, canTransfer);
+            return download(sourceId, title, pairs, quality, network, hold);
         } catch (Exception ex) {
-            Logger.printException(() -> "VideoCopy: video pairing failed, list=" + sourceId, ex);
+            if (ex instanceof InterruptedException) Thread.currentThread().interrupt();
+            Logger.printWarn(() -> "VideoCopy: video pairing failed, list=" + sourceId, ex);
             return Outcome.NONE;
         }
     }
 
     /** Use the playlist's existing pairing rules, but transfer only counterparts needed by new members. */
     static void ensureForSync(String sourceId, String title, List<String> songIds, Set<String> additions,
-                              Function<String, String> copyId, DownloadQuality quality) throws Exception {
-        VideoPairingLogic.Result pairing = pairing(sourceId, songIds);
-        if (pairing.skipReason() != null) throw new IOException(pairing.skipReason());
+                              Function<String, String> copyId, DownloadQuality quality, DownloadNetwork network,
+                              DownloadKeepAlive.Hold hold) throws Exception {
+        VideoPairingLogic.Result pairing = network.transfer(() -> {
+            VideoPairingLogic.Result result = pairing(sourceId, songIds);
+            if (result.skipReason() != null) throw new IOException(result.skipReason());
+            return result;
+        });
 
         Set<VideoPairingLogic.Pair> seen = new HashSet<>();
         List<VideoPairingLogic.Pair> pairs = new ArrayList<>();
@@ -112,7 +118,7 @@ final class VideoCopyDownloader {
             VideoPairingLogic.Pair canonical = new VideoPairingLogic.Pair(id, pair.videoId());
             if (seen.add(canonical)) pairs.add(canonical);
         }
-        if (!pairs.isEmpty() && download(sourceId, title, pairs, quality, () -> true).failed() > 0) {
+        if (!pairs.isEmpty() && download(sourceId, title, pairs, quality, network, hold).failed() > 0) {
             throw new IOException("An added playlist video could not be saved");
         }
     }
@@ -166,7 +172,8 @@ final class VideoCopyDownloader {
     }
 
     private static Outcome download(String sourceId, String title, java.util.Collection<VideoPairingLogic.Pair> pairs,
-                                    DownloadQuality quality, BooleanSupplier canTransfer) {
+                                    DownloadQuality quality, DownloadNetwork network, DownloadKeepAlive.Hold hold)
+            throws InterruptedException {
         Set<String> audioCopies = RawAudioStore.copyIds();
         int present = 0;
         int saved = 0;
@@ -182,15 +189,23 @@ final class VideoCopyDownloader {
                 continue;
             }
 
-            if (!canTransfer.getAsBoolean()) break;
+            if (network.stopped()) break;
 
-            if (LocalDownloadManager.canPostProgress()) {
-                LocalDownloadManager.showDownloadNotification("playlist:" + sourceId, title,
-                        position * 100 / pairs.size(), true,
-                        str("morphe_music_playlist_video_progress", position + 1, pairs.size()));
+            hold.progress(title, position * 100 / pairs.size(),
+                    str("morphe_music_playlist_video_progress", position + 1, pairs.size()));
+            try {
+                network.transfer(() -> {
+                    if (!saveOne(pair, sourceId, title, quality, network::attemptUsable)) {
+                        throw new IOException("Video copy not saved: " + pair.videoId());
+                    }
+                    return null;
+                });
+                saved++;
+            } catch (InterruptedException ex) {
+                throw ex;
+            } catch (Exception ex) {
+                failed++;
             }
-            if (saveOne(pair, sourceId, title, quality, canTransfer)) saved++;
-            else failed++;
         }
         Outcome outcome = new Outcome(present, saved, failed);
         Logger.printWarn(() -> "VideoCopy: list=" + sourceId + " videos present=" + outcome.present() + " saved="

@@ -4,6 +4,8 @@
 
 * **Music - Stream download:** Playlist and album headers show how many tracks are ready. Resume an interrupted
   download without downloading saved tracks again; an individual failure no longer stops the rest of the list.
+* **Music - Stream download:** Downloads continue after leaving Music. Interrupted playlists and albums resume on
+  unmetered Wi-Fi while Music is open, and short connection drops no longer end a download.
 
 ## [1.42.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.41.0...v1.42.0) (2026-11-19)
 

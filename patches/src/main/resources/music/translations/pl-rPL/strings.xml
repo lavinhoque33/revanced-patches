@@ -136,6 +136,7 @@ Kroki:
     <string name="morphe_music_downloads_sort">Sortuj</string>
     <string name="morphe_music_downloads_started">Rozpoczęto pobieranie</string>
     <string name="morphe_music_downloads_starting">Rozpoczynanie pobierania…</string>
+    <string name="morphe_music_downloads_waiting_for_connection">Oczekiwanie na połączenie</string>
     <string name="morphe_music_downloads_storage_permission">Zezwól na dostęp do pamięci masowej, a następnie ponownie dotknij opcji Pobierz</string>
     <string name="morphe_music_downloads_unknown_track">Nie udało się zidentyfikować utworu do pobrania</string>
     <string name="morphe_music_hide_you_may_also_like_section_title">Ukryj sekcję \"To też może Ci się spodobać\"</string>

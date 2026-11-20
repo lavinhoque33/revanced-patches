@@ -136,6 +136,7 @@ Adımlar:
     <string name="morphe_music_downloads_sort">Sırala</string>
     <string name="morphe_music_downloads_started">İndirme başladı</string>
     <string name="morphe_music_downloads_starting">İndirme başlatılıyor…</string>
+    <string name="morphe_music_downloads_waiting_for_connection">Bağlantı bekleniyor</string>
     <string name="morphe_music_downloads_unknown_track">İndirilecek parça tanımlanamadı</string>
     <string name="morphe_music_hide_you_may_also_like_section_title">\'Bunlar da hoşunuza gidebilir\' bölümünü gizle</string>
     <string name="morphe_music_hide_your_downloads_shelf_title">\'İndirilenleriniz\' rafını gizle</string>

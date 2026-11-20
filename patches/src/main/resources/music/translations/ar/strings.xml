@@ -131,6 +131,7 @@
     <string name="morphe_music_downloads_sort">فرز</string>
     <string name="morphe_music_downloads_started">بدأ التنزيل</string>
     <string name="morphe_music_downloads_starting">جارٍ بدء التنزيل…</string>
+    <string name="morphe_music_downloads_waiting_for_connection">في انتظار الاتصال</string>
     <string name="morphe_music_downloads_unknown_track">تعذّر تحديد المسار المطلوب تنزيله</string>
     <string name="morphe_music_hide_you_may_also_like_section_title">إخفاء قسم \"قد يعجبك أيضاً\"</string>
     <string name="morphe_music_hide_your_downloads_shelf_title">إخفاء رف \'تنزيلاتك\'</string>

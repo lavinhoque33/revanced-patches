@@ -136,6 +136,7 @@ Passaggi:
     <string name="morphe_music_downloads_sort">Ordina</string>
     <string name="morphe_music_downloads_started">Scaricamento avviato</string>
     <string name="morphe_music_downloads_starting">Avvio scaricamento…</string>
+    <string name="morphe_music_downloads_waiting_for_connection">In attesa di connessione</string>
     <string name="morphe_music_downloads_storage_permission">Consenti l'accesso all\'archivio, quindi tocca nuovamente Scarica</string>
     <string name="morphe_music_downloads_unknown_track">Impossibile identificare la traccia da scaricare</string>
     <string name="morphe_music_hide_you_may_also_like_section_title">Nascondi la sezione \'Potrebbe piacerti\'</string>

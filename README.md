@@ -94,7 +94,7 @@ Local imports do not update automatically; import the new `.mpp` for each update
 | `Enable gradient loading screen` | Adds an option to enable the gradient loading screen. | 21.39.525 ~ 20.05.46 |
 | `Feed card layout` | Adds an option to show or hide the card layout of feed videos, which YouTube sends as an A/B test. | 21.39.525 ~ 20.05.46 |
 | `Feed video actions` | Adds a Watch later button to video thumbnails in feeds, and opens the video menu by tapping and holding anywhere on a video. | 21.39.525 ~ 20.05.46 |
-| `Feed view count` | Adds an option to show the view count at the bottom left of the thumbnails of feed videos. | 21.39.525 ~ 20.05.46 |
+| `Feed view count` | Adds options to hide view counts or upload dates below feed videos and show view counts on thumbnails. | 21.39.525 ~ 20.05.46 |
 | `Force animations` | Adds an option to always turn on or off the app animations that YouTube can turn off, such as the player transitions. | 21.39.525 ~ 20.05.46 |
 | `Force original audio` | Adds an option to disable audio tracks from being automatically enabled. | 21.39.525 ~ 20.05.46 |
 | `Force system font` | Adds an option to show the app with the device system font instead of YouTube Sans. | 21.39.525 ~ 20.05.46 |
@@ -112,7 +112,7 @@ Local imports do not update automatically; import the new `.mpp` for each update
 | `Hide layout components` | Adds options to hide general layout components. | 21.39.525 ~ 20.05.46 |
 | `Hide player buttons` | Adds options to hide buttons in the video player, and to hide or change the opacity of the player control buttons background. | 21.39.525 ~ 20.05.46 |
 | `Hide player flyout menu` | Adds options to hide player flyout menu components. | 21.39.525 ~ 20.05.46 |
-| `Hide shortcuts` | Remove, at compile time, the app shortcuts that appears when the app icon is long pressed. | 21.39.525 ~ 20.05.46 |
+| `Hide shortcuts` | Adds patch options to remove app icon shortcuts or the Shorts button in the Quick Actions widget. | 21.39.525 ~ 20.05.46 |
 | `Hide status bar` | Adds an option to hide the system status bar. Swipe down from the top edge to show it for a moment. | 21.39.525 ~ 20.05.46 |
 | `Hook download actions` | Adds support to download videos with the built-in downloader or an external downloader app, and an offline library for downloaded videos. | 21.39.525 ~ 20.05.46 |
 | `Media notification controls` | Adds options to disable the seekbar, hide the previous/next buttons, or make them seek in the media notification and headphone controls. | 21.39.525 ~ 20.05.46 |

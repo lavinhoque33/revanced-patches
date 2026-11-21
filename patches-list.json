@@ -1,5 +1,5 @@
 {
-  "version": "v1.45.0",
+  "version": "v1.46.0",
   "patches": [
     {
       "name": "Add to queue",
@@ -1252,7 +1252,7 @@
     },
     {
       "name": "Feed view count",
-      "description": "Adds an option to show the view count at the bottom left of the thumbnails of feed videos.",
+      "description": "Adds options to hide view counts or upload dates below feed videos and show view counts on thumbnails.",
       "use": true,
       "dependencies": [
         "BytecodePatch",
@@ -2011,7 +2011,7 @@
     },
     {
       "name": "Hide shortcuts",
-      "description": "Remove, at compile time, the app shortcuts that appears when the app icon is long pressed.",
+      "description": "Adds patch options to remove app icon shortcuts or the Shorts button in the Quick Actions widget.",
       "use": false,
       "dependencies": [
         "ResourcePatch",
@@ -2060,6 +2060,15 @@
           "required": true,
           "type": "kotlin.Boolean",
           "default": true,
+          "values": null
+        },
+        {
+          "key": "shortsWidget",
+          "title": "Hide Shorts in the Quick Actions widget",
+          "description": "Remove the Shorts button from the two-row home screen widget.",
+          "required": true,
+          "type": "kotlin.Boolean",
+          "default": false,
           "values": null
         }
       ]
@@ -2962,6 +2971,7 @@
       "use": true,
       "dependencies": [
         "ResourcePatch",
+        "BytecodePatch",
         "BytecodePatch",
         "BytecodePatch",
         "BytecodePatch",

@@ -289,6 +289,10 @@ To fix this, turn on \'Spoof video streams\' and change the \'Default client\' t
     <string name="morphe_feed_card_layout_title">Feed card layout</string>
     <string name="morphe_feed_view_count_summary">The view count of feed videos is shown at the bottom left of their thumbnails instead of below the title. Some videos, such as in shelves, may not show a view count</string>
     <string name="morphe_feed_view_count_title">Show view count on thumbnails</string>
+    <string name="morphe_hide_feed_subtitle_views_title">Hide view counts below feed videos</string>
+    <string name="morphe_hide_feed_subtitle_views_summary">Hides recognized view counts below video titles without filtering out videos or hiding the thumbnail badge.</string>
+    <string name="morphe_hide_feed_subtitle_age_title">Hide upload dates below feed videos</string>
+    <string name="morphe_hide_feed_subtitle_age_summary">Hides recognized upload dates and relative times, such as “2 days ago”, below video titles.</string>
     <string name="morphe_feed_long_press_menu_summary">Tapping and holding anywhere on a feed video opens its menu</string>
     <string name="morphe_feed_long_press_menu_title">Tap and hold to open video menu</string>
     <string name="morphe_feed_watch_later_button_summary">A Watch later button is shown on the thumbnails of feed videos. Tapping and holding it opens Save to playlist</string>
@@ -456,6 +460,9 @@ Info: The next queued video only starts while YouTube is on screen"</string>
     <string name="morphe_navigation_bar_style_entry_2">Translucent</string>
     <string name="morphe_navigation_bar_style_title">Navigation bar style</string>
     <string name="morphe_navigation_bar_style_user_dialog_message">This style may not be supported by your device or YouTube version, and can cause layout issues or crashes</string>
+    <string name="morphe_opaque_system_navigation_bar_light_title">Opaque system navigation bar in light theme</string>
+    <string name="morphe_opaque_system_navigation_bar_dark_title">Opaque system navigation bar in dark theme</string>
+    <string name="morphe_opaque_system_navigation_bar_summary">Makes the area behind Android’s navigation controls solid on Android 13 and newer. Does not change the glass capsule. The Opaque navigation bar style applies to both themes.</string>
     <string name="morphe_notification_dot_color_summary">Changes the color of notification dots</string>
     <string name="morphe_notification_dot_color_title">Notification dot color</string>
     <string name="morphe_notification_media_screen_summary">Customize the playback controls shown on your lock screen and notification panel</string>
@@ -488,6 +495,8 @@ Info: The next queued video only starts while YouTube is on screen"</string>
     <string name="morphe_playback_in_feeds_entry_off">Off</string>
     <string name="morphe_playback_in_feeds_entry_wifi_only">Wi-Fi only</string>
     <string name="morphe_playback_in_feeds_title">Playback in feeds</string>
+    <string name="morphe_center_playback_button_size_summary" formatted="false">Resize the play, pause, and replay button and its touch area. 100% leaves the original size unchanged.</string>
+    <string name="morphe_center_playback_button_size_title">Play/Pause/Replay button size</string>
     <string name="morphe_player_control_buttons_background_opacity_summary">Adjust the opacity of the background behind the player control buttons and the time bar (0 is invisible, 100 is solid)</string>
     <string name="morphe_player_control_buttons_background_opacity_title">Control buttons background opacity</string>
     <string name="morphe_player_icon_style_entry_auto">Automatic</string>
@@ -1790,6 +1799,8 @@ Words with uppercase letters in the middle must be entered with the casing (ie: 
     <string name="revanced_hide_navigation_notifications_button_summary_off">Notifications button is shown</string>
     <string name="revanced_hide_navigation_notifications_button_summary_on">Notifications button is hidden</string>
     <string name="revanced_hide_navigation_notifications_button_title">Hide Notifications button</string>
+    <string name="revanced_hide_toolbar_messages_button_title">Hide Messages button</string>
+    <string name="revanced_hide_toolbar_messages_button_summary">Hides the Messages button from the toolbar when YouTube shows it</string>
     <string name="revanced_hide_navigation_shorts_button_summary_off">Shorts button is shown</string>
     <string name="revanced_hide_navigation_shorts_button_summary_on">Shorts button is hidden</string>
     <string name="revanced_hide_navigation_shorts_button_title">Hide Shorts button</string>
@@ -2031,6 +2042,8 @@ Info:
     <string name="revanced_hide_shorts_paused_header_summary_off">Paused header is shown</string>
     <string name="revanced_hide_shorts_paused_header_summary_on">Paused header is hidden</string>
     <string name="revanced_hide_shorts_paused_header_title">Hide paused header</string>
+    <string name="revanced_hide_shorts_speed_education_title">Hide Shorts 2× speed tutorial</string>
+    <string name="revanced_hide_shorts_speed_education_summary">Hides the hint for locking or exiting 2× speed. The gesture and speed indicator still work.</string>
     <string name="revanced_hide_shorts_paused_overlay_buttons_summary_off">Paused overlay buttons are shown</string>
     <string name="revanced_hide_shorts_paused_overlay_buttons_summary_on">Paused overlay buttons are hidden</string>
     <string name="revanced_hide_shorts_paused_overlay_buttons_title">Hide paused overlay buttons</string>
@@ -2429,6 +2442,9 @@ Info:
 Tap and hold to reset playback speed to 1.0x. Tap and hold again to reset back to default speed"</string>
     <string name="revanced_overlay_button_speed_dialog_title">Show speed dialog button</string>
     <string name="revanced_overlay_button_speed_dialog_type_title">Speed dialog type (player button)</string>
+    <string name="revanced_overlay_button_video_quality_label">Video quality</string>
+    <string name="revanced_overlay_button_video_quality_summary">Open video quality directly from the player controls.</string>
+    <string name="revanced_overlay_button_video_quality_title">Show video quality button</string>
     <string name="revanced_overlay_button_vot_summary">Show overlay button to toggle voice-over translation for the current video</string>
     <string name="revanced_overlay_button_vot_title">Voice Over Translation</string>
     <string name="revanced_overlay_button_whitelist_summary">"Tap to open whitelist dialog

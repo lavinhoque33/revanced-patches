@@ -40,7 +40,9 @@ import org.robolectric.android.controller.ActivityController;
 import org.robolectric.annotation.Config;
 import org.robolectric.annotation.GraphicsMode;
 
-import app.morphe.extension.shared.returnyoutubedislike.requests.ReturnYouTubeDislikeApi;
+import java.util.concurrent.Executor;
+import java.util.function.Supplier;
+
 import app.morphe.extension.shared.utils.ResourceUtils;
 import app.morphe.extension.shared.utils.Utils;
 import app.morphe.extension.youtube.returnyoutubedislike.ReturnYouTubeDislike;
@@ -132,9 +134,7 @@ public class WatchVoteLabelPlacementTest {
 
     @After
     public void tearDown() {
-        callStaticMethod(PATCH, "removeRegularActionButtonCountOverlays");
-        setStaticField(PATCH, "currentVideoData", null);
-        ReturnYouTubeDislikeApi.resetRateLimits();
+        ReturnYouTubeDislikePatch.onRYDStatusChange();
         RuntimeEnvironment.setFontScale(1f);
         PlayerType.setFromString(PlayerType.NONE.name());
         if (activity != null) {
@@ -299,13 +299,10 @@ public class WatchVoteLabelPlacementTest {
     }
 
     private static void seedCounts(String videoId, String likes, String dislikes) {
-        // Exercise placement without sending votes or making any RYD network calls.
-        setStaticField(ReturnYouTubeDislikeApi.class, "timeToResumeAPICalls", Long.MAX_VALUE);
-        var data = callConstructor(ReturnYouTubeDislike.class, from(String.class, videoId));
-        assertNull(data.getFetchData(5000));
-        assertTrue(data.fetchCompleted());
-        setStaticField(PATCH, "currentVideoData", data);
-        setStaticField(PATCH, "regularActionButtonCountVideoId", videoId);
+        // This fixture tests placement with known formatted counts, not the network producer.
+        var data = callConstructor(ReturnYouTubeDislike.class, from(String.class, videoId),
+                from(Supplier.class, () -> null), from(Executor.class, Runnable::run));
+        setStaticField(PATCH, "currentWatch", new ReturnYouTubeDislikePatch.WatchBinding(data));
         setCounts(likes, dislikes);
     }
 

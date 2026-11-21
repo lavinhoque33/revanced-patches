@@ -149,7 +149,7 @@ internal enum class PatchList(
     ),
     FEED_VIEW_COUNT(
         "Feed view count",
-        "Adds an option to show the view count at the bottom left of the thumbnails of feed videos."
+        "Adds options to hide view counts or upload dates below feed videos and show view counts on thumbnails."
     ),
     FORCE_ANIMATIONS(
         "Force animations",
@@ -222,7 +222,7 @@ internal enum class PatchList(
     ),
     HIDE_SHORTCUTS(
         "Hide shortcuts",
-        "Remove, at compile time, the app shortcuts that appears when the app icon is long pressed."
+        "Adds patch options to remove app icon shortcuts or the Shorts button in the Quick Actions widget."
     ),
     // modified by lavinhoque33, 2026-10-16: Hide status bar patch entry.
     HIDE_STATUS_BAR(

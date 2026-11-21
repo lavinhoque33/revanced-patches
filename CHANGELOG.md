@@ -4,9 +4,27 @@
 
 * **YouTube – Seekbar:** Optionally disable the pull-up gesture for precise seeking without disabling
   normal horizontal scrubbing. The gesture stays enabled by default.
+* **YouTube – Feed:** Hide the view count and upload age in video subtitles independently. The thumbnail
+  view-count badge can still show the original count when the subtitle count is hidden.
+* **YouTube – Quick Actions widget:** The `Hide shortcuts` patch can remove the Shorts button from the
+  two-row home screen widget without removing the Shorts shortcut from the app icon’s long-press menu.
 * **YouTube Music – Settings menu filter:** Hidden stock settings stay hidden when the app language changes.
   Existing title selections migrate when they identify one stock row; ambiguous and custom titles still match
   literally.
+* **YouTube Music – Navigation:** Hide the native Search tab without hiding toolbar Search or changing
+  what the Samples tab opens.
+* **YouTube Music – Flyout menu:** On supported 9.x versions, hide **Don’t recommend artist** without
+  hiding **Go to artist** or **Not interested**.
+* **YouTube – Player buttons:** Open Quality from a dedicated button beside Playback speed. Choose a
+  resolution or return to Auto without changing the timestamp action. A separate size setting changes
+  the native Play/Pause/Replay button and its touch target together; 100% leaves them unchanged.
+* **YouTube – Return YouTube Dislike:** Keep the original count visible while votes load. Watch-page counts
+  and enabled feed badges update in place when the request finishes without waiting for a scroll.
+* **YouTube – Shorts:** Hide the 2× speed tutorial without hiding the speed indicator or disabling the gesture
+  on versions that have the tutorial.
+* **YouTube – Toolbar:** Hide the Messages button without hiding Notifications.
+* **YouTube – Navigation:** Make the system navigation bar opaque in light or dark theme independently,
+  without changing the in-app glass navigation bar.
 
 ### Performance
 
@@ -16,6 +34,12 @@
   An unavailable cover does not prevent the audio file from being saved.
 * **YouTube – Watch page:** Separate Like and Dislike counts follow their buttons without remeasuring
   unchanged labels or requesting a redraw on every frame.
+* **YouTube – SponsorBlock:** Revisiting a video within five minutes can reuse its downloaded segments.
+  Skip-once and undo state still start fresh; a failed lookup is retried rather than cached as empty.
+* **YouTube and YouTube Music – Branding:** Leave already-correct launcher icons and names alone at startup.
+  Recheck the selected launcher and splash resources when the APK is replaced, even at the same app version.
+* **YouTube – Component filters:** On supported 21.x versions, filters that only need the component name
+  or path no longer encode its contents. Filters that inspect those contents still share one encoded copy.
 
 ## [1.45.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.44.0...v1.45.0) (2026-11-20)
 

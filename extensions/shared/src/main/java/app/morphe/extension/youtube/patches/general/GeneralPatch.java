@@ -1050,6 +1050,16 @@ public class GeneralPatch {
         hideViewUnderCondition(isNotificationButton(enumString), view);
     }
 
+    /**
+     * Injection point. Hide the menu item so the toolbar does not reserve a slot for it.
+     */
+    public static void hideToolbarMessagesButton(Enum<?> icon, MenuItem item) {
+        if (Settings.HIDE_TOOLBAR_MESSAGES_BUTTON.get() && icon != null
+                && "MESSAGE_BUBBLE_OVERLAP".equals(icon.name()) && item != null) {
+            item.setVisible(false);
+        }
+    }
+
     public static void hideSearchButton(String enumString, View view) {
         if (!Settings.HIDE_TOOLBAR_SEARCH_BUTTON.get())
             return;

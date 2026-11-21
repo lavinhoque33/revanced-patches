@@ -9,7 +9,7 @@
  * - inotia00 (https://github.com/inotia00)
  *
  * Licensed under the GNU General Public License v3.0.
- * Modified by lavinhoque33, 2026-11-17.
+ * Modified by lavinhoque33, 2026-11-20.
  *
  * ------------------------------------------------------------------------
  * GPLv3 Section 7 – Additional Terms & Attribution Requirements
@@ -52,6 +52,7 @@ import android.text.SpannableString;
 import android.text.Spanned;
 import android.text.TextPaint;
 import android.text.TextUtils;
+import android.util.DisplayMetrics;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
@@ -113,6 +114,8 @@ public class ReturnYouTubeDislikePatch {
     private static final float ACTION_BUTTON_COUNT_DEFAULT_TEXT_SIZE_SP = 12;
     private static final float ACTION_BUTTON_COUNT_MINIMUM_TEXT_SIZE_SP = 9;
     private static final float ACTION_BUTTON_COUNT_TEXT_SIZE_STEP_SP = 0.5f;
+    private static final CountLabelMeasurement likeCountMeasurement = new CountLabelMeasurement();
+    private static final CountLabelMeasurement dislikeCountMeasurement = new CountLabelMeasurement();
     @Nullable
     private static WeakReference<ViewGroup> regularActionButtonCountRoot;
     @Nullable
@@ -1014,6 +1017,8 @@ public class ReturnYouTubeDislikePatch {
         regularLikeActionButton = null;
         regularDislikeActionButton = null;
         regularActionButtonCountPositionListener = null;
+        likeCountMeasurement.clear();
+        dislikeCountMeasurement.clear();
     }
 
     private static void ensureRegularActionButtonCountSearchUpdates(@NonNull ViewGroup root) {
@@ -1111,36 +1116,33 @@ public class ReturnYouTubeDislikePatch {
                         likeButtonBounds
                 );
 
-        float sharedTextSizeSp = getRegularActionButtonCountTextSizeSp(
-                likeLabel,
-                likeCount,
-                likeAvailableWidth,
-                dislikeLabel,
-                dislikeCount,
-                dislikeAvailableWidth
-        );
+        boolean refit = !likeCountMeasurement.matches(likeLabel, likeCount, likeAvailableWidth)
+                || !dislikeCountMeasurement.matches(dislikeLabel, dislikeCount, dislikeAvailableWidth);
+        float sharedTextSizeSp = refit
+                ? getRegularActionButtonCountTextSizeSp(
+                        likeLabel, likeCount, likeAvailableWidth, dislikeLabel, dislikeCount, dislikeAvailableWidth)
+                : 0;
+        int textColor = ThemeUtils.getAppForegroundColor();
+        boolean repaint = false;
+
+        if (refit) {
+            likeCountMeasurement.bind(likeLabel, likeCount, likeAvailableWidth);
+            dislikeCountMeasurement.bind(dislikeLabel, dislikeCount, dislikeAvailableWidth);
+        }
 
         if (likeButtonBounds != null && likeLabel != null) {
-            positionRegularActionButtonCountLabel(
-                    root,
-                    likeButtonBounds,
-                    likeLabel,
-                    likeCount,
-                    countTop,
-                    likeAvailableWidth,
-                    sharedTextSizeSp
-            );
+            repaint = positionRegularActionButtonCountLabel(
+                    likeButtonBounds, likeLabel, likeCount, countTop, likeCountMeasurement,
+                    refit, sharedTextSizeSp, textColor);
         }
         if (dislikeButtonBounds != null && dislikeLabel != null) {
-            positionRegularActionButtonCountLabel(
-                    root,
-                    dislikeButtonBounds,
-                    dislikeLabel,
-                    dislikeCount,
-                    countTop,
-                    dislikeAvailableWidth,
-                    sharedTextSizeSp
-            );
+            repaint |= positionRegularActionButtonCountLabel(
+                    dislikeButtonBounds, dislikeLabel, dislikeCount, countTop, dislikeCountMeasurement,
+                    refit, sharedTextSizeSp, textColor);
+        }
+
+        if (repaint) {
+            root.invalidate();
         }
     }
 
@@ -1161,65 +1163,132 @@ public class ReturnYouTubeDislikePatch {
                 + ACTION_BUTTON_COUNT_VERTICAL_SPACING_PIXELS;
     }
 
-    /**
-     * Positions a count label from a pre-draw callback. View properties are updated only when
-     * their values change to avoid requesting another layout and rebinding the EML button row.
-     */
-    private static void positionRegularActionButtonCountLabel(@NonNull ViewGroup root,
-                                                              @NonNull Rect buttonVisualBounds,
-                                                              @NonNull TextView textView,
-                                                              @NonNull CharSequence text,
-                                                              int top,
-                                                              int availableWidth,
-                                                              float textSizeSp) {
+    private static boolean positionRegularActionButtonCountLabel(@NonNull Rect buttonVisualBounds,
+                                                                 @NonNull TextView textView,
+                                                                 @NonNull CharSequence text,
+                                                                 int top,
+                                                                 @NonNull CountLabelMeasurement measurement,
+                                                                 boolean refit,
+                                                                 float textSizeSp,
+                                                                 int textColor) {
         if (text.length() == 0) {
-            if (textView.getVisibility() != View.GONE) {
-                textView.setVisibility(View.GONE);
+            if (textView.getVisibility() == View.GONE) {
+                return false;
             }
-            return;
+            textView.setVisibility(View.GONE);
+            return true;
         }
 
-        CharSequence fittedText = fitRegularActionButtonCountText(
-                textView,
-                text,
-                availableWidth,
-                textSizeSp
-        );
-        if (!TextUtils.equals(textView.getText(), fittedText)) {
-            textView.setText(fittedText);
+        if (refit) {
+            measurement.measure(textView, text, textSizeSp);
         }
-        int textColor = ThemeUtils.getAppForegroundColor();
+
+        boolean repaint = refit;
         if (textView.getCurrentTextColor() != textColor) {
             textView.setTextColor(textColor);
+            repaint = true;
         }
 
-        int targetHeight = ACTION_BUTTON_COUNT_RESERVED_HEIGHT_PIXELS;
-        textView.measure(
-                View.MeasureSpec.makeMeasureSpec(availableWidth, View.MeasureSpec.AT_MOST),
-                View.MeasureSpec.makeMeasureSpec(targetHeight, View.MeasureSpec.EXACTLY)
-        );
-
-        int labelWidth = Math.max(1, textView.getMeasuredWidth());
-        textView.measure(
-                View.MeasureSpec.makeMeasureSpec(labelWidth, View.MeasureSpec.EXACTLY),
-                View.MeasureSpec.makeMeasureSpec(targetHeight, View.MeasureSpec.EXACTLY)
-        );
-
-        int baseline = textView.getBaseline();
-        int layoutTop = top;
-        if (baseline > 0) {
-            int targetBaselineOffset = Utils.dipToPixels(12);
-            layoutTop = top + targetBaselineOffset - baseline;
-        }
-
+        int labelWidth = measurement.measuredWidth;
+        int baseline = measurement.baseline;
+        int layoutTop = baseline > 0 ? top + Utils.dipToPixels(12) - baseline : top;
         int left = buttonVisualBounds.centerX() - labelWidth / 2;
+        int right = left + labelWidth;
+        int bottom = layoutTop + ACTION_BUTTON_COUNT_RESERVED_HEIGHT_PIXELS;
 
-        textView.layout(left, layoutTop, left + labelWidth, layoutTop + targetHeight);
+        // Keep sampling the native anchors on pre-draw: they can move without a layout request.
+        // A moved overlay child invalidates its new and old bounds through ViewGroupOverlay.
+        if (refit || textView.getLeft() != left || textView.getTop() != layoutTop
+                || textView.getRight() != right || textView.getBottom() != bottom) {
+            textView.layout(left, layoutTop, right, bottom);
+        }
 
         if (textView.getVisibility() != View.VISIBLE) {
             textView.setVisibility(View.VISIBLE);
+            repaint = true;
         }
-        root.invalidate();
+        return repaint;
+    }
+
+    /** Text metrics are independent of position until the count, slot, or label's layout inputs change. */
+    @SuppressWarnings("deprecation") // scaledDensity is used for SP conversion on older Android versions.
+    private static final class CountLabelMeasurement {
+        private WeakReference<TextView> labelReference;
+        private CharSequence sourceText;
+        private CharSequence fittedText;
+        private int availableWidth;
+        private float fontScale;
+        private float density;
+        private float scaledDensity;
+        private int layoutDirection;
+        private int textDirection;
+        private float textSizePixels;
+        private int measuredWidth;
+        private int baseline;
+
+        boolean matches(@Nullable TextView label, @NonNull CharSequence text, int width) {
+            TextView previousLabel = labelReference == null ? null : labelReference.get();
+            if (label != previousLabel || text != sourceText || width != availableWidth) {
+                return false;
+            }
+            if (label == null || width == 0 || text.length() == 0) {
+                return true;
+            }
+
+            var resources = label.getResources();
+            DisplayMetrics metrics = resources.getDisplayMetrics();
+            return !label.isLayoutRequested()
+                    && label.getLayout() != null
+                    && label.getMeasuredWidth() == measuredWidth
+                    && label.getMeasuredHeight() == ACTION_BUTTON_COUNT_RESERVED_HEIGHT_PIXELS
+                    && label.getLayoutDirection() == layoutDirection
+                    && label.getTextDirection() == textDirection
+                    && label.getTextSize() == textSizePixels
+                    && resources.getConfiguration().fontScale == fontScale
+                    && metrics.density == density
+                    && metrics.scaledDensity == scaledDensity
+                    && TextUtils.equals(label.getText(), fittedText);
+        }
+
+        void bind(@Nullable TextView label, @NonNull CharSequence text, int width) {
+            if (label == null) {
+                labelReference = null;
+            } else if (labelReference == null || labelReference.get() != label) {
+                labelReference = new WeakReference<>(label);
+            }
+            sourceText = text;
+            availableWidth = width;
+            fittedText = null;
+        }
+
+        void measure(@NonNull TextView label, @NonNull CharSequence text, float textSizeSp) {
+            fittedText = fitRegularActionButtonCountText(label, text, availableWidth, textSizeSp);
+            if (!TextUtils.equals(label.getText(), fittedText)) {
+                label.setText(fittedText);
+            }
+
+            int heightSpec = View.MeasureSpec.makeMeasureSpec(
+                    ACTION_BUTTON_COUNT_RESERVED_HEIGHT_PIXELS, View.MeasureSpec.EXACTLY);
+            label.measure(View.MeasureSpec.makeMeasureSpec(availableWidth, View.MeasureSpec.AT_MOST), heightSpec);
+            measuredWidth = Math.max(1, label.getMeasuredWidth());
+            label.measure(View.MeasureSpec.makeMeasureSpec(measuredWidth, View.MeasureSpec.EXACTLY), heightSpec);
+            baseline = label.getBaseline();
+
+            var resources = label.getResources();
+            DisplayMetrics metrics = resources.getDisplayMetrics();
+            density = metrics.density;
+            scaledDensity = metrics.scaledDensity;
+            fontScale = resources.getConfiguration().fontScale;
+            layoutDirection = label.getLayoutDirection();
+            textDirection = label.getTextDirection();
+            textSizePixels = label.getTextSize();
+        }
+
+        void clear() {
+            labelReference = null;
+            sourceText = null;
+            fittedText = null;
+        }
     }
 
     /**

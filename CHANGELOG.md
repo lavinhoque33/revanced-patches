@@ -4,11 +4,18 @@
 
 * **YouTube – Seekbar:** Optionally disable the pull-up gesture for precise seeking without disabling
   normal horizontal scrubbing. The gesture stays enabled by default.
+* **YouTube Music – Settings menu filter:** Hidden stock settings stay hidden when the app language changes.
+  Existing title selections migrate when they identify one stock row; ambiguous and custom titles still match
+  literally.
 
 ### Performance
 
 * **YouTube – Seekbar:** Read the seekbar bounds when a thumbnail preview needs them instead of copying
   them every time the idle seekbar is drawn.
+* **YouTube – Downloads:** When saving audio and a thumbnail to Pictures, fetch the original artwork once.
+  An unavailable cover does not prevent the audio file from being saved.
+* **YouTube – Watch page:** Separate Like and Dislike counts follow their buttons without remeasuring
+  unchanged labels or requesting a redraw on every frame.
 
 ## [1.45.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.44.0...v1.45.0) (2026-11-20)
 

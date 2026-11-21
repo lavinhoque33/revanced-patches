@@ -184,6 +184,8 @@ public class Settings extends SharedYouTubeSettings {
 
     // Settings menu filter
     public static final StringSetting SETTINGS_MENU_FILTER_STRINGS = new StringSetting("morphe_settings_menu_filter_strings", "", true);
+    public static final StringSetting SETTINGS_MENU_FILTER_KEYS = new StringSetting(
+            "morphe_settings_menu_filter_keys", "", true);
     public static final StringSetting SETTINGS_MENU_FILTER_DISCOVERED = new StringSetting("morphe_settings_menu_filter_discovered", "", true, false);
     public static final BooleanSetting HIDE_YOUR_DOWNLOADS_SHELF = new BooleanSetting(
             "morphe_music_hide_your_downloads_shelf", FALSE, true);

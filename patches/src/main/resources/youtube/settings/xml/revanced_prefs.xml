@@ -948,6 +948,13 @@
             <app.morphe.extension.shared.settings.preference.ColorPickerPreference android:title="@string/revanced_custom_seekbar_color_accent_title" android:key="revanced_custom_seekbar_color_accent" android:summary="@string/revanced_custom_seekbar_color_accent_summary" android:hint="#FF2791" android:inputType="textCapCharacters" />
             <app.morphe.extension.shared.settings.preference.RangeSliderPreference android:title="@string/revanced_gradient_seekbar_positions_title" android:key="revanced_gradient_seekbar_positions" android:summary="@string/revanced_gradient_seekbar_positions_summary" android:inputType="text" />SETTINGS: CUSTOM_SEEKBAR_COLOR_ACCENT -->
 
+            <!-- SETTINGS: DISABLE_PRECISE_SEEKING_GESTURE
+            <SwitchPreference
+                android:key="revanced_disable_precise_seeking_gesture"
+                android:title="@string/revanced_disable_precise_seeking_gesture_title"
+                android:summaryOn="@string/revanced_disable_precise_seeking_gesture_summary_on"
+                android:summaryOff="@string/revanced_disable_precise_seeking_gesture_summary_off" />SETTINGS: DISABLE_PRECISE_SEEKING_GESTURE -->
+
             <!-- SETTINGS: SEEKBAR_COMPONENTS
             <SwitchPreference android:title="@string/morphe_fullscreen_large_seekbar_title" android:key="morphe_fullscreen_large_seekbar" />
             <SwitchPreference android:title="@string/revanced_enable_seekbar_tapping_title" android:key="revanced_enable_seekbar_tapping" android:summaryOn="@string/revanced_enable_seekbar_tapping_summary_on" android:summaryOff="@string/revanced_enable_seekbar_tapping_summary_off" />

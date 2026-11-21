@@ -1,3 +1,15 @@
+## Unreleased
+
+### Features
+
+* **YouTube – Seekbar:** Optionally disable the pull-up gesture for precise seeking without disabling
+  normal horizontal scrubbing. The gesture stays enabled by default.
+
+### Performance
+
+* **YouTube – Seekbar:** Read the seekbar bounds when a thumbnail preview needs them instead of copying
+  them every time the idle seekbar is drawn.
+
 ## [1.45.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.44.0...v1.45.0) (2026-11-20)
 
 ### Features

@@ -981,6 +981,8 @@ public class Settings extends SharedYouTubeSettings {
     public static final StringSetting CUSTOM_SEEKBAR_COLOR_ACCENT = new StringSetting("revanced_custom_seekbar_color_accent", "#FF2791", true, parent(ENABLE_CUSTOM_SEEKBAR_COLOR));
     public static final StringSetting GRADIENT_SEEKBAR_POSITIONS = new StringSetting("revanced_gradient_seekbar_positions", "0.7, 1.0", parent(ENABLE_CUSTOM_SEEKBAR_COLOR));
     public static final BooleanSetting ENABLE_SEEKBAR_TAPPING = new BooleanSetting("revanced_enable_seekbar_tapping", TRUE);
+    public static final BooleanSetting DISABLE_PRECISE_SEEKING_GESTURE =
+            new BooleanSetting("revanced_disable_precise_seeking_gesture", FALSE);
     public static final BooleanSetting HIDE_SEEKBAR_CHAPTER_LABEL = new BooleanSetting("revanced_hide_seekbar_chapter_label", FALSE, true);
     public static final BooleanSetting HIDE_SEEKBAR = new BooleanSetting("revanced_hide_seekbar", FALSE, true);
     public static final BooleanSetting CUSTOM_SEEKBAR_THUMB =

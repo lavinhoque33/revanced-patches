@@ -1136,6 +1136,7 @@ private val rvxPreferenceKey = mapOf(
     "revanced_default_video_quality_mobile_shorts" to "revanced_default_video_quality_wifi_shorts",
     "revanced_disable_default_playback_speed_music_type" to "revanced_disable_default_playback_speed_music",
     "revanced_disable_like_dislike_glow" to "revanced_disable_rolling_number_animations",
+    "revanced_disable_precise_seeking_gesture" to "revanced_disable_swipe_to_enter_fullscreen_mode_below_the_player",
     "revanced_enable_custom_playback_speed" to "revanced_overlay_button_speed_dialog",
     "revanced_enable_playback_audio_pitch_controls" to "revanced_default_playback_audio_pitch",
     "revanced_enable_wide_search_bar_in_you_tab" to "revanced_enable_wide_search_bar",

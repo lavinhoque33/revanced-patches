@@ -1,5 +1,12 @@
 ## Unreleased
 
+### Features
+
+* **YouTube – Player buttons:** Adjust the background opacity of Play/Pause/Replay and Previous/Next separately
+  from the timestamp and other player buttons. Both sliders inherit your previous opacity.
+* **YouTube – Seekbar:** In portrait, the dark theme keeps the buffered portion of an on-demand video
+  visible after the controls fade. Played progress, scrubbing and live streams keep their existing behavior.
+
 ### Bug Fixes
 
 * **YouTube – Snack bar:** With the Chip border preset, the playlist bottom bar now follows **Invert snack bar

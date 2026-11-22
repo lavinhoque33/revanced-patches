@@ -6,12 +6,12 @@ Add the dev URL as a second source via **Sources > + > Remote**, then select it 
 
 Dev feed:
 ```text
-https://raw.githubusercontent.com/lavinhoque33/revanced-patches/refs/heads/rvx-dev/patches-bundle.json
+https://raw.githubusercontent.com/lavinhoque33/revanced-patches/rvx-dev/patches-bundle.json
 ```
 
 Stable feed for comparison:
 ```text
-https://raw.githubusercontent.com/lavinhoque33/revanced-patches/refs/heads/rvx-latest/patches-bundle.json
+https://raw.githubusercontent.com/lavinhoque33/revanced-patches/rvx-latest/patches-bundle.json
 ```
 
 The stable feed stays on regular releases. The dev feed follows prereleases and moves to the stable release

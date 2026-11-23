@@ -5,6 +5,18 @@
 * **YouTube Music – Queue:** On 9.15.51, 9.40.51 and 9.45.51, enable **RVX → Player → Add to queue in tap order**
   to hear songs you add from their menus before the original Up next list resumes. Add the same song twice to hear
   it twice. **Play next** still jumps the line. Shuffled, Cast and Jam queues keep their normal behavior.
+* **YouTube Music – Player:** **RVX → Player → Playback source inspector** shows the audio and video formats
+  Music selected (itags). It reports the source separately: a confirmed RVX file read distinguishes a saved
+  song from the audio or video track of a saved video. Otherwise the source is **Unconfirmed**, even if the song
+  is downloaded. **Refresh** updates the snapshot without restarting playback.
+  In expanded Now Playing, touch and hold the three-dot Menu to inspect video without leaving the player.
+
+### Bug Fixes
+
+* **YouTube Music – Downloads:** Client spoofing no longer replaces a locally selected stream copy with an online
+  stream. Tracks without a usable copy still use normal online playback.
+* **YouTube Music – Player:** Playback source inspector follows video format changes from the native player,
+  including when switching from Song to Video.
 
 ## [1.47.1](https://github.com/lavinhoque33/revanced-patches/compare/v1.47.0...v1.47.1) (2026-11-23)
 

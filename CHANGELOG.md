@@ -1,5 +1,24 @@
 ## Unreleased
 
+### Features
+
+* **YouTube – Swipe controls:** Choose separate overlay styles for the side and top/bottom edges, including
+  a full horizontal overlay in the center. Set the background color separately from opacity. Portrait swipes
+  are optional and limited to the watch player. Supported swipe icons follow the selected player icon style.
+* **YouTube – Toolbar:** Turn off **Hide Cast button** to restore the toolbar entry on supported 21.x versions.
+  On 21.39.525 and 21.45.90, **Hide Companion button** controls the separate Companion action.
+* **YouTube – Miniplayer:** **Hide overlay buttons** now applies to the **Default** miniplayer as well.
+  Swipe down on the miniplayer to dismiss it. Default keeps its native buttons when touch exploration is active.
+
+### Bug Fixes
+
+* **YouTube – Swipe controls:** A touch starting on the seekbar stays with YouTube’s native scrubber
+  rather than activating a swipe shortcut during precise seeking.
+* **YouTube – Return YouTube Dislike:** Keep the Morphe-style dislike count drawn while the same video’s
+  action row updates, including when tapping Play/Pause or Like.
+* **YouTube – Seekbar:** Preserve the custom primary-to-accent gradient on the played segment in dark
+  portrait mode after the controls fade. The gray buffered segment is separate.
+
 ## [1.49.0-dev.1](https://github.com/lavinhoque33/revanced-patches/compare/v1.48.0...v1.49.0-dev.1) (2026-11-23)
 
 ### Features

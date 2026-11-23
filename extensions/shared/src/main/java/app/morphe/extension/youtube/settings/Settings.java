@@ -91,10 +91,7 @@ import app.morphe.extension.youtube.patches.shortsicons.ShortsIcons;
 import app.morphe.extension.youtube.patches.shorts.AnimationFeedbackPatch.AnimationType;
 import app.morphe.extension.youtube.patches.shorts.ShortsPatch.ShortsPlayerType;
 import app.morphe.extension.youtube.patches.spoof.SpoofVideoStreamsPatch;
-import app.morphe.extension.youtube.patches.swipe.SwipeControlsPatch.SwipeOverlayBrightnessColorAvailability;
-import app.morphe.extension.youtube.patches.swipe.SwipeControlsPatch.SwipeOverlaySeekColorAvailability;
-import app.morphe.extension.youtube.patches.swipe.SwipeControlsPatch.SwipeOverlaySpeedColorAvailability;
-import app.morphe.extension.youtube.patches.swipe.SwipeControlsPatch.SwipeOverlayVolumeColorAvailability;
+import app.morphe.extension.youtube.patches.swipe.SwipeControlsPatch.SwipeOverlayProgressColorAvailability;
 import app.morphe.extension.youtube.patches.theme.ThemePatch;
 import app.morphe.extension.youtube.patches.theme.ThemePatch.StatusBarTranslucency;
 import app.morphe.extension.shared.settings.preference.SeekBarPreference;
@@ -632,6 +629,8 @@ public class Settings extends SharedYouTubeSettings {
     public static final BooleanSetting ENABLE_WIDE_SEARCH_BAR_IN_YOU_TAB = new BooleanSetting("revanced_enable_wide_search_bar_in_you_tab", FALSE, true,
             "revanced_enable_wide_search_bar_in_you_tab_user_dialog_message", parent(ENABLE_WIDE_SEARCH_BAR));
     public static final BooleanSetting HIDE_TOOLBAR_CAST_BUTTON = new BooleanSetting("revanced_hide_toolbar_cast_button", TRUE, true);
+    public static final BooleanSetting HIDE_TOOLBAR_COMPANION_BUTTON =
+            new BooleanSetting("morphe_hide_toolbar_companion_button", FALSE, true);
     public static final BooleanSetting HIDE_TOOLBAR_CREATE_BUTTON = new BooleanSetting("revanced_hide_toolbar_create_button", FALSE, true);
     public static final BooleanSetting HIDE_TOOLBAR_NOTIFICATION_BUTTON = new BooleanSetting("revanced_hide_toolbar_notification_button", FALSE, true);
     public static final BooleanSetting HIDE_TOOLBAR_MESSAGES_BUTTON =
@@ -1195,6 +1194,9 @@ public class Settings extends SharedYouTubeSettings {
     public static final EnumSetting<SwipeZoneAction> SWIPE_BOTTOM_ZONE = new EnumSetting<>(
             "revanced_swipe_bottom_zone", SwipeZoneAction.SPEED, true);
 
+    public static final BooleanSetting SWIPE_PORTRAIT = new BooleanSetting("revanced_swipe_portrait", FALSE, true,
+            new AnySwipeZoneAvailability());
+
     public static final LongSetting SWIPE_DELAY = new LongSetting("revanced_swipe_delay", 50L,
             true, new SliderConfig(0, 1_000, 10, "ms"), new AnySwipeZoneAvailability());
 
@@ -1211,16 +1213,28 @@ public class Settings extends SharedYouTubeSettings {
     public static final IntegerSetting SWIPE_MAGNITUDE_THRESHOLD = new IntegerSetting("revanced_swipe_threshold", 30,
             true, new SliderConfig(0, 100, 1, "px"),
             new AnySwipeZoneAvailability());
-    public static final EnumSetting<SwipeOverlayStyle> SWIPE_OVERLAY_STYLE = new EnumSetting<>("revanced_swipe_overlay_style", SwipeOverlayStyle.HORIZONTAL, true,
-            new AnySwipeZoneAvailability());
-    public static final StringSetting SWIPE_OVERLAY_BRIGHTNESS_COLOR = new StringSetting("revanced_swipe_overlay_progress_brightness_color", "#BFFFFFFF", true,
-            new SwipeOverlayBrightnessColorAvailability());
-    public static final StringSetting SWIPE_OVERLAY_VOLUME_COLOR = new StringSetting("revanced_swipe_overlay_progress_volume_color", "#BFFFFFFF", true,
-            new SwipeOverlayVolumeColorAvailability());
-    public static final StringSetting SWIPE_OVERLAY_SPEED_COLOR = new StringSetting("revanced_swipe_overlay_progress_speed_color", "#FFFFFF", true,
-            new SwipeOverlaySpeedColorAvailability());
-    public static final StringSetting SWIPE_OVERLAY_SEEK_COLOR = new StringSetting("revanced_swipe_overlay_progress_seek_color", "#FFFFFF", true,
-            new SwipeOverlaySeekColorAvailability());
+    public static final EnumSetting<SwipeOverlayStyle> SWIPE_OVERLAY_STYLE = new EnumSetting<>(
+            "revanced_swipe_overlay_style", SwipeOverlayStyle.HORIZONTAL, true, new AnySwipeZoneAvailability());
+    public static final EnumSetting<SwipeOverlayStyle> SWIPE_SIDE_OVERLAY_STYLE = new EnumSetting<>(
+            "revanced_swipe_side_overlay_style", SwipeOverlayStyle.FOLLOW_DEFAULT, true,
+            new SideSwipeZonesAvailability());
+    public static final EnumSetting<SwipeOverlayStyle> SWIPE_TOP_BOTTOM_OVERLAY_STYLE = new EnumSetting<>(
+            "revanced_swipe_top_bottom_overlay_style", SwipeOverlayStyle.FOLLOW_DEFAULT, true,
+            new HorizontalSwipeZonesAvailability());
+    public static final StringSetting SWIPE_OVERLAY_BACKGROUND_COLOR = new StringSetting(
+            "revanced_swipe_overlay_background_color", "#000000", true, new AnySwipeZoneAvailability());
+    public static final StringSetting SWIPE_OVERLAY_BRIGHTNESS_COLOR = new StringSetting(
+            "revanced_swipe_overlay_progress_brightness_color", "#BFFFFFFF", true,
+            new SwipeOverlayProgressColorAvailability(SwipeZoneAction.BRIGHTNESS));
+    public static final StringSetting SWIPE_OVERLAY_VOLUME_COLOR = new StringSetting(
+            "revanced_swipe_overlay_progress_volume_color", "#BFFFFFFF", true,
+            new SwipeOverlayProgressColorAvailability(SwipeZoneAction.VOLUME));
+    public static final StringSetting SWIPE_OVERLAY_SPEED_COLOR = new StringSetting(
+            "revanced_swipe_overlay_progress_speed_color", "#FFFFFF", true,
+            new SwipeOverlayProgressColorAvailability(SwipeZoneAction.SPEED));
+    public static final StringSetting SWIPE_OVERLAY_SEEK_COLOR = new StringSetting(
+            "revanced_swipe_overlay_progress_seek_color", "#FFFFFF", true,
+            new SwipeOverlayProgressColorAvailability(SwipeZoneAction.SEEK));
     public static final IntegerSetting SWIPE_OVERLAY_OPACITY = new IntegerSetting("revanced_swipe_overlay_background_opacity", 60,
             true, new SliderConfig(0, 100, 1, "%"),
             new AnySwipeZoneAvailability());

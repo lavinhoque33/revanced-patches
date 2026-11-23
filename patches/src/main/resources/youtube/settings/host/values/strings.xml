@@ -1801,6 +1801,8 @@ Words with uppercase letters in the middle must be entered with the casing (ie: 
     <string name="revanced_hide_navigation_notifications_button_summary_off">Notifications button is shown</string>
     <string name="revanced_hide_navigation_notifications_button_summary_on">Notifications button is hidden</string>
     <string name="revanced_hide_navigation_notifications_button_title">Hide Notifications button</string>
+    <string name="morphe_hide_toolbar_companion_button_title">Hide Companion button</string>
+    <string name="morphe_hide_toolbar_companion_button_summary">Hides the toolbar button for using your phone as a companion to YouTube on TV</string>
     <string name="revanced_hide_toolbar_messages_button_title">Hide Messages button</string>
     <string name="revanced_hide_toolbar_messages_button_summary">Hides the Messages button from the toolbar when YouTube shows it</string>
     <string name="revanced_hide_navigation_shorts_button_summary_off">Shorts button is shown</string>
@@ -2330,7 +2332,9 @@ Swipe to expand or close"</string>
     <string name="revanced_miniplayer_glass_title">Glass miniplayer</string>
     <string name="revanced_miniplayer_hide_overlay_buttons_legacy_title">Hide expand and close buttons</string>
     <string name="revanced_miniplayer_hide_overlay_buttons_summary_off">Overlay buttons are shown</string>
-    <string name="revanced_miniplayer_hide_overlay_buttons_summary_on">Overlay buttons are hidden</string>
+    <string name="revanced_miniplayer_hide_overlay_buttons_summary_on">"Overlay buttons are hidden
+
+Default: swipe down to close. Buttons stay available with touch exploration."</string>
     <string name="revanced_miniplayer_hide_overlay_buttons_title">Hide overlay buttons</string>
     <string name="revanced_miniplayer_hide_rewind_forward_summary_off">Skip forward and back are shown</string>
     <string name="revanced_miniplayer_hide_rewind_forward_summary_on">Skip forward and back are hidden</string>
@@ -3477,6 +3481,8 @@ Adjust brightness by swiping vertically on the left side of the screen"</string>
     <string name="revanced_swipe_lowest_value_enable_auto_brightness_summary_off">Lowest value of the brightness gesture does not activate auto-brightness</string>
     <string name="revanced_swipe_lowest_value_enable_auto_brightness_summary_on">Lowest value of the brightness gesture activates auto-brightness</string>
     <string name="revanced_swipe_lowest_value_enable_auto_brightness_title">Enable auto-brightness gesture</string>
+    <string name="revanced_swipe_overlay_background_color_summary">Choose the background color. Use the opacity slider to adjust transparency.</string>
+    <string name="revanced_swipe_overlay_background_color_title">Swipe overlay background color</string>
     <string name="revanced_swipe_overlay_background_opacity_summary">Opacity value between 0-100</string>
     <string name="revanced_swipe_overlay_background_opacity_title">Swipe overlay background opacity</string>
     <string name="revanced_swipe_overlay_progress_brightness_color_summary">The color of the progress bar for brightness controls</string>
@@ -3496,9 +3502,14 @@ Adjust brightness by swiping vertically on the left side of the screen"</string>
     <string name="revanced_swipe_overlay_style_entry_5">Circular overlay (minimal)</string>
     <string name="revanced_swipe_overlay_style_entry_6">Vertical overlay</string>
     <string name="revanced_swipe_overlay_style_entry_7">Vertical overlay (minimal)</string>
+    <string name="revanced_swipe_overlay_style_entry_8">Horizontal overlay (center)</string>
+    <string name="revanced_swipe_overlay_style_follow_default">Use default overlay style</string>
     <string name="revanced_swipe_overlay_style_title">Swipe overlay style</string>
     <string name="revanced_swipe_overlay_timeout_summary">The amount of milliseconds the overlay is visible</string>
     <string name="revanced_swipe_overlay_timeout_title">Swipe overlay timeout</string>
+    <string name="revanced_swipe_portrait_summary_off">Swipe controls are available only in fullscreen</string>
+    <string name="revanced_swipe_portrait_summary_on">Swipe controls also work inside the portrait watch player while its controls are hidden</string>
+    <string name="revanced_swipe_portrait_title">Swipe controls in portrait</string>
     <string name="revanced_swipe_press_to_engage_summary_off">Press to swipe is disabled</string>
     <string name="revanced_swipe_press_to_engage_summary_on">Press to swipe is enabled</string>
     <string name="revanced_swipe_press_to_engage_title">Enable press to swipe gesture</string>
@@ -3506,6 +3517,7 @@ Adjust brightness by swiping vertically on the left side of the screen"</string>
     <string name="revanced_swipe_save_and_restore_brightness_summary_off">Do not save and restore brightness when exiting or entering fullscreen</string>
     <string name="revanced_swipe_save_and_restore_brightness_summary_on">Save and restore brightness when exiting or entering fullscreen</string>
     <string name="revanced_swipe_save_and_restore_brightness_title">Save and restore brightness</string>
+    <string name="revanced_swipe_side_overlay_style_title">Left and right edge overlay style</string>
     <string name="revanced_swipe_seek_distance_summary">The amount of pixels to swipe to skip through video content. Lower values make seeking faster, higher values make it slower (1-1000)</string>
     <string name="revanced_swipe_seek_distance_title">Seek distance</string>
     <string name="revanced_swipe_seek_summary_off">Fullscreen seek swipe is disabled</string>
@@ -3527,6 +3539,7 @@ Adjust speed by swiping horizontally on the bottom half of the screen"</string>
     <string name="revanced_swipe_text_overlay_size_title">Swipe overlay text size</string>
     <string name="revanced_swipe_threshold_summary">The amount of threshold for swipe to occur</string>
     <string name="revanced_swipe_threshold_title">Swipe magnitude threshold</string>
+    <string name="revanced_swipe_top_bottom_overlay_style_title">Top and bottom edge overlay style</string>
     <string name="revanced_swipe_top_zone_title">Top swipe gesture</string>
     <string name="revanced_swipe_vertical_zone_summary">Percentage of the player width reserved at the left and right edges for configured swipe actions</string>
     <string name="revanced_swipe_vertical_zone_title">Vertical swipe area</string>

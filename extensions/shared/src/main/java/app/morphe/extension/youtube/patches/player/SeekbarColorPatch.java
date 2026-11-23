@@ -4,6 +4,12 @@ import static app.morphe.extension.shared.utils.StringRef.str;
 import static app.morphe.extension.shared.utils.Utils.clamp;
 
 import android.graphics.Color;
+import android.graphics.LinearGradient;
+import android.graphics.Matrix;
+import android.graphics.Paint;
+import android.graphics.Rect;
+import android.graphics.Shader;
+import android.view.View;
 
 import com.airbnb.lottie.LottieAnimationView;
 
@@ -248,6 +254,52 @@ public class SeekbarColorPatch {
         return CUSTOM_SEEKBAR_COLOR_ENABLED
                 ? customSeekbarColorGradient
                 : original;
+    }
+
+    /** Injection point: substitute only the native played paint, not the buffer or the overlay. */
+    public static Paint getHiddenPlayedPaint(Paint original, Rect played, View seekbar) {
+        if (!CUSTOM_SEEKBAR_COLOR_ENABLED || played.width() <= 0
+                || !BufferedSeekbarPatch.isHiddenPortraitWatch(seekbar)) {
+            return original;
+        }
+
+        return HiddenPlayedGradient.apply(original, played.left, played.right);
+    }
+
+    // These painters run on the UI thread. Reuse one shader and paint as the played head advances.
+    private static final class HiddenPlayedGradient {
+        private static final Paint paint = new Paint();
+        private static final Matrix transform = new Matrix();
+
+        private static LinearGradient shader;
+        private static String configuredPositions;
+        private static int left;
+        private static int right;
+
+        private static Paint apply(Paint original, int start, int end) {
+            String positions = Settings.GRADIENT_SEEKBAR_POSITIONS.get();
+            if (!positions.equals(configuredPositions)) {
+                float[] stops = {0.7f, 1.0f};
+                setSeekbarGradientPositions(stops);
+                shader = new LinearGradient(0f, 0f, 1f, 0f, customSeekbarColorGradient, stops, Shader.TileMode.CLAMP);
+                configuredPositions = Settings.GRADIENT_SEEKBAR_POSITIONS.get();
+                left = right = 0;
+            }
+
+            if (left != start || right != end) {
+                // Native played bounds already follow the timeline's coordinate system, including parent transforms.
+                transform.setScale(end - start, 1f);
+                transform.postTranslate(start, 0f);
+                shader.setLocalMatrix(transform);
+                left = start;
+                right = end;
+            }
+
+            paint.set(original);
+            paint.setAlpha(255); // The two configured colors already carry their own alpha.
+            paint.setShader(shader);
+            return paint;
+        }
     }
 
     /**

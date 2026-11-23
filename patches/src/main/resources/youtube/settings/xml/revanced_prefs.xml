@@ -243,7 +243,19 @@
             <SwitchPreference android:title="@string/revanced_enable_wide_search_bar_in_you_tab_title" android:key="revanced_enable_wide_search_bar_in_you_tab" android:summaryOn="@string/revanced_enable_wide_search_bar_in_you_tab_summary_on" android:summaryOff="@string/revanced_enable_wide_search_bar_in_you_tab_summary_off" />SETTINGS: ENABLE_WIDE_SEARCH_BAR -->
 
             <!-- SETTINGS: TOOLBAR_COMPONENTS
-            <SwitchPreference android:title="@string/revanced_hide_player_cast_button_title" android:key="revanced_hide_toolbar_cast_button" android:summaryOn="@string/revanced_hide_player_cast_button_summary_on" android:summaryOff="@string/revanced_hide_player_cast_button_summary_off" />
+            <SwitchPreference
+                android:key="revanced_hide_toolbar_cast_button"
+                android:title="@string/revanced_hide_player_cast_button_title"
+                android:summaryOn="@string/revanced_hide_player_cast_button_summary_on"
+                android:summaryOff="@string/revanced_hide_player_cast_button_summary_off" />SETTINGS: TOOLBAR_COMPONENTS -->
+
+            <!-- SETTINGS: HIDE_TOOLBAR_COMPANION
+            <SwitchPreference
+                android:key="morphe_hide_toolbar_companion_button"
+                android:title="@string/morphe_hide_toolbar_companion_button_title"
+                android:summary="@string/morphe_hide_toolbar_companion_button_summary" />SETTINGS: HIDE_TOOLBAR_COMPANION -->
+
+            <!-- SETTINGS: TOOLBAR_COMPONENTS
             <SwitchPreference android:title="@string/revanced_hide_navigation_create_button_title" android:key="revanced_hide_toolbar_create_button" android:summaryOn="@string/revanced_hide_navigation_create_button_summary_on" android:summaryOff="@string/revanced_hide_navigation_create_button_summary_off" />
             <SwitchPreference android:title="@string/revanced_hide_navigation_notifications_button_title" android:key="revanced_hide_toolbar_notification_button" android:summaryOn="@string/revanced_hide_navigation_notifications_button_summary_on" android:summaryOff="@string/revanced_hide_navigation_notifications_button_summary_off" />
             <SwitchPreference android:title="@string/revanced_hide_toolbar_search_button_title" android:key="revanced_hide_toolbar_search_button" android:summaryOn="@string/revanced_hide_toolbar_search_button_summary_on" android:summaryOff="@string/revanced_hide_toolbar_search_button_summary_off" />
@@ -1272,6 +1284,8 @@
         <app.morphe.extension.shared.settings.preference.SliderPreference android:title="@string/revanced_swipe_horizontal_zone_title" android:key="revanced_swipe_horizontal_zone" android:summary="@string/revanced_swipe_horizontal_zone_summary" android:inputType="number" />
 
         <app.morphe.extension.shared.settings.preference.CustomDialogListPreference android:entries="@array/revanced_swipe_overlay_style_entries" android:title="@string/revanced_swipe_overlay_style_title" android:key="revanced_swipe_overlay_style" android:entryValues="@array/revanced_swipe_overlay_style_entry_values" />
+        <app.morphe.extension.shared.settings.preference.CustomDialogListPreference android:entries="@array/revanced_swipe_axis_overlay_style_entries" android:title="@string/revanced_swipe_side_overlay_style_title" android:key="revanced_swipe_side_overlay_style" android:entryValues="@array/revanced_swipe_axis_overlay_style_entry_values" />
+        <app.morphe.extension.shared.settings.preference.CustomDialogListPreference android:entries="@array/revanced_swipe_axis_overlay_style_entries" android:title="@string/revanced_swipe_top_bottom_overlay_style_title" android:key="revanced_swipe_top_bottom_overlay_style" android:entryValues="@array/revanced_swipe_axis_overlay_style_entry_values" />
 
         <app.morphe.extension.shared.settings.preference.ColorPickerWithOpacitySliderPreference android:title="@string/revanced_swipe_overlay_progress_brightness_color_title" android:key="revanced_swipe_overlay_progress_brightness_color" android:summary="@string/revanced_swipe_overlay_progress_brightness_color_summary" android:inputType="textCapCharacters" />
         <app.morphe.extension.shared.settings.preference.SliderPreference android:title="@string/revanced_swipe_brightness_distance_title" android:key="revanced_swipe_brightness_distance" android:summary="@string/revanced_swipe_brightness_distance_summary" android:inputType="number" />
@@ -1294,10 +1308,12 @@
         <app.morphe.extension.shared.settings.preference.SliderPreference android:title="@string/revanced_swipe_seek_distance_title" android:key="revanced_swipe_seek_distance" android:summary="@string/revanced_swipe_seek_distance_summary" android:inputType="number" />
 
         <app.morphe.extension.shared.settings.preference.SliderPreference android:title="@string/revanced_swipe_delay_title" android:key="revanced_swipe_delay" android:summary="@string/revanced_swipe_delay_summary" android:inputType="number" />
+        <SwitchPreference android:title="@string/revanced_swipe_portrait_title" android:key="revanced_swipe_portrait" android:summaryOn="@string/revanced_swipe_portrait_summary_on" android:summaryOff="@string/revanced_swipe_portrait_summary_off" />
 
         <SwitchPreference android:title="@string/revanced_swipe_press_to_engage_title" android:key="revanced_swipe_press_to_engage" android:summaryOn="@string/revanced_swipe_press_to_engage_summary_on" android:summaryOff="@string/revanced_swipe_press_to_engage_summary_off" />
         <SwitchPreference android:title="@string/revanced_swipe_haptic_feedback_title" android:key="revanced_swipe_haptic_feedback" android:summaryOn="@string/revanced_disable_haptic_feedback_chapters_summary_off" android:summaryOff="@string/revanced_disable_haptic_feedback_chapters_summary_on" />
         <SwitchPreference android:title="@string/revanced_swipe_gestures_lock_mode_title" android:key="revanced_swipe_gestures_lock_mode" android:summaryOn="@string/revanced_swipe_gestures_lock_mode_summary_on" android:summaryOff="@string/revanced_swipe_gestures_lock_mode_summary_off" />
+        <app.morphe.extension.shared.settings.preference.ColorPickerPreference android:title="@string/revanced_swipe_overlay_background_color_title" android:key="revanced_swipe_overlay_background_color" android:summary="@string/revanced_swipe_overlay_background_color_summary" android:inputType="textCapCharacters" />
         <app.morphe.extension.shared.settings.preference.SliderPreference android:title="@string/revanced_swipe_overlay_background_opacity_title" android:key="revanced_swipe_overlay_background_opacity" android:summary="@string/revanced_swipe_overlay_background_opacity_summary" android:inputType="number" />
         <app.morphe.extension.shared.settings.preference.SliderPreference android:title="@string/revanced_swipe_threshold_title" android:key="revanced_swipe_threshold" android:summary="@string/revanced_swipe_threshold_summary" android:inputType="number" />
         <app.morphe.extension.shared.settings.preference.SliderPreference android:title="@string/revanced_swipe_overlay_timeout_title" android:key="revanced_swipe_overlay_timeout" android:summary="@string/revanced_swipe_overlay_timeout_summary" android:inputType="number" />

@@ -315,6 +315,8 @@ public class Settings extends SharedYouTubeSettings {
             new BooleanSetting("morphe_hide_feed_subtitle_views", FALSE, true);
     public static final BooleanSetting HIDE_FEED_SUBTITLE_AGE =
             new BooleanSetting("morphe_hide_feed_subtitle_age", FALSE, true);
+    public static final BooleanSetting HOME_FEED_CHANNEL_NAMES =
+            new BooleanSetting("morphe_home_feed_channel_names", FALSE, true);
     public static final IntegerSetting CUSTOM_DPI = new IntegerSetting("morphe_custom_dpi", 0,
             true, new SliderConfig(0, 1_000, 1, "dpi"));
     public static final BooleanSetting OPEN_CHANNEL_OF_LIVE_AVATAR = new BooleanSetting("morphe_open_channel_of_live_avatar", FALSE);
@@ -326,6 +328,8 @@ public class Settings extends SharedYouTubeSettings {
                     () -> !LocalQueuePatch.isEnabled() && !QueuePatch.isEnabled());
     public static final BooleanSetting QUEUE_ADD_FLYOUT_MENU =
             new BooleanSetting("morphe_queue_add_flyout_menu", TRUE, parentInverted(LOCAL_QUEUE));
+    public static final BooleanSetting QUEUE_THUMBNAIL_BUTTON =
+            new BooleanSetting("morphe_queue_thumbnail_button", FALSE, true);
 
     // PreferenceScreen: Feed - Carousel shelf
     public static final BooleanSetting HIDE_CAROUSEL_SHELF_HOME = new BooleanSetting("revanced_hide_carousel_shelf_home", FALSE);
@@ -952,6 +956,8 @@ public class Settings extends SharedYouTubeSettings {
     public static final EnumSetting<PlaybackSpeedMenuType> OVERLAY_BUTTON_SPEED_DIALOG_TYPE = new EnumSetting<>("revanced_overlay_button_speed_dialog_type", PlaybackSpeedMenuType.CUSTOM_MODERN, parent(OVERLAY_BUTTON_SPEED_DIALOG));
     public static final BooleanSetting OVERLAY_BUTTON_VIDEO_QUALITY =
             new BooleanSetting("revanced_overlay_button_video_quality", FALSE);
+    public static final BooleanSetting OVERLAY_BUTTON_VIDEO_QUALITY_RESOLUTION = new BooleanSetting(
+            "revanced_overlay_button_video_quality_resolution", FALSE, parent(OVERLAY_BUTTON_VIDEO_QUALITY));
     public static final BooleanSetting OVERLAY_BUTTON_PLAY_ALL = new BooleanSetting("revanced_overlay_button_play_all", FALSE);
     public static final EnumSetting<PlaylistIdPrefix> OVERLAY_BUTTON_PLAY_ALL_TYPE = new EnumSetting<>("revanced_overlay_button_play_all_type", PlaylistIdPrefix.ALL_CONTENTS_WITH_TIME_DESCENDING, parent(OVERLAY_BUTTON_PLAY_ALL));
     public static final BooleanSetting OVERLAY_BUTTON_WHITELIST = new BooleanSetting("revanced_overlay_button_whitelist", FALSE);

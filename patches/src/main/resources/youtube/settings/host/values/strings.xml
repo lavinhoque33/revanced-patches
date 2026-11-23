@@ -293,6 +293,8 @@ To fix this, turn on \'Spoof video streams\' and change the \'Default client\' t
     <string name="morphe_hide_feed_subtitle_views_summary">Hides recognized view counts below video titles without filtering out videos or hiding the thumbnail badge.</string>
     <string name="morphe_hide_feed_subtitle_age_title">Hide upload dates below feed videos</string>
     <string name="morphe_hide_feed_subtitle_age_summary">Hides recognized upload dates and relative times, such as “2 days ago”, below video titles.</string>
+    <string name="morphe_home_feed_channel_names_title">Show channel names on Home</string>
+    <string name="morphe_home_feed_channel_names_summary">Shows channel display names instead of @handles below video titles on Home when YouTube provides the name.</string>
     <string name="morphe_feed_long_press_menu_summary">Tapping and holding anywhere on a feed video opens its menu</string>
     <string name="morphe_feed_long_press_menu_title">Tap and hold to open video menu</string>
     <string name="morphe_feed_watch_later_button_summary">A Watch later button is shown on the thumbnails of feed videos. Tapping and holding it opens Save to playlist</string>
@@ -571,6 +573,10 @@ To use this feature, turn off \'Spoof video streams\'"</string>
 
 Not used while Unlock queue or Premium-style queue is on"</string>
     <string name="morphe_queue_override_flyout_menu_title">Override feed flyout queue button</string>
+    <string name="morphe_queue_thumbnail_button_title">Show Add to queue on thumbnails</string>
+    <string name="morphe_queue_thumbnail_button_summary">Adds a button to supported video thumbnails. The button adds the video to the queue without playing it.</string>
+    <string name="morphe_queue_thumbnail_start_playback">Play a video first to use YouTube’s queue.</string>
+    <string name="morphe_queue_thumbnail_unavailable">No queue is available for this video.</string>
     <string name="morphe_reload_video_summary_off">Reload video button is hidden</string>
     <string name="morphe_reload_video_summary_on">Reload video button is shown</string>
     <string name="morphe_reload_video_title">Show reload video button</string>
@@ -2448,8 +2454,11 @@ Info:
 Tap and hold to reset playback speed to 1.0x. Tap and hold again to reset back to default speed"</string>
     <string name="revanced_overlay_button_speed_dialog_title">Show speed dialog button</string>
     <string name="revanced_overlay_button_speed_dialog_type_title">Speed dialog type (player button)</string>
+    <string name="revanced_overlay_button_video_quality_current">Video quality: %1$dp</string>
     <string name="revanced_overlay_button_video_quality_label">Video quality</string>
-    <string name="revanced_overlay_button_video_quality_summary">Open video quality directly from the player controls.</string>
+    <string name="revanced_overlay_button_video_quality_resolution_summary">Show a number such as 1080 instead of a label such as FHD.</string>
+    <string name="revanced_overlay_button_video_quality_resolution_title">Show exact resolution on the quality button</string>
+    <string name="revanced_overlay_button_video_quality_summary">Show the current quality and tap to change it. Replaces the quality shortcut on the timestamp.</string>
     <string name="revanced_overlay_button_video_quality_title">Show video quality button</string>
     <string name="revanced_overlay_button_vot_summary">Show overlay button to toggle voice-over translation for the current video</string>
     <string name="revanced_overlay_button_vot_title">Voice Over Translation</string>

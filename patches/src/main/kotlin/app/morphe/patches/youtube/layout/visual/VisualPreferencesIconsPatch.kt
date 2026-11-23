@@ -413,6 +413,7 @@ private val rvxPreferenceKey = mapOf(
     "morphe_feed_view_count" to "revanced_hide_navigation_home_button",
     "morphe_hide_feed_subtitle_views" to "revanced_hide_navigation_home_button",
     "morphe_hide_feed_subtitle_age" to "morphe_save_to_watch_later_kids_flyout_button",
+    "morphe_home_feed_channel_names" to "morphe_open_channel_of_live_avatar",
     // Feed video actions: tap and hold, and the clock of Watch later.
     "morphe_feed_long_press_menu" to "revanced_disable_haptic_feedback_tap_and_hold",
     "morphe_feed_watch_later_button" to "morphe_save_to_watch_later_kids_flyout_button",
@@ -484,6 +485,7 @@ private val rvxPreferenceKey = mapOf(
     "morphe_proxy_screen" to "revanced_disable_quic_protocol",
     "morphe_queue_add_flyout_menu" to "M 140 615.38 L 140 584.62 L 429.23 584.62 L 429.23 615.38 L 140 615.38 Z M 140 452.69 L 140 421.92 L 593.85 421.92 L 593.85 452.69 L 140 452.69 Z M 140 290.77 L 140 260 L 593.85 260 L 593.85 290.77 L 140 290.77 Z M 664.62 780 L 664.62 615.38 L 500 615.38 L 500 584.62 L 664.62 584.62 L 664.62 420 L 695.38 420 L 695.38 584.62 L 860 584.62 L 860 615.38 L 695.38 615.38 L 695.38 780 L 664.62 780 Z",
     "morphe_queue_override_flyout_menu" to "M 160 626.15 L 160 595.38 L 434.46 595.38 L 434.46 626.15 L 160 626.15 Z M 160 463.46 L 160 432.69 L 595.31 432.69 L 595.31 463.46 L 160 463.46 Z M 160 301.54 L 160 270.77 L 595.31 270.77 L 595.31 301.54 L 160 301.54 Z M 668.15 800 L 668.15 561.08 L 840.77 681.31 L 668.15 800 Z",
+    "morphe_queue_thumbnail_button" to "morphe_queue_add_flyout_menu",
     "morphe_reload_video" to "M 481.77 781.23 Q 357.69 781.23 268.96 692.88 Q 180.23 604.54 180.23 481.23 L 180.23 407.77 L 99.23 489.54 Q 95.08 493.69 89.46 493.69 Q 83.85 493.69 78.92 489.54 Q 74.77 484.62 74.77 478.88 Q 74.77 473.15 78.92 469 L 176.15 370.77 Q 185.15 362.54 196 362.54 Q 206.85 362.54 215.08 370.77 L 313.31 469 Q 317.46 473.15 317.46 478.77 Q 317.46 484.38 313.31 488.54 Q 308.38 493.46 302.65 493.46 Q 296.92 493.46 292.77 488.54 L 211 407.77 L 211 481.23 Q 211 592.85 290.19 671.65 Q 369.38 750.46 481.77 750.46 Q 502.54 750.46 523.46 747.19 Q 544.38 743.92 564.46 737.38 Q 570.31 735.92 576.42 738.5 Q 582.54 741.08 584.46 746.69 Q 586.38 752.31 583.69 757.54 Q 581 762.77 575.15 765.23 Q 551.92 773.23 528.58 777.23 Q 505.23 781.23 481.77 781.23 Z M 479.23 212 Q 458.46 212 437.15 214.88 Q 415.85 217.77 396.54 224.31 Q 389.92 226.54 384.08 223.96 Q 378.23 221.38 375.54 215 Q 373.62 209.38 375.92 203.65 Q 378.23 197.92 384.62 195.46 Q 407.31 188.23 431.04 184.73 Q 454.77 181.23 479.23 181.23 Q 603.31 181.23 691.65 269.19 Q 780 357.15 780 481.23 L 780 552.69 L 861.77 471.69 Q 865.15 467.54 870.77 467.15 Q 876.38 466.77 881.31 471.69 Q 886.23 476.62 886.23 481.96 Q 886.23 487.31 881.31 492.23 L 784.08 589.69 Q 775.85 597.92 764.62 597.92 Q 753.38 597.92 745.15 589.69 L 647.92 492.46 Q 643.77 488.31 643.38 482.46 Q 643 476.62 647.92 471.69 Q 652.85 466.77 658.31 466.77 Q 663.77 466.77 668.69 471.69 L 749.23 552.23 L 749.23 481.23 Q 749.23 369.62 670.04 290.81 Q 590.85 212 479.23 212 Z",
     "morphe_remember_livestream_position" to "morphe_hide_live_menu",
     "morphe_restore_old_player_buttons" to "morphe_video_action_bar_layout",
@@ -1204,6 +1206,7 @@ private val rvxPreferenceKey = mapOf(
     "revanced_overlay_button_play_all_type" to "revanced_overlay_button_play_all",
     "revanced_overlay_button_speed_dialog_type" to "revanced_overlay_button_speed_dialog",
     "revanced_overlay_button_video_quality" to "video_quality_settings_key",
+    "revanced_overlay_button_video_quality_resolution" to "video_quality_settings_key",
     "revanced_override_video_download_button_queue_manager" to "morphe_local_queue",
     "revanced_playback_audio_time_stretching" to "revanced_default_playback_audio_pitch",
     "revanced_remember_playback_speed_last_selected" to "revanced_overlay_button_speed_dialog",

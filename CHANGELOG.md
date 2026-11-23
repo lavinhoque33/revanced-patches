@@ -2,6 +2,13 @@
 
 ### Features
 
+* **YouTube – Home feed:** **Show channel names on Home** replaces a handle with the channel’s display name
+  when the card itself identifies the channel. Unresolved names keep their handles; no lookup request is sent.
+* **YouTube – Add to queue:** On supported 21.x versions, **Show Add to queue on thumbnails** adds a shortcut
+  to eligible video thumbnails when a queue is available. Tapping it adds that video without starting playback.
+* **YouTube – Video quality button:** The button shows the resolution currently playing, as a label such as **FHD**
+  or an exact value such as **1080**. When the button is available, the timestamp no longer duplicates its quality
+  label or picker. Turning the button off restores the timestamp behavior you selected.
 * **YouTube – Swipe controls:** Choose separate overlay styles for the side and top/bottom edges, including
   a full horizontal overlay in the center. Set the background color separately from opacity. Portrait swipes
   are optional and limited to the watch player. Supported swipe icons follow the selected player icon style.

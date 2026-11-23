@@ -1,5 +1,7 @@
 ## Unreleased
 
+## [1.49.0-dev.1](https://github.com/lavinhoque33/revanced-patches/compare/v1.48.0...v1.49.0-dev.1) (2026-11-23)
+
 ### Features
 
 * **YouTube Music – A–B repeat:** Enable **RVX → Player → A–B repeat** to repeat a section of the current

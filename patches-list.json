@@ -1,5 +1,5 @@
 {
-  "version": "v1.48.0",
+  "version": "v1.49.0-dev.1",
   "patches": [
     {
       "name": "Add to queue",
@@ -134,6 +134,27 @@
           "21.45.90",
           "21.13.164",
           "20.05.46"
+        ]
+      },
+      "options": []
+    },
+    {
+      "name": "A–B repeat",
+      "description": "Adds optional Now Playing controls to repeat a section of a track.",
+      "use": true,
+      "dependencies": [
+        "BytecodePatch",
+        "ResourcePatch",
+        "BytecodePatch"
+      ],
+      "compatiblePackages": {
+        "com.google.android.apps.youtube.music": [
+          "9.40.51",
+          "9.45.51",
+          "9.15.51",
+          "8.30.54",
+          "8.28.54",
+          "8.12.54"
         ]
       },
       "options": []

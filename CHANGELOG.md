@@ -1,4 +1,7 @@
-## Unreleased
+## [1.49.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.48.0...v1.49.0) (2026-11-23)
+
+This stable release also includes A–B repeat, the original audio stream preference and the Player settings
+alignment fixes from [1.49.0-dev.1](#1490-dev1-2026-11-23).
 
 ### Features
 

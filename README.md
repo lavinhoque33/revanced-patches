@@ -116,6 +116,7 @@ Local imports do not update automatically; import the new `.mpp` for each update
 | `Hide player flyout menu` | Adds options to hide player flyout menu components. | 21.39.525 ~ 20.05.46 |
 | `Hide shortcuts` | Adds patch options to remove app icon shortcuts or the Shorts button in the Quick Actions widget. | 21.39.525 ~ 20.05.46 |
 | `Hide status bar` | Adds an option to hide the system status bar. Swipe down from the top edge to show it for a moment. | 21.39.525 ~ 20.05.46 |
+| `Home feed channel names` | Adds an option to show channel display names instead of handles below video titles in the Home feed. | 21.39.525 ~ 20.05.46 |
 | `Hook download actions` | Adds support to download videos with the built-in downloader or an external downloader app, and an offline library for downloaded videos. | 21.39.525 ~ 20.05.46 |
 | `Media notification controls` | Adds options to disable the seekbar, hide the previous/next buttons, or make them seek in the media notification and headphone controls. | 21.39.525 ~ 20.05.46 |
 | `Miniplayer` | Adds options to change the in-app minimized player, and if patching target 19.16+ adds options to use modern miniplayers. | 21.39.525 ~ 20.05.46 |

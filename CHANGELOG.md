@@ -1,3 +1,12 @@
+## Unreleased
+
+### Bug Fixes
+
+* **YouTube – Shorts:** On supported 21.x versions, tapping Download uses the Short currently on screen.
+  The first Short no longer needs a swipe away and back, and a prefetched video cannot supply its download choices.
+* **YouTube – Player buttons:** Enlarged Play/Pause/Replay icons render at their final size instead of
+  stretching a smaller bitmap. The playback buttons’ background opacity and touch targets are unchanged.
+
 ## [1.47.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.46.0...v1.47.0) (2026-11-22)
 
 ### Features

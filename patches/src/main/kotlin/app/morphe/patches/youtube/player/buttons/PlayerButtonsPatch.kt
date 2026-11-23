@@ -60,6 +60,7 @@ val playerButtonsPatch = bytecodePatch(
 
     dependsOn(
         cfBottomUIPatch,
+        centerPlaybackButtonResourcesPatch,
         sharedResourceIdPatch,
         settingsPatch,
         versionCheckPatch,
@@ -312,6 +313,7 @@ val playerButtonsPatch = bytecodePatch(
 
         if (centerResizeInstalled) {
             addPreference(arrayOf("SETTINGS: CENTER_PLAYBACK_BUTTON_SIZE"))
+            hookCenterPlaybackDrawables()
         } else {
             printWarn("Play/Pause/Replay button size: native control group not found; keeping stock sizing.")
         }

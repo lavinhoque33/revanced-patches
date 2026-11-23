@@ -1,3 +1,19 @@
+## Unreleased
+
+### Features
+
+* **YouTube Music – A–B repeat:** Enable **RVX → Player → A–B repeat** to repeat a section of the current
+  track. In Now Playing, tap **Set A**, then **Set B** at a later position. Tap **Clear** to resume normal
+  playback. Pausing and using the seekbar still work; changing tracks clears the markers.
+* **YouTube Music – Audio:** **Prefer original audio stream** selects a non-DRC version when one is available
+  for the same audio track. **Disable loudness normalization** controls playback gain separately and retains
+  the previous setting. Neither setting replaces an existing stream download.
+
+### Bug Fixes
+
+* **YouTube Music – Settings:** **Add to queue in tap order** and **Playback source inspector** now use the same
+  icon column and text alignment as the other Player settings. Parent-only icon mode still hides leaf icons.
+
 ## [1.48.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.47.1...v1.48.0) (2026-11-23)
 
 ### Features

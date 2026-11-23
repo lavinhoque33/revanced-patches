@@ -177,6 +177,7 @@ Local imports do not update automatically; import the new `.mpp` for each update
 
 | 💊 Patch | 📜 Description | 🏹 Target Version |
 |:--------:|:--------------:|:-----------------:|
+| `Add to queue in tap order` | Adds an opt-in setting to play songs added from the native song menu in tap order, before the rest of a local, unshuffled queue. Leaves Play next unchanged. | 9.40.51 ~ 8.12.54 |
 | `Android Auto` | Bypasses certificate checks and restores YouTube Music Home recommendations, Library collections (including playlists), search and podcasts in Android Auto. Needs YouTube Music 9.15 or newer. | 9.40.51 ~ 8.12.54 |
 | `App refresh rate` | Adds an option to change the app refresh rate. | 9.40.51 ~ 8.12.54 |
 | `Bitrate default value` | Sets the audio quality to 'Always High' when you first install the app. | 9.40.51 ~ 8.12.54 |

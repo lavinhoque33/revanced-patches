@@ -1,3 +1,11 @@
+## Unreleased
+
+### Features
+
+* **YouTube Music – Queue:** On 9.15.51, 9.40.51 and 9.45.51, enable **RVX → Player → Add to queue in tap order**
+  to hear songs you add from their menus before the original Up next list resumes. Add the same song twice to hear
+  it twice. **Play next** still jumps the line. Shuffled, Cast and Jam queues keep their normal behavior.
+
 ## [1.47.1](https://github.com/lavinhoque33/revanced-patches/compare/v1.47.0...v1.47.1) (2026-11-23)
 
 ### Bug Fixes

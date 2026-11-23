@@ -623,6 +623,8 @@ Applies to both limits. At 1.75, four full-width characters count as 7"</string>
     <string name="morphe_music_musixmatch_token_toast_saved">Musixmatch: user token saved</string>
     <string name="morphe_music_play_album_songs_summary">Plays the song version of album tracks instead of music videos. Requires \'Spoof video streams\'</string>
     <string name="morphe_music_play_album_songs_title">Play albums songs</string>
+    <string name="morphe_music_fifo_add_to_queue_title">Add to queue in tap order</string>
+    <string name="morphe_music_fifo_add_to_queue_summary">In a local, unshuffled queue, the song menu’s Add to queue puts songs after your other pending additions, before the rest of Up next. Play next still puts a song immediately next.</string>
     <!-- modified by lavinhoque33, 2026-10-24: playback speed and pitch-with-speed, ported from Morphe -->
     <string name="morphe_music_playback_speed_change_pitch_summary">Pitch rises and falls with playback speed</string>
     <string name="morphe_music_playback_speed_change_pitch_title">Change pitch with speed</string>

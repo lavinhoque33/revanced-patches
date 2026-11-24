@@ -14,6 +14,8 @@
 * **YouTube – Feed card layout:** **Cards** now hides the like, comment and save buttons on native Home video
   cards; **Cards with like, comment and save buttons** keeps them. The thumbnail and details share the same
   rounded card and side insets, and consecutive cards no longer have an extra gap.
+* **YouTube Music – Third-party lyrics:** Translated lines now brighten when their own line is sung.
+  Upcoming translations no longer outshine the active line during a repeated chorus.
 
 ## [1.50.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.49.0...v1.50.0) (2026-11-24)
 

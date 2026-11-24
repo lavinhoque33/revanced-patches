@@ -103,6 +103,7 @@ Local imports do not update automatically; import the new `.mpp` for each update
 | `Fullscreen components` | Adds options to hide or change components related to fullscreen. | 21.39.525 ~ 20.05.46 |
 | `Fullscreen video scale` | Adds options to stretch or zoom videos to fill the screen in fullscreen mode. | 21.39.525 ~ 20.05.46 |
 | `Gemini` | Adds options to use Gemini for video summaries, transcription, and settings search. | 21.39.525 ~ 20.05.46 |
+| `Glass menus` | Adds an optional frosted glass effect to menus on Android 12 and newer when the device supports window blur. | 21.39.525 ~ 20.05.46 |
 | `GmsCore support` | Allows the app to work without root by using a different package name when patched using a GmsCore instead of Google Play Services. | 21.39.525 ~ 20.05.46 |
 | `Hide Shorts dimming` | Adds settings to hide the stock Shorts dimming, adjust the overlay opacity, and hide the status bar in Shorts. | 21.39.525 ~ 20.05.46 |
 | `Hide accessibility controls dialog` | Removes, at compile time, accessibility controls dialog 'Turn on accessibility controls for the video player?'. | 21.39.525 ~ 20.05.46 |
@@ -203,6 +204,7 @@ Local imports do not update automatically; import the new `.mpp` for each update
 | `Flyout menu components` | Adds options to hide or change flyout menu components. | 9.40.51 ~ 8.12.54 |
 | `Force original audio` | Adds an option to disable audio tracks from being automatically enabled. | 9.40.51 ~ 8.12.54 |
 | `Force portrait orientation` | Adds an option to keep the app in portrait orientation when the device is rotated. | 9.40.51 ~ 8.12.54 |
+| `Glass menus` | Adds an optional frosted glass effect to menus on Android 12 and newer when the device supports window blur. | 9.40.51 ~ 8.12.54 |
 | `Glass player and navigation bar` | Adds independent glass styles for the miniplayer and navigation bar, with live previews. | 9.40.51 ~ 8.12.54 |
 | `GmsCore support` | Allows the app to work without root by using a different package name when patched using a GmsCore instead of Google Play Services. | 9.40.51 ~ 8.12.54 |
 | `Hide account components` | Adds options to hide components related to the account menu. | 9.40.51 ~ 8.12.54 |

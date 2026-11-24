@@ -27,6 +27,7 @@ import app.morphe.extension.youtube.innertube.FeedCardLayoutOuterClass.Element;
 import app.morphe.extension.youtube.innertube.FeedCardLayoutOuterClass.ElementModel;
 import app.morphe.extension.youtube.innertube.FeedCardLayoutOuterClass.InnertubeCommandHolder;
 import app.morphe.extension.youtube.innertube.FeedCardLayoutOuterClass.LockupMetadata;
+import app.morphe.extension.youtube.innertube.FeedCardLayoutOuterClass.LockupViewModel;
 import app.morphe.extension.youtube.innertube.FeedCardLayoutOuterClass.MetadataPart;
 import app.morphe.extension.youtube.innertube.FeedCardLayoutOuterClass.MetadataRow;
 import app.morphe.extension.youtube.innertube.FeedCardLayoutOuterClass.TextRunRange;
@@ -74,9 +75,28 @@ public final class HomeFeedChannelNamesPatch {
             return bytes;
         }
 
-        boolean covered = RootView.isPlayerActive() || RootView.isShortsActive()
+        return rewrite(bytes, page, isHomeCovered());
+    }
+
+    static LockupMetadata metadataForClassicLayout(LockupViewModel video) {
+        LockupMetadata original = video.getMetadata();
+        if (!Settings.HOME_FEED_CHANNEL_NAMES.get() || !HOME.equals(browseId) || isHomeCovered()) {
+            return original;
+        }
+
+        // Use the source content ID and author runs before Classic replaces the model and joins the rows.
+        try {
+            LockupMetadata replacement = rewriteModernMetadata(video);
+            return replacement == null ? original : replacement;
+        } catch (InvalidProtocolBufferException ex) {
+            Logger.printDebug(() -> "Could not parse Home video attribution");
+            return original;
+        }
+    }
+
+    private static boolean isHomeCovered() {
+        return RootView.isPlayerActive() || RootView.isShortsActive()
                 || RootView.isSearchBarActive() || NavigationBar.isSearchBarActive();
-        return rewrite(bytes, page, covered);
     }
 
     static byte[] rewrite(byte[] bytes, @Nullable String page, boolean covered) {
@@ -133,17 +153,24 @@ public final class HomeFeedChannelNamesPatch {
             var modern = model.getLockupModel();
             var wrapper = modern.getViewModel();
             var video = wrapper.getLockupViewModel();
-            if (video.getContentType() != 1 || !VIDEO_ID.matcher(video.getContentId()).matches()) {
-                return null;
-            }
-
-            var avatar = video.getMetadata().getLockupMetadataViewModel().getImage().getDecoratedAvatarViewModel();
-            LockupMetadata metadata = rewriteMetadata(video.getMetadata(), channel(avatar), "");
+            LockupMetadata metadata = rewriteModernMetadata(video);
             return metadata == null ? null : model.toBuilder().setLockupModel(modern.toBuilder()
                     .setViewModel(wrapper.toBuilder().setLockupViewModel(video.toBuilder().setMetadata(metadata))))
                     .build();
         }
         return null;
+    }
+
+    @Nullable
+    private static LockupMetadata rewriteModernMetadata(LockupViewModel video)
+            throws InvalidProtocolBufferException {
+        if (video.getContentType() != 1 || !VIDEO_ID.matcher(video.getContentId()).matches()) {
+            return null;
+        }
+
+        LockupMetadata metadata = video.getMetadata();
+        var avatar = metadata.getLockupMetadataViewModel().getImage().getDecoratedAvatarViewModel();
+        return rewriteMetadata(metadata, channel(avatar), "");
     }
 
     private static boolean isClassicVideo(String url, ByteString onTap) throws InvalidProtocolBufferException {

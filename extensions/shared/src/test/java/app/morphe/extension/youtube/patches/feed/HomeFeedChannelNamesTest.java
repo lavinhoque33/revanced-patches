@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-23
  * Written by lavinhoque33, 2026-11-23
  */
 
@@ -11,9 +12,12 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertSame;
 
 import android.content.Context;
+import android.content.ContextWrapper;
 import android.content.pm.PackageInfo;
+import android.content.res.Resources;
 
 import com.google.protobuf.ByteString;
+import com.google.protobuf.CodedOutputStream;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -23,10 +27,12 @@ import org.robolectric.RuntimeEnvironment;
 import org.robolectric.Shadows;
 import org.robolectric.annotation.Config;
 
+import java.io.ByteArrayOutputStream;
 import java.util.Base64;
 
 import app.morphe.extension.shared.utils.Utils;
 import app.morphe.extension.youtube.innertube.FeedCardLayoutOuterClass.*;
+import app.morphe.extension.youtube.settings.Settings;
 
 @RunWith(RobolectricTestRunner.class)
 @Config(manifest = Config.NONE, sdk = 34)
@@ -115,6 +121,121 @@ public class HomeFeedChannelNamesTest {
         assertEquals(endpoint, text.getCommandRuns(0).getOnTap());
         assertEquals("Source".length(), text.getStyleRuns(0).getLength());
         assertEquals(1 + "Source".length() + SEPARATOR.length(), text.getStyleRuns(1).getStartIndex());
+    }
+
+    @Test
+    public void classicConversionUsesNamedAvatarBeforeLosingTheSourceVideoId() throws Exception {
+        Context app = RuntimeEnvironment.getApplication();
+        useStockAvatarLabel(app);
+        Settings.FEED_CARD_LAYOUT.save(FeedCardLayoutPatch.FeedCardLayout.CLASSIC);
+        HomeFeedChannelNamesPatch.setBrowseId(HOME);
+
+        try {
+            // Prime the layout converter with the first-party classic template from the capture above.
+            FeedCardLayoutPatch.setFeedCardLayout(Base64.getDecoder().decode(PUBLIC_CLASSIC_CARD));
+
+            ByteString watch = opaquePlaybackCommand();
+            byte[] input = classicSource(watch).toByteArray();
+
+            Settings.HOME_FEED_CHANNEL_NAMES.save(false);
+            var disabled = renderAsClassic(input);
+            assertEquals(watch, disabled.getOnTap());
+            assertEquals("", disabled.getVideoData().getUrl());
+            assertEquals(SOURCE_HANDLE + "   2.4M   8d ago", classicByline(disabled).getText().getContent());
+
+            Settings.HOME_FEED_CHANNEL_NAMES.save(true);
+            var enabled = renderAsClassic(input);
+            assertEquals(disabled.toBuilder().setVideoData(disabled.getVideoData().toBuilder()
+                    .setLockupMetadata(enabled.getVideoData().getLockupMetadata())).build(), enabled);
+            var byline = classicByline(enabled);
+            assertEquals("Source   2.4M   8d ago", byline.getText().getContent());
+            assertEquals("Source, 2.4 million views, 8 days ago", byline.getAccessibilityLabel());
+
+            HomeFeedChannelNamesPatch.setBrowseId("FEsubscriptions");
+            assertEquals(disabled, renderAsClassic(input));
+        } finally {
+            HomeFeedChannelNamesPatch.clearBrowseId();
+            Settings.HOME_FEED_CHANNEL_NAMES.save(false);
+            Settings.FEED_CARD_LAYOUT.save(FeedCardLayoutPatch.FeedCardLayout.DEFAULT);
+            Utils.setContext(app);
+        }
+    }
+
+    private static Element classicSource(ByteString watch) {
+        var endpoint = destination(SOURCE_ID, SOURCE_HANDLE);
+        Element source = modern(SOURCE_HANDLE, "Source", endpoint, endpoint);
+        var sourceModel = model(source);
+        var lockup = sourceModel.getLockupModel();
+        var holder = lockup.getViewModel();
+        var video = holder.getLockupViewModel();
+
+        // Signed-in 21.45.90 Home: no metadata accessibility label on the author part; the avatar carries the name.
+        var byline = ContentMetadataViewModel.newBuilder()
+                .addMetadataRows(MetadataRow.newBuilder().addMetadataParts(metadataPart(SOURCE_HANDLE, "")))
+                .addMetadataRows(MetadataRow.newBuilder()
+                        .addMetadataParts(metadataPart("2.4M", "2.4 million views"))
+                        .addMetadataParts(metadataPart("8d ago", "8 days ago")));
+        var metadata = video.getMetadata().getLockupMetadataViewModel();
+        var avatar = metadata.getImage().getDecoratedAvatarViewModel().toBuilder().setA11YLabel("Go to channel Source");
+        var lockedVideo = video.toBuilder().setMetadata(LockupMetadata.newBuilder()
+                        .setLockupMetadataViewModel(metadata.toBuilder()
+                                .setImage(LockupImage.newBuilder().setDecoratedAvatarViewModel(avatar))
+                                .setMetadata(ContentMetadata.newBuilder().setContentMetadataViewModel(byline))))
+                .setContentImage(ContentImage.newBuilder().setThumbnailViewModel(ThumbnailViewModel.newBuilder()
+                        .setImage(ByteString.copyFromUtf8("\n\u0030https://i.ytimg.com/vi/NWItxGY5NNk/hqdefault.jpg"))))
+                .setRendererContext(RendererContext.newBuilder()
+                        .setCommandContext(CommandContext.newBuilder().setOnTap(watch)));
+        return withModel(source, sourceModel.toBuilder().setLockupModel(lockup.toBuilder()
+                .setViewModel(holder.toBuilder().setLockupViewModel(lockedVideo))).build());
+    }
+
+    private static MetadataPart.Builder metadataPart(String text, String label) {
+        return MetadataPart.newBuilder().setText(AttributedText.newBuilder().setContent(text))
+                .setAccessibilityLabel(label);
+    }
+
+    private static ByteString opaquePlaybackCommand() throws Exception {
+        // Keep the real command envelope without retaining the signed-in request payload.
+        var buffer = new ByteArrayOutputStream();
+        var output = CodedOutputStream.newInstance(buffer);
+        output.writeByteArray(200453700, new byte[0]);
+        output.flush();
+        return InnertubeCommandHolder.newBuilder()
+                .setInnertubeCommand(InnertubeCommand.parseFrom(buffer.toByteArray())).build().toByteString();
+    }
+
+    private static MetadataPart classicByline(VideoWithContextData data) {
+        return details(data.getVideoData().getLockupMetadata()).getMetadataRows(0).getMetadataParts(0);
+    }
+
+    @SuppressWarnings("deprecation")
+    private static void useStockAvatarLabel(Context app) {
+        Resources original = app.getResources();
+        int goToChannel = 0x7f140090;
+        var resources = new Resources(original.getAssets(), original.getDisplayMetrics(),
+                original.getConfiguration()) {
+            @Override
+            public int getIdentifier(String name, String type, String packageName) {
+                return "accessibility_go_to_channel".equals(name) ? goToChannel
+                        : super.getIdentifier(name, type, packageName);
+            }
+
+            @Override
+            public String getString(int id) {
+                return id == goToChannel ? "Go to channel" : super.getString(id);
+            }
+        };
+        Utils.setContext(new ContextWrapper(app) {
+            @Override
+            public Resources getResources() {
+                return resources;
+            }
+        });
+    }
+
+    private static VideoWithContextData renderAsClassic(byte[] input) throws Exception {
+        byte[] rendered = HomeFeedChannelNamesPatch.onElementLoaded(FeedCardLayoutPatch.setFeedCardLayout(input));
+        return model(Element.parseFrom(rendered)).getVideoWithContextModel().getData();
     }
 
     @Test

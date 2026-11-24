@@ -12,6 +12,8 @@
 
 ### Bug Fixes
 
+* **YouTube – Home feed:** **Show channel names on Home** now also works when **Feed card layout** is **Classic**.
+  Cards whose data names the channel show that name instead of the handle.
 * **YouTube Music – Third-party lyrics:** Repeated lines now highlight one at a time as each line's timestamp
   arrives, rather than all at once. This works with and without word sync and separate background vocals.
 

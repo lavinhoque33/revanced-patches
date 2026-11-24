@@ -16,6 +16,9 @@
   rounded card and side insets, and consecutive cards no longer have an extra gap.
 * **YouTube Music – Third-party lyrics:** Translated lines now brighten when their own line is sung.
   Upcoming translations no longer outshine the active line during a repeated chorus.
+* **YouTube – Add to queue:** The thumbnail button now uses the RVX queue icon in the upper-left corner,
+  including on Classic feed cards. Tapping it starts the selected video if the player is closed; otherwise
+  it adds the video to the queue without interrupting playback.
 
 ## [1.50.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.49.0...v1.50.0) (2026-11-24)
 

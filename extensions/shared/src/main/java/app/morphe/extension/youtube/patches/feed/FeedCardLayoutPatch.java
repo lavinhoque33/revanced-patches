@@ -149,6 +149,7 @@ import app.morphe.extension.youtube.innertube.PlaylistEdit;
 import app.morphe.extension.youtube.innertube.queue.PlaylistQueueRenderer;
 import app.morphe.extension.youtube.patches.components.FeedComponentsFilter;
 import app.morphe.extension.youtube.patches.player.SeekbarColorPatch;
+import app.morphe.extension.youtube.patches.queue.ThumbnailQueuePatch;
 import app.morphe.extension.youtube.patches.utils.ProtoNode;
 import app.morphe.extension.youtube.settings.Settings;
 import app.morphe.extension.youtube.shared.NavigationBar;
@@ -1381,11 +1382,13 @@ public class FeedCardLayoutPatch {
                                 .build();
                     }
                     RendererContext rendererContext = lockupViewModel.getRendererContext();
+                    String label = ThumbnailQueuePatch.markConvertedClassicLabel(
+                            lockupViewModel, rendererContext.getAccessibilityContext().getLabel());
                     VideoWithContextModel classic = VideoWithContextModel.newBuilder()
                             .setData(VideoWithContextData.newBuilder()
                                     .setCollectionStack(isPlaylist ? 1 : 0)
                                     .setVideoData(videoData)
-                                    .setAccessibilityText(rendererContext.getAccessibilityContext().getLabel())
+                                    .setAccessibilityText(label)
                                     .setMenuAccessibilityText(menuButton.getAccessibilityText())
                                     .setOnTap(rendererContext.getCommandContext().getOnTap())
                                     .setMenuOnTap(menuOnTap.toByteString())

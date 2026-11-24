@@ -2,6 +2,10 @@
 
 ### Features
 
+* **YouTube & YouTube Music – Glass menus:** On Android 12 or newer, **General → Glass menus** lets you frost
+  supported menus and adjust the blur, panel opacity and background dimming. Menus keep their original
+  background when system blur is unavailable or Battery Saver is on. Glass menus are off by default and
+  independent of the glass navigation bar and miniplayer.
 * **YouTube – Seekbar:** **Hide old seekbar thumbnail border** removes the white frame around the old-style
   seek preview. The image keeps its size, position and rounded corners. The option is off by default.
 * **YouTube & YouTube Music – Custom branding:** Patch options choose which icon packs are bundled. Only the

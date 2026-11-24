@@ -9,6 +9,7 @@
  * - inotia00 (https://github.com/inotia00)
  *
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-24.
  * Modified by lavinhoque33, 2026-11-20.
  * Modified by lavinhoque33, 2026-10-24.
  *
@@ -132,7 +133,7 @@ private const val EXTENSION_NAVIGATION_BUTTONS =
 private const val OFFLINE_PLAYLIST_ENDPOINT_OUTER_CLASS_DESCRIPTOR =
     $$"Lcom/google/protos/youtube/api/innertube/OfflinePlaylistEndpointOuterClass$OfflinePlaylistEndpoint;"
 
-private object FeedPopupWindowFlyoutFingerprint : Fingerprint(
+internal object FeedPopupWindowFlyoutFingerprint : Fingerprint(
     accessFlags = listOf(AccessFlags.PUBLIC, AccessFlags.FINAL),
     returnType = "V",
     parameters = emptyList(),
@@ -401,7 +402,12 @@ val downloadActionsPatch = bytecodePatch(
 
         FeedPopupWindowFlyoutFingerprint.matchAll(2..4).forEach {
             it.method.apply {
-                val instructionIndex = it.instructionMatches.last().index
+                // Other popup hooks can already have inserted instructions before the dismissal listener.
+                val instructionIndex = indexOfFirstInstructionOrThrow {
+                    val reference = getReference<MethodReference>()
+                    reference != null && reference.definingClass == "Landroid/widget/PopupWindow;" &&
+                        reference.name == "setOnDismissListener"
+                }
                 val instructionRegister = getInstruction<FiveRegisterInstruction>(instructionIndex).registerC
 
                 addInstruction(

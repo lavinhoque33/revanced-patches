@@ -1,5 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="morphe_glass_menus_screen_title">Glass menus</string>
+    <string name="morphe_glass_menus_title">Enable glass menus</string>
+    <string name="morphe_glass_menus_summary">Show frosted menus on Android 12+ devices with window blur support.</string>
+    <string name="morphe_glass_menus_opacity_title">Glass opacity</string>
+    <string name="morphe_glass_menus_blur_title">Background blur</string>
+    <string name="morphe_glass_menus_dim_title">Dim behind the menu</string>
     <string name="revanced_patches_update_notice_title">Patches update notice</string>
     <string name="revanced_patches_update_check_title">Check now</string>
     <string name="revanced_patches_update_check_summary">Check for newer patches now, including skipped versions. When notices are off, use the installed patches channel.</string>

@@ -35,6 +35,30 @@
         <!-- SETTINGS: THEME_SETTINGS
         </PreferenceScreen>SETTINGS: THEME_SETTINGS -->
 
+        <!-- SETTINGS: GLASS_MENUS
+        <PreferenceScreen
+            android:key="morphe_glass_menus_screen"
+            android:title="@string/morphe_glass_menus_screen_title"
+            android:orderingFromXml="true">
+            <SwitchPreference
+                android:key="morphe_glass_menus"
+                android:title="@string/morphe_glass_menus_title"
+                android:summary="@string/morphe_glass_menus_summary"
+                android:defaultValue="false" />
+            <app.morphe.extension.shared.settings.preference.SeekBarPreference
+                android:key="morphe_glass_menus_opacity"
+                android:title="@string/morphe_glass_menus_opacity_title"
+                android:dependency="morphe_glass_menus" />
+            <app.morphe.extension.shared.settings.preference.SeekBarPreference
+                android:key="morphe_glass_menus_blur"
+                android:title="@string/morphe_glass_menus_blur_title"
+                android:dependency="morphe_glass_menus" />
+            <app.morphe.extension.shared.settings.preference.SeekBarPreference
+                android:key="morphe_glass_menus_dim"
+                android:title="@string/morphe_glass_menus_dim_title"
+                android:dependency="morphe_glass_menus" />
+        </PreferenceScreen>SETTINGS: GLASS_MENUS -->
+
         <!-- SETTINGS: HIDE_LAYOUT_COMPONENTS
         <PreferenceScreen android:title="@string/revanced_preference_screen_account_menu_title" android:key="revanced_preference_screen_account_menu" android:summary="@string/revanced_preference_screen_account_menu_summary">
             <SwitchPreference android:title="@string/revanced_hide_account_menu_title" android:key="revanced_hide_account_menu" android:summary="@string/revanced_hide_account_menu_summary" />

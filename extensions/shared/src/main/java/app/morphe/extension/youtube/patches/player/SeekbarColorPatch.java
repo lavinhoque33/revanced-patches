@@ -362,8 +362,9 @@ public class SeekbarColorPatch {
             for (int i = 0; i < positions.length; i++) {
                 float position = Float.parseFloat(positionStrings[i].trim());
 
-                // Ensure positions are in valid range [0.0, 1.0]
-                if (position < 0.0f || position > 1.0f) {
+                // Reject non-finite and decreasing stops before passing them to a shader.
+                if (!Float.isFinite(position) || position < 0.0f || position > 1.0f
+                        || (i > 0 && position < newPositions[i - 1])) {
                     Utils.showToastShort(str("revanced_gradient_seekbar_positions_reset"));
                     Settings.GRADIENT_SEEKBAR_POSITIONS.resetToDefault();
                     return;

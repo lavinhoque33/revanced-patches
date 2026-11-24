@@ -2,6 +2,9 @@ package app.morphe.extension.youtube.swipecontrols.controller.gesture.core
 
 import android.view.GestureDetector
 import android.view.MotionEvent
+import app.morphe.extension.youtube.patches.video.PlaybackSpeedPatch.userSelectedPlaybackSpeed
+import app.morphe.extension.youtube.patches.video.PlaybackSpeedValues
+import app.morphe.extension.youtube.shared.VideoInformation
 import app.morphe.extension.youtube.swipecontrols.SwipeControlsConfigurationProvider.SwipeZoneAction
 import app.morphe.extension.youtube.swipecontrols.SwipeControlsHostActivity
 import app.morphe.extension.youtube.swipecontrols.misc.Point
@@ -32,6 +35,16 @@ abstract class BaseGestureController(
         controller.config.speedDistance,
         controller.config.seekDistance,
         controller.config.volumeSwipeSensitivity,
+        adjustSpeed = { direction ->
+            val newSpeed = PlaybackSpeedValues.adjustBySwipe(VideoInformation.getPlaybackSpeed(), direction)
+            VideoInformation.overridePlaybackSpeed(newSpeed)
+            userSelectedPlaybackSpeed(newSpeed)
+            controller.overlay.onSpeedChanged(newSpeed)
+        },
+        seekBy = { deltaMillis ->
+            VideoInformation.seekToRelative(deltaMillis.toLong())
+            controller.overlay.onSeekChanged(deltaMillis)
+        },
     ) {
 
     /**
@@ -188,21 +201,7 @@ abstract class BaseGestureController(
      * direction.
      */
     protected fun swipeActionAt(origin: Point, direction: SwipeDetector.SwipeDirection): SwipeZoneAction =
-        when (direction) {
-            SwipeDetector.SwipeDirection.HORIZONTAL -> when (origin) {
-                in controller.zones.top -> controller.config.topZoneAction
-                in controller.zones.bottom -> controller.config.bottomZoneAction
-                else -> SwipeZoneAction.OFF
-            }
-
-            SwipeDetector.SwipeDirection.VERTICAL -> when (origin) {
-                in controller.zones.left -> controller.config.leftZoneAction
-                in controller.zones.right -> controller.config.rightZoneAction
-                else -> SwipeZoneAction.OFF
-            }
-
-            SwipeDetector.SwipeDirection.NONE -> SwipeZoneAction.OFF
-        }
+        controller.zones.actionAt(origin, direction)
 
     /**
      * Applies the action assigned to the zone where a swipe started.
@@ -218,45 +217,8 @@ abstract class BaseGestureController(
         if (action == SwipeZoneAction.OFF) return false
 
         controller.overlay.selectGestureStyle(direction)
-
-        // Normalize the physical gesture first: upward and rightward swipes are positive. The
-        // legacy speed and seek scrollers use the opposite sign from volume and brightness, so
-        // invert their normalized distance to preserve their existing behavior in every zone.
-        val normalizedDistance = if (direction == SwipeDetector.SwipeDirection.HORIZONTAL) {
-            -distanceX
-        } else {
-            distanceY
-        }
-        val distance = when (action) {
-            SwipeZoneAction.SPEED,
-            SwipeZoneAction.SEEK -> -normalizedDistance
-            else -> normalizedDistance
-        }
-
-        @Suppress("KotlinConstantConditions")
-        return when (action) {
-            SwipeZoneAction.VOLUME -> {
-                scrollVolume(distance)
-                true
-            }
-
-            SwipeZoneAction.BRIGHTNESS -> {
-                scrollBrightness(distance)
-                true
-            }
-
-            SwipeZoneAction.SPEED -> {
-                scrollSpeed(distance)
-                true
-            }
-
-            SwipeZoneAction.SEEK -> {
-                scrollSeek(distance)
-                true
-            }
-
-            SwipeZoneAction.OFF -> false
-        }
+        applySwipe(action, direction, distanceX, distanceY)
+        return true
     }
 
     /**

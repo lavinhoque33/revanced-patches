@@ -4,6 +4,7 @@
  * https://github.com/MorpheApp/morphe-patches/pull/3412
  *
  * See the included NOTICE file for GPLv3 Section 7 terms that apply to this code.
+ * Modified by lavinhoque33, 2026-11-24.
  * Modified by lavinhoque33, 2026-11-23.
  */
 
@@ -209,6 +210,10 @@ class SwipeControlsOverlayLayout(
         feedbackHideCallback.run()
     }
 
+    internal fun keepFeedbackVisible() {
+        visibleFeedback?.let(::showForTimeout)
+    }
+
     private fun showForTimeout(view: View) {
         if (visibleFeedback !== view) {
             visibleFeedback?.visibility = GONE
@@ -362,7 +367,10 @@ class SwipeControlsOverlayLayout(
     override fun onSeekChanged(seekAmount: Int) {
         val currentTime = VideoInformation.getVideoTime()
         val totalTime = VideoInformation.getVideoLength()
-        val newTime = (currentTime + seekAmount).coerceIn(0, totalTime)
+        onSeekPositionChanged((currentTime + seekAmount).coerceIn(0, totalTime), totalTime)
+    }
+
+    internal fun onSeekPositionChanged(newTime: Long, totalTime: Long) {
 
         val text = "${getTimeStamp(newTime)} / ${getTimeStamp(totalTime)}"
         val progress = if (totalTime > 0) ((newTime.toFloat() / totalTime) * 100).toInt() else 0

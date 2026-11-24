@@ -9,11 +9,19 @@
   kept. All packs stay included by default.
 * **YouTube & YouTube Music – Custom branding:** Add the legacy **ReVanced** and **Reseam** icon packs. They change
   the launcher icon only; the app header and splash screen stay stock.
+* **YouTube – Downloads:** The built-in offline player now follows the RVX player settings, so downloaded
+  videos keep them without an internet connection. These cover custom playback speeds, default speed,
+  remembering the last speed, the speed menu style with its 0.05× slider, separate forward and backward
+  double-tap seek lengths, swipe controls, opening in fullscreen, player overlay opacity and seekbar colors.
+  **Always repeat** applies too, and with **Show always repeat button** on, the built-in player has the same
+  repeat button (long-press pauses after each repeat).
 
 ### Bug Fixes
 
 * **YouTube – Home feed:** **Show channel names on Home** now also works when **Feed card layout** is **Classic**.
   Cards whose data names the channel show that name instead of the handle.
+* **YouTube – Downloads:** If YouTube can't be reached, for example on Wi-Fi without working internet or when
+  the app's network access is blocked, downloads open in the built-in player instead of a page that can't load.
 * **YouTube Music – Third-party lyrics:** Repeated lines now highlight one at a time as each line's timestamp
   arrives, rather than all at once. This works with and without word sync and separate background vocals.
 

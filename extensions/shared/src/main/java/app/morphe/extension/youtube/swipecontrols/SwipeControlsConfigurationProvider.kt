@@ -84,12 +84,18 @@ class SwipeControlsConfigurationProvider {
 
     /** Whether any assigned edge can handle swipes in the current player mode. */
     val enableSwipeControls: Boolean
-        get() = (enableVolumeControls || enableBrightnessControl || enableSpeedControl || enableSeekControl) &&
-            (isFullscreenVideo || enablePortraitSwipeControls)
+        get() = hasAssignedZones() && (isFullscreenVideo || enablePortraitSwipeControls)
+
+    internal fun hasAssignedZones(): Boolean =
+        leftZoneAction != SwipeZoneAction.OFF || rightZoneAction != SwipeZoneAction.OFF ||
+            topZoneAction != SwipeZoneAction.OFF || bottomZoneAction != SwipeZoneAction.OFF
+
+    internal val portraitSwipeEnabled: Boolean
+        get() = Settings.SWIPE_PORTRAIT.get()
 
     /** Orientation and the visible player bounds are checked by the host before accepting a touch. */
     val enablePortraitSwipeControls: Boolean
-        get() = Settings.SWIPE_PORTRAIT.get() && PlayerType.current == PlayerType.WATCH_WHILE_MAXIMIZED
+        get() = portraitSwipeEnabled && PlayerType.current == PlayerType.WATCH_WHILE_MAXIMIZED
 
     /**
      * The action assigned to the left swipe zone.

@@ -9,6 +9,7 @@ import app.morphe.extension.shared.utils.ResourceUtils.getIdentifier
 import app.morphe.extension.shared.utils.Utils.dipToPixels
 import app.morphe.extension.youtube.swipecontrols.SwipeControlsConfigurationProvider
 import app.morphe.extension.youtube.swipecontrols.SwipeControlsConfigurationProvider.SwipeZoneAction
+import app.morphe.extension.youtube.swipecontrols.controller.gesture.core.SwipeDetector.SwipeDirection
 import app.morphe.extension.youtube.swipecontrols.misc.Point
 import app.morphe.extension.youtube.swipecontrols.misc.Rectangle
 import app.morphe.extension.youtube.swipecontrols.misc.contains
@@ -107,12 +108,20 @@ class SwipeZonesController(
      * current bounding rectangle of the player
      */
     private var playerRect: Rectangle? = null
+    private var offlineSwipeRect: Rectangle? = null
+
+    /** Offline touches are local to the unobstructed player viewport, not the stock watch UI. */
+    internal fun setOfflineViewport(viewport: Rectangle) {
+        offlineSwipeRect = viewport
+    }
 
     /**
      * rectangle of the area that is effectively usable for swipe controls
      */
     private val effectiveSwipeRect: Rectangle
         get() {
+            offlineSwipeRect?.let { return it }
+
             if (config.enablePortraitSwipeControls) {
                 return portraitSwipeRect ?: EMPTY_RECT
             }
@@ -182,6 +191,23 @@ class SwipeZonesController(
             (config.rightZoneAction != SwipeZoneAction.OFF && point in right) ||
             (config.topZoneAction != SwipeZoneAction.OFF && point in top) ||
             (config.bottomZoneAction != SwipeZoneAction.OFF && point in bottom)
+
+    internal fun actionAt(origin: Point, direction: SwipeDirection): SwipeZoneAction =
+        when (direction) {
+            SwipeDirection.HORIZONTAL -> when (origin) {
+                in top -> config.topZoneAction
+                in bottom -> config.bottomZoneAction
+                else -> SwipeZoneAction.OFF
+            }
+
+            SwipeDirection.VERTICAL -> when (origin) {
+                in left -> config.leftZoneAction
+                in right -> config.rightZoneAction
+                else -> SwipeZoneAction.OFF
+            }
+
+            SwipeDirection.NONE -> SwipeZoneAction.OFF
+        }
 
     /**
      * try to attach a listener to the size adjustable player overlay and update the player rectangle.

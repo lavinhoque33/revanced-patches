@@ -2713,6 +2713,10 @@ Audio is saved to %2$s"</string>
     <string name="revanced_offline_video_missing">This download no longer exists</string>
     <string name="revanced_offline_player_speed">Playback speed</string>
     <string name="revanced_offline_player_speed_normal">Normal</string>
+    <string name="revanced_offline_player_speed_unsupported">This download cannot play at %s</string>
+    <string name="revanced_offline_player_seek_hint">%1$+ds</string>
+    <string name="revanced_offline_player_repeat">Always repeat</string>
+    <string name="revanced_offline_player_repeat_pause">Always repeat, then pause</string>
     <string name="revanced_offline_player_fullscreen">Fullscreen</string>
     <!-- Aspect ratio button of the built-in offline player. -->
     <string name="revanced_offline_player_aspect">Aspect ratio</string>

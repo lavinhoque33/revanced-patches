@@ -1,15 +1,17 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
- * Modified by lavinhoque33, 2026-11-23
+ * Modified by lavinhoque33, 2026-11-24
  * Written by lavinhoque33, 2026-11-23
  */
 
 package app.morphe.extension.youtube.patches.feed;
 
+import static app.morphe.extension.youtube.patches.feed.FeedCardLayoutPatch.FeedCardLayout.CLASSIC;
 import static app.morphe.extension.youtube.patches.feed.HomeFeedChannelNamesPatch.rewrite;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertTrue;
 
 import android.content.Context;
 import android.content.ContextWrapper;
@@ -127,12 +129,11 @@ public class HomeFeedChannelNamesTest {
     public void classicConversionUsesNamedAvatarBeforeLosingTheSourceVideoId() throws Exception {
         Context app = RuntimeEnvironment.getApplication();
         useStockAvatarLabel(app);
-        Settings.FEED_CARD_LAYOUT.save(FeedCardLayoutPatch.FeedCardLayout.CLASSIC);
         HomeFeedChannelNamesPatch.setBrowseId(HOME);
 
         try {
             // Prime the layout converter with the first-party classic template from the capture above.
-            FeedCardLayoutPatch.setFeedCardLayout(Base64.getDecoder().decode(PUBLIC_CLASSIC_CARD));
+            FeedCardLayoutPatch.setFeedCardLayout(Base64.getDecoder().decode(PUBLIC_CLASSIC_CARD), CLASSIC);
 
             ByteString watch = opaquePlaybackCommand();
             byte[] input = classicSource(watch).toByteArray();
@@ -156,7 +157,6 @@ public class HomeFeedChannelNamesTest {
         } finally {
             HomeFeedChannelNamesPatch.clearBrowseId();
             Settings.HOME_FEED_CHANNEL_NAMES.save(false);
-            Settings.FEED_CARD_LAYOUT.save(FeedCardLayoutPatch.FeedCardLayout.DEFAULT);
             Utils.setContext(app);
         }
     }
@@ -234,8 +234,11 @@ public class HomeFeedChannelNamesTest {
     }
 
     private static VideoWithContextData renderAsClassic(byte[] input) throws Exception {
-        byte[] rendered = HomeFeedChannelNamesPatch.onElementLoaded(FeedCardLayoutPatch.setFeedCardLayout(input));
-        return model(Element.parseFrom(rendered)).getVideoWithContextModel().getData();
+        byte[] converted = FeedCardLayoutPatch.setFeedCardLayout(input, CLASSIC);
+        byte[] rendered = HomeFeedChannelNamesPatch.onElementLoaded(converted);
+        ElementModel output = model(Element.parseFrom(rendered));
+        assertTrue("Expected conversion from a native lockup to the Classic renderer", output.hasVideoWithContextModel());
+        return output.getVideoWithContextModel().getData();
     }
 
     @Test

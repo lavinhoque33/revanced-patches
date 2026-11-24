@@ -1,3 +1,17 @@
+## Unreleased
+
+### Features
+
+* **YouTube – Swipe controls:** **Swipe overlay foreground color** sets the color of the text and icon
+  independently of the background and progress bar. The default is white.
+
+### Bug Fixes
+
+* **YouTube – Swipe controls:** The overlay no longer shifts or changes size as the percentage gains a digit.
+* **YouTube – Feed card layout:** **Cards** now hides the like, comment and save buttons on native Home video
+  cards; **Cards with like, comment and save buttons** keeps them. The thumbnail and details share the same
+  rounded card and side insets, and consecutive cards no longer have an extra gap.
+
 ## [1.50.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.49.0...v1.50.0) (2026-11-24)
 
 ### Features

@@ -1355,6 +1355,11 @@
         <SwitchPreference android:title="@string/revanced_swipe_haptic_feedback_title" android:key="revanced_swipe_haptic_feedback" android:summaryOn="@string/revanced_disable_haptic_feedback_chapters_summary_off" android:summaryOff="@string/revanced_disable_haptic_feedback_chapters_summary_on" />
         <SwitchPreference android:title="@string/revanced_swipe_gestures_lock_mode_title" android:key="revanced_swipe_gestures_lock_mode" android:summaryOn="@string/revanced_swipe_gestures_lock_mode_summary_on" android:summaryOff="@string/revanced_swipe_gestures_lock_mode_summary_off" />
         <app.morphe.extension.shared.settings.preference.ColorPickerPreference android:title="@string/revanced_swipe_overlay_background_color_title" android:key="revanced_swipe_overlay_background_color" android:summary="@string/revanced_swipe_overlay_background_color_summary" android:inputType="textCapCharacters" />
+        <app.morphe.extension.shared.settings.preference.ColorPickerPreference
+            android:title="@string/revanced_swipe_overlay_foreground_color_title"
+            android:key="revanced_swipe_overlay_foreground_color"
+            android:summary="@string/revanced_swipe_overlay_foreground_color_summary"
+            android:inputType="textCapCharacters" />
         <app.morphe.extension.shared.settings.preference.SliderPreference android:title="@string/revanced_swipe_overlay_background_opacity_title" android:key="revanced_swipe_overlay_background_opacity" android:summary="@string/revanced_swipe_overlay_background_opacity_summary" android:inputType="number" />
         <app.morphe.extension.shared.settings.preference.SliderPreference android:title="@string/revanced_swipe_threshold_title" android:key="revanced_swipe_threshold" android:summary="@string/revanced_swipe_threshold_summary" android:inputType="number" />
         <app.morphe.extension.shared.settings.preference.SliderPreference android:title="@string/revanced_swipe_overlay_timeout_title" android:key="revanced_swipe_overlay_timeout" android:summary="@string/revanced_swipe_overlay_timeout_summary" android:inputType="number" />

@@ -1231,6 +1231,8 @@ public class Settings extends SharedYouTubeSettings {
             new HorizontalSwipeZonesAvailability());
     public static final StringSetting SWIPE_OVERLAY_BACKGROUND_COLOR = new StringSetting(
             "revanced_swipe_overlay_background_color", "#000000", true, new AnySwipeZoneAvailability());
+    public static final StringSetting SWIPE_OVERLAY_FOREGROUND_COLOR = new StringSetting(
+            "revanced_swipe_overlay_foreground_color", "#FFFFFF", true, new AnySwipeZoneAvailability());
     public static final StringSetting SWIPE_OVERLAY_BRIGHTNESS_COLOR = new StringSetting(
             "revanced_swipe_overlay_progress_brightness_color", "#BFFFFFFF", true,
             new SwipeOverlayProgressColorAvailability(SwipeZoneAction.BRIGHTNESS));

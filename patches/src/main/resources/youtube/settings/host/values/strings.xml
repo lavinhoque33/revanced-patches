@@ -3510,6 +3510,8 @@ Adjust brightness by swiping vertically on the left side of the screen"</string>
     <string name="revanced_swipe_overlay_background_color_title">Swipe overlay background color</string>
     <string name="revanced_swipe_overlay_background_opacity_summary">Opacity value between 0-100</string>
     <string name="revanced_swipe_overlay_background_opacity_title">Swipe overlay background opacity</string>
+    <string name="revanced_swipe_overlay_foreground_color_summary">Color of text and icons, not progress bars.</string>
+    <string name="revanced_swipe_overlay_foreground_color_title">Swipe overlay foreground color</string>
     <string name="revanced_swipe_overlay_progress_brightness_color_summary">The color of the progress bar for brightness controls</string>
     <string name="revanced_swipe_overlay_progress_brightness_color_title">Swipe overlay brightness color</string>
     <string name="revanced_swipe_overlay_progress_seek_color_summary">The color of the progress bar for seek controls</string>

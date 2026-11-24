@@ -1026,6 +1026,8 @@ public class Settings extends SharedYouTubeSettings {
     public static final BooleanSetting FULLSCREEN_LARGE_SEEKBAR = new BooleanSetting("morphe_fullscreen_large_seekbar", FALSE);
     public static final BooleanSetting HIDE_TIME_STAMP = new BooleanSetting("revanced_hide_time_stamp", FALSE, true);
     public static final BooleanSetting THUMBNAIL_PREVIEW = new BooleanSetting("morphe_seekbar_thumbnail_preview", TRUE);
+    public static final BooleanSetting HIDE_THUMBNAIL_PREVIEW_BORDER =
+            new BooleanSetting("morphe_hide_seekbar_thumbnail_preview_border", FALSE, parent(THUMBNAIL_PREVIEW));
 
     // PreferenceScreen: Player - Video description
     public static final BooleanSetting DISABLE_ROLLING_NUMBER_ANIMATIONS = new BooleanSetting("revanced_disable_rolling_number_animations", FALSE);

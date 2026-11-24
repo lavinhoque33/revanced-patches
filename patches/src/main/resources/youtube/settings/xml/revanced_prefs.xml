@@ -1026,6 +1026,12 @@
             <app.morphe.extension.youtube.settings.preference.CustomSeekbarThumbPreference android:title="@string/morphe_custom_seekbar_thumb_file_title" android:key="morphe_custom_seekbar_thumb_file" android:dependency="morphe_custom_seekbar_thumb" />
             <ListPreference android:title="@string/morphe_custom_seekbar_thumb_scale_type_title" android:key="morphe_custom_seekbar_thumb_scale_type" android:entries="@array/morphe_custom_seekbar_thumb_scale_type_entries" android:entryValues="@array/morphe_custom_seekbar_thumb_scale_type_entry_values" android:dependency="morphe_custom_seekbar_thumb" />
             <SwitchPreference android:title="@string/morphe_seekbar_thumbnail_preview_title" android:key="morphe_seekbar_thumbnail_preview" android:summary="@string/morphe_seekbar_thumbnail_preview_summary" />
+            <SwitchPreference
+                android:key="morphe_hide_seekbar_thumbnail_preview_border"
+                android:title="@string/morphe_hide_seekbar_thumbnail_preview_border_title"
+                android:summaryOn="@string/morphe_hide_seekbar_thumbnail_preview_border_summary_on"
+                android:summaryOff="@string/morphe_hide_seekbar_thumbnail_preview_border_summary_off"
+                android:dependency="morphe_seekbar_thumbnail_preview" />
             <SwitchPreference android:title="@string/revanced_hide_seekbar_chapter_label_title" android:key="revanced_hide_seekbar_chapter_label" android:summaryOn="@string/revanced_hide_seekbar_chapter_label_summary_on" android:summaryOff="@string/revanced_hide_seekbar_chapter_label_summary_off" />
             <SwitchPreference android:title="@string/revanced_hide_time_stamp_title" android:key="revanced_hide_time_stamp" android:summaryOn="@string/revanced_hide_time_stamp_summary_on" android:summaryOff="@string/revanced_hide_time_stamp_summary_off" />
             <SwitchPreference android:title="@string/revanced_hide_seekbar_title" android:key="revanced_hide_seekbar" android:summaryOn="@string/revanced_hide_seekbar_summary_on" android:summaryOff="@string/revanced_hide_seekbar_summary_off" />

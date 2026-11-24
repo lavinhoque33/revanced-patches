@@ -1,3 +1,20 @@
+## Unreleased
+
+### Features
+
+* **YouTube – Seekbar:** **Hide old seekbar thumbnail border** removes the white frame around the old-style
+  seek preview. The image keeps its size, position and rounded corners. The option is off by default.
+* **YouTube & YouTube Music – Custom branding:** Patch options choose which icon packs are bundled. Only the
+  selected packs appear in the launcher aliases and the in-app **App icon** picker. The startup icon is always
+  kept. All packs stay included by default.
+* **YouTube & YouTube Music – Custom branding:** Add the legacy **ReVanced** and **Reseam** icon packs. They change
+  the launcher icon only; the app header and splash screen stay stock.
+
+### Bug Fixes
+
+* **YouTube Music – Third-party lyrics:** Repeated lines now highlight one at a time as each line's timestamp
+  arrives, rather than all at once. This works with and without word sync and separate background vocals.
+
 ## [1.49.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.48.0...v1.49.0) (2026-11-23)
 
 This stable release also includes A–B repeat, the original audio stream preference and the Player settings

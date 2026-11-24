@@ -1078,6 +1078,7 @@ private val rvxPreferenceKey = mapOf(
     "morphe_fullscreen_video_scale_button_fullscreen_only" to "revanced_preference_screen_fullscreen",
     "morphe_hide_aislist_about" to "about_key",
     "morphe_hide_aislist_attribution" to "about_key",
+    "morphe_hide_seekbar_thumbnail_preview_border" to "morphe_seekbar_thumbnail_preview",
     "morphe_light_theme_custom_color" to "morphe_light_theme",
     "morphe_live_chat_translate" to "live_chat_key",
     "morphe_live_chat_translate_bold" to "morphe_custom_branding_name",

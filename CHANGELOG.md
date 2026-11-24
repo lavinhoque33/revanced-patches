@@ -4,6 +4,9 @@
 
 * **YouTube – Swipe controls:** **Swipe overlay foreground color** sets the color of the text and icon
   independently of the background and progress bar. The default is white.
+* **YouTube – Ungroup notifications:** **RVX → Feed → Ungroup notifications** shows grouped channel uploads
+  as individual rows in the Notifications tab. Each video keeps its own actions and unread dot. Off by default.
+  Pages with no standalone notification to use as a row template stay grouped.
 
 ### Bug Fixes
 

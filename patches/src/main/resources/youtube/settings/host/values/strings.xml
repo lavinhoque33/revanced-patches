@@ -803,6 +803,8 @@ If you are a YouTube Premium user, this setting may not be required"</string>
     <string name="morphe_video_delay_dialog_input_hint">Delay in milliseconds</string>
     <string name="morphe_video_delay_summary">Delays the video to keep it in sync with laggy audio, such as Bluetooth headphones (0-5000 ms)</string>
     <string name="morphe_video_delay_title">Video delay</string>
+    <string name="morphe_ungroup_notifications_summary">Shows each video in grouped uploads as a separate entry in the Notifications tab</string>
+    <string name="morphe_ungroup_notifications_title">Ungroup notifications</string>
     <string name="morphe_unlock_queue_summary">"Unlocks YouTube’s video queue
 
 Turn off Premium-style queue to use Unlock queue"</string>

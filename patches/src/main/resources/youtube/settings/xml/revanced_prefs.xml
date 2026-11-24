@@ -581,6 +581,12 @@
             android:key="morphe_home_feed_channel_names"
             android:summary="@string/morphe_home_feed_channel_names_summary" />SETTINGS: HOME_FEED_CHANNEL_NAMES -->
 
+        <!-- SETTINGS: UNGROUP_NOTIFICATIONS
+        <SwitchPreference
+            android:title="@string/morphe_ungroup_notifications_title"
+            android:key="morphe_ungroup_notifications"
+            android:summary="@string/morphe_ungroup_notifications_summary" />SETTINGS: UNGROUP_NOTIFICATIONS -->
+
         <!-- SETTINGS: DISABLE_AUTO_FEED_REFRESH
         <SwitchPreference android:title="@string/morphe_disable_auto_feed_refresh_title" android:key="morphe_disable_auto_feed_refresh" android:summary="@string/morphe_disable_auto_feed_refresh_summary" />SETTINGS: DISABLE_AUTO_FEED_REFRESH -->
 

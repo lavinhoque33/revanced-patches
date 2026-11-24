@@ -1,5 +1,5 @@
 {
-  "version": "v1.50.0",
+  "version": "v1.51.0",
   "patches": [
     {
       "name": "Add to queue",
@@ -7,6 +7,10 @@
       "use": true,
       "dependencies": [
         "ResourcePatch",
+        "BytecodePatch",
+        "BytecodePatch",
+        "BytecodePatch",
+        "BytecodePatch",
         "BytecodePatch",
         "BytecodePatch",
         "BytecodePatch",
@@ -1653,7 +1657,8 @@
         "BytecodePatch",
         "ResourcePatch",
         "BytecodePatch",
-        "BytecodePatch"
+        "BytecodePatch",
+        "ResourcePatch"
       ],
       "compatiblePackages": {
         "com.google.android.youtube": [
@@ -4542,6 +4547,26 @@
           "values": null
         }
       ]
+    },
+    {
+      "name": "Ungroup notifications",
+      "description": "Adds an option to show each video in grouped uploads as a separate entry in YouTube's Notifications tab.",
+      "use": true,
+      "dependencies": [
+        "BytecodePatch",
+        "ResourcePatch",
+        "BytecodePatch",
+        "BytecodePatch"
+      ],
+      "compatiblePackages": {
+        "com.google.android.youtube": [
+          "21.39.525",
+          "21.45.90",
+          "21.13.164",
+          "20.05.46"
+        ]
+      },
+      "options": []
     },
     {
       "name": "Unlock queue",

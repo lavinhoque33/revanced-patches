@@ -166,6 +166,7 @@ Local imports do not update automatically; import the new `.mpp` for each update
 | `Toolbar components` | Adds options to hide or change components located on the toolbar, such as the search bar, header, and toolbar buttons. | 21.39.525 ~ 20.05.46 |
 | `Translate live chat` | Adds an option to translate live chat and live chat replay messages. | 21.39.525 ~ 20.05.46 |
 | `Translations for YouTube` | Add translations or remove string resources. | 21.39.525 ~ 20.05.46 |
+| `Ungroup notifications` | Adds an option to show each video in grouped uploads as a separate entry in YouTube's Notifications tab. | 21.39.525 ~ 20.05.46 |
 | `Unlock queue` | Adds an option to unlock YouTube’s video queue. | 21.39.525 ~ 20.05.46 |
 | `Video delay` | Adds an option to delay the video, to keep it in sync with laggy Bluetooth audio. | 21.39.525 ~ 20.05.46 |
 | `Video playback` | Adds options to customize settings related to video playback, such as default video quality and playback speed. | 21.39.525 ~ 20.05.46 |

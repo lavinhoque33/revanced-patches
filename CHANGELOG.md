@@ -17,6 +17,7 @@
   Assigned volume and brightness zones keep their existing gestures.
 * **Patch Managers:** The RVX repository URL supports switching between stable and prerelease bundles
   in Morphe Manager, and the same URL works in UP Manager. The separate JSON links still work.
+  The feeds now update automatically when new patch bundles are published.
 
 ## [1.51.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.50.0...v1.51.0) (2026-11-24)
 

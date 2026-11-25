@@ -42,15 +42,16 @@ leave **Use latest** and **Use pre-releases** off for stable. Enable **Use lates
 follow the most recently published stable or dev release. **Use pre-releases** by itself
 follows dev releases only.
 
-Update the source, then patch and install the app again. Updating a patch source alone
-does not update installed apps. To import a release `.mpp` manually in Morphe Manager,
-open **Sources → + → Select patch source files**. Local sources must be updated manually.
+Published patch bundles reach the Manager feeds automatically. To use an update, refresh the
+source, then repatch and reinstall your app. Refreshing a source alone does not update installed apps.
+For a local import in Morphe Manager, open **Sources → + → Select patch source files** and choose the `.mpp`.
+Local sources must be updated manually.
 
 <!--
-Fork release maintenance: main mirrors rvx-latest, and dev mirrors rvx-dev.
-Publish the .mpp first, then update each matching patches-bundle.json and CHANGELOG.md
-on main/dev together. Keep a dated prerelease entry above the stable changelog on dev.
-When stable supersedes dev, refresh both pairs to stable; retain a newer prerelease.
+Fork release maintenance: attach patches-<version>.mpp before publishing vX.Y.Z (stable) or vX.Y.Z-dev.N (prerelease).
+Sync Manager feeds runs on publication and checks again every 30 minutes. It mirrors GitHub Latest to main/rvx-latest
+and the newest higher-version prerelease, or stable if none is newer, to dev/rvx-dev.
+Use Actions > Sync Manager feeds > Run workflow on rvx-latest to sync on demand.
 main/dev are Manager metadata mirrors, not source or release build branches.
 -->
 

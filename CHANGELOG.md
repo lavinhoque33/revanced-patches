@@ -7,6 +7,9 @@
   miniplayers also show how much of the video has buffered.
 * **YouTube – Home feed:** **Show channel names on Home** keeps showing available channel names after
   searching, returning to Home, and refreshing the feed. Search results keep their original bylines.
+* **YouTube – Home feed:** The Shorts and community post filters now also hide standalone Shorts and
+  multi-image posts that YouTube shows as full-width cards. Regular videos and unrelated carousels
+  stay visible.
 * **YouTube – Downloads:** Fixed long seeks in YouTube’s watch player for saved videos larger than 2 GiB.
   The built-in player and YouTube’s watch player support custom speeds such as 0.05× and 2.75× without
   changing audio pitch. In the built-in player, changing speed while paused keeps playback paused.

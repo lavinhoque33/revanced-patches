@@ -10,6 +10,9 @@
   On-device history and account-header removal are opt-in. Ghost mode does not erase existing history
   or hide all activity from YouTube.
   Available on 21.13.164, 21.39.525, and 21.45.90. The patch is unavailable on 20.05.46.
+* **YouTube Music – Light theme:** Choose **Light** in **RVX → General → App theme**, then restart.
+  Available on supported Music versions from 8.12 onward. Now Playing uses a pale gradient based on
+  the current cover without tinting artwork or video. The default and existing dark presets are unchanged.
 
 ### Bug Fixes
 

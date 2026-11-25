@@ -8,7 +8,7 @@
  * - anddea (https://github.com/anddea)
  *
  * Licensed under the GNU General Public License v3.0.
- * Modified by lavinhoque33, 2026-11-23
+ * Modified by lavinhoque33, 2026-11-25
  *
  * ------------------------------------------------------------------------
  * GPLv3 Section 7 – Additional Terms & Attribution Requirements
@@ -87,6 +87,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.RequiresApi;
 
 import app.morphe.extension.music.patches.utils.DrawableColorPatch;
+import app.morphe.extension.music.patches.utils.MusicLightTheme;
 import app.morphe.extension.shared.settings.Setting;
 import app.morphe.extension.shared.settings.SharedYouTubeSettings;
 import app.morphe.extension.shared.settings.preference.IconListPreference;
@@ -303,7 +304,11 @@ public final class CustomBrandingPatch {
             boolean hasLegacyTheme = Setting.preferences.preferences.contains(LEGACY_SYSTEM_SPLASH_THEME_KEY);
             if (!enabled) {
                 if (forceReset || appliedStamp != null || hasLegacyTheme) {
-                    SplashScreenBridge.resetTheme(activity);
+                    if (usesMusicLightSplash(activity)) {
+                        DrawableColorPatch.applySelectedSplashScreenTheme(activity);
+                    } else {
+                        SplashScreenBridge.resetTheme(activity);
+                    }
                     if (appliedStamp != null) state.edit().remove(SYSTEM_SPLASH_STAMP).commit();
                     if (hasLegacyTheme) Setting.preferences.removeKey(LEGACY_SYSTEM_SPLASH_THEME_KEY);
                 }
@@ -329,6 +334,14 @@ public final class CustomBrandingPatch {
         }
     }
 
+    private static boolean usesMusicLightSplash(Activity activity) {
+        // Keep the concrete starting-window color when switching both into and out of Light.
+        return MusicLightTheme.isEnabled()
+                || ("light".equals(Setting.preferences.getString(DARK_THEME_KEY, ""))
+                    && ResourceUtils.getIdentifier(
+                            MUSIC_SPLASH_THEME_PREFIX + "light", ResourceType.STYLE, activity) != 0);
+    }
+
     @RequiresApi(Build.VERSION_CODES.S)
     private static String splashSourceIdentity(String path) {
         if (path == null || path.isEmpty()) return null;
@@ -351,7 +364,7 @@ public final class CustomBrandingPatch {
      * Resolves a static Theme-preset background combined with the selected branding animation.
      *
      * <p>YouTube may force an appearance independently of the device configuration, so its last
-     * resolved appearance is used before the resolver runs. Music has one dark preset selector.
+     * resolved appearance is used before the resolver runs. Music has one appearance selector.
      * When Theme is not included, or an imported setting is invalid, the icon-only style remains
      * a safe fallback.</p>
      */

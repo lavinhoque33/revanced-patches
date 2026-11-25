@@ -839,6 +839,7 @@ If you are a YouTube Premium user, this setting may not be required"</string>
     <string name="morphe_theme_entry_dark_pink">Dark Pink</string>
     <string name="morphe_theme_entry_dark_red">Dark Red</string>
     <string name="morphe_theme_entry_dark_yellow">Dark Yellow</string>
+    <string name="morphe_theme_entry_light">Light</string>
     <string name="morphe_theme_entry_material_you_neutral">Material You (Neutral)</string>
     <string name="morphe_theme_entry_material_you_primary">Material You - Primary</string>
     <string name="morphe_theme_entry_material_you_secondary">Material You - Secondary</string>
@@ -891,11 +892,11 @@ If you are a YouTube Premium user, this setting may not be required"</string>
     <string name="revanced_custom_playback_speeds_title">Edit custom playback speeds</string>
     <string name="revanced_custom_player_background_color_primary_summary">"Type the hex code of the player background primary color
 
-Use dark colors if possible, as the app does not support light themes"</string>
+Use a dark color to keep player controls readable with a dark theme"</string>
     <string name="revanced_custom_player_background_color_primary_title">Player background primary color</string>
     <string name="revanced_custom_player_background_color_secondary_summary">"Type the hex code of the player background secondary color
 
-Use dark colors if possible, as the app does not support light themes"</string>
+Use a dark color to keep player controls readable with a dark theme"</string>
     <string name="revanced_custom_player_background_color_secondary_title">Player background secondary color</string>
     <string name="revanced_custom_player_background_invalid_toast">Invalid player background color</string>
     <string name="morphe_music_disable_audio_ducking_title">Disable audio ducking</string>

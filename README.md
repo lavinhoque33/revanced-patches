@@ -18,7 +18,7 @@ https://github.com/lavinhoque33/revanced-patches
 
 ### Morphe Manager
 
-1. Open **Sources → + → Remote**, paste the repository URL, and tap **Add**.
+1. Open **Sources**, tap **+**, paste the repository URL into **Source URL**, and tap **Add**.
 2. Leave **Pre-release patches** off on the RVX source for stable releases. Turn it on to
    follow the newest bundle from either channel. You do not need a second source.
 3. Select **RVX Patches** when patching YouTube or YouTube Music. Do not combine it with
@@ -37,13 +37,14 @@ targets. On the repository source, Morphe offers **Experimental app versions** w
 
 ### UP Manager
 
-Add the same repository URL. In the bundle's settings, leave **Use latest** and
-**Use pre-releases** off for stable. Enable **Use latest** to follow the most recently
-published stable or dev release. **Use pre-releases** by itself follows dev releases only.
+Open **Patch Bundles → Add**, then enter the same repository URL. In the bundle settings,
+leave **Use latest** and **Use pre-releases** off for stable. Enable **Use latest** to
+follow the most recently published stable or dev release. **Use pre-releases** by itself
+follows dev releases only.
 
 Update the source, then patch and install the app again. Updating a patch source alone
-does not update installed apps. You can also import a release `.mpp` via Morphe Manager's
-**Sources → + → Local**. Local sources must be updated manually.
+does not update installed apps. To import a release `.mpp` manually in Morphe Manager,
+open **Sources → + → Select patch source files**. Local sources must be updated manually.
 
 <!--
 Fork release maintenance: main mirrors rvx-latest, and dev mirrors rvx-dev.

@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-25.
  * Written by lavinhoque33, 2026-11-24.
  */
 
@@ -12,6 +13,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 
+import android.app.Dialog;
 import android.content.Context;
 import android.content.res.ColorStateList;
 import android.graphics.Color;
@@ -22,6 +24,8 @@ import android.graphics.drawable.Drawable;
 import android.graphics.drawable.InsetDrawable;
 import android.graphics.drawable.RippleDrawable;
 import android.view.View;
+import android.view.Window;
+import android.view.WindowManager;
 import android.widget.FrameLayout;
 
 import org.junit.Test;
@@ -86,6 +90,39 @@ public class GlassMenuRenderingTest {
         InsetDrawable inset = new InsetDrawable(fill, 12);
         assertSame(fill, SolidColors.leafOf(inset));
         assertEquals(Color.BLACK, SolidColors.colorOf(inset));
+    }
+
+    @Test
+    public void unknownAndTranslucentDrawablesAreNotTreatedAsEmptyBackgrounds() {
+        assertTrue(SolidColors.isTransparent(null));
+        assertTrue(SolidColors.isTransparent(new ColorDrawable(Color.TRANSPARENT)));
+        assertFalse(SolidColors.isTransparent(new ColorDrawable(0x99000000)));
+        assertFalse(SolidColors.isTransparent(new RippleDrawable(
+                ColorStateList.valueOf(Color.WHITE), null, null)));
+    }
+
+    @Test
+    public void glassDimRestoresStockWithoutOverwritingLaterAppDimOrAddingAScrim() {
+        Window window = new Dialog(RuntimeEnvironment.getApplication()).getWindow();
+        window.addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND);
+        window.setDimAmount(0.6f);
+
+        GlassSurface.WindowDim dim = new GlassSurface.WindowDim(window);
+        dim.apply(0.2f);
+        dim.apply(0.2f);
+        assertEquals(0.2f, window.getAttributes().dimAmount, 0);
+        dim.restore();
+        assertEquals(0.6f, window.getAttributes().dimAmount, 0);
+
+        dim.apply(0.2f);
+        window.setDimAmount(0.4f);
+        dim.restore();
+        assertEquals(0.4f, window.getAttributes().dimAmount, 0);
+
+        window.clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND);
+        dim.apply(0.2f);
+        assertEquals(0.4f, window.getAttributes().dimAmount, 0);
+        assertEquals(0, window.getAttributes().flags & WindowManager.LayoutParams.FLAG_DIM_BEHIND);
     }
 
     @Test

@@ -491,9 +491,7 @@ Info: The next queued video only starts while YouTube is on screen"</string>
     <string name="morphe_open_videos_fullscreen_title">Open videos in fullscreen mode</string>
     <string name="morphe_override_youtube_music_buttons_summary">Opens your preferred music app instead of the stock YouTube Music app</string>
     <string name="morphe_override_youtube_music_buttons_title">Override YouTube Music buttons</string>
-    <string name="morphe_pause_on_audio_interrupt_summary">
-        Pauses instead of lowering the volume when another app briefly takes audio focus
-    </string>
+    <string name="morphe_pause_on_audio_interrupt_summary">Pauses instead of lowering the volume when another app briefly takes audio focus</string>
     <string name="morphe_pause_on_audio_interrupt_title">Pause on audio interruptions</string>
     <string name="morphe_pip_button_flyout_name">Switch to Picture-in-Picture</string>
     <string name="morphe_pip_button_flyout_title">Show Picture-in-Picture menu</string>
@@ -583,8 +581,7 @@ To use this feature, turn off \'Spoof video streams\'"</string>
 Not used while Unlock queue or Premium-style queue is on"</string>
     <string name="morphe_queue_override_flyout_menu_title">Override feed flyout queue button</string>
     <string name="morphe_queue_thumbnail_button_title">Show Add to queue on thumbnails</string>
-    <string name="morphe_queue_thumbnail_button_summary">Adds an upper-left queue button to supported thumbnails.
-        The button queues the selected video, or plays it if no video is open.</string>
+    <string name="morphe_queue_thumbnail_button_summary">Adds an upper-left queue button to supported thumbnails. The button queues the selected video, or plays it if no video is open.</string>
     <string name="morphe_queue_thumbnail_unavailable">No queue is available for this video.</string>
     <string name="morphe_reload_video_summary_off">Reload video button is hidden</string>
     <string name="morphe_reload_video_summary_on">Reload video button is shown</string>
@@ -597,8 +594,7 @@ Not used while Unlock queue or Premium-style queue is on"</string>
     <string name="morphe_replace_music_with_youtube_summary_off">Shared links use music.youtube.com</string>
     <string name="morphe_replace_music_with_youtube_summary_on">Shared links use youtube.com</string>
     <string name="morphe_replace_music_with_youtube_title">Change share links to youtube.com</string>
-    <string name="morphe_restore_cast_play_queue_summary">Shows Play or Queue when you select another video
-        while casting, without leaving the receiver session</string>
+    <string name="morphe_restore_cast_play_queue_summary">Shows Play or Queue when you select another video while casting, without leaving the receiver session</string>
     <string name="morphe_restore_cast_play_queue_title">Restore Cast Play/Queue</string>
     <string name="morphe_restore_old_player_buttons_summary">Uses the older video player layout for custom overlay buttons</string>
     <string name="morphe_restore_old_player_buttons_title">Restore old player button style</string>
@@ -871,13 +867,9 @@ Tap here to open OpenRouter.ai"</string>
     <string name="morphe_playlist_wide_drag_handles_title">Widen playlist drag handles</string>
     <string name="morphe_playlist_wide_drag_handles_summary">Playlist drag handles are easier to grab</string>
     <string name="morphe_playlist_hide_removal_snackbar_title">Hide playlist removal snackbar</string>
-    <string name="morphe_playlist_hide_removal_snackbar_summary">
-        The confirmation is not shown after a video is removed from a playlist
-    </string>
+    <string name="morphe_playlist_hide_removal_snackbar_summary">The confirmation is not shown after a video is removed from a playlist</string>
     <string name="morphe_playlist_long_press_drag_title">Long press to reorder playlist videos</string>
-    <string name="morphe_playlist_long_press_drag_summary">
-        Touch and hold a video of your playlist to drag it to a new position
-    </string>
+    <string name="morphe_playlist_long_press_drag_summary">Touch and hold a video of your playlist to drag it to a new position</string>
     <string name="revanced_advanced_video_quality_menu_summary_off">Advanced video quality menu is not shown</string>
     <string name="revanced_advanced_video_quality_menu_summary_on">Advanced video quality menu is shown</string>
     <string name="revanced_advanced_video_quality_menu_title">Show advanced video quality menu</string>
@@ -1856,9 +1848,7 @@ Words with uppercase letters in the middle must be entered with the casing (ie: 
     <string name="revanced_hide_player_flyout_menu_ambient_mode_summary_on">Ambient mode menu is hidden</string>
     <string name="revanced_hide_player_flyout_menu_ambient_mode_title">Hide Ambient mode menu</string>
     <string name="morphe_hide_player_flyout_additional_settings_title">Hide \'Additional settings\' / More menu</string>
-    <string name="morphe_hide_player_flyout_additional_settings_summary">
-        Also hidden automatically when every option below is hidden
-    </string>
+    <string name="morphe_hide_player_flyout_additional_settings_summary">Also hidden automatically when every option below is hidden</string>
     <string name="revanced_hide_player_flyout_menu_audio_track_summary_off">Audio track menu is shown</string>
     <string name="revanced_hide_player_flyout_menu_audio_track_summary_on">Audio track menu is hidden</string>
     <string name="revanced_hide_player_flyout_menu_audio_track_title">Hide Audio track menu</string>
@@ -2649,6 +2639,9 @@ Audio is saved to %2$s"</string>
     <string name="revanced_offline_download_queued">Queued</string>
     <string name="revanced_offline_download_starting">Starting…</string>
     <string name="revanced_offline_download_progress">Downloading %d%%</string>
+    <string name="revanced_offline_download_pausing">Pausing…</string>
+    <string name="revanced_offline_download_paused">Paused</string>
+    <string name="revanced_offline_download_waiting">Waiting for connection…</string>
     <string name="revanced_offline_download_queued_count">%d queued</string>
     <string name="revanced_offline_download_merging">Merging video and audio…</string>
     <string name="revanced_offline_download_saving">Saving…</string>
@@ -2659,6 +2652,8 @@ Audio is saved to %2$s"</string>
     <string name="revanced_offline_error_space">Not enough free space, %s needed</string>
     <string name="revanced_offline_error_time_limit">Android\'s background download time limit was reached</string>
     <string name="revanced_offline_cancel">Cancel</string>
+    <string name="revanced_offline_download_pause">Pause download</string>
+    <string name="revanced_offline_download_resume">Resume download</string>
     <!-- modified by lavinhoque33, 2026-10-23: playlist download with a quality limit. -->
     <string name="revanced_offline_cancel_all">Cancel all</string>
     <string name="revanced_offline_cancel_all_message">Cancel %d queued and running downloads?</string>

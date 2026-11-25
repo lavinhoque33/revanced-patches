@@ -5,7 +5,7 @@
  *
  * See the included NOTICE file for GPLv3 Section 7 terms that apply to this code.
  * Licensed under the GNU General Public License v3.0.
- * Modified by lavinhoque33, 2026-11-24.
+ * Modified by lavinhoque33, 2026-11-25.
  */
 
 package app.morphe.extension.shared.patches.glassmenus;
@@ -15,6 +15,7 @@ import android.content.Context;
 import android.content.ContextWrapper;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
+import android.graphics.PorterDuff;
 import android.graphics.RecordingCanvas;
 import android.graphics.Rect;
 import android.graphics.RectF;
@@ -42,15 +43,14 @@ import app.morphe.extension.shared.utils.Logger;
 import app.morphe.extension.shared.utils.Utils;
 
 /**
- * Android's public window blur cannot target a panel within a larger window or a PopupWindow. For those
- * windows, blur a bounded, downsampled copy of the owning activity's surface. The copy is not a recording
- * of the screen: other windows, secure content and separate SurfaceView layers are not captured.
+ * Renders a bounded backdrop inside a panel that cannot use Android's whole-window blur. On Android
+ * 14+ the owning activity can be recorded on the menu's first traversal. Older releases use PixelCopy
+ * for separate windows; neither path records another window or a separate SurfaceView layer.
  */
 @RequiresApi(Build.VERSION_CODES.S)
 final class BlurRegion {
     private static final int MAX_COPY_EDGE = 768;
     private static final int MAX_LOCAL_EDGE = 4096;
-    private static final long CAPTURE_DELAY_MS = 48;
 
     private final View target;
     private final View foreground;
@@ -67,12 +67,10 @@ final class BlurRegion {
     private final Rect testBounds = new Rect();
     private final RectF recordingArea = new RectF();
     private final List<View> siblings = new ArrayList<>();
-    private final Runnable requestCopy = this::requestCopy;
 
     private int radius;
     private int generation;
     private boolean pending;
-    private boolean scheduled;
     private int renderVersion;
     private int offsetX;
     private int offsetY;
@@ -80,7 +78,7 @@ final class BlurRegion {
     @Nullable private GlassBackdrop localBackdrop;
 
     @Nullable
-    static BlurRegion create(View target, View foreground, @Nullable Activity owner, int color) {
+    static Window sourceWindow(View target, @Nullable Activity owner) {
         Activity activity = owner != null ? owner : contextActivity(target.getContext());
         if (activity == null) {
             activity = Utils.getActivity();
@@ -89,14 +87,29 @@ final class BlurRegion {
                     target.getApplicationWindowToken())) return null;
         }
 
-        Window window = activity.getWindow();
+        return activity.getWindow();
+    }
+
+    static boolean canSample(Window window) {
         View decor = window.peekDecorView();
-        if (decor == null || !decor.isAttachedToWindow() || !decor.isHardwareAccelerated()
-                || decor.getDisplay() == null || target.getDisplay() == null
-                || decor.getDisplay().getDisplayId() != target.getDisplay().getDisplayId()
-                || (window.getAttributes().flags & WindowManager.LayoutParams.FLAG_SECURE) != 0) {
-            return null;
-        }
+        return decor != null && isEligibleSource(window, decor)
+                && decor.getWindowVisibility() == View.VISIBLE && decor.isShown();
+    }
+
+    private static boolean isEligibleSource(Window window, View decor) {
+        return decor.isAttachedToWindow() && decor.isHardwareAccelerated()
+                && (window.getAttributes().flags & WindowManager.LayoutParams.FLAG_SECURE) == 0;
+    }
+
+    @Nullable
+    static BlurRegion create(View target, View foreground, @Nullable Activity owner, int color) {
+        Window window = sourceWindow(target, owner);
+        if (window == null) return null;
+
+        View decor = window.peekDecorView();
+        if (decor == null || !isEligibleSource(window, decor) || decor.getDisplay() == null
+                || target.getDisplay() == null
+                || decor.getDisplay().getDisplayId() != target.getDisplay().getDisplayId()) return null;
 
         if (decor == target.getRootView() && Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             // Do not rerender live view trees through RenderEffect on Android 12 or 13.
@@ -126,8 +139,8 @@ final class BlurRegion {
 
     /** False means no real backdrop is ready yet, so the caller must keep every stock fill. */
     boolean prepare(Rect panel, int blurRadius, boolean layoutChanged) {
-        if (!sourceDecor.isAttachedToWindow() || !sourceDecor.isShown()
-                || (source.getAttributes().flags & WindowManager.LayoutParams.FLAG_SECURE) != 0) {
+        if (!canSample(source)) {
+            if (recorded != null || pending) clear();
             return false;
         }
 
@@ -140,8 +153,9 @@ final class BlurRegion {
         if (inWindow && Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             target.getLocationOnScreen(targetLocation);
             if (layoutChanged || !localPanel.equals(panel)
-                    || offsetX != targetLocation[0] || offsetY != targetLocation[1]) recordLocal(panel);
-            return recorded != null;
+                    || offsetX != targetLocation[0] || offsetY != targetLocation[1]
+                    || !hasBackdrop()) recordLocal(panel);
+            return hasBackdrop();
         }
 
         target.getLocationOnScreen(targetLocation);
@@ -154,15 +168,17 @@ final class BlurRegion {
         // still has a real backdrop, even though the entire logical panel cannot be copied.
         if (!clipToSource(testBounds, sourceDecor.getWidth(), sourceDecor.getHeight())) {
             requestedPanel.setEmpty();
-            cancelScheduledCopy();
+            attemptedPanel.setEmpty();
             return false;
         }
         boolean visiblePanelChanged = !requestedPanel.equals(testBounds);
-        if (visiblePanelChanged) {
-            requestedPanel.set(testBounds);
-            cancelScheduledCopy();
+        if (visiblePanelChanged) requestedPanel.set(testBounds);
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE
+                && (!hasBackdrop() || !copiedArea.contains(requestedPanel))) {
+            recordWindow();
         }
-        if (recorded != null && copiedArea.contains(requestedPanel)) {
+        if (hasBackdrop() && copiedArea.contains(requestedPanel)) {
             int left = relativeX + copiedArea.left;
             int top = relativeY + copiedArea.top;
             if (visiblePanelChanged || offsetX != left || offsetY != top) {
@@ -173,21 +189,61 @@ final class BlurRegion {
             return true;
         }
 
-        if (!pending && !scheduled && !attemptedPanel.equals(requestedPanel)) {
-            scheduled = target.postDelayed(requestCopy, CAPTURE_DELAY_MS);
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE && !pending) {
+            if (recorded != null && !hasBackdrop()) {
+                recorded = null;
+                attemptedPanel.setEmpty();
+            }
+            if (!attemptedPanel.equals(requestedPanel)) requestCopy();
         }
         return false;
     }
 
-    private void requestCopy() {
-        scheduled = false;
-        if (!target.isAttachedToWindow() || !sourceDecor.isAttachedToWindow()) return;
+    boolean hasFailedCopy() {
+        return Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE && !pending
+                && !requestedPanel.isEmpty() && attemptedPanel.equals(requestedPanel)
+                && (!hasBackdrop() || !copiedArea.contains(requestedPanel));
+    }
 
+    private boolean hasBackdrop() {
+        return recorded != null && recorded.hasDisplayList();
+    }
+
+    @RequiresApi(Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
+    private void recordWindow() {
+        if (!copyArea(requestedPanel, sourceDecor.getWidth(), sourceDecor.getHeight(), radius * 2, copiedArea)) {
+            return;
+        }
+
+        float scale = copyScale(copiedArea);
+        int width = Math.max(1, Math.round(copiedArea.width() * scale));
+        int height = Math.max(1, Math.round(copiedArea.height() * scale));
+        RenderNode node = newSampleNode("Glass menu window backdrop", copiedArea, width, height);
+        RecordingCanvas canvas = node.beginRecording();
+        try {
+            canvas.scale((float) width / copiedArea.width(), (float) height / copiedArea.height());
+            canvas.translate(-copiedArea.left, -copiedArea.top);
+            sourceDecor.draw(canvas);
+            // A SurfaceView can punch a transparent hole in the owner. Do not pass through a sharp
+            // external video layer in that hole; composite only the owner's UI over its base color.
+            canvas.drawColor(backgroundColor, PorterDuff.Mode.DST_OVER);
+        } finally {
+            node.endRecording();
+        }
+        recorded = node;
+        renderVersion++;
+    }
+
+    private static float copyScale(Rect sample) {
+        return Math.min(0.5f, (float) MAX_COPY_EDGE / Math.max(sample.width(), sample.height()));
+    }
+
+    private void requestCopy() {
         attemptedPanel.set(requestedPanel);
         Rect sample = new Rect();
         if (!copyArea(requestedPanel, sourceDecor.getWidth(), sourceDecor.getHeight(), radius * 2, sample)) return;
 
-        float scale = Math.min(0.5f, (float) MAX_COPY_EDGE / Math.max(sample.width(), sample.height()));
+        float scale = copyScale(sample);
         int width = Math.max(1, Math.round(sample.width() * scale));
         int height = Math.max(1, Math.round(sample.height() * scale));
         Bitmap bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
@@ -195,22 +251,31 @@ final class BlurRegion {
         pending = true;
         try {
             PixelCopy.request(source, sample, bitmap, result -> {
-                if (generation != requestGeneration) return;
+                if (generation != requestGeneration) {
+                    bitmap.recycle();
+                    return;
+                }
 
                 pending = false;
-                if (result == PixelCopy.SUCCESS) {
+                if (result == PixelCopy.SUCCESS && canSample(source)
+                        && !requestedPanel.isEmpty() && sample.contains(requestedPanel)) {
                     try {
                         recordCopy(bitmap, sample);
                     } catch (RuntimeException ex) {
+                        bitmap.recycle();
                         Logger.printException(() -> "Could not render the glass menu snapshot", ex);
                     }
                 } else {
-                    Logger.printDebug(() -> "Glass menu backdrop unavailable: PixelCopy result " + result);
+                    bitmap.recycle();
+                    if (result != PixelCopy.SUCCESS) {
+                        Logger.printDebug(() -> "Glass menu backdrop unavailable: PixelCopy result " + result);
+                    }
                 }
                 target.postInvalidateOnAnimation();
             }, new Handler(Looper.getMainLooper()));
         } catch (IllegalArgumentException ex) {
             pending = false;
+            bitmap.recycle();
             Logger.printDebug(() -> "Glass menu source window is not ready for PixelCopy", ex);
         }
     }
@@ -233,15 +298,18 @@ final class BlurRegion {
         return true;
     }
 
-    private void recordCopy(Bitmap bitmap, Rect sample) {
-        // The RenderEffect and its working surface are also downsampled, not just the bitmap.
-        RenderNode node = new RenderNode("Glass menu snapshot");
-        int width = bitmap.getWidth();
-        int height = bitmap.getHeight();
+    private RenderNode newSampleNode(String name, Rect sample, int width, int height) {
+        // Downsample the RenderEffect and its working surface as well as the source.
+        RenderNode node = new RenderNode(name);
         node.setPosition(0, 0, width, height);
         node.setRenderEffect(RenderEffect.createBlurEffect(
                 (float) radius * width / sample.width(), (float) radius * height / sample.height(),
                 Shader.TileMode.CLAMP));
+        return node;
+    }
+
+    private void recordCopy(Bitmap bitmap, Rect sample) {
+        RenderNode node = newSampleNode("Glass menu snapshot", sample, bitmap.getWidth(), bitmap.getHeight());
         RecordingCanvas canvas = node.beginRecording();
         try {
             canvas.drawColor(backgroundColor);
@@ -311,8 +379,7 @@ final class BlurRegion {
 
     void draw(Canvas canvas) {
         RenderNode node = recorded;
-        if (node == null) return;
-
+        if (node == null || !node.hasDisplayList()) return;
         if (inWindow) {
             canvas.drawRenderNode(node);
         } else {
@@ -332,17 +399,9 @@ final class BlurRegion {
         return renderVersion;
     }
 
-    private void cancelScheduledCopy() {
-        if (scheduled) {
-            target.removeCallbacks(requestCopy);
-            scheduled = false;
-        }
-    }
-
     void clear() {
         generation++;
         renderVersion++;
-        cancelScheduledCopy();
         pending = false;
         requestedPanel.setEmpty();
         attemptedPanel.setEmpty();

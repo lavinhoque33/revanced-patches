@@ -10,11 +10,21 @@
 * **YouTube – Downloads:** Fixed long seeks in YouTube’s watch player for saved videos larger than 2 GiB.
   The built-in player and YouTube’s watch player support custom speeds such as 0.05× and 2.75× without
   changing audio pitch. In the built-in player, changing speed while paused keeps playback paused.
+* **YouTube & YouTube Music – Glass menus:** Prepare the frosted panel and its dimming before the first draw
+  where supported, and refresh the blur when returning from Recents. Unsupported surfaces keep their stock style.
+* **YouTube – Settings:** Restoring the old YouTube settings screen no longer hides the player’s timestamp
+  or appended video quality when **Hide Fullscreen button** is on. The separate timestamp settings still apply.
+* **YouTube & YouTube Music – RVX settings:** Fixed stray indentation and line breaks in 11 preference
+  summaries, so their text wraps under the titles without changing the icons.
 
 ### Features
 
 * **YouTube – Downloads:** Swipe up in the built-in player to enter fullscreen or down to leave it.
   Assigned volume and brightness zones keep their existing gestures.
+* **YouTube – Downloads:** Pause and resume active RVX downloads from the Downloads screen or its
+  notification. If the connection drops, the download keeps its partial data and resumes when it
+  reconnects without restarting the file. Downloads you paused stay paused until you resume them.
+  Resume works while YouTube is running; it does not survive a force-stop.
 * **Patch Managers:** The RVX repository URL supports switching between stable and prerelease bundles
   in Morphe Manager, and the same URL works in UP Manager. The separate JSON links still work.
   The feeds now update automatically when new patch bundles are published.

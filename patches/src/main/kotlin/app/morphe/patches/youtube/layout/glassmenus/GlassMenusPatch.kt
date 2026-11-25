@@ -4,6 +4,7 @@
  *
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-25.
  * Written by lavinhoque33, 2026-11-24.
  * See the included NOTICE file for GPLv3 Section 7 terms that apply to Morphe contributions.
  */
@@ -11,6 +12,7 @@
 package app.morphe.patches.youtube.layout.glassmenus
 
 import app.morphe.patcher.Fingerprint
+import app.morphe.patcher.extensions.InstructionExtensions.addInstruction
 import app.morphe.patcher.extensions.InstructionExtensions.getInstruction
 import app.morphe.patcher.patch.bytecodePatch
 import app.morphe.patcher.util.getReference
@@ -59,7 +61,7 @@ val glassMenusPatch = bytecodePatch(GLASS_MENUS_NAME, GLASS_MENUS_DESCRIPTION) {
         }
 
         // Reuse the feed flyout match but exclude methods that only dismiss an existing popup.
-        // Hook its actual display so Glass menus does not depend on or initialize download actions.
+        // The stock call builds the popup wrapper synchronously, before the first traversal.
         val popups = FeedPopupWindowFlyoutFingerprint.matchAllOrNull().orEmpty().mapNotNull { match ->
             val method = match.method
             val displayIndex = method.implementation!!.instructions.indexOfFirst {
@@ -74,8 +76,8 @@ val glassMenusPatch = bytecodePatch(GLASS_MENUS_NAME, GLASS_MENUS_DESCRIPTION) {
 
         popups.forEach { (method, index) ->
             val register = method.getInstruction<FiveRegisterInstruction>(index).registerC
-            method.addInstructionsAtControlFlowLabel(
-                index,
+            method.addInstruction(
+                index + 1,
                 "invoke-static/range {v$register .. v$register}, $GLASS_MENUS_EXTENSION->onPopupWindow($POPUP_WINDOW)V",
             )
         }

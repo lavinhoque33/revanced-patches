@@ -23,6 +23,7 @@ import android.graphics.drawable.ColorStateListDrawable;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.InsetDrawable;
 import android.graphics.drawable.RippleDrawable;
+import android.view.SurfaceView;
 import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
@@ -46,6 +47,20 @@ public class GlassMenuRenderingTest {
         assertTrue(BlurRegion.copyArea(new Rect(30, 400, 270, 600), 300, 620, 40, result));
         assertEquals(new Rect(0, 360, 300, 620), result);
         assertFalse(BlurRegion.copyArea(new Rect(), 300, 620, 40, result));
+    }
+
+    @Test
+    public void snapshotsYouTubeWindowsWithNestedSurfaceViewsWithoutDependingOnTheirBounds() {
+        Context context = RuntimeEnvironment.getApplication();
+        FrameLayout decor = new FrameLayout(context);
+        FrameLayout player = new FrameLayout(context);
+        decor.addView(new View(context));
+        decor.addView(player);
+        assertFalse(BlurRegion.requiresWindowSnapshot(decor, true));
+
+        player.addView(new SurfaceView(context));
+        assertTrue(BlurRegion.requiresWindowSnapshot(decor, true));
+        assertFalse(BlurRegion.requiresWindowSnapshot(decor, false));
     }
 
     @Test

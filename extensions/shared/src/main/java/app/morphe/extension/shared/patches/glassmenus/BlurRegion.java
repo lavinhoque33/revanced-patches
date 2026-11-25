@@ -26,6 +26,7 @@ import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
 import android.view.PixelCopy;
+import android.view.SurfaceView;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
@@ -38,14 +39,15 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
+import app.morphe.extension.shared.patches.AppCheckPatch;
 import app.morphe.extension.shared.ui.glass.GlassBackdrop;
 import app.morphe.extension.shared.utils.Logger;
 import app.morphe.extension.shared.utils.Utils;
 
 /**
  * Renders a bounded backdrop inside a panel that cannot use Android's whole-window blur. On Android
- * 14+ the owning activity can be recorded on the menu's first traversal. Older releases use PixelCopy
- * for separate windows; neither path records another window or a separate SurfaceView layer.
+ * 14+ ordinary view hierarchies can be recorded on the menu's first traversal. Separate windows
+ * can also sample the activity buffer with PixelCopy, which excludes pixels in a SurfaceView layer.
  */
 @RequiresApi(Build.VERSION_CODES.S)
 final class BlurRegion {
@@ -68,6 +70,7 @@ final class BlurRegion {
     private final RectF recordingArea = new RectF();
     private final List<View> siblings = new ArrayList<>();
 
+    private boolean useWindowSnapshot = Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE;
     private int radius;
     private int generation;
     private boolean pending;
@@ -174,9 +177,14 @@ final class BlurRegion {
         boolean visiblePanelChanged = !requestedPanel.equals(testBounds);
         if (visiblePanelChanged) requestedPanel.set(testBounds);
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE && !useWindowSnapshot
                 && (!hasBackdrop() || !copiedArea.contains(requestedPanel))) {
-            recordWindow();
+            useWindowSnapshot = requiresWindowSnapshot(sourceDecor, AppCheckPatch.IS_YOUTUBE);
+            if (useWindowSnapshot) {
+                recorded = null;
+            } else {
+                recordWindow();
+            }
         }
         if (hasBackdrop() && copiedArea.contains(requestedPanel)) {
             int left = relativeX + copiedArea.left;
@@ -189,7 +197,7 @@ final class BlurRegion {
             return true;
         }
 
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE && !pending) {
+        if (useWindowSnapshot && !pending) {
             if (recorded != null && !hasBackdrop()) {
                 recorded = null;
                 attemptedPanel.setEmpty();
@@ -200,9 +208,25 @@ final class BlurRegion {
     }
 
     boolean hasFailedCopy() {
-        return Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE && !pending
+        return useWindowSnapshot && !pending
                 && !requestedPanel.isEmpty() && attemptedPanel.equals(requestedPanel)
                 && (!hasBackdrop() || !copiedArea.contains(requestedPanel));
+    }
+
+    static boolean requiresWindowSnapshot(View decor, boolean youtube) {
+        // A hardware replay can reposition the live SurfaceView through its RenderNode position
+        // listener. Clipping the backdrop doesn't prevent HWUI from visiting that node.
+        return youtube && containsSurfaceView(decor);
+    }
+
+    private static boolean containsSurfaceView(View view) {
+        if (view instanceof SurfaceView) return true;
+        if (!(view instanceof ViewGroup group)) return false;
+
+        for (int index = 0, count = group.getChildCount(); index < count; index++) {
+            if (containsSurfaceView(group.getChildAt(index))) return true;
+        }
+        return false;
     }
 
     private boolean hasBackdrop() {

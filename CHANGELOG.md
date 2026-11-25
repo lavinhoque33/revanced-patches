@@ -11,6 +11,11 @@
   or hide all activity from YouTube.
   Available on 21.13.164, 21.39.525, and 21.45.90. The patch is unavailable on 20.05.46.
 
+### Bug Fixes
+
+* **YouTube – Glass menus:** Fixed a picture jump while opening frosted menus over a playing video.
+  The menu uses a snapshot for its backdrop instead of redrawing the live video surface.
+
 ## [1.52.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.51.0...v1.52.0) (2026-11-25)
 
 ### Bug Fixes

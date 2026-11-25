@@ -1,3 +1,24 @@
+## [1.53.0-dev.1](https://github.com/lavinhoque33/revanced-patches/compare/v1.52.0...v1.53.0-dev.1) (2026-11-25)
+
+### Features
+
+* **YouTube – Account switcher:** Enable **Account switcher shortcut** in **RVX → General → Navigation bar**.
+  On YouTube 21.39.525 and 21.45.90, holding **You** opens YouTube's account picker. Tapping **You** opens the tab.
+* **YouTube – Ghost mode:** Watch without sending YouTube's playback history updates while staying signed in.
+  Enable it in **RVX → General → Ghost mode**. Use the toolbar or player controls for a session, the video
+  menu or playback gear for one video, or the channel toolbar to set a rule for that channel.
+  On-device history and account-header removal are opt-in. Ghost mode does not erase existing history
+  or hide all activity from YouTube.
+  Available on 21.13.164, 21.39.525, and 21.45.90. The patch is unavailable on 20.05.46.
+* **YouTube Music – Light theme:** Choose **Light** in **RVX → General → App theme**, then restart.
+  Available on supported Music versions from 8.12 onward. Now Playing uses a pale gradient based on
+  the current cover without tinting artwork or video. The default and existing dark presets are unchanged.
+
+### Bug Fixes
+
+* **YouTube – Glass menus:** Fixed a picture jump while opening frosted menus over a playing video.
+  The menu uses a snapshot for its backdrop instead of redrawing the live video surface.
+
 ## [1.52.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.51.0...v1.52.0) (2026-11-25)
 
 ### Bug Fixes

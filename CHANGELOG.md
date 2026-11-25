@@ -1,3 +1,1445 @@
+## [1.51.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.50.0...v1.51.0) (2026-11-24)
+
+### Features
+
+* **YouTube – Swipe controls:** **Swipe overlay foreground color** sets the color of the text and icon
+  independently of the background and progress bar. The default is white.
+* **YouTube – Ungroup notifications:** **RVX → Feed → Ungroup notifications** shows grouped channel uploads
+  as individual rows in the Notifications tab. Each video keeps its own actions and unread dot. Off by default.
+  Pages with no standalone notification to use as a row template stay grouped.
+
+### Bug Fixes
+
+* **YouTube – Swipe controls:** The overlay no longer shifts or changes size as the percentage gains a digit.
+* **YouTube – Feed card layout:** **Cards** now hides the like, comment and save buttons on native Home video
+  cards; **Cards with like, comment and save buttons** keeps them. The thumbnail and details share the same
+  rounded card and side insets, and consecutive cards no longer have an extra gap.
+* **YouTube Music – Third-party lyrics:** Translated lines now brighten when their own line is sung.
+  Upcoming translations no longer outshine the active line during a repeated chorus.
+* **YouTube – Add to queue:** The thumbnail button now uses the RVX queue icon in the upper-left corner,
+  including on Classic feed cards. Tapping it starts the selected video if the player is closed; otherwise
+  it adds the video to the queue without interrupting playback.
+
+## [1.50.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.49.0...v1.50.0) (2026-11-24)
+
+### Features
+
+* **YouTube & YouTube Music – Glass menus:** On Android 12 or newer, **General → Glass menus** lets you frost
+  supported menus and adjust the blur, panel opacity and background dimming. Menus keep their original
+  background when system blur is unavailable or Battery Saver is on. Glass menus are off by default and
+  independent of the glass navigation bar and miniplayer.
+* **YouTube – Seekbar:** **Hide old seekbar thumbnail border** removes the white frame around the old-style
+  seek preview. The image keeps its size, position and rounded corners. The option is off by default.
+* **YouTube & YouTube Music – Custom branding:** Patch options choose which icon packs are bundled. Only the
+  selected packs appear in the launcher aliases and the in-app **App icon** picker. The startup icon is always
+  kept. All packs stay included by default.
+* **YouTube & YouTube Music – Custom branding:** Add the legacy **ReVanced** and **Reseam** icon packs. They change
+  the launcher icon only; the app header and splash screen stay stock.
+* **YouTube – Downloads:** The built-in offline player now follows the RVX player settings, so downloaded
+  videos keep them without an internet connection. These cover custom playback speeds, default speed,
+  remembering the last speed, the speed menu style with its 0.05× slider, separate forward and backward
+  double-tap seek lengths, swipe controls, opening in fullscreen, player overlay opacity and seekbar colors.
+  **Always repeat** applies too, and with **Show always repeat button** on, the built-in player has the same
+  repeat button (long-press pauses after each repeat).
+
+### Bug Fixes
+
+* **YouTube – Home feed:** **Show channel names on Home** now also works when **Feed card layout** is **Classic**.
+  Cards whose data names the channel show that name instead of the handle.
+* **YouTube – Downloads:** If YouTube can't be reached, for example on Wi-Fi without working internet or when
+  the app's network access is blocked, downloads open in the built-in player instead of a page that can't load.
+* **YouTube Music – Third-party lyrics:** Repeated lines now highlight one at a time as each line's timestamp
+  arrives, rather than all at once. This works with and without word sync and separate background vocals.
+
+## [1.49.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.48.0...v1.49.0) (2026-11-23)
+
+This stable release also includes A–B repeat, the original audio stream preference and the Player settings
+alignment fixes from [1.49.0-dev.1](#1490-dev1-2026-11-23).
+
+### Features
+
+* **YouTube – Home feed:** **Show channel names on Home** replaces a handle with the channel’s display name
+  when the card itself identifies the channel. Unresolved names keep their handles; no lookup request is sent.
+* **YouTube – Add to queue:** On supported 21.x versions, **Show Add to queue on thumbnails** adds a shortcut
+  to eligible video thumbnails when a queue is available. Tapping it adds that video without starting playback.
+* **YouTube – Video quality button:** The button shows the resolution currently playing, as a label such as **FHD**
+  or an exact value such as **1080**. When the button is available, the timestamp no longer duplicates its quality
+  label or picker. Turning the button off restores the timestamp behavior you selected.
+* **YouTube – Swipe controls:** Choose separate overlay styles for the side and top/bottom edges, including
+  a full horizontal overlay in the center. Set the background color separately from opacity. Portrait swipes
+  are optional and limited to the watch player. Supported swipe icons follow the selected player icon style.
+* **YouTube – Toolbar:** Turn off **Hide Cast button** to restore the toolbar entry on supported 21.x versions.
+  On 21.39.525 and 21.45.90, **Hide Companion button** controls the separate Companion action.
+* **YouTube – Miniplayer:** **Hide overlay buttons** now applies to the **Default** miniplayer as well.
+  Swipe down on the miniplayer to dismiss it. Default keeps its native buttons when touch exploration is active.
+
+### Bug Fixes
+
+* **YouTube – Swipe controls:** A touch starting on the seekbar stays with YouTube’s native scrubber
+  rather than activating a swipe shortcut during precise seeking.
+* **YouTube – Return YouTube Dislike:** Keep the Morphe-style dislike count drawn while the same video’s
+  action row updates, including when tapping Play/Pause or Like.
+* **YouTube – Seekbar:** Preserve the custom primary-to-accent gradient on the played segment in dark
+  portrait mode after the controls fade. The gray buffered segment is separate.
+
+## [1.49.0-dev.1](https://github.com/lavinhoque33/revanced-patches/compare/v1.48.0...v1.49.0-dev.1) (2026-11-23)
+
+### Features
+
+* **YouTube Music – A–B repeat:** Enable **RVX → Player → A–B repeat** to repeat a section of the current
+  track. In Now Playing, tap **Set A**, then **Set B** at a later position. Tap **Clear** to resume normal
+  playback. Pausing and using the seekbar still work; changing tracks clears the markers.
+* **YouTube Music – Audio:** **Prefer original audio stream** selects a non-DRC version when one is available
+  for the same audio track. **Disable loudness normalization** controls playback gain separately and retains
+  the previous setting. Neither setting replaces an existing stream download.
+
+### Bug Fixes
+
+* **YouTube Music – Settings:** **Add to queue in tap order** and **Playback source inspector** now use the same
+  icon column and text alignment as the other Player settings. Parent-only icon mode still hides leaf icons.
+
+## [1.48.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.47.1...v1.48.0) (2026-11-23)
+
+### Features
+
+* **YouTube Music – Queue:** On 9.15.51, 9.40.51 and 9.45.51, enable **RVX → Player → Add to queue in tap order**
+  to hear songs you add from their menus before the original Up next list resumes. Add the same song twice to hear
+  it twice. **Play next** still jumps the line. Shuffled, Cast and Jam queues keep their normal behavior.
+* **YouTube Music – Player:** **RVX → Player → Playback source inspector** shows the audio and video formats
+  Music selected (itags). It reports the source separately: a confirmed RVX file read distinguishes a saved
+  song from the audio or video track of a saved video. Otherwise the source is **Unconfirmed**, even if the song
+  is downloaded. **Refresh** updates the snapshot without restarting playback.
+  In expanded Now Playing, touch and hold the three-dot Menu to inspect video without leaving the player.
+
+### Bug Fixes
+
+* **YouTube Music – Downloads:** Client spoofing no longer replaces a locally selected stream copy with an online
+  stream. Tracks without a usable copy still use normal online playback.
+* **YouTube Music – Player:** Playback source inspector follows video format changes from the native player,
+  including when switching from Song to Video.
+
+## [1.47.1](https://github.com/lavinhoque33/revanced-patches/compare/v1.47.0...v1.47.1) (2026-11-23)
+
+### Bug Fixes
+
+* **YouTube – Shorts:** On supported 21.x versions, tapping Download uses the Short currently on screen.
+  The first Short no longer needs a swipe away and back, and a prefetched video cannot supply its download choices.
+* **YouTube – Player buttons:** Enlarged Play/Pause/Replay icons render at their final size instead of
+  stretching a smaller bitmap. The playback buttons’ background opacity and touch targets are unchanged.
+
+## [1.47.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.46.0...v1.47.0) (2026-11-22)
+
+### Features
+
+* **YouTube – Player buttons:** Adjust the background opacity of Play/Pause/Replay and Previous/Next separately
+  from the timestamp and other player buttons. Both sliders inherit your previous opacity.
+* **YouTube – Seekbar:** In portrait, the dark theme keeps the buffered portion of an on-demand video
+  visible after the controls fade. Played progress, scrubbing and live streams keep their existing behavior.
+
+### Bug Fixes
+
+* **YouTube – Snack bar:** With the Chip border preset, the playlist bottom bar now follows **Invert snack bar
+  theme** for its border color without changing the playlist background.
+* **YouTube / YouTube Music – Settings:** Long RVX preference titles now wrap instead of being cut off beside
+  switches and other controls, including when the app language is English.
+
+## [1.46.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.45.0...v1.46.0) (2026-11-20)
+
+### Features
+
+* **YouTube – Seekbar:** Optionally disable the pull-up gesture for precise seeking without disabling
+  normal horizontal scrubbing. The gesture stays enabled by default.
+* **YouTube – Feed:** Hide the view count and upload age in video subtitles independently. The thumbnail
+  view-count badge can still show the original count when the subtitle count is hidden.
+* **YouTube – Quick Actions widget:** The `Hide shortcuts` patch can remove the Shorts button from the
+  two-row home screen widget without removing the Shorts shortcut from the app icon’s long-press menu.
+* **YouTube Music – Settings menu filter:** Hidden stock settings stay hidden when the app language changes.
+  Existing title selections migrate when they identify one stock row; ambiguous and custom titles still match
+  literally.
+* **YouTube Music – Navigation:** Hide the native Search tab without hiding toolbar Search or changing
+  what the Samples tab opens.
+* **YouTube Music – Flyout menu:** On supported 9.x versions, hide **Don’t recommend artist** without
+  hiding **Go to artist** or **Not interested**.
+* **YouTube – Player buttons:** Open Quality from a dedicated button beside Playback speed. Choose a
+  resolution or return to Auto without changing the timestamp action. A separate size setting changes
+  the native Play/Pause/Replay button and its touch target together; 100% leaves them unchanged.
+* **YouTube – Return YouTube Dislike:** Keep the original count visible while votes load. Watch-page counts
+  and enabled feed badges update in place when the request finishes without waiting for a scroll.
+* **YouTube – Shorts:** Hide the 2× speed tutorial without hiding the speed indicator or disabling the gesture
+  on versions that have the tutorial.
+* **YouTube – Toolbar:** Hide the Messages button without hiding Notifications.
+* **YouTube – Navigation:** Make the system navigation bar opaque in light or dark theme independently,
+  without changing the in-app glass navigation bar.
+
+### Performance
+
+* **YouTube – Seekbar:** Read the seekbar bounds when a thumbnail preview needs them instead of copying
+  them every time the idle seekbar is drawn.
+* **YouTube – Downloads:** When saving audio and a thumbnail to Pictures, fetch the original artwork once.
+  An unavailable cover does not prevent the audio file from being saved.
+* **YouTube – Watch page:** Separate Like and Dislike counts follow their buttons without remeasuring
+  unchanged labels or requesting a redraw on every frame.
+* **YouTube – SponsorBlock:** Revisiting a video within five minutes can reuse its downloaded segments.
+  Skip-once and undo state still start fresh; a failed lookup is retried rather than cached as empty.
+* **YouTube and YouTube Music – Branding:** Leave already-correct launcher icons and names alone at startup.
+  Recheck the selected launcher and splash resources when the APK is replaced, even at the same app version.
+* **YouTube – Component filters:** On supported 21.x versions, filters that only need the component name
+  or path no longer encode its contents. Filters that inspect those contents still share one encoded copy.
+
+## [1.45.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.44.0...v1.45.0) (2026-11-20)
+
+### Features
+
+* **YouTube – Player:** Choose separate backward and forward double-tap seek lengths. Either side can still
+  follow YouTube’s setting. A separate playback option pauses on the first duckable audio interruption.
+* **YouTube – Search:** Hide Ask in the search field and its hint without changing Ask on the watch page.
+* **YouTube – Cast:** Optionally show Play/Queue when selecting another video during a Cast session.
+* **YouTube – Shorts:** Adjust reel control opacity or hide the status bar only while watching a Short.
+  These settings leave the video and the Clear screen Restore button visible.
+* **YouTube Music – Home:** Hide the Speed dial shelf without hiding Pin or Unpin in song menus.
+* **YouTube Music – Device files:** Open a newly saved file from its completion notification. New M4A and
+  Ogg files include the original album track number when it can be verified.
+* **YouTube and YouTube Music – Downloads:** Export a published device file or a saved playlist to a folder
+  you choose. Playlist exports include an ordered M3U8. Exporting does not change the download method or copy
+  private stream caches.
+  Music includes loose device files in one playlist even before its native playlist database is opened.
+
+### Bug fixes
+
+* **YouTube – Navigation:** Rapid Back gestures no longer let a timed-out tab lookup release the next lookup.
+* **YouTube – Minimal miniplayer:** Expanding and minimizing again no longer starts a second refresh timer.
+  The title and channel now follow player metadata updates instead of polling.
+* **YouTube Music – Player:** Hide overlay filter skips dialogs whose `onStart` cannot be overridden.
+  Creating that override made Music 6.20.51 crash at launch when forced.
+
+This stable release also includes the fullscreen, SponsorBlock icon, and Shorts restore icon fixes
+listed in `1.44.1-dev.1` and `1.44.1-dev.2` below.
+
+## [1.44.1-dev.2](https://github.com/lavinhoque33/revanced-patches/compare/v1.44.1-dev.1...v1.44.1-dev.2) (2026-11-20)
+
+### Bug fixes
+
+* **YouTube – SponsorBlock:** Show icons for Skip button duration, Skip toast duration, and Adjust new segment
+  step in all four visual preference icon styles when **Apply to all settings menu** is on. Refs #70.
+* **YouTube – Player icon style:** Keep the stock Restore screen icon in Shorts clear mode without changing
+  the selected fullscreen icon in the regular player. Refs #70.
+
+## [1.44.1-dev.1](https://github.com/lavinhoque33/revanced-patches/compare/v1.44.0...v1.44.1-dev.1) (2026-11-20)
+
+### Bug fixes
+
+* **YouTube – Fullscreen:** Leave YouTube's video transform alone at Default scale and preserve native
+  animation when leaving Stretch or Zoom. Align overlay buttons without searching the player on every draw.
+  In dark theme, let YouTube choose its elevated player layout; keep the light-theme readability fix. Refs #66.
+
+## [1.44.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.43.0...v1.44.0) (2026-11-20)
+
+### Features
+
+* **YouTube – Snack bar:** Apply the configured border width and color to the native playlist bottom bar with
+  a separate switch. The switch is off by default and is independent of corner radius. Refs #65.
+
+### Bug fixes
+
+* **YouTube / Music – Theme:** Use AMOLED black for a fresh dark theme instead of gray. Saved theme selections
+  still take precedence. Refs #68.
+* **YouTube / Music – Translations:** Apply the list of languages to keep to the packaged resources, including
+  regional translations, and to the app language selectors. Default English is always kept. Refs #68.
+* **YouTube – Player icon style:** Keep the native Shorts Clear Screen icon stock on YouTube 21.39+ without
+  changing the chosen fullscreen player button style. Refs #69.
+
+## [1.43.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.42.0...v1.43.0) (2026-11-19)
+
+### Features
+
+* **Music - Stream download:** Playlist and album headers show how many tracks are ready. Resume an interrupted
+  download without downloading saved tracks again; an individual failure no longer stops the rest of the list.
+* **Music - Stream download:** Downloads continue after leaving Music. Interrupted playlists and albums resume on
+  unmetered Wi-Fi while Music is open, and short connection drops no longer end a download.
+
+## [1.42.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.41.0...v1.42.0) (2026-11-19)
+
+### Features
+
+* **YouTube / Music - Spoof video streams:** Add Android VR Experimental, visionOS Experimental, and signed-out
+  Mobile Web playback on devices with a compatible WebView. Music also gains the standard Android VR choice. Refs #67.
+* **YouTube - Shorts:** Toggle top and bottom dimming in RVX settings. Dimming remains enabled by default. Refs #65.
+
+### Bug Fixes
+
+* **Music - Player:** Hide overlay filter also removes dimming behind Playback speed, Quality, and Sleep timer.
+  Refs #65.
+* **YouTube - Snack bar:** Restore the theme-aware Chip border preset without replacing saved custom colors. Refs #65.
+* **YouTube - About:** Clean up the recorded patch inclusion description and show unrecorded statuses in orange
+  without treating them as exclusions. Refs #65.
+
+## [1.41.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.40.0...v1.41.0) (2026-11-18)
+
+### Features
+
+* **YouTube - Miniplayer:** Add optional glass styling for Minimal and Minimal 2 when Glass navigation bar
+  is enabled. The miniplayer follows the navigation bar's opacity. Refs #63.
+* **YouTube - Snack bar components:** Customize the radius, light and dark backgrounds, and border in RVX settings.
+  The same radius can optionally round the playlist bottom bar. Refs #65.
+* **Music - Player:** Toggle flyout dimming and the player controls overlay separately in RVX settings.
+  Both keep the original appearance by default. Refs #65.
+
+### Bug Fixes
+
+* **YouTube - Change start page:** Label Library as You, and remove the retired Explore and Trending start
+  pages and the non-working Hype and Podcasts choices. Refs #54.
+* **YouTube - Miniplayer:** Smooth the final part of the minimize animation for Minimal bar and Minimal bar 2.
+  Refs #64.
+
+## [1.40.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.39.0...v1.40.0) (2026-11-18)
+
+### Features
+
+* **Music - Stream download:** Keep saved playlists up to date on unmetered Wi-Fi while Music is open.
+  The last playable offline list stays available if a refresh cannot finish.
+
+## [1.39.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.38.0...v1.39.0) (2026-11-18)
+
+### Features
+
+* **Music - Settings:** Use the modern capsule restart dialog for settings changes and the first-run prompt.
+  Refs #61.
+* **Music - Hide 'Get Music Premium' label:** Add a restart-required option for the account-menu footer.
+  Enabled by default, with stock visibility restored when disabled, including Music 9.45.51. Refs #62.
+
+### Bug Fixes
+
+* **YouTube - Shorts:** Rename "Show external downloader menu" to "Show download menu", covering both
+  the built-in and external downloaders. Clarify the backend setting and the matching player download button.
+* **YouTube / Music - Settings:** Prevent duplicate restart prompts while a dialog or delayed restart is pending.
+  Refs #61.
+
+## [1.38.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.37.3...v1.38.0) (2026-11-18)
+
+### Features
+
+* **YouTube - Hide comments components:** Choose exact-title or substring matching for carousel filters.
+  Substring matching stays the default; existing saved lists and case-sensitive matching are unchanged.
+* **Music - Hide layout components:** Optionally hide the Your downloads shelf without hiding the
+  Library Downloads chip. Off by default.
+* **YouTube - Seekbar components:** Choose an image or animated GIF as the seekbar thumb, with fitted or
+  original sizing and a reset action. Animated images require Android 9 or newer.
+* **YouTube - Gemini:** Edit the model fallback order and optionally ground summaries and chat with
+  Google Search, including source links and Search attribution. Search is off by default and does not
+  affect transcription or JSON requests. Existing Gemini settings and the default model order are preserved.
+  Model and Search controls use the existing Gemini settings icon.
+* **YouTube - Ambient mode control:** Add opt-in Enhanced Ambient mode on Android 10 and newer, with
+  readable-text dimming, dimming while scrolling, and an adjustable dim duration. Keep the existing
+  Ambient mode toggle, battery-saver controls, themes and glass navigation.
+* **YouTube Music - Hide layout components:** Optionally hide the "You may also like" search shelves
+  before typing on Music 9.00 and newer, without changing typed-query suggestions.
+* **YouTube - Playlist improvements:** Widen drag handles and hide removal confirmations on all playlists.
+  Add optional long-press reordering on YouTube 21.05 and later, keeping existing Watch later preferences.
+
+### Bug Fixes
+
+* **YouTube - System share sheet:** Keep sharing in the current activity task to avoid accidental PiP,
+  and leave playlist-only Mix links to the in-app share sheet instead of creating invalid links.
+* **YouTube / Music - Translation:** Recognize Hebrew and Yiddish aliases for DeepL and Kurdish `kmr`
+  for Google Translate.
+* **YouTube - Disable layout updates:** Explain the blocked hot/cold configuration headers and clarify
+  that the server-delivered navigation bar does not restore the old Library tab.
+* **Notices:** Correct Reseam's project name and source URL while retaining the other notices.
+* **Music - Player components:** Preserve older clients' public resource names while assigning their IDs
+  to the added previous and next controls, including forced Music 6.20.
+* **YouTube - Navigation bar:** Repair missing notification icons in newer pair-built icon maps without
+  replacing the existing navigation state or modifying immutable app maps.
+* **YouTube - GmsCore support:** Match both account network-error text hooks without relying on obsolete
+  controller parameters or artwork. Keep the existing experimental 21.45 fixes.
+* **YouTube - SponsorBlock:** Supply the skip-next icon instead of relying on a stock drawable.
+* **YouTube - Seekbar components:** Correct storyboard frame cropping and match fullscreen seek previews
+  to the zoomed video size.
+* **YouTube - Hide status bar:** Remove empty top-bar space without covering camera cutouts, keep settings
+  activities and submenus consistent, and preserve glass focus restoration and picture-in-picture behavior.
+* **YouTube Music - GmsCore support:** Restore Device files song, album and artist search using
+  Android's media library, including on Music 6.20. Private stream-cache downloads remain separate.
+* **YouTube - Video playback:** Use the configured hold speed and matching indicator for Shorts on 21.11+.
+  Reset non-remembered playback speeds for the next player, including an explicit return to normal speed.
+* **YouTube - Player components:** Respect the chapter-skip preference even when account configuration disables
+  the gesture on 21.11+. Keep fullscreen More videos working when the related-videos panel is not peeking.
+* **YouTube - Seekbar components:** Complete tap-to-seek gestures when the time bar is disabled on 21.04+.
+* **YouTube - Swipe controls:** Keep two-finger taps from starting pinch-to-zoom prematurely, and count consumed
+  swipe and volume-key events as user activity so autoplay does not mistake the user for being idle.
+
+* **YouTube - Shorts components:** Keep navigation when preview comments are hidden, collapse their empty
+  bottom bar on 20.51+, and keep Shorts player state open until the last attached player closes.
+* **YouTube - Hide layout components:** Collapse empty fullscreen metadata boxes after their content is hidden.
+* **YouTube - Hide feed flyout menu:** Remove filtered popup and toolbar overflow entries without blank rows.
+* **YouTube - Theme:** Restore the selected runtime palette after rotation without changing Stock colors.
+* **YouTube - Change form factor:** Keep the selected phone layout in newer responsive feed containers on 21.30+.
+* **YouTube - Return YouTube Dislike:** Load counts for Shorts opened in the regular player without prefetching
+  Shorts shelves or enabling counts in the Shorts feed.
+* **YouTube - Queue manager:** Use a fresh request for each playlist create, edit or save operation,
+  so repeated actions do not reuse stale results. Keep the fork's queue behavior and precedence.
+
+## [1.37.3](https://github.com/lavinhoque33/revanced-patches/compare/v1.37.2...v1.37.3) (2026-11-17)
+
+### Bug Fixes
+
+* **YouTube - Video action bar layout:** Match the modern action-bar icon weight for the outlined and filled
+  dislike button in both Classic layouts, including when YouTube supplies an older icon name.
+
+## [1.37.2](https://github.com/lavinhoque33/revanced-patches/compare/v1.37.1...v1.37.2) (2026-11-17)
+
+### Bug Fixes
+
+* **YouTube - Search comments:** Hide the search button when a comments header is reused for Description
+  or any other non-comment panel, including panels without a subheader. Keep search available in comments.
+* **YouTube - Video action bar layout:** Restore the dislike icon in Classic One-Row and Classic Two-Rows
+  when YouTube sends modern image icons, with or without Return YouTube Dislike.
+* **YouTube - Shorts custom actions:** Show Download and other enabled custom actions in the anchored
+  three-dot popup on newer layouts, including experimental 21.45.90. Keep the bottom-sheet menu unchanged.
+
+## [1.37.1](https://github.com/lavinhoque33/revanced-patches/compare/v1.37.0...v1.37.1) (2026-11-17)
+
+### Bug Fixes
+
+* **YouTube - Theme:** Apply selected colors to the feed and native settings on experimental 21.45.90,
+  including its Mainstage palette. Preserve Stock colors, player whites and foreground-disabled shades.
+* **YouTube - Navigation bar:** Honor edited orders, including Create in the middle, on newer layouts.
+  Show the native button order before editing; Reset or accepting that unchanged order returns to following
+  YouTube's order without storing an override. Recognize Create in both labeled and icon-only layouts.
+  Show “You” in the order editor while preserving existing saved `LIBRARY` values; this does not restore
+  the old Library tab.
+* **Music - Glass player and navigation bar:** Keep Library New above the glass player when native code
+  rewrites its margin. Verify clearance before drawing, preserve native Play-button animations and snackbar
+  spacing, and keep tracking controls when they are detached or hidden and shown again.
+
+## [1.37.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.36.0...v1.37.0) (2026-11-16)
+
+### Features
+
+* **Music - Smart Shuffle:** Mix playlist recommendations among your songs without delaying playback.
+  Touch and hold the playlist header's Shuffle button to turn Smart Shuffle on or off; a sparkle shows
+  when it is on. With native Shuffle enabled, start the playlist using Play or a song.
+  Suggested queue songs have a sparkle on the right, beside download checks. Keep adds a song to a playlist;
+  Dismiss removes only that queue entry. Android Auto labels these songs "Suggested".
+  Going offline removes unplayed suggestions but keeps the current song playing. No suggestions are fetched
+  or inserted offline, and downloaded-playlist playback is unchanged. Off by default; available on Music
+  9.15.51 and 9.40.51, with 9.45.51 experimental. Music 8.x and forced 6.20 skip the feature with a warning.
+
+### Bug Fixes
+
+* **Music - Settings shortcut:** Open the native settings list instead of a blank screen. Match the
+  shortcut gear to the selected Bold or Bold (stock size) icon style, using Music's native bold gear.
+* **YouTube / Music - GmsCore support:** Fix non-root patching on experimental YouTube 21.45.90 and
+  Music 9.45.51 by handling the updated Primes initialization check. Keep existing versions unchanged.
+* **YouTube - Seekbar components:** Prevent media-key and timestamp crashes when the player extension loads
+  before the activity context is attached. Preserve timestamp menus and double-tap remaining-time toggling.
+  Early resource and string lookups now use the application context until the activity is attached.
+  Resolve the wide-search icon and Watch Later drag-handle description only when their views are available.
+* **YouTube - Hide player flyout menu:** Recognize numeric icons in newer player settings menus,
+  including Sleep timer, Quality, Playback speed, Help, Stats for nerds and Listen with YouTube Music.
+  Keep older icon variants working, hide active captions and loop rows too, and make the Listening controls
+  toggle hide its own row without changing which controls the account can use.
+* **YouTube - Hide player flyout menu:** Add a Hide Additional settings / More switch. Hide More automatically
+  when all its child hide options are on, including Sleep timer, so it cannot open an empty sheet.
+  Keep More available when any child hide option is off.
+* **Music - Older versions:** Keep the accepted 8.04.51 browse client below Music 7.17 without changing
+  playback's own version. Propagate resolved themes into nested Elements on Music 6.20, restore its
+  native-supported multirow carousels, and supply playlist statistics' missing secondary text role.
+  Keep custom toolbar headers and skip incompatible navigation-icon remapping with a warning.
+  Music 8.x and 9.x behavior is unchanged.
+
+## [1.36.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.35.0...v1.36.0) (2026-11-15)
+
+### Features
+
+* **Music - Settings shortcut:** Add an optional themed settings button beside the toolbar profile icon.
+  Tap to open YouTube Music settings, or touch and hold to open RVX settings. Enable it under General;
+  it is off by default.
+
+* **YouTube / Music - Supported versions:** Add YouTube 21.45.90 and Music 9.45.51 as optional experimental
+  targets. Keep YouTube 21.39.525 and Music 9.40.51 recommended by default, with all existing targets retained.
+  Port native playback, downloads, Android Auto, crossfade PCM, captions, settings, navigation, Shorts and
+  player gesture hooks to the newer layouts while preserving existing-version behavior.
+
+* **Music - Android Auto:** Show stream-downloaded playlists and albums in Playlists, with Downloaded songs
+  for loose copies. Keep the last complete playlist library available offline and mark unavailable or partially
+  downloaded playlists. Open playlists and albums to see their songs, with Play all at the top, and start the
+  whole playlist from any available song. Choose online or local playback when selected, including cards cached
+  by the car. Downloaded playlists now contains device-file playlists only.
+
+* **Music - Glass player and navigation bar:** Add Morphe's independent glass miniplayer and navigation bar,
+  off by default, under Player and Navigation bar. Configure blur, tint, opacity, size and rim brightness
+  with live previews, plus optional spinning artwork. Keep rounded artwork on comments and lyrics sheets
+  and align controls in RTL layouts. Available on Music 8.51 and newer; older versions skip with a warning.
+
+### Bug Fixes
+
+* **Music - Glass player and navigation bar:** Align glass preference summaries with standard RVX rows,
+  including live-preview controls. Keep playlist and Liked Music Play buttons above the real miniplayer
+  and navigation bar heights, with either glass style enabled independently or together.
+
+* **YouTube - Hide player flyout menu:** Fix hiding the On-the-go entry in the player settings menu.
+
+* **Music - Track crossfade:** Stop retained playback when the miniplayer is swiped away, including a
+  dismissal that resets playback without loading another song. Keep normal background playback unchanged.
+
+* **YouTube - Shorts components:** Repeat the current Short while comments or another engagement panel is open
+  instead of advancing and misplacing the player controls. Resume normal autoplay after closing the panel.
+
+* **Music - Downloads:** Restore cached playlists, albums and the No Playlist group in the Library Downloads
+  chip on Music 9.45.51, including its sub-filters and offline browsing.
+* **Music - Downloads / Android Auto:** Extend native queue fallback and in-flight connectivity recovery to
+  Music 9.45.51, retaining browsable downloaded playlists and native online queue updates.
+* **Music - Android Auto:** Load playlist songs when the response includes different continuation tokens for
+  the song list and its surrounding page, instead of showing Songs unavailable.
+* **Music - Downloads:** After an uncached in-flight request exhausts offline recovery, Play restarts the previous
+  saved queue occurrence locally from 0. Keep ordinary Play, preflight exhaustion and online playback unchanged.
+* **Music - Downloads:** Resolve uncached in-flight requests immediately on connectivity loss: Next/auto-advance
+  skips to the next saved song within the native queue's remaining budget, while explicit selections report
+  unavailable and exhausted queues stop cleanly. Reconnection before the decision keeps the online request.
+* **Music - Downloads:** Answer pending cached playback immediately when the default network is lost or no
+  longer validated, without waiting for socket timeouts. Preserve native request ownership, cancellation,
+  online streaming queue updates and late-response arbitration on the phone and Android Auto.
+* **Music - Downloads:** Recover in-flight Onesie playback from saved streams on the first disconnected
+  transport failure, before native retry/backoff or an additional online fallback request. Guard independent
+  Onesie preparation and prefetch paths while preserving native cancellation and online playback.
+* **Music - Downloads:** Keep online-started queues playing saved stream copies when connectivity drops,
+  on the phone and Android Auto. Answer disconnected player and queue requests before network work and recover
+  requests already in flight. Keep native queue order, skip unavailable songs on Next/automatic advancement,
+  and report explicit unavailable selections without replacing usable playback. Online lyrics and radio
+  are unchanged.
+* **YouTube - Overlay buttons:** Pause through the native controller after yellow repeat rewinds a finished video.
+  Keep playback intent in sync so Play resumes the same video. Blue repeat and repeat-off autoplay stay unchanged.
+* **YouTube / Music - Hide handle:** Show the profile handle by default. Keep hiding available as an opt-in.
+  Restore the account-menu switch on newer Music versions so it can be turned off without importing settings.
+* **Music - Hide action bar components:** Preserve native download arguments to prevent a download-button
+  bytecode type error on Music 8.30.54.
+* **Music - Older versions:** Restore Scrobbling and playlist track tap actions on 6.20. Skip unsupported
+  playback speed slider/pitch and external podcast restriction hooks below 7.25 with warnings, while keeping
+  exclusive audio playback and the other Video playback features working.
+* **YouTube / Music - Spoof video streams:** Warn when JavaScript clients need a missing or outdated WebView,
+  with repair links and a persistent dismissal. Retry visionOS attestation-test streams with a fresh visitor ID.
+  Avoid OAuth connection-error notices before the startup network is ready; keep invalid-login warnings.
+* **YouTube - Override YouTube Music buttons:** Check the configured app on Android 10 and older, and deliver
+  encoded song links to third-party clients through their link-handling activity.
+* **Music - Third-party lyrics:** Recognize local line-timed LRC as synchronized. Remove incompatible account
+  headers from YouTube Music lyrics requests and retry transient failures instead of retaining cached misses.
+* **Music - Dark theme:** Apply the selected palette to the offline dialog, including legacy precompiled themes.
+* **YouTube - Playback in feeds:** Preserve the imported mode when the native controller initializes.
+* **YouTube - Layout:** Preserve Home filters with toolbar Subscriptions tabs and respect Hide category bar.
+  Hide newer horizontal shelves and portrait Ask buttons. Make watch-title channel subtitles open the description.
+* **YouTube - Video quality:** Keep live-stream buffers when a quality is selected to avoid catch-up stutter.
+* **YouTube - Compatibility:** Allow engagement-panel fingerprint validation after feed-layout hooks.
+  Prevent end-of-video scrolling on 21.33+ and publish background notifications without artwork on 20.51+.
+* **Bug report template:** Rename URV Manager to UP Manager in the tool dropdown.
+
+## [1.35.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.34.1...v1.35.0) (2026-11-13)
+
+### Features
+
+* **Music - Enable audio/video switch:** Port Morphe's Always play the song version setting, off by default.
+  With Don't play music videos enabled in the app, replace matching official music videos in the queue.
+  Keep tracks without an exact match and downloaded stream copies unchanged. This takes priority over
+  Play albums songs; Disable music video in album keeps its manual toggle actions.
+* **Music - Disable audio ducking:** Port Morphe's optional notification-ducking control under Player.
+  It is off by default and preserves the app's spoken-content pause behavior.
+* **Music - Track crossfade:** Add debug-only CF45 transition, volume, normalization, session and source
+  tracing for the Poco/HyperOS burst investigation.
+* **Music - Track crossfade:** Apply fade gain to decoded PCM after speed and silence processing, keeping
+  AudioTrack volume for normalization and focus. Add bounded processor/first-frame tracing on supported
+  Music versions; skip crossfade with a warning when the PCM integration cannot be discovered safely.
+* **Music - Track crossfade:** Own player transitions and drain outgoing PCM before release. Pause, seek,
+  speed and output changes preserve frame-based envelopes. Song/video switches remain instant, including
+  during an overlap; video mode is no longer blocked when crossfade is enabled.
+* **Music - Track crossfade:** Discover native player and listener boundaries from the PCM factory graph on
+  Music 9.15 and 9.40. Skip safely when a required integration is missing; retain native playback integrations.
+* **YouTube / Music - Patches update notice:** Check the public patches feed daily and show a notice with release
+  notes when newer patches are available. Choose Off, Stable or Development in Miscellaneous, check manually,
+  postpone or skip a version, and open Morphe Manager (or the patches release page) to re-patch.
+  Development checks both release channels. No APK downloads or installation are performed.
+
+### Bug Fixes
+
+* **Music - Disable music video in album:** Resolve each album song by the requested video's metadata,
+  not the queue's reused playlist index. Ambiguous recordings remain unchanged.
+* **Music - Enable audio/video switch:** Keep playlist video-stream copies as well as audio-stream copies
+  out of automatic song replacement, including counterparts cached before a download completed.
+  Log claimed interceptor taps, cached/search selection and queue outcomes when debug logging is enabled.
+* **Music - Enable audio/video switch:** Reject low-score counterparts instead of opening a Mix or another
+  song's video. Keep both versions paired so switching back returns to the same track, and preserve Jam's
+  queue capture when both patches are enabled.
+* **Music - Downloads:** Keep forward and backward seek targets when StreamSwap plays a local copy online,
+  in both Song and Video mode and through the notification controls. Online streams keep stock seeking.
+* **Music - Track crossfade:** Keep the Enable audio video switch pill's counterpart replacement out of
+  crossfade, including when a previous overlap is still active. Normal skips and automatic transitions still fade.
+* **Music - Debug logging:** Give Export debug logs a settings icon, including the bold icon variants.
+* **YouTube / Music - Settings:** Prevent a crash when a list preference supplies string-array entries and
+  newly added options receive the new-setting indicator, including the patches update notice channel chooser.
+* **Music - Debug logging:** Add Export debug logs beside the Miscellaneous debug controls to save the current
+  RVX log buffer to a file through Android's document picker. Cancelling a settings export no longer leaves
+  log export in settings-export mode, and document-provider errors show the existing failure message.
+* **Music - Track crossfade:** Keep the native player for the first song when it has not loaded a track yet,
+  instead of creating a second player and starting a crossfade without an outgoing song.
+* **Music - Track crossfade:** Read the outgoing player's playback intent when a song was started by tapping it,
+  so a stale pause event cannot mute it and bring it back abruptly. Keep genuinely paused outgoing songs silent
+  when the next track loads or the transition is cancelled.
+* **YouTube - Playlist downloads:** Give Select all, Select none and Edit clearer button surfaces in dark and
+  light themes. Make Edit half as wide while keeping its touch target and allowing longer labels to wrap.
+  Show complete option descriptions when space permits; otherwise scroll options independently while keeping
+  selection actions, Download and the playlist accessible.
+* **YouTube - Settings:** Consolidate app details and the complete recorded patch inventory under About >
+  Patch information. Distinguish recorded inclusion from patcher execution results, which the app does not store.
+* **YouTube - Credits:** Correct the project name in the Reseam licence notice.
+
+## [1.34.1](https://github.com/lavinhoque33/revanced-patches/compare/v1.34.0...v1.34.1) (2026-11-11)
+
+### Bug Fixes
+
+* **Music - Downloads:** Keep the three Download method choices short and move their explanations to an Info
+  dialog. Show only the selected method name in settings.
+* **Music - Downloads:** Make Download in a Library playlist's three-dot menu follow the selected download method
+  instead of opening the Premium offer. YouTube Music / external app mode keeps Music's own behavior.
+
+## [1.34.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.33.0...v1.34.0) (2026-11-11)
+
+### Bug Fixes
+
+* **Music - Track crossfade:** Keep the incoming track quiet until its fade starts and preserve its volume
+  normalization. Keep equalizers attached to the outgoing track until it finishes playing.
+* **YouTube - Unlock queue:** Make Play next in queue in the feed menu use YouTube's own queue when Unlock queue is on.
+  Add to RVX queue still opens the RVX queue dialog. Turn Unlock queue off to override the feed queue button.
+  Premium-style queue takes priority when you turn it on, and keeps working for users who already use it.
+* **YouTube - Navigation bar:** Fix the navigation buttons sitting too high, with a black strip below them, with the
+  Translucent or Transparent navigation bar style and gesture navigation, also when Glass navigation bar is off.
+  Fix the extra space below the glass bar with system navigation buttons or a visible gesture indicator.
+* **YouTube - Navigation bar:** The blurred background of the Translucent navigation bar and of Glass navigation bar
+  is now drawn only on Android 14 and newer. On Android 12 and 13 the bar keeps a plain translucent color, because the
+  blur could crash the app while the player moves.
+* **YouTube - Feed card layout:** Fix the cards with some accounts, where the thumbnails had black gutters on both
+  sides, the corners were not rounded, the cards looked small, and an inline preview broke the layout of the cards
+  around it. The margins and the corners now follow the screen density, also after it changes, and the cards of
+  grids, such as the channel pages, are clipped in their own columns. The dynamic colors tint the whole card below the
+  thumbnail also on these accounts.
+* **YouTube - Feed card layout:** Add the fixes of Morphe for the cards: playlists, mixes and podcasts of the feed
+  and of the channel home use the Classic layout or the card background like the videos, the Classic layout keeps the
+  Save to Watch later and Save to playlist items in the menu, mixes and the movie shelf keep their own layout when
+  they are hidden, and the cards keep their layout while the app updates its templates.
+* **YouTube - Toolbar:** Fix the Create button of the toolbar so it opens the upload menu again.
+* **Music - Stream download:** Fix loading the regular song menu of earlier copies while online, and keep just one
+  Download or Remove download action when Music supplies its newer menu rows. Other stock actions stay intact.
+  No Playlist opens the tapped song's full native menu, also from its saved renderer offline. Looking up or opening
+  another song's menu does not change the current queue or what Next plays.
+* **Music - Downloads:** With Device files selected, the Downloads chip uses Music's device-files library, not the
+  stream-copy list. Existing stream copies are kept.
+* **Music - Android Auto:** Fix a crash when starting a track from Downloaded Playlists, including No Playlist.
+  Newer selections take priority, and online playback keeps radio and lyrics while using the local stream.
+  No Playlist uses one native Play next request and its complete response after the selected song is committed,
+  inserting the following songs as one ordered batch before radio. Menu lookups cannot overwrite that queue context.
+  Changing the selection or reconnecting cancels old work before it can change that queue.
+  Queue work follows Music's current-item updates without blocking its playback thread.
+
+### Features
+
+* **Music - Downloads:** Add one Download quality setting for new song, album and playlist downloads: Highest,
+  High, Normal and Low. Highest uses the best source the available clients offer to your account, including 256 kbps
+  when available, without unlocking Premium. High prefers standard high Opus, Normal 128 kbps AAC, and Low 48 kbps
+  AAC or about 50 kbps Opus. Missing tiers fall back to available sources. Existing downloads remain unchanged.
+  Stream download and Device files share this setting; YouTube Music and external apps use their own settings.
+  Playlist video remains 360p, with the selected audio quality. Local playback uses each copy's own codec and ranges.
+* **Music - Stream download:** Stream download is now the main way to download in YouTube Music. A fresh install saves
+  a private copy of a song, playlist or album inside the app that plays with or without internet and keeps radio and
+  lyrics online. One Download method setting applies to every song, playlist and album: Stream download (default),
+  Device files (older method), or YouTube Music / external app. External overrides in the last mode handle single
+  songs only; albums and playlists stay with Music. Earlier mixed choices prefer Stream, then Device files.
+  Changing the method never deletes anything you already downloaded.
+* **Music - Stream download:** A song downloaded from the Video display, or from an album row that shows the music
+  video, is saved as the song's audio, so it plays and shows its green check everywhere. A failed song download now
+  says why.
+* **Music - Stream download:** Remove download. For a downloaded song the Download item of the menu and the player
+  Download button become Remove download with a confirmation, and so does the Download button of a downloaded
+  playlist or album. Songs that another downloaded list or your own download still needs are kept.
+* **Music - Stream download:** Songs you downloaded one by one and that are in no downloaded playlist or album are no
+  longer listed as songs in Library, Downloads. They are in one playlist called No Playlist, which opens as its own
+  page with a green check on every song. It plays in the shown order from the song you tap, online and offline.
+  Online the songs are queued after the one you tap, so radio and lyrics stay, and the audio comes from your copies.
+  It also appears in Android Auto in the downloaded playlists.
+* **Music - Stream download:** The Downloads chip refreshes itself the way a pull to refresh does after you download
+  or remove a song, an album or a playlist, also when you come back to it with Back from a list or a player, so the
+  rows and the No Playlist count are current without pulling. Nothing is opened by itself and the Library still
+  opens first after a restart.
+* **Music - Stream download:** The three dot menu of a No Playlist song opens the app's regular song menu for that
+  song, with the usual available actions and Remove download. Removing a copy updates the row and count; the green
+  check stays at the right end.
+  The complete stock menu is saved for offline use. Earlier copies need this page opened online once to load it.
+* **Music - Stream download:** A playlist or album download that was cut off, for example by closing the app, no longer
+  leaves its songs in No Playlist and no longer counts as saved. Its Download button finishes the job and the green
+  check and Remove download appear once every song is in.
+* **Music - Stream download:** Accounts whose song menu has no Download item now get one, so a single song can be
+  downloaded from any song menu. It reads Remove download once the song is saved.
+* **Music - Settings:** The download options are now together in a Downloads group of Miscellaneous.
+* **Music - Library:** After the app is restarted, the Library tab opens the Library again and not the Downloads view
+  that was selected last. The Downloads chip itself works as before.
+* **Music - Stream download:** Album song lists show the green check for songs you downloaded one by one, even when the
+  album was never downloaded.
+* **Sync with anddea/revanced-patches dev:** Merge the changes up to v4.4.0-dev.6 (anddea dev, b2f29faa6) into this
+  fork.
+* **YouTube - Settings:** Keep About at the end of RVX settings, with icon rows for app information, links, credits
+  and copying debug information.
+* **YouTube - Downloads:** Add Show download option icons, off by default. Turn it on to show icons beside Include
+  subtitles and Include SponsorBlock in the built-in downloader.
+* **YouTube - Downloads:** Use rounded, sentence-case buttons in the playlist selection menu, with wrapping labels
+  and a full-width Download button. Keep selection controls and videos visible in landscape while options scroll.
+* **YouTube - Enable debug logging:** Add a Feature flags manager in Miscellaneous > Debugging, with Binary search to
+  find which YouTube feature flag causes a problem. Reset the overrides if the app repeatedly fails to start.
+* **YouTube - Glass navigation bar:** Add a bottom spacing slider to the Glass navigation bar size dialog, to set how
+  far the capsule floats above the bottom of the screen, and show the snackbars right above the navigation bar.
+* **YouTube - Watch later improvements:** Add a patch with options to widen the drag handles of the Watch later videos
+  and to hide the snackbar shown after removing a video.
+* **YouTube - Post buttons:** Add a Post buttons screen to hide the like, share and comment buttons of posts, and an
+  option to give every post the same grouped layout of buttons.
+* **YouTube - Captions:** Show captions in stable blocks and as two languages at once, on YouTube 21.15 and newer.
+* **YouTube - Spoof video streams:** Fetch the streams of a video sooner, so videos start faster, and keep inline
+  previews in the feed muted.
+* **YouTube Music - Lyrics:** Add a dynamic background to the lyrics, and show the reading of each Japanese word
+  above the text (furigana).
+* **YouTube Music - Downloads:** Private stream copies keep radio, lyrics and the queue online while there is a
+  connection, and play without internet. A download uses only the global method: it never writes a device file and
+  a stream copy together. Stream downloads shows their size and can remove them without touching device files.
+  Downloaded songs start in audio mode (a sub-setting, on by default); the Song/Video switch still reaches the
+  online video and continues at the same position.
+* **YouTube Music - Downloads:** Play the stream copies with no network. Each copy keeps the details of its song,
+  and the Downloads chip of the Library lists downloaded albums, playlists and the No Playlist aggregate. A tap
+  starts playback from the local copy, and Next and the end of a song continue through the list offline too.
+  An album or playlist opens its normal page online. Lyrics, comments and related stay blank offline.
+  Songs downloaded before this version fill in by
+  themselves in the background while you are online, and Open downloaded songs shows how many are Offline ready and
+  opens the Downloads chip. Albums and playlists downloaded earlier appear in the list too, in their recorded order,
+  and fetch their title while online. Android Auto lists the copies in a Stream copies folder inside Downloaded
+  playlists, with their covers, independently of the device-file method. A song tapped
+  while offline starts at once. The No connection sheet no longer covers the player controls while a downloaded song
+  plays offline. After a restart the Library tab opens the Library, not the Downloads chip. A row decides whether
+  to open an online page or start local playback when tapped, so network changes take effect immediately. Opening a
+  downloaded playlist or album online records the app's own page of it (about 90 KB for a playlist, 22 KB for an
+  album), and with no network the page opens as it does online, with its header, cover and track rows, also when the
+  album is opened from the Albums chip; tapping a track plays it from its copy and goes on through the list. A
+  downloaded list that was not opened online since this version plays from its first song, as before.
+* **YouTube Music - Downloads:** Add green downloaded checkmarks, on by default for stream copies.
+  Songs and playlists saved for local playback show a check at the end of the song row, next to its menu or drag
+  handle, on playlist pages, on the track rows of an album page, in the Search songs filter and in the player queue,
+  and a playlist or album page whose every track has a stream copy shows one on its Download button. Songs saved only
+  as device files are not marked, and neither are the search All cards.
+* **YouTube Music - Downloads:** Download the rest of a playlist or album that has unavailable tracks (deleted,
+  private or blocked songs, shown greyed out) instead of failing the whole download. The finished message says how
+  many were skipped, the Download button's check turns on when every available track has a copy, and a failed
+  download now names the reason in a one-line message.
+* **YouTube Music - Downloads:** Songs that have a music video also save that video's stream: its 360p picture and
+  its own audio, about 10 to 12 MB for the pair, next to the song's audio copy of about 3.4 MB. The videos are found
+  and saved when an album is downloaded, one at a time after the songs: each song is matched to the video with the
+  same title, or with about the same length, and a song with no certain match saves none. A song downloaded on its
+  own saves no video, and a playlist whose songs the server does not link to a music video saves none either. A
+  video that cannot be saved never fails the song or the list. The finished message and the Stream downloads action
+  count the videos and their size (for example "49 songs and 10 videos saved for local playback, 236.4 MB"),
+  tapping Download on a saved list fetches the videos it is missing, and deleting the stream downloads deletes the
+  videos too.
+* **YouTube Music - Downloads:** A song with a saved video plays that saved stream in both display modes, online or
+  offline, and the Song/Video switch is the app's own switch: it flips in place at once, with no reload, no gap in
+  the sound and no change of position, and the Song display plays the sound of the video itself. A tap on any song
+  in an album, a playlist or the Downloads view starts that song that way, and Next and the end of a song go on in
+  the display you chose. Offline, the Song display shows the song's album cover. Songs without a saved video keep
+  their audio copy, and Android Auto keeps playing the audio copies. For the saved videos to play offline, play one
+  saved video online once after installing this version; the app then keeps the player settings the videos need.
+
+## [1.33.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.32.2...v1.33.0) (2026-11-06)
+
+### Features
+
+* **YouTube - Navigation bar:** Add Morphe's optional floating glass capsule with an animated selected-tab
+  highlight, adjustable opacity and a live size preview for height, maximum width and button spacing.
+  Buttons that do not fit are hidden from the end, while the selected tab stays visible.
+  Existing navigation-bar appearance stays unchanged until glass is enabled.
+  The size preview shows existing tabs immediately after first enabling glass, before restarting.
+  Reset restores exact defaults even for imported values between slider steps.
+  With glass enabled, Hide status bar keeps the status bar hidden when returning to the app
+  from another app or the miniplayer.
+
+## [1.32.2](https://github.com/lavinhoque33/revanced-patches/compare/v1.32.1...v1.32.2) (2026-11-06)
+
+### Bug Fixes
+
+* **YouTube - Video quality:** Make the Shorts quality toast switch control Shorts only, and the video
+  quality toast switch control regular videos only. If you previously turned off video quality toasts,
+  turn off the Shorts quality toast switch too to keep Shorts toasts off; existing choices are not copied.
+
+## [1.32.1](https://github.com/lavinhoque33/revanced-patches/compare/v1.32.0...v1.32.1) (2026-11-06)
+
+### Bug Fixes
+
+* **YouTube - Settings:** Clarify quality, speed, toast, settings-button and queue-manager titles by location,
+  distinguish Feed and Player flyout menus, and add Shorts quality, Shorts speed and Playback headings.
+  Keep all settings and their behavior unchanged.
+
+## [1.32.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.31.0...v1.32.0) (2026-11-06)
+
+### Features
+
+* **YouTube - Settings:** Add an About card above the settings sections, with the chosen settings name,
+  patch and app versions, GitHub links, credits and licences, and a privacy-safe Copy debug info action.
+
+### Bug Fixes
+
+* **YouTube - Settings:** Keep the About card first with either icon style, and log failed About actions
+  without closing settings.
+
+## [1.31.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.30.0...v1.31.0) (2026-11-06)
+
+### Features
+
+* **YouTube - Video action bar layout:** Choose Default, Classic One-Row, Classic Two-Rows or Minimal layouts independently
+  of the layout sent by YouTube (ported from Morphe). Existing restore selections migrate to Classic One-Row;
+  the removed tablet layout toggle migrates to Classic Two-Rows and takes precedence. New installations
+  use Default. Classic layouts retain the old-style More videos overlay.
+  Keep Clip, Connect and other overflow actions when converting to Classic layouts.
+* **YouTube - Hide action buttons:** Remove hidden buttons from every action bar layout, including
+  Minimal overflow and the separate Two-Rows channel bar (ported from Morphe). Remove the obsolete
+  Hide action button by index and Remix button index settings.
+  Hiding the channel and Subscribe button also removes server-provided standalone channel bars.
+
+## [1.30.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.29.1...v1.30.0) (2026-11-06)
+
+Merged anddea/revanced-patches@dev (89104d55b, v4.4.0-dev.5).
+
+### Features
+
+* **YouTube - Built-in downloader:** Choose native subtitle languages and SRT or VTT for playlist downloads.
+  Subtitle failures do not stop videos; the batch summary reports saved, skipped and rate-limited tracks.
+  Private subtitle cues no longer enlarge the download index or its resume-position writes.
+* **YouTube - Built-in downloader:** Save SponsorBlock segments with single or playlist downloads and choose
+  categories below the subtitle row. The built-in player follows your category behavior, including background
+  audio auto-skips and a manual skip button, without cutting the media file.
+* **YouTube - Built-in downloader:** Select playlist items before queuing them, with thumbnails, durations and
+  an individual video height cap or audio-only choice. Already-downloaded items start unchecked; the batch
+  keeps its global quality, subtitle and SponsorBlock choices. Unavailable playlists report a failure.
+* **YouTube - Captions:** Add the Captions patch (secondary caption language, caption scale, stable caption
+  blocks) from upstream. Settings are under Captions.
+* **YouTube - Translate live chat:** Add live chat translation with provider, language, exclusion, style and
+  colour settings from upstream.
+* **YouTube - Download post images:** Add a download action for community post images from upstream.
+* **YouTube - Unlock queue:** Add the video queue unlock option from upstream (YouTube 20.21 or later).
+  The fork's Add to queue patch is unchanged.
+* **YouTube - Navigation bar:** Add the navigation bar style option, the Watch later navigation item and the
+  reorderable navigation bar from upstream. The hide switches of single navigation buttons are replaced by the
+  navigation bar order setting.
+* **YouTube - Copy text:** Add the select text option to the fork's Copy text patch.
+* **YouTube - Search comments:** Use the upstream implementation. The fork's setting key, default (off) and
+  place under Player are kept.
+* **YouTube - Settings:** Add the new settings indicator and the page padding fix from upstream.
+* **YouTube Music - Lyrics:** Take the upstream lyrics rework (line scale, centering, providers, miniplayer
+  lyrics options).
+* **Translations:** Union of the fork's and upstream's strings in all languages.
+
+### Bug Fixes
+
+* **YouTube - Built-in downloader:** Keep the complete footer visible in landscape and at larger font sizes,
+  including the playlist picker. Give the subtitle row a CC icon and the SponsorBlock settings toggle its shield icon.
+  Dismissed pickers ignore late loading results, including after font-size changes.
+* **YouTube Music - Track crossfade:** Match the loop-state adapter with a prefix, because the string of the
+  app has a suffix. Repeat-one detection works again.
+* **Both - Visual preferences icons:** Add icons for all new settings.
+
+### Not taken from upstream
+
+* The upstream Offline UI snapshot; the fork's newer version stays.
+* The upstream LithoSpannableStringPatch and the `morphe_copy_*` keys; the fork's Copy text stays.
+* The upstream Search comments default (on) and place (General).
+* The Music lyrics AI strings and the upstream version, bundle and patch list files.
+
+## [1.29.1](https://github.com/lavinhoque33/revanced-patches/compare/v1.29.0...v1.29.1) (2026-11-04)
+
+### Bug Fixes
+
+* **YouTube - Feed card layout:** Keep the inline preview of a card visible. The surface that the patch draws
+  behind the metadata of a card also covered the thumbnail area, so a playing video showed only the colour
+  of the card. The surface now leaves the thumbnail area clear, and the card keeps its dynamic colour.
+* **YouTube - Feed card layout:** Fix the empty dark box in place of an autoplaying Short in the Shorts shelf.
+  A recycled row of Shorts could keep the mark of a card and get the card surface over its inline video.
+  Rows of Shorts are never cards now.
+* **YouTube - Feed card layout:** Keep the colour of the like, comment and save icons of the cards with buttons.
+  The tint of the metadata row was set on the image view, which the app reuses for other images, so a dark
+  tint of another card could stay on an icon. It is now set on the drawable and removed when the view is
+  reused.
+
+## [1.29.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.28.0...v1.29.0) (2026-11-03)
+
+### Features
+
+* **YouTube - Built-in player subtitles:** Add live background-opacity and custom vertical-position sliders,
+  custom RGB text colours with the existing colour picker and recent colours, and seven built-in fonts.
+  Appearance is remembered across restarts; existing subtitle styles migrate automatically.
+
+### Bug Fixes
+
+* **YouTube - Built-in player subtitles:** Fit the rounded background to the caption text instead of showing
+  a full-width bar. Long cues wrap within 90% of the video width, with size-scaled padding.
+  The default background is now 60% opacity instead of none; set it to 0% to remove it.
+
+## [1.28.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.27.0...v1.28.0) (2026-11-01)
+
+### Features
+
+* **YouTube Music - Android Auto:** Show offline covers in the Downloaded playlists rows and their tracks.
+  Playlist covers use the first ordered track's embedded artwork. Small cached images stay available
+  without data; tracks without embedded artwork keep their text-only row. The Downloaded playlists and
+  cold-offline Library rows use Music's white outline download glyph, aligned with the sibling Library rows.
+
+## [1.27.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.26.0...v1.27.0) (2026-11-01)
+
+### Features
+
+* **YouTube Music - Android Auto:** Add a separate `Downloaded playlists` folder next to Library's Playlists.
+  Play the built-in downloader's native playlists and `Not in a playlist` without a network connection, also
+  after a cold start without data. Empty playlists are hidden. The default-on Miscellaneous setting requires
+  `Download in app`.
+
+## [1.26.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.25.0...v1.26.0) (2026-11-01)
+
+### Features
+
+* **YouTube - Built-in downloader:** Download up to five caption tracks with a video, including
+  auto-translated ones, as SRT or VTT files in `Movies/RVX/Subtitles`. The built-in player shows them with
+  a CC menu for track, size, color, background and position. A subtitle failure never fails the video, and
+  a rate limit from YouTube names the language that was skipped. Auto-translations prepare a visitor
+  session first and can take about a minute.
+
+### Bug Fixes
+
+* **YouTube - Built-in downloader:** The expanded Downloads search pill fills the toolbar up to the
+  overflow menu, and the back arrow and overflow icon keep the same foreground color as the title.
+* **YouTube - Shorts custom actions:** Show `Download` instead of `External downloader` when the built-in
+  downloader is enabled, including the queue manager and player download button accessibility label.
+  Keep the download arrow icon and resolve the label when opening the menu.
+
+## [1.25.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.24.0...v1.25.0) (2026-10-31)
+
+### Features
+
+* **YouTube - Visual preferences icons:** The `YouTube` style shows icons only on rows that open a
+  settings screen. Leaf settings align with screen-entry rows when present; screens without icons
+  use the stock no-icon spacing. The RVX entry uses YouTube's magic wand where available.
+* **YouTube - Built-in downloader:** The Downloads search field is a rounded, filled pill without an inner
+  magnifier, and the toolbar search icon matches the bold settings glyph. The item menu, sort, playlist
+  input and confirmation dialogs follow the app's background and text colors, including custom themes.
+* **YouTube - Toolbar components:** Add `Show channel search dialog` to choose whether the toolbar
+  search button asks to search the channel or opens normal YouTube search. The separate `Search channel`
+  button is unchanged. WebView channel search is available only while the dialog is enabled.
+
+## [1.24.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.23.0...v1.24.0) (2026-10-30)
+
+### Features
+
+* **YouTube - Visual preferences icons:** The new `YouTube` icon style uses the app's own rounded
+  settings icons where a counterpart exists. Other rows keep rounded RVX icons with stock-sized
+  geometry and spacing. Apps without the rounded YouTube family use rounded RVX icons throughout.
+  The existing icon styles and YouTube Music are unchanged.
+
+## [1.23.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.22.1...v1.23.0) (2026-10-29)
+
+### Features
+
+* **YouTube and YouTube Music - Settings:** The color picker keeps the eight most recent applied colors,
+  including the color being replaced, shared across color preferences within each app. Tap a swatch to
+  select it before pressing OK, scroll the swatches to see more, or use `Clear history` to remove them.
+  Reopening the picker also keeps its hue and saturation/value controls in sync with swatch and hex input.
+
+## [1.22.1](https://github.com/lavinhoque33/revanced-patches/compare/v1.22.0...v1.22.1) (2026-10-29)
+
+### Bug Fixes
+
+* **YouTube - Feed video actions:** The Watch later button returns when scrolling back up the feed,
+  including cards whose thumbnail or menu mounts after their layout.
+
+## [1.22.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.21.1...v1.22.0) (2026-10-29)
+
+### Bug Fixes
+
+* **YouTube and YouTube Music - Visual preferences icons:** `Bold (stock size)` uses the weight calibrated against native Settings on the Moto. Wide and tall artwork has a safe inset inside its 24 dp slot instead of touching the edges. The RVX entry in YouTube Settings lines up with the stock rows, including the icon and label; Music branding icons keep the native slot instead of shifting left. The `Regular` and larger `Bold` preference glyphs keep their existing weight and geometry.
+* **YouTube and YouTube Music - Visual preferences icons:** The patch options now explain that icons inside RVX sub-settings require `Apply to all settings menu` to be true, even when a bold style is selected. A patch manager can remember a previous false value.
+
+### Features
+
+* **YouTube and YouTube Music - Visual preferences icons:** `Bold` and `Bold (stock size)` now also thicken the back arrow and search icon in the RVX settings toolbar, including sub-settings and search. `Regular` and the app's native toolbar icons stay unchanged.
+* **YouTube - Feed card layout:** `Dynamic card colors` also tints the recommendation cards under the player, including the title backgrounds drawn inside Litho and the channel row. They keep the same card corners and spacing; the player, comments and engagement panels are unchanged.
+
+## [1.21.1](https://github.com/lavinhoque33/revanced-patches/compare/v1.21.0...v1.21.1) (2026-10-28)
+
+### Bug Fixes
+
+* **YouTube and YouTube Music - Visual preferences icons:** `Bold (stock size)` rows use the spacing of the app's own settings: the icon and the text sit where they do in the stock Settings screen, including the SponsorBlock settings. `Regular` and `Bold` keep their current spacing.
+
+## [1.21.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.20.0...v1.21.0) (2026-10-28)
+
+### Features
+
+* **YouTube - Return YouTube Dislike:** Added `Morphe-style dislike pill`. It puts the dislike count beside the dislike icon, with one divider and no dot. Off by default, so the current wide pill stays unchanged.
+
+Merged anddea/revanced-patches `dev` (4.4.0-dev.3). The fork's built-in downloader, offline library and YouTube Music downloads keep their current behaviour; anddea's copies of them (#1883, #1884) were made from an older state of this fork.
+
+* **YouTube:** New `Feed video actions` patch: a Watch later button on the thumbnails of feed videos, and tapping and holding anywhere on a feed video opens its menu. It reuses the fork's feed card tracking of `Feed view count`.
+* **YouTube - SponsorBlock:** Segments are skipped in Shorts too.
+* **YouTube Music - Downloads:** The Download button of an album downloads the album, like a playlist.
+* **YouTube:** Changes from anddea: `Ambient mode control` can force Ambient mode on; the video quality chosen in the quality menu is kept while a SABR stream plays; translucent navigation bar fixes (the Shorts player with `Hide Shorts navigation bar`, the keyboard, and a crash on Android 12 and 13 while the player is dragged to the miniplayer); the saved value of a setting that has no option in the patched app (version-gated, or its patch excluded) is reset to its default; `Miniplayer` type `Phone` is renamed `Minimal` (saved values are migrated); Voice-over translation updates for the Edge TTS voices.
+* **YouTube Music - Lyrics:** anddea's rework: more romanized scripts (Cyrillic, Greek, Armenian, Georgian, Cantonese and others) and a setting to clear the lyrics cache.
+
+## [1.20.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.19.1...v1.20.0) (2026-10-28)
+
+### Features
+
+* **YouTube - Visual preferences icons:** Every RVX setting has an icon now. The settings that had none or a blank space, such as `Card corner radius` and `Dynamic card colors`, show a matching icon in `Regular` and `Bold`.
+* **YouTube Music - Visual preferences icons:** The RVX sub-settings (Lyrics, Scrobbling, Player, SponsorBlock, Ads, Return YouTube Dislike, Account, Crossfade and the others) have icons now.
+* **YouTube and YouTube Music - Visual preferences icons:** Added the icon style `Bold (stock size)`. It draws the bold icons at the size of YouTube's own settings icons (24 dp) instead of 48 dp.
+* **YouTube and YouTube Music - Visual preferences icons:** The patch prints a warning when an RVX setting has no icon, so a new setting is not forgotten.
+
+## [1.19.1](https://github.com/lavinhoque33/revanced-patches/compare/v1.19.0...v1.19.1) (2026-10-27)
+
+### Bug Fixes
+
+* **YouTube - Feed card layout:** The `Dynamic card colors` tint now covers the whole card below the thumbnail, the channel row included, instead of only the title area. It also stays on the channel row when a card is scrolled under the top bar.
+* **YouTube - Feed card layout:** Mixes are cards now, with the card background, the rounded corners and the same 12 dp gaps as the other cards, instead of blending into the page with a longer gap below.
+* **YouTube - Feed card layout:** Hidden items, such as brand video ads and the placeholders of a loading feed, no longer add a gap of their own.
+* **YouTube - Built-in downloader:** The speed button of the offline player uses the Sharp speed icon, so it is the same size as the aspect button and the other player buttons.
+* **YouTube - Built-in downloader:** The codec, the bitrate and the format ID of the offline library cards use the normal secondary text color instead of green.
+
+## [1.19.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.18.1...v1.19.0) (2026-10-26)
+
+### Features
+
+* **YouTube - Feed card layout:** Added `Dynamic card colors` (Feed, on by default). Each video card gets a background tinted with a color taken from its thumbnail, like the stock app, in light and dark themes. Turn it off to keep the plain card color.
+* **YouTube - Feed card layout:** Added `Card corner radius` (Feed, 0 to 28 dp, default 12). It sets the corners of the cards, the Shorts and the video that plays inside a card. A restart applies it.
+
+### Bug Fixes
+
+* **YouTube - Feed card layout:** The Shorts in the feed are rounded and clipped cleanly in the card, without dark wedges at the corners or between the rows.
+* **YouTube - Feed card layout:** The gaps between the items of the feed are 12 dp everywhere: between video cards, before a Shorts shelf and after it, and across hidden items such as banners and the chips shelf. The space between the rows inside a Shorts shelf is unchanged, and a few hidden items that the patch does not know can still add extra space. Not applied on YouTube 20.05.46, which keeps its own spacing.
+
+## [1.18.1](https://github.com/lavinhoque33/revanced-patches/compare/v1.18.0...v1.18.1) (2026-10-26)
+
+### Bug Fixes
+
+* **YouTube - Player icon style:** The always repeat overlay button now follows `Player icon style` (Fluent, Phosphor, Phosphor Light, Phosphor Fill, Phosphor Duotone, Ionicons, Sharp and Custom). The selected state keeps its highlight color. Automatic, Thin and Bold keep the original icon.
+* **YouTube - Player icon style:** The `Minimal bar` and `Minimal bar 2` miniplayer types now use the chosen style for the play, pause and close buttons, and the miniplayer play, pause, replay and close icons are replaced wherever the app sets them, not only in one place.
+* **YouTube - Player icon style:** The Picture-in-picture button now has its own Ionicons icon instead of the default bold one.
+* **YouTube - Player icon style:** Custom icon packs made for Morphe now work for the Reload video, video scale (fit, stretch, zoom), speed, mute, and download buttons: their Morphe file names (for example `morphe_reload_video_button`) are accepted. A file with the fork's own name wins when both are in the pack.
+* **YouTube - Visual preferences icons:** `Notification media controls`, `Download options` and both Voice over translation provider screens now have an icon.
+* **YouTube - Feed flyout:** The `Add to RVX queue`, Picture-in-picture and similar flyout rows added by RVX use the bold icon of the app's own flyout rows on YouTube 21.12 and later, so they match the other icons even when `Disable bold icons` is on.
+
+## [1.18.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.17.0...v1.18.0) (2026-10-25)
+
+### Features
+
+* **YouTube - Built-in downloader:** The offline player has an aspect ratio button that cycles through Fit (letterboxed, the default), Stretch, Zoom (cropped) and Original (100%, the native pixel size). The chosen mode is shown in a toast, applies again after turning the device and to the next video, and is remembered across app restarts. The button is hidden for audio-only downloads.
+* **YouTube - Built-in downloader:** The download cards in the offline library show the technical details of the file in the accent color: the codec and the format ID of a video (`1080p60 · 74 MB · VP9 · id: 303`) and the bitrate and the format ID of an audio download (`Opus · 5,8 MB · 132kbps · id: 251`). Audio downloads are named `Opus` or `M4A`, and the resume position moves to a line of its own. Downloads from before this version keep their old text.
+
+### Bug Fixes
+
+* **YouTube - Built-in downloader:** The offline player and YouTube no longer play over each other. Starting a video pauses the offline player, and starting an offline track pauses the video; silent feed previews leave the offline track alone, while Shorts pause it like any other video. The offline player also gives up the audio focus when it is paused, so other apps can play, and a pause during a short focus loss (such as a call) no longer resumes it later.
+* **YouTube - Built-in downloader:** The back, speed and aspect buttons of the offline player can be tapped in landscape again; they sat on the screen edge where the system swallowed the taps.
+
+## [1.17.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.16.1...v1.17.0) (2026-10-25)
+
+### Features
+
+* **YouTube - Visual preferences icons:** Added icons to about 290 more settings and an empty icon to about 60 of their sub options, so the rows line up. This covers the new settings of the Feed, Player (including fullscreen, seekbar, haptic feedback and swipe controls), Comments, Video description, Ads, General, Navigation bar, Toolbar, Return YouTube Dislike, SponsorBlock, Gemini, Voice Over Translation, Spoof video streams and Proxy screens, plus the built-in downloader options. The icons follow the `Icon style` option (Regular or Bold) of the patch.
+
+### Bug Fixes
+
+* **YouTube - Miniplayer:** On 21.30 and newer, the feed no longer goes black when the player is minimized with animations on (`Force animations`), because the home keeps the layout of the minimized player. Ported from Morphe.
+* **YouTube - Miniplayer:** On 21.30 and newer, the maximize animation of the miniplayer is kept on while horizontal drag is enabled, which stops the glitch when the miniplayer is maximized. Ported from Morphe.
+
+## [1.16.1](https://github.com/lavinhoque33/revanced-patches/compare/v1.16.0...v1.16.1) (2026-10-25)
+
+### Features
+
+* **YouTube - Player icon style:** The speed, mute and download buttons of the `Overlay buttons` patch now follow the `Player icon style` too (Fluent, Phosphor, Phosphor Light, Phosphor Fill, Phosphor Duotone, Ionicons, Sharp and Custom). The Automatic, Thin and Bold styles keep the icons of the patch's `Icon type` option.
+* **YouTube - Player icon style:** The miniplayer's play, pause, replay and close buttons now follow the `Player icon style` (Fluent, Phosphor, Phosphor Light, Phosphor Fill, Phosphor Duotone, Ionicons, Sharp and Custom). The Automatic, Thin and Bold styles keep the original miniplayer icons.
+
+### Bug Fixes
+
+* **YouTube - Player buttons:** `Hide player control buttons background` now also removes the circle behind the fullscreen button.
+* **YouTube - Shorts icon style:** The `Shorts icon style` now also works on devices that install YouTube from split APKs, where the Shorts action buttons kept their original icons.
+
+## [1.16.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.15.0...v1.16.0) (2026-10-25)
+
+### Features
+
+* **YouTube - Player icon style:** Added a `Player icon style` setting (Player buttons) that changes the look of the player icons: Automatic (default, unchanged), Thin, Bold, Fluent, Phosphor, Phosphor Light, Phosphor Fill, Phosphor Duotone, Ionicons or Sharp, plus a `Custom` style when the patch option `Custom icons` points to a zip file or folder with your own icons. It restyles the previous, play, pause, next and replay buttons, the settings, captions, cast, close and fullscreen buttons, and the Picture-in-picture, Reload video, Save to Watch later and video scale buttons. A new style applies after restarting the app. Ported from Morphe.
+
+### Bug Fixes
+
+* **YouTube - Player buttons:** The Picture-in-picture, Reload video, Save to Watch later and Video delay icons (and the SponsorBlock buttons) are no longer drawn thin next to the bold cast, captions and settings icons when `Disable bold icons` or `Restore old YouTube settings screen` is on. They now follow the player's own thin or bold buttons (`Restore old player button style`) instead of the settings screen style.
+
+## [1.15.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.14.0...v1.15.0) (2026-10-24)
+
+### Features
+
+* **YouTube - Built-in downloader:** VP9 qualities are now offered at every resolution, from 144p to 8K.
+* **YouTube - Built-in downloader:** Added `Download options` with switches for the H.264, VP9 and AV1 video codecs and the Opus and AAC audio formats (all on by default). They apply to the quality picker and to playlist downloads; when every video codec is off, all codecs are used and the picker says so.
+* **YouTube - Built-in downloader:** Added a `Lowest quality` and `Highest quality` setting (144p to 4320p by default) that limit the qualities in the picker and the limits offered for playlist downloads.
+* **YouTube - Built-in downloader:** The picker offers the `1080p Premium` stream (enhanced-bitrate VP9) when YouTube serves it, saved as WebM with Opus audio.
+* **YouTube - Built-in downloader:** Added audio-only downloads as Opus (Ogg) or M4A, with title, channel and thumbnail tags. They are listed in the offline library and play in the built-in player.
+* **YouTube - Built-in downloader:** Added a `Show format IDs` setting (off by default) that shows `id: <itag>` for each format in the picker.
+* **YouTube - Built-in downloader:** Videos and audio are saved to separate folders, `Movies/RVX/Video` and `Music/RVX/Audio` by default, which can be changed in `Download options`. Downloads in the old `Movies/RVX` folder stay in the library.
+* **YouTube - Built-in downloader:** Added a thumbnail-only download to `Pictures/RVX/Thumbnails` and a `Save thumbnail with downloads` setting (off by default) that also applies to playlist downloads.
+* **YouTube Music - Fade in and fade out:** Added a `Fade in and out` screen next to Crossfade in the Player settings, with a `Fade in` and a `Fade out` switch (both off by default) and a duration for each (1-30 seconds, 3 by default, counted in track time). The fade-in raises the volume from silence over the first seconds of every track, also after a repeat-one loop or a seek to the start; the fade-out lowers it over the last seconds of a track with a known length (not live streams). Pausing, seeking and skipping never leave the volume low, a track shorter than both fades shortens them in proportion, and the effects are not used while Crossfade is on, as Crossfade already blends the tracks.
+
+### Bug Fixes
+
+* **YouTube, YouTube Music:** Fix patching failing on Android 14 and older with `NoSuchMethodError: List.removeFirst()`. The patch code called a method that Android only has from version 15, so the patcher crashed in Morphe Manager when it ran on the phone.
+
+## [1.14.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.13.0...v1.14.0) (2026-10-24)
+
+### Features
+
+* **YouTube - Hide comments components:** Added `Hide 'No comments yet' message`. Ported from Morphe.
+* **YouTube - Hide comments components:** Added a `Hide live chat scroll to bottom button` setting (off by default) that hides the button that jumps to the newest message in live chat. Ported from Morphe.
+* **YouTube - Navigation bar:** Added a `Disable toolbar navigation tabs` setting (on by default) that keeps Subscriptions in the navigation bar when YouTube moves it to a tab at the top of Home. Needs YouTube 21.35 or newer; on older versions it is skipped with a warning. Ported from Morphe.
+* **YouTube - Return YouTube Dislike:** Added two settings (off by default) that show the like count and the like percentage on the right side of feed video thumbnails, using the Return YouTube Dislike API. Ported from Morphe.
+* **YouTube Music - Playback speed:** Added a `Playback speed` slider (25-300%, in Video settings) that sets the speed used for all tracks, and applies a changed value within about a second while a track is playing. At 100% the app's own speed, such as the podcast speed, is kept. `Change pitch with speed` now follows the slider too and also takes effect right away. Ported from Morphe.
+* **YouTube - Add to queue:** Added Feed settings that make the feed flyout `Play next in queue` open the RVX queue (on by default), add an `Add to RVX queue` flyout item (on by default), or use a `Premium-style queue` (off by default) that lives on the device, plays the queued videos one after another on its own, and has a queue sheet with drag reordering (also opened from the Save to Watch later player button). When the patch is applied and one of its queue options is on, it takes over the flyout queue entry, and the older `Override Play next in queue` setting of Hook download actions only applies when they are off. It needs YouTube 21.05 or newer; on older versions it is skipped with a warning. Ported from Morphe.
+
+## [1.13.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.12.0...v1.13.0) (2026-10-24)
+
+### Features
+
+* **YouTube Music - Android Auto:** Added a patch (on by default, ported from Morphe) that restores the Home recommendations, all Library collections (Last played, Playlists, Albums, Songs, Artists, Subscriptions, Podcasts and uploads), search with playable results, and a Podcasts tab in Android Auto, and bypasses the certificate checks. It replaces `Restore Android Auto playlists`, which is removed: the Library playlists, their artwork and the reload after changes on the phone are part of the new patch. It needs YouTube Music 9.15 or newer; on older versions it is skipped with a warning, so the Library playlists page is empty there again, and `Certificate spoof` still lets Android Auto connect.
+
+## [1.12.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.11.0...v1.12.0) (2026-10-24)
+
+### Features
+
+* **YouTube - Video delay:** Added a player button and dialog (and a setting, 0-5000 ms) that delay the video to keep it in sync with laggy Bluetooth audio. Ported from Morphe.
+* **YouTube - Skip live Shorts:** Added an option to automatically skip live streams in the Shorts feed. Ported from Morphe.
+* **YouTube - Force animations:** Added an option to always turn on or off the app animations that YouTube can turn off. Ported from Morphe.
+* **YouTube - Search comments:** Added an option (off by default) that adds a search button to the comments panel to filter the loaded comments. Ported from Morphe.
+* **YouTube - Channel search:** Added an option (off by default) that adds a button to channel pages to search for videos inside that channel. Ported from Morphe.
+* **YouTube - Feed card layout:** Added a Feed setting to keep the feed as YouTube sends it (default), or to show feed videos in the classic layout, as cards, or as cards with like, comment and save buttons. Ported from Morphe.
+* **YouTube - Feed view count:** Added a Feed setting (off by default) to show the view count at the bottom left of feed video thumbnails instead of below the title. Ported from Morphe.
+* **YouTube - Shorts icon style:** Added a Shorts setting to change the style of the Shorts action button icons (Fluent, Phosphor, Phosphor Light, Phosphor Duotone, Ionicons, Sharp). Ported from Morphe.
+* **YouTube - Media notification controls:** Added options to disable the seekbar, hide the Previous & Next buttons, or make them seek by a set number of seconds in the media notification, lock screen and headphone controls. Ported from Morphe.
+* **YouTube - Hook download actions:** Added a `Quick download menu` setting (off by default). With YTDLnis or YTindir as the video downloader, the download buttons show a Video / Audio / All options menu. Video and audio are queued in the background with the downloader's default settings. Idea from Morphe.
+* **YouTube / YouTube Music - Network proxy:** Added a patch (off by default) to route the app's network requests through an HTTP or HTTPS proxy, with optional authentication and direct fallback. Needs YouTube 20.47+ or YouTube Music 9.15+. Ported from Morphe.
+* **YouTube Music - Play albums songs:** Added an option to play the song version of album tracks instead of their music videos (needs `Spoof video streams`). Ported from Morphe.
+* **YouTube Music - Enable exclusive audio playback:** Added a patch that allows audio-only playback for content that is marked as audio-only unavailable. Ported from Morphe.
+* **YouTube Music - Jam queue sharing:** Added a patch (the setting is off by default) that shares the host queue and playback controls through the Jam Layer companion app. Needs YouTube Music 9.00+. Ported from Morphe.
+
+## [1.11.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.10.4...v1.11.0) (2026-10-24)
+
+### Features
+
+* **YouTube - Built-in downloader:** A playlist can be downloaded with the built-in downloader. The offline library has a new `Download playlist` button: paste a playlist link or id (a copied playlist link is filled in), then pick a maximum quality (Best available, 1080p, 720p, 480p, 360p). YouTube's own playlist download button and `Download playlist` menu entry also start it where YouTube shows them (YouTube shows them only to some accounts). Each video gets the best quality up to the limit, resolved when its turn comes so long playlists do not outlive their stream links. Videos you already downloaded are skipped, and a playlist shows one summary notification at its end instead of one per video. The download notification shows the place in the playlist and has a `Cancel all` action, and the offline library has a `Cancel all` button. Run the download again after a failure: the finished videos are skipped and the failed ones retried. The queue is kept in memory, so closing the app ends it.
+
+## [1.10.4](https://github.com/lavinhoque33/revanced-patches/compare/v1.10.3...v1.10.4) (2026-10-23)
+
+### Features
+
+* **YouTube Music - Visual preferences icons:** New `Icon style` patch option, `Regular` (default) or `Bold`. `Bold` draws the settings menu icons, the RVX sub-settings icons and the RVX entry with a heavier line weight, like the YouTube patch (#13).
+
+### Bug Fixes
+
+* **YouTube Music - Crossfade:** With `Crossfade on auto-advance` on, `Repeat one` no longer skips to the next track on YouTube Music 9.40+. The repeat state was reset by playback and shuffle events that share the same callback on these versions. Ported from Morphe (MorpheApp/morphe-patches#3916) (#14).
+
+## [1.10.3](https://github.com/lavinhoque33/revanced-patches/compare/v1.10.2...v1.10.3) (2026-10-20)
+
+### Features
+
+* **YouTube - Built-in downloader:** A tap on a download in the offline library (or on the download finished notification) now opens the video in YouTube's own player, so comments, related videos, SponsorBlock, Return YouTube Dislike and the other player buttons work for it. The downloaded file is played, not the stream. YouTube's video page needs the internet: without a connection, for a file this device cannot decode, or with `Play downloads in YouTube's player` off, the built-in player opens as before. The long-press menu of a download has a `Play in built-in player` entry. The resume position is saved while YouTube's player plays the file.
+
+## [1.10.2](https://github.com/lavinhoque33/revanced-patches/compare/v1.10.1...v1.10.2) (2026-10-20)
+
+### Bug Fixes
+
+* **YouTube - Player buttons:** Long video titles no longer run under the Save to watch later, Reload video, Picture-in-picture and SponsorBlock overlay buttons. YouTube rewrote the title's end constraint at runtime, which dropped the added buttons from it (#9).
+
+## [1.10.1](https://github.com/lavinhoque33/revanced-patches/compare/v1.10.0...v1.10.1) (2026-10-20)
+
+### Bug Fixes
+
+* **YouTube - Built-in downloader:** The offline library and player now use YouTube-style icons (search, sort, play, pause, next, previous, speed, rotate, back) and a red seekbar that follows `Custom seekbar color`. The sort and playback speed menus show a check mark on the selected row instead of radio buttons, and the "Downloads" title is centered with the back arrow (#8).
+* **YouTube - Visual preferences icons:** `Icon style: Bold` now also applies to the RVX entry in the YouTube settings (#8).
+
+## [1.10.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.9.0...v1.10.0) (2026-10-20)
+
+### Features
+
+Merged anddea/revanced-patches `dev` (4.4.0-dev.2). Where both repositories carried the same feature ported from Morphe, anddea's implementation replaces this fork's copy, so the settings of these features reset to their defaults:
+
+* **YouTube:** `Disable auto feed refresh`, `Picture-in-picture button` (replaces the PiP overlay button), `Preferred caption language` (replaces `Caption language`) and `DeArrow` (replaces `Alternative thumbnails` and its DeArrow titles).
+* **YouTube - Swipe controls:** `Volume boost`.
+* **YouTube - Hide feed components:** `Hide live streams`.
+* **YouTube & YT Music:** `Skip silence`.
+* **YouTube:** `Restore original titles` now uses anddea's reworked implementation.
+
+The fork's `Copy text` is kept (anddea's version does not apply on YouTube 20.05.46), so its settings are unchanged.
+
+## [1.9.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.8.0...v1.9.0) (2026-10-17)
+
+### Features
+
+Ported from Morphe (MorpheApp/morphe-patches):
+
+* **YouTube - Alternative thumbnails:** Add "DeArrow titles": replaces clickbait titles with DeArrow's community titles, set per screen (Home, Player playlists & recommendations, Search results, Subscriptions, You), with an optional DeArrow icon and a "Casual mode" that keeps the original title when enough DeArrow users prefer it. When "Restore original titles" is also on, a DeArrow title is used if the video has one, otherwise the original title.
+* **YouTube:** Add `Disable continue watching prompt` patch: autoplay keeps going instead of pausing with a "Continue watching?" prompt after a period of inactivity (RVX → Player).
+* **YouTube - Overlay buttons:** Add a picture-in-picture button to the video player (RVX → Player → Player buttons).
+* **YouTube:** Add `Caption language` patch: a preferred caption language (creator subtitles first, then a track in that language, then an auto-translated track) and additional auto-translate languages (RVX → General). Choosing a track in the captions menu still wins for that video.
+
+## [1.8.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.7.0...v1.8.0) (2026-10-17)
+
+### Features
+
+Ported from Morphe (MorpheApp/morphe-patches):
+
+* **YouTube Music:** Add `Scrobbling` patch: sends played tracks to ListenBrainz (user token) and Last.fm (username/password login), with optional "Now Playing" status, "love" on like for Last.fm, minimum duration and scrobble delay sliders, and metadata cleanup. Settings are in the new RVX → Scrobbling screen.
+* **YouTube Music:** Add `Playlist track tap action` patch: tapping a track in a playlist or album can play only that track or add it to the queue, instead of replacing the queue with the whole playlist (RVX → Player).
+* **YouTube Music:** Add `Enable audio/video switch` patch: the Song side of the Song/Video switch in the player swaps the current track between its song and official music video versions (RVX → Player; YouTube Music 9.00 and newer). Switching turns shuffle off.
+* **YouTube Music - Video playback:** Add "Change pitch with speed" setting: pitch rises and falls with the playback speed. It applies on the next speed change or track.
+
+## [1.7.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.6.0...v1.7.0) (2026-10-17)
+
+### Features
+
+* **YouTube Music - Downloads:** With in-app downloads on, a playlist's or album's Download button downloads every track (all continuation pages, in order, duplicates kept) and saves it as a native local playlist. Library/account Downloads opens YouTube Music's own Device files library, and its own local-file player plays the tracks offline, signed out, without Premium. Songs are saved to `Music/RVX` as `Title - Artist` with the title, artist, album and cover YouTube Music shows for the track embedded in the file, so the Device files library lists them under their real artist and album: Opus streams are repackaged without re-encoding as `.ogg`, AAC streams as tagged `.m4a`. Tracks without an album on YouTube Music (e.g. music videos) get no album tag, and Android lists them under the folder name. A playlist is only saved once every track has finished; if a track is unavailable the download fails, completed songs are kept and any earlier copy of the playlist stays. Songs already downloaded are reused, and existing in-app downloads are migrated, with their saved titles, artists and covers, without downloading them again. Turning the option off restores stock behavior.
+* **YouTube Music - Downloads:** Music's native Device files library and player replace the patch's own Downloads screen and offline player.
+* **YouTube Music - Downloads:** Signed-in accounts without Premium: the playlist Download button now starts the native download instead of the "Get Music Premium" sheet, Account → Downloads opens Device files, and playlists you own no longer fail on their "Add a song" row.
+* **YouTube Music - Downloads:** A "Not in a playlist" native playlist lists every downloaded song that is in no other playlist (including playlists you make in Device files), newest first. It updates after each download and when Music opens, and is removed when empty.
+* **YouTube Music - Downloads:** A playlist download no longer leaves a stuck "Downloading track N of M" notification when its songs were already downloaded.
+
+## [1.6.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.5.1...v1.6.0) (2026-10-16)
+
+### Features
+
+Ported from Morphe (MorpheApp/morphe-patches):
+
+* **YouTube - Hide comments components:** Add "Hide Menu button", "Hide Translate button", "Hide Dislike button" and "Minimal comments button" settings.
+* **YouTube - Hide feed components:** Add "Hide History shelf", "Hide live streams" and "Hide channel names in subscribed channels bar" settings.
+* **YouTube:** Add `Disable auto feed refresh` patch, which stops the feed from reloading on its own when returning to the app.
+* **YouTube - Hide action buttons:** Add "Hide channel and Subscribe button" and "Hide Subscribe button" settings for the video action bar.
+* **YouTube - Description components:** Add "Hide 'Ask Gemini' button" setting for the Ask panel.
+* **YouTube - Hide layout components:** Add "Hide Help & feedback in menus" setting for the app bar's three-dot menus.
+* **YouTube - Navigation bar components:** Add "Hide new content dot" setting.
+* **YouTube:** Add `Hide status bar` patch; swipe down from the top edge to show the status bar temporarily.
+* **YouTube - SponsorBlock:** Show each category's skip behavior in its summary in the settings.
+* **YouTube Music - Hide layout components:** Add "Hide podcast episode Download button" setting; "Hide floating button" also hides the Library tab's "New" button in newer layouts.
+* **YouTube Music:** Add `Force portrait orientation` and `Media notification controls` (hide previous/next buttons, disable the seekbar) patches.
+* **YouTube:** Add `Copy text` patch; tap and hold the video title or a comment to copy it (MorpheApp/morphe-patches#3592).
+* **YouTube - Swipe controls:** Add a "Volume boost" setting; swiping the volume up past its maximum boosts it with a `LoudnessEnhancer`, which can distort loud audio (MorpheApp/morphe-patches#3412).
+* **YouTube/YouTube Music:** Add `Skip silence` patch with a selectable minimum pause length, which automatically skips silent pauses in audio playback (MorpheApp/morphe-patches#3467).
+
+## [1.5.1](https://github.com/lavinhoque33/revanced-patches/compare/v1.5.0...v1.5.1) (2026-10-15)
+
+
+### Bug Fixes
+
+* **YouTube - Hook download actions:** Fix "Replace Downloads page" still opening YouTube's empty native Downloads page from the "Downloads" row in the You tab's library list (lavinhoque33/revanced-patches#7); that row uses a dedicated Downloads page command instead of a browse endpoint, so the command resolver now replaces every entry to the Downloads page with the offline library ([411834a](https://github.com/lavinhoque33/revanced-patches/commit/411834ae1597256370ea386a19fc47ba1f45aa30))
+
+
+### Features
+
+* **YouTube - Force system font:** Add a patch, ported from Morphe (MorpheApp/morphe-patches#3579), with a setting in RVX → General that shows the app with the device font instead of YouTube Sans; requires an app restart (lavinhoque33/revanced-patches#4) ([365ce0c](https://github.com/lavinhoque33/revanced-patches/commit/365ce0ccca356e30c1302312e98ac9c625bb430d))
+* **YouTube - Visual preferences icons:** Add an "Icon style" patch option with a Bold style that draws the settings menu icons with a heavier line weight (lavinhoque33/revanced-patches#4) ([365ce0c](https://github.com/lavinhoque33/revanced-patches/commit/365ce0ccca356e30c1302312e98ac9c625bb430d))
+
+## [1.5.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.4.2...v1.5.0) (2026-10-15)
+
+
+### Bug Fixes
+
+* **YouTube - Theme:** Apply custom palettes to newer baseline menu, text and chip colors while preserving stock foreground shades when foreground theming is disabled ([6f7808f](https://github.com/lavinhoque33/revanced-patches/commit/6f7808f704b2d978cd58d6e6d3c10986bde5a7a0))
+* **YouTube - Hook download actions:** Speed up built-in offline downloads with a shared six-connection video/audio pool, reusable connections and bounded ranges with coalesced cache writes; resume failed ranges without decreasing progress and promptly stop cancelled transfers ([db0e088](https://github.com/lavinhoque33/revanced-patches/commit/db0e0889b43e37413e465e2c892eed7976ad460c))
+* **YouTube Music - Downloads:** Speed up in-app audio downloads with bounded 8 MiB ranges shared by up to six reusable connections instead of four uncapped ranges (long tracks over ~40 MiB were throttled by the server), coalesced cache writes and immediate abort of all connections when a range fails; resumed ranges keep progress from decreasing ([db0e088](https://github.com/lavinhoque33/revanced-patches/commit/db0e0889b43e37413e465e2c892eed7976ad460c))
+* **YouTube Music - Downloads:** Fix in-app downloads failing with "Download failed" when googlevideo refuses every range past the first ~1 MB of the default `VISIONOS` client's stream with HTTP 403; the download now falls back to the next client's stream ([db0e088](https://github.com/lavinhoque33/revanced-patches/commit/db0e0889b43e37413e465e2c892eed7976ad460c))
+* **YouTube Music - Downloads:** Fix downloaded songs not playing on root (mounted) installs ("Unable to start service ... OfflinePlaybackService ... not found"); the offline player now runs in YouTube Music's own `BackgroundPlayerService` (mediaPlayback) instead of a service the patch added to the manifest, so the manifest is no longer modified ([811d8dc](https://github.com/lavinhoque33/revanced-patches/commit/811d8dc39d19f20ecb41be19fbad4939ebe2604b))
+* **YouTube Music - Downloads:** Fix the three-dot menu Download row doing nothing with in-app downloads on; the row is now routed to the in-app downloader without also needing the separate "external downloader in flyout menu" setting ([811d8dc](https://github.com/lavinhoque33/revanced-patches/commit/811d8dc39d19f20ecb41be19fbad4939ebe2604b))
+* **YouTube - Hook download actions:** Make the merge step of the built-in offline downloader much faster (a 783 MB 960p60 video took ~27 s on a Galaxy S23, now a few seconds): the fragmented DASH video and audio are rebuilt into a progressive MP4 by copying the sample data in large blocks instead of feeding every sample through `MediaMuxer`, and the result is written straight into the `Movies/RVX` item instead of the cache and copied again. Files the new path does not handle still use `MediaMuxer` ([007c8d3](https://github.com/lavinhoque33/revanced-patches/commit/007c8d3437b96e80624bd4a0d6a6971cb9ee041f))
+* **YouTube - Hook download actions:** Fix AV1 downloads playing a grey picture with audio only in the offline player on devices without a hardware AV1 decoder (e.g. some tablets); the quality picker now marks AV1 streams the device cannot decode with an orange "[can't play on this device]" note (they stay downloadable for other devices), and the offline player shows a message when such a file is opened ([007c8d3](https://github.com/lavinhoque33/revanced-patches/commit/007c8d3437b96e80624bd4a0d6a6971cb9ee041f))
+* **YouTube - Hook download actions:** Fix quality labels in the built-in download picker, the saved library and the offline player for videos that are not 16:9 (e.g. 1920x960 showed "960p60" and 2560x1280 showed "1280p" where YouTube says 1080p60 and 1440p; vertical Shorts showed "1920p"); the label, HD/2K/4K badge and sort order now follow YouTube's own quality label, while decoder checks still use the real picture size ([007c8d3](https://github.com/lavinhoque33/revanced-patches/commit/007c8d3437b96e80624bd4a0d6a6971cb9ee041f))
+
+
+### Features
+
+* **YouTube - Hook download actions:** Offer VP9/WebM (Opus audio) downloads, saved as `.webm`, for qualities that have no H.264 and no AV1 the device can play (e.g. 1440p and 4K on devices without hardware AV1); only shown when the device has a hardware VP9 decoder for the stream. The WebM merge is a pure-Java remux (cues for seeking, Opus pre-skip kept) that takes seconds instead of over a minute for a 2 GB file; the platform muxer remains as a fallback ([007c8d3](https://github.com/lavinhoque33/revanced-patches/commit/007c8d3437b96e80624bd4a0d6a6971cb9ee041f))
+
+## [1.4.2](https://github.com/lavinhoque33/revanced-patches/compare/v1.4.1...v1.4.2) (2026-10-12)
+
+
+### Bug Fixes
+
+* **YouTube - Return YouTube Dislike:** Show the separator and dislikes on the old video action bar on YouTube 21.39 ([d9957cf](https://github.com/lavinhoque33/revanced-patches/commit/d9957cf3b1a2f9a50b5c06de7b7364e7a121d52b))
+* **YouTube - Voice over translation:** Unblock finished livestreams and resume video when translation is unavailable ([9b2b192](https://github.com/anddea/revanced-patches/commit/9b2b19296a963c1eea346c8cb63519c7833bbace))
+
+
+### Features
+
+* **YouTube:** Add `Playback buffer` patch ([c13a079](https://github.com/anddea/revanced-patches/commit/c13a0793b88e04d66e609a5f393d80cb7d39c7f8))
+* **YouTube:** Add `Restore original titles` patch ([4578bf9](https://github.com/anddea/revanced-patches/commit/4578bf974b3ab1dedf4ca9d5373f74c9a927c93c))
+* **YouTube:** Enable `Spoof video streams` and disable `PoToken provider` by default ([e132606](https://github.com/anddea/revanced-patches/commit/e132606016c2ef3b46c32cf297fcbff5063979d4))
+* **YouTube - Seekbar components:** Add double tap gesture to show remaining time with timestamp info enabled ([18810e4](https://github.com/anddea/revanced-patches/commit/18810e45372236f97311bbfccd0597fc5b315528))
+* **YouTube Music - Third-party lyrics:** Search and prompt ([55aa921](https://github.com/anddea/revanced-patches/commit/55aa9210f76392aab29b1765915410fb5641fdcc))
+
+## [1.4.1](https://github.com/lavinhoque33/revanced-patches/compare/v1.4.0...v1.4.1) (2026-10-11)
+
+
+### Bug Fixes
+
+* **YouTube - Overlay buttons:** Keep the player controls above the seekbar on YouTube 21.39 ([47f6b46](https://github.com/lavinhoque33/revanced-patches/commit/47f6b467e37dd49dee6d81fb85c93042f5947674))
+* **YouTube - Playback speed:** Apply the Shorts default playback speed on YouTube 21.39 ([ce9212e](https://github.com/lavinhoque33/revanced-patches/commit/ce9212e4e557e06cd44fdb30e713f16e4efd0836))
+* **YouTube - Spoof video streams:** Fix playback with the visionOS and Android VR clients and add the Wii U TV fallback ([a5f8e92](https://github.com/lavinhoque33/revanced-patches/commit/a5f8e92ddeca8d2bdd2792d6ddcc3c9f7edbadd0))
+* **YouTube Music - Dark theme:** Apply the theme to the stock and RVX settings screens on YouTube Music 9.40.51 ([8e4ee97](https://github.com/lavinhoque33/revanced-patches/commit/8e4ee9790d4dced453e9e7078c50bb42deaeae5a))
+* **YouTube:** Fix the miniplayer autoplay end screen on YouTube 21.36+ ([91af0a0](https://github.com/lavinhoque33/revanced-patches/commit/91af0a000b3b557739921d72abdf57b70435407d))
+* **YouTube:** Keep custom flyout menu items when the anchored 3-dots menu is enabled ([292dbd8](https://github.com/lavinhoque33/revanced-patches/commit/292dbd8fbc050c0de9e1063fe0dcdeb45300f73a))
+
+# [1.4.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.3.2...v1.4.0) (2026-10-10)
+
+
+### Features
+
+* **YouTube - Hook download actions:** Add built-in video downloader, offline library and player, and a Downloads button in the You tab ([13d1d26](https://github.com/lavinhoque33/revanced-patches/commit/13d1d260d999a5e2c6ce1d356663d02511dc5e3a))
+
+## [1.3.2](https://github.com/lavinhoque33/revanced-patches/compare/v1.3.1...v1.3.2) (2026-10-08)
+
+
+### Bug Fixes
+
+* **YouTube:** Overlay buttons were always visible and did nothing on YouTube 21.39. Hide cast button, Disable ambient mode, Hide PiP mode menu and two internal fixes were only partly applied on 21.39 ([901afe4](https://github.com/lavinhoque33/revanced-patches/commit/901afe43dd032f5674e178ae1f7f767b88091d16))
+* Use user-facing wording for patch warnings, and hide settings that cannot work in the patched version ([b63395a](https://github.com/lavinhoque33/revanced-patches/commit/b63395a6123c08fec3f0982ff983ee3c09d8d895))
+
+## [1.3.1](https://github.com/lavinhoque33/revanced-patches/compare/v1.3.0...v1.3.1) (2026-10-07)
+
+
+### Bug Fixes
+
+* **Litho filter:** Use the looser legacy buffer fingerprint only as a fallback. Fixes 8 failing patches on YouTube Music 8.30 and older ([175f6a7](https://github.com/lavinhoque33/revanced-patches/commit/175f6a70d64c2f866ca1c2d542d18b110d65508c))
+
+# [1.3.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.2.0...v1.3.0) (2026-10-07)
+
+
+### Features
+
+* Restore features skipped on YouTube 21.39.525 and YouTube Music 9.40.51: Disable DRC audio, fullscreen large seekbar, miniplayer width, rounded corners, drag and drop and horizontal drag, Hide song / video toggle, crossfade media session fix ([7b9f171](https://github.com/lavinhoque33/revanced-patches/commit/7b9f171a934453d883db0e9909042c5a7313eb83))
+
+# [1.2.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.1.1...v1.2.0) (2026-10-07)
+
+
+### Features
+
+* **YouTube Music - Restore Android Auto playlists:** Add artwork and update pages after changes on the phone ([634d713](https://github.com/lavinhoque33/revanced-patches/commit/634d7135bd559de56cca29ee0cb927bff5b49e97))
+
+## [1.1.1](https://github.com/lavinhoque33/revanced-patches/compare/v1.1.0...v1.1.1) (2026-10-07)
+
+
+### Bug Fixes
+
+* Declare support for YouTube 21.39.525 and YouTube Music 9.40.51 ([f257c2b](https://github.com/lavinhoque33/revanced-patches/commit/f257c2be906ab0c6576fbd083eeb2fe81672cfe2))
+
+# [1.1.0](https://github.com/lavinhoque33/revanced-patches/compare/v4.3.1-dev.1-lavin.1...v1.1.0) (2026-10-07)
+
+
+### Features
+
+* **YouTube Music - Restore Android Auto playlists:** Add patch ([cc751a5](https://github.com/lavinhoque33/revanced-patches/commit/cc751a5e07babf3751a1e42597f0e84b7c4c3c30))
+
+# [1.0.0](https://github.com/lavinhoque33/revanced-patches/releases/tag/v4.3.1-dev.1-lavin.1) (2026-10-06)
+
+First release of the lavinhoque33 fork, based on anddea 4.3.1-dev.1 (published as `v4.3.1-dev.1-lavin.1`).
+
+
+### Bug Fixes
+
+* **YouTube:** Support YouTube 21.39.525 ([d95145b](https://github.com/lavinhoque33/revanced-patches/commit/d95145b))
+* **YouTube Music:** Support YouTube Music 9.40.51 ([0bdbd84](https://github.com/lavinhoque33/revanced-patches/commit/0bdbd84))
+
+# [4.4.0-dev.5](https://github.com/anddea/revanced-patches/compare/v4.4.0-dev.4...v4.4.0-dev.5) (2026-11-03)
+
+
+### Features
+
+* **YouTube - Copy text:** Add option to select text of descriptions and posts ([9ecb6b9](https://github.com/anddea/revanced-patches/commit/9ecb6b970b71d14b2f9e4737d7a7d8ce091fc602))
+* **YouTube - Navigation bar components:** Add `Watch later` option for `Navigation bar items` setting ([b1151a0](https://github.com/anddea/revanced-patches/commit/b1151a0616f669d294df5cc2bbfc3daf73653a09))
+* **YouTube:** Add `Translate live chat` patch ([fd06c13](https://github.com/anddea/revanced-patches/commit/fd06c13ee62d58d95d552b569e85dd7bce5da232))
+* **YouTube:** Add `Unlock queue` patch ([6fb6e5c](https://github.com/anddea/revanced-patches/commit/6fb6e5ceaea2f0287d48e6819151c2b7dc33d8cb))
+
+# [4.4.0-dev.4](https://github.com/anddea/revanced-patches/compare/v4.4.0-dev.3...v4.4.0-dev.4) (2026-10-30)
+
+
+### Bug Fixes
+
+* **YouTube - Hide player buttons:** Hiding fullscreen overlay button in the video player left an empty gap ([36732b2](https://github.com/anddea/revanced-patches/commit/36732b27a2eb7c63c311bb85dcd64c36f252b3b5))
+* **YouTube - Hook download actions:** Use YouTube-style icons and check marks in the offline library and player ([#1889](https://github.com/anddea/revanced-patches/issues/1889)) ([a29768f](https://github.com/anddea/revanced-patches/commit/a29768f1cc8b268e4d7977f5829befc77fddc056))
+* **YouTube Music - Third-party lyrics:** Normalize LRCLIB title and artist metadata ([#1888](https://github.com/anddea/revanced-patches/issues/1888)) ([6862b24](https://github.com/anddea/revanced-patches/commit/6862b24554ff3fc2196aa893c2d7c4c751741304))
+* **YouTube Music:** Last played music state lost after app termination ([8595c10](https://github.com/anddea/revanced-patches/commit/8595c105ad851157ec6325ad44fdbb47b1d26e7b))
+
+
+### Features
+
+* **YouTube - Navigation bar components:** Add "Navigation bar style" setting ([221112a](https://github.com/anddea/revanced-patches/commit/221112a2cb5c4754ac5f3930118eb91bcabd009c))
+* **YouTube:** Add `Download post images` patch ([5d75658](https://github.com/anddea/revanced-patches/commit/5d756583cabd88d2c8a6a49c58130f6a801b77d7))
+* **YouTube:** Add `Search comments` patch ([30cc24f](https://github.com/anddea/revanced-patches/commit/30cc24f6d48b9d4320bb7cd3900062b759d3a1bf))
+
+# [4.4.0-dev.3](https://github.com/anddea/revanced-patches/compare/v4.4.0-dev.2...v4.4.0-dev.3) (2026-10-22)
+
+
+### Bug Fixes
+
+* **YouTube - Copy text:** Failed on older versions ([237b02e](https://github.com/anddea/revanced-patches/commit/237b02e94d2e8c1e80e79b81d3f4a04c951f1ad9))
+
+
+### Features
+
+* **YouTube - SponsorBlock:** Add support for Shorts ([fcd5a77](https://github.com/anddea/revanced-patches/commit/fcd5a775d65b287ddae4a63468ca6af2f6f309fa))
+* **YouTube Music - Downloads:** Download songs and playlists to Music's own device files library ([#1884](https://github.com/anddea/revanced-patches/issues/1884)) ([9b4d973](https://github.com/anddea/revanced-patches/commit/9b4d973eb5cd6dab2050c4461b47c686b6acd16a))
+* **YouTube:** Add `Feed video actions` patch ([aa0cb82](https://github.com/anddea/revanced-patches/commit/aa0cb8222a68d20a09181345f0dc838f1926e8bb))
+* **YouTube:** Add built-in video downloader ([#1883](https://github.com/anddea/revanced-patches/issues/1883)) ([15305a3](https://github.com/anddea/revanced-patches/commit/15305a359d711e4fc661c846bf44508f77397832))
+
+# [4.4.0-dev.2](https://github.com/anddea/revanced-patches/compare/v4.4.0-dev.1...v4.4.0-dev.2) (2026-10-16)
+
+
+### Bug Fixes
+
+* **YouTube - Voice-over translation:** Keep completed audio stopped ([#1868](https://github.com/anddea/revanced-patches/issues/1868)) ([ed2641a](https://github.com/anddea/revanced-patches/commit/ed2641a6ab83444a207ee1d3da1a21aae6896268))
+
+
+### Features
+
+* **YouTube:** Add `Copy text` patch ([361561c](https://github.com/anddea/revanced-patches/commit/361561cdc0e2df3e16491a185eef92349a692740))
+* **YouTube:** Add `Picture-in-picture button` patch ([c2a5a59](https://github.com/anddea/revanced-patches/commit/c2a5a59e3226e3e36f5d351ab926271ed00e6bd0))
+* **YouTube:** Add `Preferred caption language` patch ([6fd3736](https://github.com/anddea/revanced-patches/commit/6fd3736e76826617b71ecdeabb47cbbbe6b0d1b9))
+
+# [4.4.0-dev.1](https://github.com/anddea/revanced-patches/compare/v4.3.1-dev.1...v4.4.0-dev.1) (2026-10-14)
+
+
+### Bug Fixes
+
+* **YouTube - Voice over translation:** Unblock finished livestreams and resume video when translation is unavailable ([#1860](https://github.com/anddea/revanced-patches/issues/1860)) ([9b2b192](https://github.com/anddea/revanced-patches/commit/9b2b19296a963c1eea346c8cb63519c7833bbace)), closes [#1806](https://github.com/anddea/revanced-patches/issues/1806)
+* **YouTube & YT Music - GmsCore support:** Fix notification registration for patched app ([87b1fec](https://github.com/anddea/revanced-patches/commit/87b1fecfaecf67bd1578f91fd9dc4bb503357085))
+* **YouTube:** Fix overlay buttons and partially applied settings on YouTube v21.39 ([#1854](https://github.com/anddea/revanced-patches/issues/1854)) ([e669864](https://github.com/anddea/revanced-patches/commit/e66986468fdaf5684d7b983e4b873dd1ed8017ae))
+
+
+### Features
+
+* Add experimental support for `YouTube v21.39.525` and `YouTube Music v9.40.51` ([#1849](https://github.com/anddea/revanced-patches/issues/1849)) ([774dc60](https://github.com/anddea/revanced-patches/commit/774dc60f4ef2459bcdd2046d88115da9078b9fb0))
+* **YouTube - Gemini:** Add spoken word highlighting to video subtitles ([#1857](https://github.com/anddea/revanced-patches/issues/1857)) ([21cb5f8](https://github.com/anddea/revanced-patches/commit/21cb5f830cc3ff2484d072040ba7f663190df497))
+* **YouTube - Hide feed components:** Add `Hide live streams` setting ([ebb1941](https://github.com/anddea/revanced-patches/commit/ebb1941d8907482f4e105674155f125edde611ea))
+* **YouTube - Seekbar components:** Add double tap gesture to show remaining time with timestamp info enabled ([18810e4](https://github.com/anddea/revanced-patches/commit/18810e45372236f97311bbfccd0597fc5b315528))
+* **YouTube - Swipe controls:** Add `Volume boost` setting ([6778382](https://github.com/anddea/revanced-patches/commit/6778382a0796996b035b0c77fb457450ff6872e2))
+* **YouTube - Voice over translation:** Allow canceling pending translation on second VOT button tap ([#1863](https://github.com/anddea/revanced-patches/issues/1863)) ([c00e98c](https://github.com/anddea/revanced-patches/commit/c00e98cf3799efca12ba883b9082cc21ba413842))
+* **YouTube & YT Music:** Add `Skip silence` patch ([0bc45d5](https://github.com/anddea/revanced-patches/commit/0bc45d52c1f58f68aa89f2d55b57aab3767093d3))
+* **YouTube Music - Third-party lyrics:** Search and prompt ([55aa921](https://github.com/anddea/revanced-patches/commit/55aa9210f76392aab29b1765915410fb5641fdcc))
+* **YouTube:** Add `Disable auto feed refresh` patch ([f470503](https://github.com/anddea/revanced-patches/commit/f470503eb15c80e3f9eccb7e9e0dbb80a0836ed1))
+* **YouTube:** Add `Playback buffer` patch ([c13a079](https://github.com/anddea/revanced-patches/commit/c13a0793b88e04d66e609a5f393d80cb7d39c7f8))
+* **YouTube:** Add `Restore original titles` patch ([4578bf9](https://github.com/anddea/revanced-patches/commit/4578bf974b3ab1dedf4ca9d5373f74c9a927c93c))
+* **YouTube:** Enable `Spoof video streams` and disable `PoToken provider` by default ([e132606](https://github.com/anddea/revanced-patches/commit/e132606016c2ef3b46c32cf297fcbff5063979d4))
+
+## [4.3.1-dev.1](https://github.com/anddea/revanced-patches/compare/v4.3.0...v4.3.1-dev.1) (2026-09-28)
+
+
+### Bug Fixes
+
+* **YouTube - Voice over translation:** Prevent translated audio from starting while video is paused ([#1832](https://github.com/anddea/revanced-patches/issues/1832)) ([7522fe2](https://github.com/anddea/revanced-patches/commit/7522fe2dbb20474b210048a97940ebf123a04e4a))
+
 # [4.3.0](https://github.com/anddea/revanced-patches/compare/v4.2.0...v4.3.0) (2026-09-28)
 
 

@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
- * Modified by lavinhoque33, 2026-11-23.
+ * Modified by lavinhoque33, 2026-11-24.
  * Written by lavinhoque33, 2026-11-22.
  */
 package app.morphe.extension.youtube.patches.player;
@@ -26,7 +26,7 @@ public final class BufferedSeekbarPatch {
         return stockFade == 0f && !scrubbing && isHiddenPortraitWatch(seekbar) ? HIDDEN_BUFFER_FADE : stockFade;
     }
 
-    static boolean isHiddenPortraitWatch(View seekbar) {
+    public static boolean isHiddenPortraitWatch(View seekbar) {
         return !VideoInformation.getLiveStreamState()
                 && PlayerType.getCurrent() == PlayerType.WATCH_WHILE_MAXIMIZED
                 && PlayerControlsVisibility.getCurrent() == PlayerControlsVisibility.PLAYER_CONTROLS_VISIBILITY_HIDDEN

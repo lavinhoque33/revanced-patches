@@ -725,6 +725,7 @@ val videoPlaybackPatch = bytecodePatch(
         // Use software PCM time stretching for custom speed so that the selected rate isn't
         // clamped or rejected by an OEM AudioTrack. Offload cannot use that software chain.
         installSoftwarePlaybackSpeed(EXTENSION_CUSTOM_PLAYBACK_SPEED_CLASS_DESCRIPTOR)
+        installOfflineWatchProgressiveExo()
 
         // region Disable audio offload when custom speed or audio pitch controls are enabled.
         audioOffloadEnabledFingerprint().method.apply {

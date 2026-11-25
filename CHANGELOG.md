@@ -1,3 +1,21 @@
+## Unreleased
+
+### Bug Fixes
+
+* **YouTube – Seekbar:** In Dark theme, the custom gradient ends at its accent color when portrait player
+  controls fade. The thumb still appears when the controls are shown. On 20.05.46, the Minimal and Tablet
+  miniplayers also show how much of the video has buffered.
+* **YouTube – Home feed:** **Show channel names on Home** keeps showing available channel names after
+  searching, returning to Home, and refreshing the feed. Search results keep their original bylines.
+* **YouTube – Downloads:** Fixed long seeks in YouTube’s watch player for saved videos larger than 2 GiB.
+  The built-in player and YouTube’s watch player support custom speeds such as 0.05× and 2.75× without
+  changing audio pitch. In the built-in player, changing speed while paused keeps playback paused.
+
+### Features
+
+* **YouTube – Downloads:** Swipe up in the built-in player to enter fullscreen or down to leave it.
+  Assigned volume and brightness zones keep their existing gestures.
+
 ## [1.51.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.50.0...v1.51.0) (2026-11-24)
 
 ### Features

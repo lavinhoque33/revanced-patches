@@ -65,13 +65,22 @@ public final class OfflineReplayHooks {
         }
     }
 
-    /** True only when the continuation would reinstall the same selected native primary queue. */
-    public static boolean retainLocalPlaylistShuffle(Object queue, @Nullable Object continuation) {
+    /** Negative drops a stale edited response; zero is the stock row path; positive merges only metadata. */
+    public static int retainQueueRows(Object queue, @Nullable Object continuation, int nativeCursor) {
+        if (continuation instanceof OfflineQueueActions.Continuation edited) {
+            try {
+                return edited.cursor() == nativeCursor && OfflineQueueActions.retains(queue, edited) ? 1 : -1;
+            } catch (Exception | LinkageError failure) {
+                Logger.printException(() -> "OfflineReplay: could not verify the edited queue continuation", failure);
+                return -1;
+            }
+        }
+
         try {
-            return OfflineReplay.retainLocalPlaylistShuffle(queue, continuation);
+            return nativeCursor >= 0 && OfflineReplay.retainLocalPlaylistShuffle(queue, continuation) ? 1 : 0;
         } catch (Exception | LinkageError failure) {
             Logger.printException(() -> "OfflineReplay: could not verify the native queue continuation", failure);
-            return false;
+            return 0;
         }
     }
 

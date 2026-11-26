@@ -35,6 +35,12 @@
   playback. Tracks keep their saved order and show available local artwork. Refresh and connected
   actions still use Music's normal online path. Offline **Shuffle → Play** shuffles Up Next and keeps
   Shuffle on when you skip to the next track.
+* **YouTube Music – Downloads:** A stream-downloaded playlist now shows the green check on its own row
+  in **Library → Downloads**, not only on its songs. Offline, **Add to queue** and **Play next** work
+  from a downloaded song's menu, and the Now Playing menu also lists **Play next**, **Add to queue**,
+  **Share** and **Remove download** for a downloaded song. Selecting a song in Up Next keeps the queue
+  you built, including a song added more than once. **Start mix**, **Go to artist**,
+  **Save to playlist**, liking and **Pin to Speed dial** still need a connection.
 
 ## [1.52.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.51.0...v1.52.0) (2026-11-25)
 

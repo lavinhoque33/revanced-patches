@@ -37,6 +37,7 @@ import com.android.tools.smali.dexlib2.immutable.ImmutableMethodParameter
 
 private const val REPLAY = "Lapp/morphe/extension/music/patches/downloads/OfflineReplayHooks;"
 private const val LOCAL_QUEUE = $$"Lapp/morphe/extension/music/patches/downloads/OfflineReplay$LocalShuffleQueue;"
+internal const val OFFLINE_QUEUE_MODEL = $$"Lapp/morphe/extension/music/patches/downloads/OfflineQueueActions$Queue;"
 private const val OWNS_REPLY = "$REPLAY->ownsLocalPlaylistShuffleReply(Ljava/lang/Object;)Z"
 private const val OBJECT = "Ljava/lang/Object;"
 private const val LIST = "Ljava/util/List;"
@@ -208,14 +209,16 @@ internal fun BytecodePatchContext.prepareSavedPlaylistShuffle(
 /** The stock empty-list edge already rejoins at the metadata tail with no primary mutation. */
 private class RowSplice(val receiver: Int, val selected: Int, val entry: Int, val metadata: Int) {
     fun retain(method: MutableMethod, prefix: Int, token: Int, loadToken: String = "") {
-        val guard = "${method.definingClass}->$RETAIN_SHUFFLE(${OBJECT}I)Z"
+        val guard = "${method.definingClass}->$RETAIN_SHUFFLE(${OBJECT}I)I"
         val index = prefix + entry
         method.addInstructionsWithLabels(index, """
             $loadToken
             if-eqz v$token, :rvx_apply_rows
             invoke-virtual {v$receiver, v$token, v$selected}, $guard
             move-result v$token
-            if-nez v$token, :rvx_apply_metadata
+            if-gtz v$token, :rvx_apply_metadata
+            if-eqz v$token, :rvx_apply_rows
+            return-void
         """,
             ExternalLabel("rvx_apply_rows", method.getInstruction(index)),
             ExternalLabel("rvx_apply_metadata", method.getInstruction(prefix + metadata)),
@@ -362,6 +365,25 @@ private fun BytecodePatchContext.prepareNativeShuffleMatch(
 
     return {
         queue.interfaces.add(LOCAL_QUEUE)
+        queue.interfaces.add(OFFLINE_QUEUE_MODEL)
+        queue.addDownloadsBridge("rvxOfflineCursor", emptyList(), "I", 2, """
+            invoke-virtual {p0}, $currentIndex
+            move-result v0
+            return v0
+        """)
+        queue.addDownloadsBridge("rvxOfflineSize", emptyList(), "I", 2, """
+            const/4 v0, 0x0
+            invoke-virtual {p0, v0}, $primarySize
+            move-result v0
+            return v0
+        """)
+        queue.addDownloadsBridge("rvxOfflineItem", listOf("I"), OBJECT, 3, """
+            const/4 v0, 0x0
+            invoke-virtual {p0, v0, p1}, $currentItem
+            move-result-object v0
+            return-object v0
+        """)
+
         // The admission bridge holds the native queue monitor throughout the comparison.
         queue.addDownloadsBridge("rvxMatchesLocalShuffle", listOf(LIST, "I"), "Z", 8, """
             if-eqz p1, :rvx_mismatch
@@ -402,18 +424,16 @@ private fun BytecodePatchContext.prepareNativeShuffleMatch(
             const/4 v0, 0x0
             return v0
         """)
-        queue.addDownloadsBridge(RETAIN_SHUFFLE, listOf(OBJECT, "I"), "Z", 4, """
+        queue.addDownloadsBridge(RETAIN_SHUFFLE, listOf(OBJECT, "I"), "I", 4, """
             monitor-enter p0
             :rvx_check_start
-            if-ltz p2, :rvx_decline
             invoke-virtual {p0}, $currentIndex
             move-result v0
-            if-ne v0, p2, :rvx_decline
-            invoke-static {p0, p1}, $REPLAY->retainLocalPlaylistShuffle($OBJECT$OBJECT)Z
+            if-eq v0, p2, :rvx_same_cursor
+            const/4 p2, -0x1
+            :rvx_same_cursor
+            invoke-static {p0, p1, p2}, $REPLAY->retainQueueRows($OBJECT${OBJECT}I)I
             move-result v0
-            goto :rvx_check_end
-            :rvx_decline
-            const/4 v0, 0x0
             :rvx_check_end
             monitor-exit p0
             return v0

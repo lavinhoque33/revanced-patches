@@ -493,6 +493,7 @@ public final class OfflineReplay {
                 OfflineReplayLogic.onlineWatchOf(command), VideoCopyStore.pairsIfLoaded()) : null;
         DownloadedRegistry registry = DownloadedMarkers.loadedRegistry();
         if (registry != null) watch = OfflineReplayLogic.canonicalTargetOf(watch, registry::canonicalId);
+        boolean start = browseId == null && noteNativePlaylistStart(command);
 
         if (OfflineReplayHooks.localPlaylistShuffleSupported()) {
             if (watch != null) {
@@ -500,7 +501,7 @@ public final class OfflineReplay {
             } else if (OfflineReplayLogic.startsPlaylist(command)) {
                 int generation = advanceShuffleSelection();
                 if (browseId == null && takeShufflePlay(command, origin, generation)) return true;
-            } else if (OfflineReplayLogic.hasField(command, OfflineWatchCommand.ENDPOINT_FIELD)) {
+            } else if (start) {
                 advanceShuffleSelection();
             }
         }
@@ -537,6 +538,13 @@ public final class OfflineReplay {
                 return false;
             }
         }
+    }
+
+    /** Raw dispatched offline Watch, not the indexed commands the native Up Next navigator consumes. */
+    static boolean noteNativePlaylistStart(byte[] command) {
+        if (!OfflineReplayLogic.hasField(command, OfflineWatchCommand.ENDPOINT_FIELD)) return false;
+        PlayerFallback.playlistStarted();
+        return true;
     }
 
     private static int advanceShuffleSelection() {
@@ -641,7 +649,9 @@ public final class OfflineReplay {
     }
 
     /** Both the synthetic Root and a genuine local miss re-enter this same dispatcher, without claiming it again. */
-    private static void dispatchShuffleCommand(Dispatcher dispatcher, Command command, Map<?, ?> context) {
+    static void dispatchShuffleCommand(Dispatcher dispatcher, Command command, Map<?, ?> context) {
+        // Redispatched Shuffle Play bypasses takeOffline; even a stock redispatch supersedes the old selection.
+        PlayerFallback.playlistStarted();
         redispatchedShuffle.set(command);
         try {
             dispatcher.rvxDispatch(command, context);
@@ -1145,6 +1155,13 @@ public final class OfflineReplay {
             OfflineReplayLogic.WatchTarget target = offline == null ? OfflineReplayLogic.onlineWatchOf(commandBytes)
                     : offline;
             if (target == null) return null;
+
+            Object edited = PlayerFallback.editedQueueSelection(request, target.videoId());
+            if (edited != null) {
+                // Never fall back to a reconstructed saved list when an exact edited selection has gone stale.
+                return PlayerFallback.editedNextResponse(edited, request, next,
+                        target.playlistId(), target.videoId(), commandBytes);
+            }
 
             Object captured = PlayerFallback.capturedNextResponse(next, target.playlistId(), target.videoId(),
                     commandBytes, liveShuffleFor(offline, commandBytes));

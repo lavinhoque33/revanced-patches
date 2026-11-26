@@ -84,6 +84,8 @@ final class OfflineWatchNext {
     static final int TRACK_ENDPOINT_FIELD = 7;
     static final int TRACK_VIDEO_ID_FIELD = 10;
     static final int TRACK_SHORT_BYLINE_FIELD = 12;
+    private static final int TRACK_MENU_FIELD = 20;
+    private static final int MENU_RENDERER_FIELD = 66_439_850;
 
     /** Text message: 1 runs (each run: 1 text), 4 plain text. */
     static final int TEXT_RUNS_FIELD = 1;
@@ -180,6 +182,23 @@ final class OfflineWatchNext {
     }
 
     private static byte[] track(Item item, String playlistId, int index, boolean selected) {
+        ProtoWriter track = trackMetadata(item)
+                .message(TRACK_POSITION_FIELD, runsText(String.valueOf(index + 1)))
+                .bool(TRACK_SELECTED_FIELD, selected);
+        return trackEndpoint(track, item, OfflineWatchCommand.build(
+                item.videoId(), playlistId, index, item.musicVideoType())).toByteArray();
+    }
+
+    /** The raw playlist-panel renderer for a new occurrence; the queue owner supplies its position and selection. */
+    static byte[] queueRow(Item item, byte[] watchCommand, @Nullable byte[] menu) {
+        ProtoWriter track = trackEndpoint(trackMetadata(item), item, watchCommand);
+        if (menu != null) {
+            track.message(TRACK_MENU_FIELD, new ProtoWriter().message(MENU_RENDERER_FIELD, menu).toByteArray());
+        }
+        return track.toByteArray();
+    }
+
+    private static ProtoWriter trackMetadata(Item item) {
         if (item.videoId() == null || item.videoId().isEmpty()) throw new IllegalArgumentException("videoId is empty");
 
         ProtoWriter track = new ProtoWriter().message(TRACK_TITLE_FIELD, plainText(nullToEmpty(item.title())));
@@ -191,14 +210,13 @@ final class OfflineWatchNext {
         }
         if (item.durationMs() > 0) track.message(TRACK_LENGTH_FIELD, runsText(formatLength(item.durationMs())));
 
-        return track
-                .message(TRACK_POSITION_FIELD, runsText(String.valueOf(index + 1)))
-                .bool(TRACK_SELECTED_FIELD, selected)
-                .message(TRACK_ENDPOINT_FIELD,
-                        OfflineWatchCommand.build(item.videoId(), playlistId, index, item.musicVideoType()))
+        return track;
+    }
+
+    private static ProtoWriter trackEndpoint(ProtoWriter track, Item item, byte[] watchCommand) {
+        return track.message(TRACK_ENDPOINT_FIELD, watchCommand)
                 .string(TRACK_VIDEO_ID_FIELD, item.videoId())
-                .message(TRACK_SHORT_BYLINE_FIELD, plainText(nullToEmpty(item.artist())))
-                .toByteArray();
+                .message(TRACK_SHORT_BYLINE_FIELD, plainText(nullToEmpty(item.artist())));
     }
 
     /** The byline as separate runs: artist, separator, album; a missing part drops its separator too. */

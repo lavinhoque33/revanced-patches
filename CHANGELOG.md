@@ -22,6 +22,11 @@
 * **YouTube – Glass menus:** The RVX quality shortcut now frosts in portrait and landscape, as does the main
   Gear menu in landscape fullscreen. Opening frosted menus no longer moves the playing picture.
   The menu uses a snapshot for its backdrop instead of redrawing the live video surface.
+* **YouTube – Feed video actions:** The Watch later clock now stays inside the thumbnail and lines up
+  with the like-count and duration badges in both Cards layouts, including after scrolling.
+* **YouTube – Home toolbar:** Restored access to the native Notifications inbox when Home omits the bell
+  and Notifications is not shown in the bottom bar. Available on supported 21.x versions; **Hide Notifications
+  button** still applies. Select **Create** or **Notifications** in **Navigation bar items** to swap the bottom slot.
 * **YouTube Music – Light theme:** Fixed contrast in the RVX Settings icon, Home and Now Playing menus,
   native Share actions, Comments footer and editor, and Speed Dial titles. Solid menus use a white
   background. The enhanced Lyrics title bar now matches the white sheet when it first opens.

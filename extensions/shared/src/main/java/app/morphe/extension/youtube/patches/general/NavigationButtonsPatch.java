@@ -56,6 +56,7 @@ import org.apache.commons.lang3.StringUtils;
 
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.EnumMap;
 import java.util.HashMap;
@@ -1227,6 +1228,38 @@ public final class NavigationButtonsPatch {
     @Nullable
     private static ExtensionRegistryLite getGeneratedRegistry() {
         return null; // Modified during patching.
+    }
+
+    /** Native action bar adapter, implemented by the app's toolbar model owner during patching. */
+    public interface HomeToolbar {
+        @Nullable MessageLite patch_getToolbarButtonRenderer(Object item);
+        @Nullable Object patch_createToolbarNotificationsButton(MessageLite renderer);
+    }
+
+    /** Injection point. The native model has already combined the shared and page-local buttons. */
+    @Nullable
+    public static List<Object> restoreHomeToolbarNotifications(HomeToolbar toolbar, Collection<?> menu,
+            String browseId, boolean signedIn, MessageLite defaultRenderer) {
+        // The swap preference only requests the automotive guide; it does not guarantee a bottom bell.
+        boolean hasBottomBell = HomeToolbarNotifications.hasBottomBell(HIDE_NAVIGATION_BAR,
+                Settings.HIDE_NAVIGATION_NOTIFICATIONS_BUTTON.get(),
+                NavigationBar.hasServerNavigationButton(NavigationButton.NOTIFICATIONS));
+
+        try {
+            return HomeToolbarNotifications.withBell(menu, browseId, signedIn, HIDE_TOOLBAR_NOTIFICATION_BUTTON,
+                    hasBottomBell, toolbar::patch_getToolbarButtonRenderer, () -> {
+                        ExtensionRegistryLite registry = getGeneratedRegistry();
+                        if (registry == null) return null;
+
+                        String label = str("revanced_change_start_page_entry_notifications");
+                        MessageLite renderer = parseWithRegistry(
+                                defaultRenderer, HomeToolbarNotifications.renderer(label).toByteArray(), registry);
+                        return renderer == null ? null : toolbar.patch_createToolbarNotificationsButton(renderer);
+                    });
+        } catch (Exception ex) {
+            Logger.printException(() -> "Failed to restore Home toolbar Notifications", ex);
+            return null;
+        }
     }
 
     /**

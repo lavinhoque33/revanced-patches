@@ -74,6 +74,8 @@ import android.os.Bundle;
 import android.system.ErrnoException;
 import android.system.Os;
 import android.system.StructStat;
+import android.util.AttributeSet;
+import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.ViewGroup;
 import android.view.animation.AlphaAnimation;
@@ -85,6 +87,11 @@ import android.widget.ImageView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.RequiresApi;
+
+import org.xmlpull.v1.XmlPullParser;
+import org.xmlpull.v1.XmlPullParserException;
+
+import java.io.IOException;
 
 import app.morphe.extension.music.patches.utils.DrawableColorPatch;
 import app.morphe.extension.music.patches.utils.MusicLightTheme;
@@ -455,6 +462,30 @@ public final class CustomBrandingPatch {
         }
     }
 
+    /** Resolve Reseam against the exact light/dark and normal/Ringo2 stock header of this theme. */
+    public static Drawable getReseamHeaderDrawable(Context context, int originalAttribute) {
+        if (!"reseam".equals(SharedYouTubeSettings.CUSTOM_BRANDING_ICON.get())) return null;
+
+        int premium = ResourceUtils.getIdentifier("ytPremiumWordmarkHeader", ResourceType.ATTR, context);
+        int normal = ResourceUtils.getIdentifier("ytWordmarkHeader", ResourceType.ATTR, context);
+        if (originalAttribute != premium && originalAttribute != normal) return null;
+
+        try {
+            TypedValue stockWordmark = new TypedValue();
+            if (!context.getTheme().resolveAttribute(originalAttribute, stockWordmark, true)
+                    || stockWordmark.resourceId == 0) {
+                return null;
+            }
+
+            String stockName = context.getResources().getResourceEntryName(stockWordmark.resourceId);
+            int replacement = ResourceUtils.getIdentifier(
+                    HEADER_RESOURCE_PREFIX + "reseam_" + stockName, ResourceType.DRAWABLE, context);
+            return replacement == 0 ? null : context.getDrawable(replacement);
+        } catch (Resources.NotFoundException ignored) {
+            return null;
+        }
+    }
+
     /** Replaces the stock YouTube wordmark with the selected project's themed wordmark. */
     public static Drawable getHeaderDrawable(
             Context context, int originalAttribute, Drawable original) {
@@ -546,7 +577,16 @@ public final class CustomBrandingPatch {
      */
     public static final class RvxSettingsIconDrawable extends Drawable {
         private Drawable delegate;
+        private Resources.Theme inflationTheme;
         private final int stockIconSize = getStockSettingsIconSize();
+
+        @Override
+        public void inflate(@NonNull Resources resources, @NonNull XmlPullParser parser,
+                            @NonNull AttributeSet attrs, Resources.Theme theme)
+                throws XmlPullParserException, IOException {
+            super.inflate(resources, parser, attrs, theme);
+            inflationTheme = theme;
+        }
 
         /**
          * Keeps launcher fallbacks aligned with Music's legacy preference icon slot. Dedicated
@@ -584,7 +624,8 @@ public final class CustomBrandingPatch {
             int identifier = getRvxSettingsIconDrawableId(context);
             if (identifier == 0) return null;
 
-            delegate = context.getResources().getDrawable(identifier);
+            Resources resources = inflationTheme == null ? context.getResources() : inflationTheme.getResources();
+            delegate = resources.getDrawable(identifier, inflationTheme);
             updateDelegateBounds(getBounds());
             delegate.setState(getState());
             delegate.setLevel(getLevel());

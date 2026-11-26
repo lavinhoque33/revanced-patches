@@ -13,11 +13,17 @@
 * **YouTube Music – Light theme:** Choose **Light** in **RVX → General → App theme**, then restart.
   Available on supported Music versions from 8.12 onward. Now Playing uses a pale gradient based on
   the current cover without tinting artwork or video. The default and existing dark presets are unchanged.
+* **YouTube & YouTube Music – Custom branding:** **Reseam** adds a themed launcher icon, a mark beside the
+  native header, and a media notification icon. Turn on **Use icon in RVX settings** for the matching
+  Settings glyph. Stock remains the startup default, and Reseam keeps the official splash.
 
 ### Bug Fixes
 
 * **YouTube – Glass menus:** Fixed a picture jump while opening frosted menus over a playing video.
   The menu uses a snapshot for its backdrop instead of redrawing the live video surface.
+* **YouTube Music – Light theme:** Fixed contrast in the RVX Settings icon, Home and Now Playing menus,
+  native Share actions, Comments footer and editor, and Speed Dial titles. Solid menus use a white
+  background. The enhanced Lyrics title bar now matches the white sheet when it first opens.
 
 ## [1.52.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.51.0...v1.52.0) (2026-11-25)
 

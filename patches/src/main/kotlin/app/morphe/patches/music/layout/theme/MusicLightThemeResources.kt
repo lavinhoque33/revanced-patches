@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-25.
  * Written by lavinhoque33, 2026-11-25.
  */
 
@@ -124,6 +125,7 @@ internal fun ResourcePatchContext.addMusicLightThemeResources() {
     addLightChrome()
     addLightBrowseChrome()
     addLightSearch()
+    addLightSheets()
     addLightDrawables()
 }
 
@@ -336,6 +338,29 @@ private fun ResourcePatchContext.addLightSearch() {
     lightXml("layout", "chip_cloud_chip") { view ->
         if (view.resourceId() == "@id/chip_cloud_chip_text") {
             view.replaceAttribute("android:textColor", "@color/ytm_color_white", FOREGROUND)
+        }
+    }
+}
+
+private fun ResourcePatchContext.addLightSheets() {
+    lightFill("context_menu_background", "@color/ytm_theme_main_color_primary", RAISED)
+    lightXml("layout", "music_menu_item") { view ->
+        // Tint the row glyph, not its media thumbnail.
+        if (view.resourceId() == "@id/icon") view.setAttribute("android:tint", FOREGROUND)
+    }
+
+    listOf("comment_dialog", "comment_dialog_with_dismiss_button").forEach { name ->
+        lightXml("layout", name) { view ->
+            when (view.resourceId()) {
+                "@id/comment_dialog_wrapper" -> view.setAttribute("android:background", RAISED)
+                "@id/comment_dialog_root" -> {
+                    if (name == "comment_dialog") view.setAttribute("android:background", RAISED)
+                }
+                "@id/comment" -> {
+                    view.setAttribute("android:textColor", FOREGROUND)
+                    view.setAttribute("android:textColorHint", MUTED)
+                }
+            }
         }
     }
 }

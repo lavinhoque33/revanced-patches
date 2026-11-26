@@ -8,9 +8,12 @@ package app.morphe.extension.music.patches.utils;
 import android.graphics.Bitmap;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
+import android.graphics.drawable.LayerDrawable;
 import android.view.View;
 
 import java.util.WeakHashMap;
+
+import app.morphe.extension.shared.utils.ResourceUtils;
 
 /** Adapts only the lettering of stock and bundled Music toolbar logos. */
 public final class MusicLightWordmark {
@@ -19,13 +22,27 @@ public final class MusicLightWordmark {
 
     /** Injection point at the stock toolbar's logo setter. */
     public static Drawable apply(View toolbar, Drawable original) {
-        if (!MusicLightTheme.isEnabled() || !(original instanceof BitmapDrawable logo)) return original;
+        if (!MusicLightTheme.isEnabled()) return original;
 
+        if (original instanceof LayerDrawable layers) {
+            int wordmarkId = ResourceUtils.getIdIdentifier("morphe_reseam_music_header_wordmark");
+            if (wordmarkId == 0 || !(layers.findDrawableByLayerId(wordmarkId) instanceof BitmapDrawable logo)) {
+                return original;
+            }
+
+            Drawable light = applyToBitmap(toolbar, logo);
+            if (light != logo) ((LayerDrawable) layers.mutate()).setDrawableByLayerId(wordmarkId, light);
+            return original;
+        }
+        return original instanceof BitmapDrawable logo ? applyToBitmap(toolbar, logo) : original;
+    }
+
+    private static Drawable applyToBitmap(View toolbar, BitmapDrawable logo) {
         Bitmap source = logo.getBitmap();
-        if (source == null || source.getConfig() == Bitmap.Config.HARDWARE) return original;
+        if (source == null || source.getConfig() == Bitmap.Config.HARDWARE) return logo;
 
         Bitmap light = LightLogos.bySource.computeIfAbsent(source, MusicLightWordmark::darkenLetters);
-        if (light == null) return original;
+        if (light == null) return logo;
 
         BitmapDrawable drawable = new BitmapDrawable(toolbar.getResources(), light);
         drawable.setAlpha(logo.getAlpha());

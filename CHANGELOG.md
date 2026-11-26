@@ -30,6 +30,11 @@
 * **YouTube Music – Light theme:** Fixed contrast in the RVX Settings icon, Home and Now Playing menus,
   native Share actions, Comments footer and editor, and Speed Dial titles. Solid menus use a white
   background. The enhanced Lyrics title bar now matches the white sheet when it first opens.
+* **YouTube Music – Downloads:** Opening a stream-downloaded playlist from **Library → Downloads** now
+  shows the saved playlist in Music's native detail view without waiting for the network or starting
+  playback. Tracks keep their saved order and show available local artwork. Refresh and connected
+  actions still use Music's normal online path. Offline **Shuffle → Play** shuffles Up Next and keeps
+  Shuffle on when you skip to the next track.
 
 ## [1.52.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.51.0...v1.52.0) (2026-11-25)
 

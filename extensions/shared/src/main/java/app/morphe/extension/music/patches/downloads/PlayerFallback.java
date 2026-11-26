@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-26.
  * Modified by lavinhoque33, 2026-11-14.
  * Written by lavinhoque33, 2026-11-14.
  */
@@ -11,6 +12,8 @@ import static app.morphe.extension.shared.utils.StringRef.str;
 import android.content.Intent;
 import android.util.Pair;
 import android.view.KeyEvent;
+
+import androidx.annotation.Nullable;
 
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.protobuf.MessageLite;
@@ -309,8 +312,9 @@ public final class PlayerFallback {
         if (OfflineReplay.enabled() && items != null && !items.isEmpty()) initialQueue = List.copyOf(items);
     }
 
-    static byte[] nextBytes(String playlistId, String videoId, Object command) throws IOException {
-        if (!(command instanceof NativeDownloads.Command message)) return null;
+    @Nullable
+    static Object capturedNextResponse(OfflineReplay.NextRequest next, String playlistId, String videoId,
+                                       byte[] command, @Nullable OfflineReplay.LiveShuffle live) throws IOException {
         Navigator owner = navigator;
         List<?> items = owner == null ? initialQueue : List.copyOf(owner.rvxItems());
         if (items.isEmpty()) return null;
@@ -326,7 +330,13 @@ public final class PlayerFallback {
             if (videoId.equals(id) && (index < 0 || position == nativeIndex)) index = position;
             renderers.add(bytes);
         }
-        return index < 0 ? null : OfflineWatchNext.buildCaptured(playlistId, renderers, index, message.toByteArray());
+        if (index < 0) return null;
+
+        byte[] bytes = OfflineWatchNext.buildCaptured(playlistId, renderers, index, command);
+        // The reply's derived position can differ from the saved endpoint index; native apply checks the live cursor.
+        Object continuation = live != null && owner != null && owner == navigator
+                ? OfflineReplay.localPlaylistContinuation(live, items, index) : null;
+        return next.rvxNextResponse(bytes, false, continuation);
     }
 
     /** Direct scalar/callback producers also short-circuit before starting network work. */

@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-26.
  * Written by lavinhoque33, 2026-11-08.
  * Modified by lavinhoque33, 2026-11-14.
  */
@@ -70,6 +71,9 @@ final class OfflineWatchNext {
     static final int PANEL_CURRENT_INDEX_FIELD = 3;
     static final int PANEL_PLAYLIST_ID_FIELD = 5;
     static final int PANEL_COUNT_FIELD = 6;
+    private static final int PANEL_MUSIC_CONFIG_FIELD = 34;
+    private static final int PANEL_MUSIC_CONFIG_EXTENSION = 79_971_800;
+    private static final int PANEL_SHUFFLE_MODE_FIELD = 3;
     static final int ITEM_TRACK_FIELD = 51_779_701;
     static final int TRACK_TITLE_FIELD = 1;
     static final int TRACK_BYLINE_FIELD = 2;
@@ -106,6 +110,10 @@ final class OfflineWatchNext {
      * {@code currentIndex}.
      */
     static byte[] build(String playlistId, List<Item> items, int currentIndex) {
+        return build(playlistId, items, currentIndex, false);
+    }
+
+    static byte[] build(String playlistId, List<Item> items, int currentIndex, boolean shuffledStart) {
         if (playlistId == null || playlistId.isEmpty()) throw new IllegalArgumentException("playlistId is empty");
         if (items == null || items.isEmpty()) throw new IllegalArgumentException("a queue needs at least one item");
         if (currentIndex < 0 || currentIndex >= items.size()) {
@@ -113,7 +121,7 @@ final class OfflineWatchNext {
         }
 
         Item current = items.get(currentIndex);
-        return response(panel(playlistId, items, currentIndex),
+        return response(panel(playlistId, items, currentIndex, shuffledStart),
                 OfflineWatchCommand.build(current.videoId(), playlistId, currentIndex, current.musicVideoType()));
     }
 
@@ -153,17 +161,22 @@ final class OfflineWatchNext {
                 .toByteArray();
     }
 
-    private static byte[] panel(String playlistId, List<Item> items, int currentIndex) {
+    private static byte[] panel(String playlistId, List<Item> items, int currentIndex, boolean shuffledStart) {
         ProtoWriter panel = new ProtoWriter();
         for (int index = 0; index < items.size(); index++) {
             byte[] track = track(items.get(index), playlistId, index, index == currentIndex);
             panel.message(PANEL_ITEMS_FIELD, new ProtoWriter().message(ITEM_TRACK_FIELD, track).toByteArray());
         }
-        return panel
-                .int32(PANEL_CURRENT_INDEX_FIELD, currentIndex)
+        panel.int32(PANEL_CURRENT_INDEX_FIELD, currentIndex)
                 .string(PANEL_PLAYLIST_ID_FIELD, playlistId)
-                .int32(PANEL_COUNT_FIELD, items.size())
-                .toByteArray();
+                .int32(PANEL_COUNT_FIELD, items.size());
+        if (shuffledStart) {
+            // Native mode metadata accompanies only the fresh response; stock reorders the committed occurrences.
+            byte[] state = new ProtoWriter().bool(PANEL_SHUFFLE_MODE_FIELD, true).toByteArray();
+            byte[] extension = new ProtoWriter().message(PANEL_MUSIC_CONFIG_EXTENSION, state).toByteArray();
+            panel.message(PANEL_MUSIC_CONFIG_FIELD, extension);
+        }
+        return panel.toByteArray();
     }
 
     private static byte[] track(Item item, String playlistId, int index, boolean selected) {

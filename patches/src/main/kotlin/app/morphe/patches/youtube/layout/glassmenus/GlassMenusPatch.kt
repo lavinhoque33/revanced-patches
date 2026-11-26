@@ -12,8 +12,13 @@
 package app.morphe.patches.youtube.layout.glassmenus
 
 import app.morphe.patcher.Fingerprint
+import app.morphe.patcher.InstructionLocation.MatchAfterWithin
 import app.morphe.patcher.extensions.InstructionExtensions.addInstruction
 import app.morphe.patcher.extensions.InstructionExtensions.getInstruction
+import app.morphe.patcher.literal
+import app.morphe.patcher.methodCall
+import app.morphe.patcher.opcode
+import app.morphe.patcher.patch.BytecodePatchContext
 import app.morphe.patcher.patch.bytecodePatch
 import app.morphe.patcher.util.getReference
 import app.morphe.patches.shared.drawable.drawableColorHookPatch
@@ -46,6 +51,51 @@ private object AddToPlaylistViewFingerprint : Fingerprint(
     parameters = listOf("Landroid/view/LayoutInflater;", "Landroid/view/ViewGroup;", "Landroid/os/Bundle;"),
     filters = listOf(resourceLiteral(LAYOUT, "playlist_add_to_fragment")),
 )
+
+private object PlayerGearControllerFingerprint : Fingerprint(
+    returnType = "V",
+    parameters = listOf("Landroid/view/View;", "I", "Ljava/util/Set;"),
+    filters = listOf(
+        methodCall(parameters = listOf("L", "Lcom/google/protobuf/MessageLite;"), returnType = "V"),
+        literal(400L), // The Gear fragment's large-form width in dp.
+        methodCall(name = "getSupportFragmentManager", parameters = emptyList()),
+        methodCall(
+            opcode = Opcode.INVOKE_VIRTUAL,
+            parameters = listOf("L", "Ljava/lang/String;"),
+            returnType = "V",
+            location = MatchAfterWithin(3),
+        ),
+    ),
+)
+
+private fun BytecodePatchContext.hookLandscapePlayerGear() {
+    val controller = PlayerGearControllerFingerprint.matchAllOrNull()?.singleOrNull()
+    val gearFragment = controller?.instructionMatches?.lastOrNull()
+        ?.instruction?.getReference<MethodReference>()?.definingClass
+    val content = gearFragment?.let { fragment ->
+        Fingerprint(
+            definingClass = fragment,
+            returnType = "Landroid/view/View;",
+            parameters = listOf("Landroid/view/LayoutInflater;", "Landroid/view/ViewGroup;", "Landroid/os/Bundle;"),
+            filters = listOf(
+                methodCall(opcode = Opcode.INVOKE_SUPER, returnType = "Landroid/view/View;"),
+                opcode(Opcode.RETURN_OBJECT),
+            ),
+        ).matchAllOrNull()?.singleOrNull()
+    }
+    if (content == null) {
+        printWarn("Glass menus: landscape player Gear panel hook is unavailable; keeping its existing presentation.")
+        return
+    }
+
+    val returnIndex = content.instructionMatches.last().index
+    val register = content.method.getInstruction<OneRegisterInstruction>(returnIndex).registerA
+    content.method.addInstructionsAtControlFlowLabel(
+        returnIndex,
+        "invoke-static/range {v$register .. v$register}, " +
+            "$GLASS_MENUS_EXTENSION->markLandscapePlayerGearView(Landroid/view/View;)V",
+    )
+}
 
 @Suppress("unused")
 val glassMenusPatch = bytecodePatch(GLASS_MENUS_NAME, GLASS_MENUS_DESCRIPTION) {
@@ -90,6 +140,8 @@ val glassMenusPatch = bytecodePatch(GLASS_MENUS_NAME, GLASS_MENUS_DESCRIPTION) {
                     "$GLASS_MENUS_EXTENSION->onAddToPlaylistView(Landroid/view/View;)V",
             )
         }
+
+        hookLandscapePlayerGear()
 
         addPreference(arrayOf("PREFERENCE_SCREEN: GENERAL", "SETTINGS: GLASS_MENUS"))
     }

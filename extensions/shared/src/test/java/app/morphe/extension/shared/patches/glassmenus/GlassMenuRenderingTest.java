@@ -16,6 +16,7 @@ import static org.junit.Assert.assertTrue;
 import android.app.Dialog;
 import android.content.Context;
 import android.content.res.ColorStateList;
+import android.content.res.Configuration;
 import android.graphics.Color;
 import android.graphics.Rect;
 import android.graphics.drawable.ColorDrawable;
@@ -28,6 +29,7 @@ import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
 import android.widget.FrameLayout;
+import android.widget.LinearLayout;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -37,6 +39,9 @@ import org.robolectric.annotation.Config;
 
 import java.util.ArrayList;
 import java.util.List;
+
+import app.morphe.extension.shared.settings.SharedYouTubeSettings;
+import app.morphe.extension.shared.utils.Utils;
 
 @RunWith(RobolectricTestRunner.class)
 @Config(manifest = Config.NONE, sdk = 34)
@@ -83,6 +88,64 @@ public class GlassMenuRenderingTest {
         panelOnSource.offsetTo(20, 2400);
         assertFalse(BlurRegion.copyArea(panelOnSource, 1080, 2400, 120, sample));
         assertTrue(sample.isEmpty());
+    }
+
+    @Test
+    public void mapsLetterboxedVideoCropToBothTheSurfaceAndTheDownsampledPanel() {
+        Rect playerBounds = new Rect(240, 0, 2160, 1080);
+        Rect sample = new Rect(650, 40, 1750, 1080);
+        Rect visibleVideo = new Rect(720, 121, 1681, 1061);
+        Rect crop = new Rect();
+
+        BlurRegion.mapVideoCrop(visibleVideo, playerBounds, 1280, 720, crop);
+        assertEquals(new Rect(320, 80, 961, 708), crop);
+
+        BlurRegion.mapVideoCrop(visibleVideo, sample, 550, 520, crop);
+        assertEquals(new Rect(35, 40, 516, 511), crop);
+    }
+
+    @Test
+    public void onlyMarkedLandscapeGearUsesTheInnerPanelAndGlassDefaultsOff() {
+        Context app = RuntimeEnvironment.getApplication();
+        Utils.setContext(app);
+        Context landscape = oriented(app, Configuration.ORIENTATION_LANDSCAPE);
+        FrameLayout host = new FrameLayout(landscape);
+        LinearLayout panel = gearPanel(landscape, host);
+        FrameLayout root = (FrameLayout) panel.getParent();
+
+        assertFalse(SharedYouTubeSettings.GLASS_MENUS.get());
+        GlassMenusPatch.markLandscapePlayerGearView(root);
+        assertNull(GlassMenusPatch.landscapePlayerGearPanel(host));
+
+        SharedYouTubeSettings.GLASS_MENUS.save(true);
+        assertNull(GlassMenusPatch.landscapePlayerGearPanel(host));
+        GlassMenusPatch.markLandscapePlayerGearView(root);
+        assertSame(panel, GlassMenusPatch.landscapePlayerGearPanel(host));
+        assertSame(root, panel.getParent());
+
+        Context portrait = oriented(app, Configuration.ORIENTATION_PORTRAIT);
+        FrameLayout portraitHost = new FrameLayout(portrait);
+        LinearLayout portraitPanel = gearPanel(portrait, portraitHost);
+        GlassMenusPatch.markLandscapePlayerGearView((View) portraitPanel.getParent());
+        assertNull(GlassMenusPatch.landscapePlayerGearPanel(portraitHost));
+
+        SharedYouTubeSettings.GLASS_MENUS.save(false);
+    }
+
+    private static Context oriented(Context context, int orientation) {
+        Configuration config = new Configuration(context.getResources().getConfiguration());
+        config.orientation = orientation;
+        return context.createConfigurationContext(config);
+    }
+
+    private static LinearLayout gearPanel(Context context, FrameLayout host) {
+        FrameLayout root = new FrameLayout(context);
+        LinearLayout panel = new LinearLayout(context);
+        panel.setBackgroundColor(Color.BLACK);
+        panel.setClipToOutline(true);
+        root.addView(panel);
+        host.addView(root);
+        return panel;
     }
 
     @Test

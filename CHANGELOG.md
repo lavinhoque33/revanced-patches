@@ -19,7 +19,8 @@
 
 ### Bug Fixes
 
-* **YouTube – Glass menus:** Fixed a picture jump while opening frosted menus over a playing video.
+* **YouTube – Glass menus:** The RVX quality shortcut now frosts in portrait and landscape, as does the main
+  Gear menu in landscape fullscreen. Opening frosted menus no longer moves the playing picture.
   The menu uses a snapshot for its backdrop instead of redrawing the live video surface.
 * **YouTube Music – Light theme:** Fixed contrast in the RVX Settings icon, Home and Now Playing menus,
   native Share actions, Comments footer and editor, and Speed Dial titles. Solid menus use a white

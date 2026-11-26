@@ -16,18 +16,25 @@ package app.morphe.extension.shared.patches.glassmenus;
 import android.app.Activity;
 import android.app.Dialog;
 import android.content.Context;
+import android.content.res.Configuration;
+import android.graphics.Color;
 import android.graphics.drawable.Drawable;
 import android.os.Build;
 import android.view.Gravity;
 import android.view.View;
+import android.view.ViewGroup;
 import android.view.Window;
 import android.view.WindowManager;
+import android.widget.FrameLayout;
+import android.widget.LinearLayout;
 import android.widget.PopupWindow;
 
 import androidx.annotation.ChecksSdkIntAtLeast;
 import androidx.annotation.ColorInt;
 import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
+
+import java.util.WeakHashMap;
 
 import app.morphe.extension.shared.settings.Setting;
 import app.morphe.extension.shared.settings.SharedYouTubeSettings;
@@ -37,6 +44,8 @@ import app.morphe.extension.shared.utils.Utils;
 /** Glass menus for YouTube and YouTube Music. Unhooked surfaces keep the stock presentation. */
 @SuppressWarnings("unused")
 public final class GlassMenusPatch {
+    @Nullable private static WeakHashMap<View, Boolean> landscapePlayerGearRoots;
+
     public static boolean isPatchIncluded() {
         return false; // Modified during patching.
     }
@@ -66,6 +75,39 @@ public final class GlassMenusPatch {
         attachBottomSheet(dialog, false);
     }
 
+    /** Receives only the native Gear fragment's returned view, not generic sheet content. */
+    public static void markLandscapePlayerGearView(@Nullable View root) {
+        if (root == null || !isEnabled() || !isLandscape(root)) return;
+        View panel = gearFill(root);
+        if (panel == null || Color.alpha(SolidColors.colorOf(panel.getBackground())) < 0xF0) return;
+
+        if (landscapePlayerGearRoots == null) landscapePlayerGearRoots = new WeakHashMap<>();
+        landscapePlayerGearRoots.put(root, Boolean.TRUE);
+    }
+
+    @Nullable
+    static View landscapePlayerGearPanel(View sheetHost) {
+        if (landscapePlayerGearRoots == null || !(sheetHost instanceof ViewGroup host)
+                || host.getChildCount() != 1) return null;
+
+        View root = host.getChildAt(0);
+        return landscapePlayerGearRoots.containsKey(root) && isLandscape(root) ? gearFill(root) : null;
+    }
+
+    @Nullable
+    private static View gearFill(View root) {
+        if (!(root instanceof FrameLayout frame) || frame.getChildCount() != 1) return null;
+
+        // The stock fragment puts the rounded fill and grip in this inner column. The outer
+        // Material host is a touch/layout container and must retain its own background.
+        View panel = frame.getChildAt(0);
+        return panel instanceof LinearLayout && panel.getClipToOutline() ? panel : null;
+    }
+
+    private static boolean isLandscape(View view) {
+        return view.getResources().getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE;
+    }
+
     @RequiresApi(Build.VERSION_CODES.S)
     private static void attachBottomSheet(Dialog dialog, boolean beforeShow) {
         try {
@@ -77,8 +119,14 @@ public final class GlassMenusPatch {
 
             View panelHost = findView(decor, "design_bottom_sheet");
             if (panelHost != null) {
-                GlassSurface.apply(panelHost, panelHost, window, dialog.getOwnerActivity(),
-                        GlassSurface.Shape.BOTTOM_SHEET, beforeShow);
+                View playerPanel = landscapePlayerGearPanel(panelHost);
+                if (playerPanel == null) {
+                    GlassSurface.apply(panelHost, panelHost, window, dialog.getOwnerActivity(),
+                            GlassSurface.Shape.BOTTOM_SHEET, beforeShow);
+                } else {
+                    GlassSurface.apply(playerPanel, playerPanel, window, dialog.getOwnerActivity(),
+                            GlassSurface.Shape.LANDSCAPE_PLAYER, beforeShow);
+                }
             }
         } catch (RuntimeException ex) {
             Logger.printException(() -> "Could not attach glass bottom sheet", ex);
@@ -128,6 +176,15 @@ public final class GlassMenusPatch {
     }
 
     public static void onSlideDialog(@Nullable Dialog dialog, @Nullable View panel, Context context) {
+        attachSlideDialog(dialog, panel, context, false);
+    }
+
+    public static void onOverlayVideoQualityDialog(@Nullable Dialog dialog, @Nullable View panel, Context context) {
+        attachSlideDialog(dialog, panel, context, true);
+    }
+
+    private static void attachSlideDialog(
+            @Nullable Dialog dialog, @Nullable View panel, Context context, boolean playerMenu) {
         if (dialog == null || panel == null || !isEnabled()) return;
 
         try {
@@ -137,7 +194,9 @@ public final class GlassMenusPatch {
             Activity owner = dialog.getOwnerActivity();
             if (owner == null) owner = BlurRegion.contextActivity(context);
 
-            GlassSurface.apply(panel, panel, window, owner, GlassSurface.Shape.ROUNDED, true);
+            GlassSurface.Shape shape = playerMenu && isLandscape(panel)
+                    ? GlassSurface.Shape.LANDSCAPE_PLAYER : GlassSurface.Shape.ROUNDED;
+            GlassSurface.apply(panel, panel, window, owner, shape, true);
         } catch (RuntimeException ex) {
             Logger.printException(() -> "Could not attach glass slide dialog", ex);
         }

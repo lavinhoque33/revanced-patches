@@ -55,7 +55,7 @@ import app.morphe.extension.shared.utils.Logger;
 
 @RequiresApi(Build.VERSION_CODES.S)
 final class GlassSurface implements View.OnAttachStateChangeListener, ViewTreeObserver.OnPreDrawListener {
-    enum Shape { BOTTOM_SHEET, WINDOW_PANEL, ROUNDED, POPUP, PLAYLIST_LIST, FLAT }
+    enum Shape { BOTTOM_SHEET, WINDOW_PANEL, ROUNDED, LANDSCAPE_PLAYER, POPUP, PLAYLIST_LIST, FLAT }
 
     private record Fill(View host, Drawable drawable, boolean litho) { }
 
@@ -456,7 +456,8 @@ final class GlassSurface implements View.OnAttachStateChangeListener, ViewTreeOb
     private boolean prepareRegion(int blurRadius, boolean layout) {
         if (!regionChecked) {
             regionChecked = true;
-            region = BlurRegion.create(view, foreground, owner, BaseThemeUtils.getAppBackgroundColor());
+            region = BlurRegion.create(view, foreground, owner, BaseThemeUtils.getAppBackgroundColor(),
+                    shape == Shape.LANDSCAPE_PLAYER);
         }
         return region != null && region.prepare(panel, blurRadius, layout);
     }
@@ -469,7 +470,7 @@ final class GlassSurface implements View.OnAttachStateChangeListener, ViewTreeOb
     }
 
     private boolean hasRoundBottom() {
-        if (shape == Shape.ROUNDED || shape == Shape.POPUP) return true;
+        if (shape == Shape.ROUNDED || shape == Shape.LANDSCAPE_PLAYER || shape == Shape.POPUP) return true;
         if (shape == Shape.FLAT || shape == Shape.PLAYLIST_LIST || windowManager == null) return false;
 
         return viewLocation[1] + panel.bottom < windowBottom - Dim.dp2;
@@ -501,7 +502,11 @@ final class GlassSurface implements View.OnAttachStateChangeListener, ViewTreeOb
         if (panel.isEmpty()) return false;
 
         fillOutline.setEmpty();
-        if (basis != null) basis.getOutline(fillOutline);
+        if (shape == Shape.LANDSCAPE_PLAYER && view.getClipToOutline() && view.getOutlineProvider() != null) {
+            view.getOutlineProvider().getOutline(view, fillOutline);
+        } else if (basis != null) {
+            basis.getOutline(fillOutline);
+        }
         float radius = fillOutline.getRadius();
         cornerRadius = shape == Shape.FLAT ? 0 : radius > 0 ? radius : Dim.dp12;
         cornerRadius = Math.min(cornerRadius, Math.min(panel.width(), panel.height()) / 2f);
@@ -691,7 +696,8 @@ final class GlassSurface implements View.OnAttachStateChangeListener, ViewTreeOb
     }
 
     private boolean isKnownSolidPanel(int color) {
-        return Color.alpha(color) >= 0xF0 && (shape == Shape.ROUNDED || matchesThemeColor(menuColors, color));
+        return Color.alpha(color) >= 0xF0 && (shape == Shape.ROUNDED || shape == Shape.LANDSCAPE_PLAYER
+                || matchesThemeColor(menuColors, color));
     }
 
     static boolean isThemeMenuColor(Context context, int color) {

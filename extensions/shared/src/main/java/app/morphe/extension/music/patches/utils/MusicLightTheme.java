@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
- * Modified by lavinhoque33, 2026-11-25.
+ * Modified by lavinhoque33, 2026-11-26.
  * Written by lavinhoque33, 2026-11-25
  */
 
@@ -9,12 +9,17 @@ package app.morphe.extension.music.patches.utils;
 
 import android.content.Context;
 import android.content.res.Configuration;
+import android.graphics.ColorFilter;
+import android.graphics.PorterDuff;
+import android.graphics.PorterDuffColorFilter;
+import android.graphics.drawable.Drawable;
 import android.os.UserManager;
 import android.text.SpannableString;
 import android.text.Spanned;
 import android.text.style.ForegroundColorSpan;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.TextView;
 
 import java.util.Collections;
 import java.util.Map;
@@ -27,6 +32,9 @@ public final class MusicLightTheme {
     public static final int SURFACE = 0xFFF8F9FA;
     public static final int FOREGROUND = 0xFF0F0F0F;
     public static final int CONTROL_SURFACE = 0xFFF1F3F4;
+    private static final int MUTED = 0xFF5F6368;
+    private static final int COVER_GLYPH = 1;
+    private static final int RATING_GLYPH = 2;
     public static final String THEME_PREFERENCE_KEY = "morphe_dark_theme";
 
     static final String VALUE = "light";
@@ -86,6 +94,11 @@ public final class MusicLightTheme {
         return isEnabled() && stock == NativeColors.FLYOUT_ACTIVE ? NativeColors.PRIMARY : stock;
     }
 
+    /** The Up Next sheet keeps its dark background even in Light. Restore the layout's stock white. */
+    public static void styleQueueTitle(TextView title) {
+        if (isEnabled()) title.setTextColor(0xFFFFFFFE);
+    }
+
     private static final class NativeColors {
         private static final int FLYOUT_ACTIVE = ResourceUtils.getColorIdentifier("ytm_icon_color_active");
         private static final int PRIMARY = ResourceUtils.getColorIdentifier("ytm_text_color_primary");
@@ -103,6 +116,10 @@ public final class MusicLightTheme {
         }
         if (composer == CommentComposerRole.INLINE) {
             color = ElementTextColors.COMMENT_COMPOSER;
+        } else if (MusicLightDetailHeader.isCoverHeader(path)) {
+            return MusicLightDetailHeader.styleText(original);
+        } else if (isLibraryChipHost(presenter)) {
+            return styleLibraryChipLabel(original);
         } else if (path != null && isSpeedDialTitle(path)) {
             color = ElementTextColors.SPEED_DIAL_TITLE;
         } else {
@@ -131,6 +148,73 @@ public final class MusicLightTheme {
                     spanned.getSpanStart(span), spanned.getSpanEnd(span), spanned.getSpanFlags(span));
         }
         return text == null ? original : text;
+    }
+
+    static boolean isLibraryChipHost(View presenter) {
+        for (Object host = presenter; host instanceof View view; host = view.getParent()) {
+            if ("morphe_light_library_chip_header".equals(view.getTag())) return true;
+        }
+        return false;
+    }
+
+    private static CharSequence styleLibraryChipLabel(CharSequence original) {
+        if (!(original instanceof Spanned spanned)) return original;
+
+        SpannableString text = null;
+        for (ForegroundColorSpan span : spanned.getSpans(0, spanned.length(), ForegroundColorSpan.class)) {
+            // The temporary offline chips use the dark foreground. The selected Light chip
+            // uses pure white against a dark fill and must keep that color.
+            if (span.getForegroundColor() != 0xFFF1F1F1) continue;
+
+            if (text == null) text = new SpannableString(original);
+            text.removeSpan(span);
+            text.setSpan(new ForegroundColorSpan(FOREGROUND),
+                    spanned.getSpanStart(span), spanned.getSpanEnd(span), spanned.getSpanFlags(span));
+        }
+        return text == null ? original : text;
+    }
+
+    public static int elementsGlyphRole(StringBuilder path) {
+        if (MusicLightDetailHeader.isCoverHeader(path)) return COVER_GLYPH;
+        if (path == null || path.indexOf("video_action_bar.") < 0) return 0;
+
+        return path.indexOf("segmented_like_dislike_button.") >= 0
+                || path.indexOf("|like_button.") >= 0
+                || path.indexOf("|dislike_button.") >= 0 ? RATING_GLYPH : 0;
+    }
+
+    public static Drawable styleElementsGlyph(int role, String asset, Drawable drawable) {
+        return switch (role) {
+            case COVER_GLYPH -> MusicLightDetailHeader.styleGlyph(asset, drawable);
+            case RATING_GLYPH -> styleRatingGlyph(asset, drawable);
+            default -> drawable;
+        };
+    }
+
+    private static Drawable styleRatingGlyph(String asset, Drawable drawable) {
+        if (drawable == null || asset == null || (!asset.contains("_thumb_up_") && !asset.contains("_thumb_down_"))) {
+            return drawable;
+        }
+
+        // The client-generated offline bar supplies a dark-palette filter. Keep the already-dark
+        // online glyph and the selected/disabled variants of the stock drawable.
+        ColorFilter filter = drawable.getColorFilter();
+        boolean pale = filter == null ? asset.contains("_white_") || asset.contains("_disabled_")
+                : RatingTints.WHITE.equals(filter) || RatingTints.OFF_WHITE.equals(filter);
+        if (!pale) return drawable;
+
+        Drawable tinted = drawable.mutate();
+        tinted.setColorFilter(RatingTints.READABLE);
+        return tinted;
+    }
+
+    private static final class RatingTints {
+        private static final PorterDuffColorFilter WHITE =
+                new PorterDuffColorFilter(0xFFFFFFFF, PorterDuff.Mode.SRC_IN);
+        private static final PorterDuffColorFilter OFF_WHITE =
+                new PorterDuffColorFilter(0xFFF1F1F1, PorterDuff.Mode.SRC_IN);
+        private static final PorterDuffColorFilter READABLE =
+                new PorterDuffColorFilter(MUTED, PorterDuff.Mode.SRC_IN);
     }
 
     private static boolean isSpeedDialTitle(StringBuilder path) {

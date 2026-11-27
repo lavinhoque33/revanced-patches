@@ -1,15 +1,18 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
- * Modified by lavinhoque33, 2026-11-25.
+ * Modified by lavinhoque33, 2026-11-26.
  * Written by lavinhoque33, 2026-11-25
  */
 
 package app.morphe.patches.music.layout.theme
 
 import app.morphe.patcher.Fingerprint
+import app.morphe.patcher.InstructionLocation.MatchAfterImmediately
+import app.morphe.patcher.extensions.InstructionExtensions.addInstruction
 import app.morphe.patcher.extensions.InstructionExtensions.addInstructions
 import app.morphe.patcher.extensions.InstructionExtensions.getInstruction
+import app.morphe.patcher.methodCall
 import app.morphe.patcher.patch.BytecodePatchContext
 import app.morphe.patcher.util.getReference
 import app.morphe.patches.music.flyoutmenu.components.menuItemFingerprint
@@ -71,6 +74,49 @@ internal fun BytecodePatchContext.installMusicLightNativeChromeHooks() {
 
     installMusicLightFlyoutIcons()
     installMusicLightShareGlyphs()
+    installMusicLightQueueTitles()
+}
+
+private fun BytecodePatchContext.installMusicLightQueueTitles() {
+    val owners = Fingerprint(
+        name = "<init>",
+        filters = listOf(resourceLiteral(ResourceType.LAYOUT, "playlist_panel_video_item")),
+    ).matchAllOrNull().orEmpty().distinctBy { it.originalClassDef.type }
+
+    val appearance = Fingerprint(
+        returnType = "V",
+        filters = listOf(
+            resourceLiteral(ResourceType.STYLE, "TextAppearance.YouTubeMusic.ListItemTitle"),
+            methodCall(
+                definingClass = "Landroid/widget/TextView;",
+                name = "setTextAppearance",
+                parameters = listOf("I"),
+                location = MatchAfterImmediately(),
+            ),
+        ),
+    )
+    if (owners.isEmpty()) {
+        printWarn("Music light theme: the Up Next row presenter is unavailable.")
+    }
+
+    for (owner in owners) {
+        val match = appearance.matchAllOrNull(owner.originalClassDef)?.singleOrNull()
+        val call = match?.instructionMatches?.lastOrNull()?.instruction as? FiveRegisterInstruction
+        if (match == null || call == null) {
+            printWarn(
+                "Music light theme: the Up Next title appearance is unavailable in ${owner.originalClassDef.type}.",
+            )
+            continue
+        }
+
+        val styleTitle = "$MUSIC_LIGHT_THEME_CLASS_DESCRIPTOR->styleQueueTitle(Landroid/widget/TextView;)V"
+        // Stock reapplies ListItemTitle on each bind, replacing the layout's white with textColorPrimary.
+        val index = match.instructionMatches.last().index
+        match.method.addInstruction(
+            index + 1,
+            "invoke-static {v${call.registerC}}, $styleTitle",
+        )
+    }
 }
 
 private fun BytecodePatchContext.installMusicLightFlyoutIcons() {

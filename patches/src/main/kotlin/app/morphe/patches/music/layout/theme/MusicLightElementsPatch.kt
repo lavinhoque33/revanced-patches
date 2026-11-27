@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
- * Modified by lavinhoque33, 2026-11-25.
+ * Modified by lavinhoque33, 2026-11-26.
  * Written by lavinhoque33, 2026-11-25
  */
 package app.morphe.patches.music.layout.theme
@@ -58,6 +58,9 @@ internal fun BytecodePatchContext.installLightMusicElementsHook() {
     runCatching { installLightElementsText() }.onFailure {
         printWarn("Music light theme: scoped Elements text coloring is unavailable (${it.message}).")
     }
+    runCatching { installMusicLightElementsIcons() }.onFailure {
+        printWarn("Music light theme: scoped Elements glyph coloring is unavailable (${it.message}).")
+    }
 }
 
 private const val PATH_BUILDER = "Ljava/lang/StringBuilder;"
@@ -80,6 +83,12 @@ private fun BytecodePatchContext.installLightElementsText() {
     }
     if (commentPresenter != null) installLightExpandedCommentComposer()
 
+    val viewGetter = commentPresenter ?: classDefBy(contextType).methods.singleOrNull {
+        it.returnType == "Landroid/view/View;" && it.parameterTypes.isEmpty() &&
+                AccessFlags.PUBLIC.isSet(it.accessFlags)
+    }
+    if (viewGetter == null) printWarn("Music light theme: Library chip label coloring is unavailable.")
+
     // Run after the host spans so neither an explicit white style nor a plain-text return bypasses us.
     val sites = textBuilder.findInstructionIndicesReversedOrThrow(Opcode.RETURN_OBJECT).map { index ->
         val text = textBuilder.getInstruction<OneRegisterInstruction>(index).registerA
@@ -92,7 +101,7 @@ private fun BytecodePatchContext.installLightElementsText() {
         val (path, presenter) = registers
         val view = "Landroid/view/View;"
         val callback = "$MUSIC_LIGHT_THEME_CLASS_DESCRIPTOR->styleElementsText($PATH_BUILDER$view$TEXT)$TEXT"
-        val readPresenter = commentPresenter?.let {
+        val readPresenter = viewGetter?.let {
             """
                 invoke-virtual {v$path}, $it
                 move-result-object v$presenter

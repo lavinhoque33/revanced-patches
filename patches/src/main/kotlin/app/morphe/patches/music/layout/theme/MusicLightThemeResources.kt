@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
- * Modified by lavinhoque33, 2026-11-25.
+ * Modified by lavinhoque33, 2026-11-26.
  * Written by lavinhoque33, 2026-11-25.
  */
 
@@ -279,6 +279,24 @@ private fun ResourcePatchContext.addLightBrowseChrome() {
     lightXml("layout", "library_browse_fragment") { view ->
         if (view.resourceId() == "@id/header_container") {
             view.setAttribute("android:tag", "morphe_light_library_chip_header")
+        }
+    }
+    lightXml("layout", "detail_page_tabbed_fragment") { view ->
+        // The native title placeholder is separate from the Elements cover title.
+        if (view.resourceId() == "@id/title_place_holder") view.setAttribute("android:textColor", FOREGROUND)
+    }
+    lightXml("layout", "music_shelf_header") { view ->
+        // The native presenter attaches the leading icon as a compound drawable on the title.
+        if (view.resourceId() == "@id/title") view.setAttribute("android:drawableTint", FOREGROUND)
+    }
+    lightXml("layout", "loading_status_error_view") { view ->
+        when (view.resourceId()) {
+            "@id/loading_error_icon" -> {
+                view.attributes.named("tint").forEach { it.nodeValue = SECONDARY }
+                view.setAttribute("android:tint", SECONDARY)
+            }
+            "@id/error_title" -> view.setAttribute("android:textColor", FOREGROUND)
+            "@id/error_message_text" -> view.setAttribute("android:textColor", SECONDARY)
         }
     }
     lightXml("layout", "music_two_row_item") { view ->

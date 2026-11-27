@@ -8,7 +8,7 @@
  * - anddea (https://github.com/anddea)
  *
  * Licensed under the GNU General Public License v3.0.
- * Modified by lavinhoque33, 2026-11-25
+ * Modified by lavinhoque33, 2026-11-26.
  *
  * ------------------------------------------------------------------------
  * GPLv3 Section 7 – Additional Terms & Attribution Requirements
@@ -237,12 +237,8 @@ public class DrawableColorPatch {
         for (int depth = 0; depth < 8 && callback instanceof Drawable wrapper; depth++) {
             callback = wrapper.getCallback();
         }
-        for (Object host = callback; host instanceof View view; host = view.getParent()) {
-            if ("morphe_light_library_chip_header".equals(view.getTag())) {
-                return MusicLightTheme.SURFACE;
-            }
-        }
-        return colorValue;
+        return callback instanceof View view && MusicLightTheme.isLibraryChipHost(view)
+                ? MusicLightTheme.SURFACE : colorValue;
     }
 
     /**
@@ -355,7 +351,10 @@ public class DrawableColorPatch {
     }
 
     public static void setHeaderGradient(ViewGroup viewGroup) {
-        if (MusicLightTheme.isEnabled()) return;
+        if (MusicLightTheme.isEnabled()) {
+            MusicLightDetailHeader.bindToolbar(viewGroup);
+            return;
+        }
 
         viewGroup.getViewTreeObserver().addOnGlobalLayoutListener(() -> {
             if (!(viewGroup.getChildAt(0) instanceof ViewGroup firstChildView))

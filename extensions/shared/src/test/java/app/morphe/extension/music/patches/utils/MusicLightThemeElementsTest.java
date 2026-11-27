@@ -1,13 +1,18 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-26.
  * Written by lavinhoque33, 2026-11-25
  */
 
 package app.morphe.extension.music.patches.utils;
 
 import android.graphics.Color;
+import android.graphics.ColorFilter;
+import android.graphics.PorterDuff;
+import android.graphics.PorterDuffColorFilter;
 import android.graphics.Typeface;
+import android.graphics.drawable.ColorDrawable;
 import android.text.SpannableString;
 import android.text.Spanned;
 import android.text.style.ForegroundColorSpan;
@@ -15,6 +20,7 @@ import android.text.style.StyleSpan;
 import android.text.style.URLSpan;
 import android.view.View;
 import android.widget.FrameLayout;
+import android.widget.TextView;
 
 import org.junit.After;
 import org.junit.Before;
@@ -26,6 +32,7 @@ import org.robolectric.annotation.Config;
 import org.robolectric.util.ReflectionHelpers;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 
 @RunWith(RobolectricTestRunner.class)
@@ -138,6 +145,122 @@ public class MusicLightThemeElementsTest {
         setStartupTheme("modern_youtube");
         assertSame(disclosure, MusicLightTheme.styleElementsText(null, editor, disclosure));
         assertEquals(0xFF212121, MusicLightTheme.styleCommentComposerFill(editor, 0xFF212121));
+    }
+
+    @Test
+    public void coverHeadingRestoresBothForegroundRolesWithoutDisturbingLinks() {
+        String header = "music_page_header.eml-js-fe|62e1e0b1106bdf99|ContainerType|TextType|";
+        SpannableString byline = new SpannableString("Author · 1M views");
+        URLSpan link = new URLSpan("https://example.org/author");
+        int flags = Spanned.SPAN_EXCLUSIVE_INCLUSIVE;
+        byline.setSpan(link, 0, 6, flags);
+        byline.setSpan(new ForegroundColorSpan(MusicLightTheme.FOREGROUND), 0, 6, flags);
+        byline.setSpan(new ForegroundColorSpan(0xFF606060), 6, byline.length(), flags);
+
+        Spanned result = (Spanned) style(header, byline);
+        assertEquals(0xFFF1F1F1, result.getSpans(0, 6, ForegroundColorSpan.class)[0].getForegroundColor());
+        assertEquals(0xFFAAAAAA, result.getSpans(6, result.length(), ForegroundColorSpan.class)[0]
+                .getForegroundColor());
+        assertSame(link, result.getSpans(0, 6, URLSpan.class)[0]);
+        assertEquals(flags, result.getSpanFlags(link));
+        assertSame(byline, style("music_shelf_header.eml-fe|rollout|TextType|", byline));
+        assertSame(byline, style(header + "play_button.eml-fe|rollout|TextType|", byline));
+
+        setStartupTheme("modern_youtube");
+        assertSame(byline, style(header, byline));
+    }
+
+    @Test
+    public void coverGlyphPaletteExcludesArtworkAndPlay() {
+        PaintedGlyph shuffle = new PaintedGlyph();
+        MusicLightDetailHeader.styleGlyph("yt_outline_experimental_shuffle_vd_theme_24", shuffle);
+        assertEquals(new PorterDuffColorFilter(Color.WHITE, PorterDuff.Mode.SRC_IN), shuffle.filter);
+
+        PaintedGlyph play = new PaintedGlyph();
+        MusicLightDetailHeader.styleGlyph("yt_fill_experimental_play_vd_theme_24", play);
+        assertNull(play.filter);
+        MusicLightDetailHeader.styleGlyph(null, play);
+        assertNull(play.filter);
+    }
+
+    @Test
+    public void libraryChipsKeepBothOfflineAndSelectedLabelsReadable() {
+        FrameLayout header = new FrameLayout(RuntimeEnvironment.getApplication());
+        header.setTag("morphe_light_library_chip_header");
+        View chip = new View(header.getContext());
+        header.addView(chip);
+        StringBuilder path = new StringBuilder("chip_bar.eml-js-fe|chip.eml-fe|TextType|");
+        SpannableString label = new SpannableString("Downloads");
+        label.setSpan(new ForegroundColorSpan(0xFFF1F1F1), 0, label.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+
+        Spanned styled = (Spanned) MusicLightTheme.styleElementsText(path, chip, label);
+        assertEquals(MusicLightTheme.FOREGROUND,
+                styled.getSpans(0, label.length(), ForegroundColorSpan.class)[0].getForegroundColor());
+        assertSame(label, MusicLightTheme.styleElementsText(path, new View(header.getContext()), label));
+
+        SpannableString selected = new SpannableString("Downloads");
+        selected.setSpan(new ForegroundColorSpan(Color.WHITE), 0, selected.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        assertSame(selected, MusicLightTheme.styleElementsText(path, chip, selected));
+
+        setStartupTheme("modern_youtube");
+        assertSame(label, MusicLightTheme.styleElementsText(path, chip, label));
+    }
+
+    @Test
+    public void playerRatingPaletteReplacesOnlyPaleRatingGlyphs() {
+        StringBuilder path = new StringBuilder(
+                "video_action_bar.eml-js-fe|segmented_like_dislike_button.eml-js-fe|ImageType|");
+        int role = MusicLightTheme.elementsGlyphRole(path);
+        PaintedGlyph rating = new PaintedGlyph();
+        String like = "yt_outline_experimental_thumb_up_vd_theme_24";
+        String dislike = "yt_outline_experimental_thumb_down_vd_theme_24";
+        PorterDuffColorFilter readable = new PorterDuffColorFilter(0xFF5F6368, PorterDuff.Mode.SRC_IN);
+        rating.setColorFilter(new PorterDuffColorFilter(Color.WHITE, PorterDuff.Mode.SRC_IN));
+
+        assertSame(rating, MusicLightTheme.styleElementsGlyph(role, like, rating));
+        assertEquals(readable, rating.getColorFilter());
+
+        rating.setColorFilter(new PorterDuffColorFilter(0xFFF1F1F1, PorterDuff.Mode.SRC_IN));
+        MusicLightTheme.styleElementsGlyph(role, dislike, rating);
+        assertEquals(readable, rating.getColorFilter());
+
+        PorterDuffColorFilter online = new PorterDuffColorFilter(Color.BLACK, PorterDuff.Mode.SRC_IN);
+        rating.setColorFilter(online);
+        MusicLightTheme.styleElementsGlyph(role, like, rating);
+        assertSame(online, rating.getColorFilter());
+
+        PorterDuffColorFilter elsewhere = new PorterDuffColorFilter(Color.WHITE, PorterDuff.Mode.SRC_IN);
+        rating.setColorFilter(elsewhere);
+        MusicLightTheme.styleElementsGlyph(MusicLightTheme.elementsGlyphRole(new StringBuilder("like_button.")),
+                like, rating);
+        assertSame(elsewhere, rating.getColorFilter());
+    }
+
+    @Test
+    public void queueTitleRestoresLightTextOnlyWithTheLightTheme() {
+        TextView title = new TextView(RuntimeEnvironment.getApplication());
+        title.setTextColor(MusicLightTheme.FOREGROUND);
+        MusicLightTheme.styleQueueTitle(title);
+        assertEquals(0xFFFFFFFE, title.getCurrentTextColor());
+
+        setStartupTheme("dark");
+        title.setTextColor(0xFFDADADA);
+        MusicLightTheme.styleQueueTitle(title);
+        assertEquals(0xFFDADADA, title.getCurrentTextColor());
+    }
+
+    private static final class PaintedGlyph extends ColorDrawable {
+        private ColorFilter filter;
+
+        @Override
+        public void setColorFilter(ColorFilter filter) {
+            this.filter = filter;
+        }
+
+        @Override
+        public ColorFilter getColorFilter() {
+            return filter;
+        }
     }
 
     private static CharSequence style(String path, CharSequence text) {

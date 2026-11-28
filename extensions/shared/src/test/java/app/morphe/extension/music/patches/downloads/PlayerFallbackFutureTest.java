@@ -1,9 +1,12 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-26.
  * Written by lavinhoque33, 2026-11-14.
  */
 package app.morphe.extension.music.patches.downloads;
+
+import static java.util.concurrent.TimeUnit.SECONDS;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -34,9 +37,9 @@ public final class PlayerFallbackFutureTest {
 
         online.set(false);
         network.setException(new IOException("connection lost"));
-        assertEquals("local", response.get());
+        assertEquals("local", response.get(1, SECONDS));
         assertFalse(network.set("late network response"));
-        assertEquals("local", response.get());
+        assertEquals("local", response.get(1, SECONDS));
     }
 
     @Test
@@ -46,7 +49,7 @@ public final class PlayerFallbackFutureTest {
         ListenableFuture<?> response = PlayerFallbackFuture.recoverAsync(network, Runnable::run,
                 (result, cause) -> result.setException(cause));
         network.setException(failure);
-        assertSame(failure, assertThrows(ExecutionException.class, response::get).getCause());
+        assertSame(failure, assertThrows(ExecutionException.class, () -> response.get(1, SECONDS)).getCause());
     }
 
     @Test
@@ -56,7 +59,7 @@ public final class PlayerFallbackFutureTest {
             throw new AssertionError("successful request must not consult the store");
         });
         network.set("online");
-        assertEquals("online", response.get());
+        assertEquals("online", response.get(1, SECONDS));
     }
 
     @Test
@@ -120,7 +123,7 @@ public final class PlayerFallbackFutureTest {
             throw new IllegalStateException("response cannot be constructed");
         });
         network.setException(failure);
-        assertSame(failure, assertThrows(ExecutionException.class, response::get).getCause());
+        assertSame(failure, assertThrows(ExecutionException.class, () -> response.get(1, SECONDS)).getCause());
     }
 
     @Test
@@ -134,9 +137,57 @@ public final class PlayerFallbackFutureTest {
         online.set(false);
         network.setException(new IOException("lost during uncached Next"));
 
-        PlayerFallbackLogic.Decision decision = (PlayerFallbackLogic.Decision) response.get();
+        PlayerFallbackLogic.Decision decision = (PlayerFallbackLogic.Decision) response.get(1, SECONDS);
         assertEquals(PlayerFallbackLogic.Route.SKIP, decision.route());
         assertEquals(3, decision.nextIndex());
         assertFalse(network.set("late network response"));
+    }
+
+    @Test
+    public void emptyDeadlineLeavesNativeResponseUnclaimed() throws Exception {
+        ReplayFuture network = new ReplayFuture();
+        PlayerFallbackFuture response = PlayerFallbackFuture.recoverAsync(network, Runnable::run,
+                ReplayFuture::setException);
+
+        response.tryFallback(() -> null);
+        assertFalse(response.isDone());
+        network.set("native");
+        assertEquals("native", response.get(1, SECONDS));
+    }
+
+    @Test
+    public void nativeResponseCanWinDuringLocalPreparation() throws Exception {
+        ReplayFuture network = new ReplayFuture();
+        PlayerFallbackFuture response = PlayerFallbackFuture.recoverAsync(network, Runnable::run,
+                ReplayFuture::setException);
+
+        response.tryFallback(() -> {
+            network.set("native");
+            return "local";
+        });
+        assertEquals("native", response.get(1, SECONDS));
+    }
+
+    @Test
+    public void localDeadlinePreventsLateNativeReplacement() throws Exception {
+        ReplayFuture network = new ReplayFuture();
+        PlayerFallbackFuture response = PlayerFallbackFuture.recoverAsync(network, Runnable::run,
+                ReplayFuture::setException);
+
+        response.tryFallback(() -> "local");
+        network.set("native");
+        assertEquals("local", response.get(1, SECONDS));
+    }
+
+    @Test
+    public void onlyWinningPublicationRunsBeforeListeners() throws Exception {
+        ReplayFuture response = new ReplayFuture();
+        List<String> events = new ArrayList<>();
+        response.addListener(() -> events.add("delivered"), Runnable::run);
+
+        assertTrue(response.set("winner", () -> events.add("published")));
+        assertFalse(response.set("loser", () -> events.add("published stale response")));
+        assertEquals("winner", response.get(1, SECONDS));
+        assertEquals(List.of("published", "delivered"), events);
     }
 }

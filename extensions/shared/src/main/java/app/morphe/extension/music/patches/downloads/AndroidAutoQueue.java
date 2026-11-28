@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-26
  * Modified by lavinhoque33, 2026-11-11.
  */
 package app.morphe.extension.music.patches.downloads;
@@ -9,10 +10,12 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 
-import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import app.morphe.extension.shared.utils.Logger;
 import app.morphe.extension.shared.utils.Utils;
@@ -40,22 +43,22 @@ public final class AndroidAutoQueue {
 
     private static final class Selection {
         final long request;
-        final int index;
+        final String song;
+        final List<String> following;
+        final Runnable timeout = () -> failed(this, new TimeoutException("Saved queue did not commit in time"));
         Owner owner;
         boolean decided;
         Object initialModel;
         long initialItem = Long.MIN_VALUE;
         Object readyModel;
         long readyItem;
-        String song;
-        List<String> following;
         boolean requested;
         Future<?> lookup;
-        Object response;
         Observer observer;
 
-        Selection(int index, long request) {
-            this.index = index;
+        Selection(String song, List<String> following, long request) {
+            this.song = song;
+            this.following = following;
             this.request = request;
         }
     }
@@ -87,6 +90,7 @@ public final class AndroidAutoQueue {
 
     private static volatile Selection pending;
     private static final String REQUEST = "morphe_auto_queue_request";
+    private static final long BATCH_TIMEOUT_MS = 8_000;
 
     private AndroidAutoQueue() {}
 
@@ -106,6 +110,7 @@ public final class AndroidAutoQueue {
 
     private static void retire(Selection selection) {
         if (selection == null) return;
+        CallbackDispatch.MAIN.removeCallbacks(selection.timeout);
         Observer observer;
         Future<?> lookup;
         synchronized (AndroidAutoQueue.class) {
@@ -127,17 +132,19 @@ public final class AndroidAutoQueue {
     }
 
     /** Called before the unhooked native callback: its session-controller entry supplies the actual owner. */
-    public static Bundle prepare(String source, int index, Bundle extras, long request) {
-        Selection selection = supported() && OfflineReplay.SONGS.equals(source) ? new Selection(index, request) : null;
+    public static Bundle prepare(String song, List<String> following, Bundle extras, long request) {
+        if (!supported() || following.isEmpty()) return extras;
+
+        Selection selection = new Selection(song, following, request);
         Selection previous;
         synchronized (AndroidAutoQueue.class) {
             previous = pending;
+            CallbackDispatch.MAIN.postDelayed(selection.timeout, BATCH_TIMEOUT_MS);
             pending = selection;
         }
         retire(previous);
-        Logger.printDebug(() -> "Android Auto queue: prepare request=" + request + " source=" + source
-                + " index=" + index + " enabled=" + supported());
-        if (selection == null) return extras;
+        Logger.printDebug(() -> "Android Auto queue: prepare request=" + request + " song=" + song
+                + " following=" + following.size());
         Bundle correlated = extras == null ? new Bundle() : new Bundle(extras);
         correlated.putLong(REQUEST, request);
         return correlated;
@@ -173,7 +180,6 @@ public final class AndroidAutoQueue {
                 }
             }
         }
-        if (observer.active) Utils.runOnBackgroundThread(() -> prepareRows(selection));
     }
 
     private static boolean matches(Selection selection, Bundle extras) {
@@ -200,38 +206,20 @@ public final class AndroidAutoQueue {
     public static void onReuse(Object request) {
         if (!(request instanceof Selection selection)) return;
         Owner owner = selection.owner;
-        synchronized (owner.rvxAutoStorage()) {
+        synchronized (selection.observer.storage) {
             synchronized (AndroidAutoQueue.class) {
-                if (pending != selection) return;
+                if (pending != selection || selection.readyModel != null
+                        || owner.rvxAutoStorage() != selection.observer.storage) return;
                 List<?> items = owner.rvxAutoItems();
                 int current = owner.rvxAutoCurrent();
                 if (current < 0 || current >= items.size()) return;
+                Object item = items.get(current);
+                if (!selection.song.equals(owner.rvxAutoVideoId(item))) return;
                 selection.readyModel = owner.rvxAutoModel();
-                selection.readyItem = owner.rvxAutoItemId(items.get(current));
+                selection.readyItem = owner.rvxAutoItemId(item);
             }
         }
         owner.rvxAutoExecutor().execute(() -> advance(selection));
-    }
-
-    private static void prepareRows(Selection selection) {
-        try {
-            List<OfflineWatchNext.Item> saved = OfflineReplay.queueOf(OfflineReplay.SONGS);
-            if (selection.index < 0 || selection.index >= saved.size()) {
-                throw new IllegalStateException("The selected saved row is no longer available");
-            }
-            List<String> following = saved.size() == 1 ? List.of() : new ArrayList<>(saved.size() - 1);
-            for (int offset = 1; offset < saved.size(); offset++) {
-                following.add(saved.get((selection.index + offset) % saved.size()).videoId());
-            }
-            synchronized (AndroidAutoQueue.class) {
-                if (pending != selection) return;
-                selection.song = saved.get(selection.index).videoId();
-                selection.following = following;
-            }
-            selection.owner.rvxAutoExecutor().execute(() -> advance(selection));
-        } catch (Exception ex) {
-            failed(selection, ex);
-        }
     }
 
     /** One native batch request preserves the queue context and response anchors for the whole saved ordering. */
@@ -239,19 +227,16 @@ public final class AndroidAutoQueue {
         Owner owner = selection.owner;
         Future<?> lookup;
         try {
-            synchronized (owner.rvxAutoStorage()) {
+            synchronized (selection.observer.storage) {
                 synchronized (AndroidAutoQueue.class) {
-                    if (pending != selection || selection.following == null || selection.readyModel == null
-                            || selection.lookup != null) return;
-                    if (selection.following.isEmpty() || selection.response != null) {
-                        lookup = null;
-                    } else {
-                        if (selection.requested || !matchesCurrent(selection)) return;
-                        selection.requested = true;
-                        lookup = owner.rvxAutoResolve(OnlineQueueCommand.playNext(selection.following.get(0)),
-                                selection.following);
-                        if (pending == selection) selection.lookup = lookup;
+                    if (pending != selection || selection.readyModel == null || selection.requested) return;
+                    if (!matchesCurrent(selection)) {
+                        throw new IllegalStateException("Saved queue start was superseded before metadata lookup");
                     }
+                    selection.requested = true;
+                    lookup = Objects.requireNonNull(owner.rvxAutoResolve(
+                            OnlineQueueCommand.playNext(selection.following.get(0)), selection.following));
+                    selection.lookup = lookup;
                 }
             }
         } catch (Exception ex) {
@@ -262,16 +247,12 @@ public final class AndroidAutoQueue {
             if (lookup != null) lookup.cancel(false);
             return;
         }
-        if (lookup == null) {
-            commit(selection);
-        } else {
-            Utils.runOnBackgroundThread(() -> resolved(selection, lookup));
-        }
+        Utils.runOnBackgroundThread(() -> resolved(selection, lookup));
     }
 
     private static void resolved(Selection selection, Future<?> lookup) {
         try {
-            Object response = lookup.get();
+            Object response = lookup.get(BATCH_TIMEOUT_MS, TimeUnit.MILLISECONDS);
             List<?> items = selection.owner.rvxAutoResolved(response);
             if (items.size() != selection.following.size()) {
                 throw new IllegalStateException("Native batch did not return all requested saved rows");
@@ -283,10 +264,9 @@ public final class AndroidAutoQueue {
             }
             synchronized (AndroidAutoQueue.class) {
                 if (pending != selection || selection.lookup != lookup) return;
-                selection.response = response;
                 selection.lookup = null;
             }
-            selection.owner.rvxAutoExecutor().execute(() -> advance(selection));
+            selection.owner.rvxAutoExecutor().execute(() -> commit(selection, response));
         } catch (Exception ex) {
             failed(selection, ex);
         }
@@ -305,6 +285,7 @@ public final class AndroidAutoQueue {
     /** Caller holds the captured store and coordinator monitors. */
     private static boolean matchesCurrent(Selection selection) {
         Owner owner = selection.owner;
+        if (owner.rvxAutoStorage() != selection.observer.storage) return false;
         List<?> items = owner.rvxAutoItems();
         int current = owner.rvxAutoCurrent();
         return current >= 0 && current < items.size()
@@ -319,18 +300,15 @@ public final class AndroidAutoQueue {
         synchronized (observer.storage) {
             synchronized (AndroidAutoQueue.class) {
                 if (!observer.active || pending != selection || selection.observer != observer
-                        || !selection.decided || owner.rvxAutoStorage() != observer.storage) return;
+                        || !selection.decided || selection.readyModel != null
+                        || owner.rvxAutoStorage() != observer.storage) return;
                 Object model = owner.rvxAutoModel();
                 List<?> items = owner.rvxAutoItems();
                 int current = owner.rvxAutoCurrent();
                 Object item = current >= 0 && current < items.size() ? items.get(current) : null;
-                if (item == null) {
-                    selection.readyModel = null;
-                    return;
-                }
+                if (item == null || !selection.song.equals(owner.rvxAutoVideoId(item))) return;
                 if (eventItem != item && (eventItem == null
                         || owner.rvxAutoItemId(eventItem) != owner.rvxAutoItemId(item))) return;
-                selection.readyModel = null;
                 if (!newQueue(selection.initialModel, selection.initialItem, model,
                         owner.rvxAutoItemId(item))) return;
                 selection.readyModel = model;
@@ -340,31 +318,25 @@ public final class AndroidAutoQueue {
         advance(selection);
     }
 
-    private static void commit(Selection selection) {
+    private static void commit(Selection selection, Object response) {
         Owner owner = selection.owner;
         try {
-            synchronized (owner.rvxAutoStorage()) {
+            synchronized (selection.observer.storage) {
                 synchronized (AndroidAutoQueue.class) {
-                    if (pending != selection || selection.following == null || selection.readyModel == null
-                            || (!selection.following.isEmpty() && selection.response == null)
-                            || selection.lookup != null) {
-                        return;
+                    if (pending != selection) return;
+                    if (!matchesCurrent(selection)) {
+                        throw new IllegalStateException("Saved queue start was superseded before insertion");
                     }
-                    List<?> items = owner.rvxAutoItems();
-                    int current = owner.rvxAutoCurrent();
-                    if (current < 0 || current >= items.size()
-                            || !canCommit(pending, selection, selection.readyModel, owner.rvxAutoModel(),
-                            selection.song, owner.rvxAutoVideoId(items.get(current)), selection.readyItem,
-                            owner.rvxAutoItemId(items.get(current)))) {
-                        return;
-                    }
+                    int itemCount = owner.rvxAutoItems().size();
+                    owner.rvxAutoInsert(response);
                     pending = null;
-                    if (selection.response != null) owner.rvxAutoInsert(selection.response);
                     Logger.printDebug(() -> "Android Auto: committed "
-                            + (owner.rvxAutoItems().size() - items.size()) + " of " + selection.following.size()
+                            + (owner.rvxAutoItems().size() - itemCount) + " of " + selection.following.size()
                             + " saved rows after " + selection.song);
                 }
             }
+        } catch (RuntimeException ex) {
+            failed(selection, ex);
         } finally {
             if (pending != selection) retire(selection);
         }

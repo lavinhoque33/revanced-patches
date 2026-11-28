@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-26.
  * Written by lavinhoque33, 2026-11-15.
  */
 package app.morphe.patches.music.interaction.smartshuffle
@@ -52,9 +53,8 @@ val smartShufflePatch = bytecodePatch(
                 { resolveSmartShuffleUi() },
             )
         } catch (exception: Exception) {
-            if (packageMetadata.versionName != "9.45.51") throw exception
-            printWarn("Smart Shuffle prerequisites are unavailable on this Music version: ${exception.message}. " +
-                "Skipping the entire feature: no toggle or Smart Shuffle hooks were installed.")
+            printWarn("Smart Shuffle prerequisites are unavailable on Music ${packageMetadata.versionName}: " +
+                "${exception.message}. Skipping the entire feature: no toggle or Smart Shuffle hooks were installed.")
             return@execute
         }
         install()

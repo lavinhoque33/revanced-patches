@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-26.
  * Modified by lavinhoque33, 2026-11-17.
  * Modified by lavinhoque33, 2026-11-10.
  * Written by lavinhoque33, 2026-11-10.
@@ -59,10 +60,7 @@ final class DownloadRemoval {
             try {
                 StreamDownloads.remove(songId);
                 Logger.printInfo(() -> "Removed the stream copy of " + songId);
-                Utils.runOnMainThread(() -> {
-                    Utils.showToastShort(str("morphe_music_remove_song_done"));
-                    NoPlaylistDialog.onSongRemoved(songId);
-                });
+                Utils.runOnMainThread(() -> Utils.showToastShort(str("morphe_music_remove_song_done")));
             } catch (Exception ex) {
                 failed(songId, ex);
             }

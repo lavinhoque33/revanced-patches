@@ -16,14 +16,12 @@ import android.os.SystemClock;
 
 import androidx.annotation.Nullable;
 
-import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.Callable;
@@ -42,6 +40,7 @@ public final class PlaylistDownloads {
     private static final ConcurrentHashMap<String, Run> active = new ConcurrentHashMap<>();
     private static final ThreadLocal<Run> worker = new ThreadLocal<>();
     private static final BooleanSupplier NOT_STOPPED = () -> false;
+    private static volatile long streamEpoch;
 
     private static final class Run {
         final DownloadMode mode;
@@ -72,17 +71,16 @@ public final class PlaylistDownloads {
 
     private PlaylistDownloads() {}
 
-    /**
-     * A saved stream source (even if an automatic resume is filling it) offers Remove on the existing button.
-     */
+    /** A saved or in-progress Stream source can be discarded; the progress row independently offers Resume. */
     static void onDownloadButton(String playlistId) {
         Run run = active.get(playlistId);
-        if (run != null && run.automatic && !run.removed) {
+        boolean streamCopy = LocalDownloadManager.downloadMode().streamCopy();
+        if ((run != null && run.mode.streamCopy() && !run.removed)
+                || (streamCopy && DownloadedMarkers.isStreamSourceRetained(playlistId))) {
             DownloadRemoval.confirmSource(playlistId);
             return;
         }
 
-        boolean streamCopy = LocalDownloadManager.downloadMode().streamCopy();
         boolean running = run != null;
         HeaderDownloadState.Tap tap = HeaderDownloadState.tapOf(streamCopy,
                 streamCopy && DownloadedMarkers.isSourceDownloaded(playlistId), running);
@@ -111,13 +109,13 @@ public final class PlaylistDownloads {
     }
 
     static void resume(String playlistId) {
-        enqueue(playlistId, LocalDownloadManager.downloadMode(), true, false);
+        enqueueManual(playlistId, true);
     }
 
     enum ResumeStart { STARTED, WIFI_UNAVAILABLE, NOT_PENDING, ALREADY_RUNNING, MODE_CHANGED, STORAGE_DENIED }
 
     static ResumeStart resumeAutomatically(String playlistId) {
-        return enqueue(playlistId, LocalDownloadManager.downloadMode(), true, true);
+        return enqueue(playlistId, LocalDownloadManager.downloadMode(), true, true, streamEpoch);
     }
 
     /** Called under the source mutation lock; an explicit Remove must win over an outstanding worker. */
@@ -128,6 +126,15 @@ public final class PlaylistDownloads {
         run.removed = true;
         DownloadNetwork.wakeWaiters();
         Logger.printInfo(() -> "PlaylistDownloads: removed active " + playlistId);
+    }
+
+    /** Called under the source mutation lock, before bulk clearing the Stream store. */
+    static void cancelStreamRuns() {
+        streamEpoch++;
+        for (Run run : active.values()) {
+            if (run.mode.streamCopy()) run.removed = true;
+        }
+        DownloadNetwork.wakeWaiters();
     }
 
     static BooleanSupplier stopSignal() {
@@ -154,17 +161,30 @@ public final class PlaylistDownloads {
     }
 
     public static void enqueue(String playlistId) {
-        enqueue(playlistId, LocalDownloadManager.downloadMode(), false, false);
+        enqueueManual(playlistId, false);
     }
 
-    private static ResumeStart enqueue(String playlistId, DownloadMode mode, boolean resume, boolean automatic) {
+    private static void enqueueManual(String playlistId, boolean resume) {
+        DownloadMode mode = LocalDownloadManager.downloadMode();
+        long requestedEpoch = streamEpoch;
+        if (mode.streamCopy()) {
+            Utils.runOnBackgroundThread(() -> enqueue(playlistId, mode, resume, false, requestedEpoch));
+        } else {
+            enqueue(playlistId, mode, resume, false, requestedEpoch);
+        }
+    }
+
+    private static ResumeStart enqueue(String playlistId, DownloadMode mode, boolean resume, boolean automatic,
+                                       long requestedEpoch) {
         if (mode == DownloadMode.OFF || (automatic && !mode.streamCopy())) return ResumeStart.MODE_CHANGED;
         if (mode.localFiles() && !NativeDownloads.ensureStoragePermission()) return ResumeStart.STORAGE_DENIED;
 
         Run run;
         synchronized (PlaylistSync.MUTATION) {
+            if (mode.streamCopy() && requestedEpoch != streamEpoch) return ResumeStart.NOT_PENDING;
             if (resume && !DownloadRetryPlan.canResume(mode.streamCopy(), automatic
-                    ? DownloadedMarkers.hasPendingDownload(playlistId) : DownloadedMarkers.isPlaylistPending(playlistId))) {
+                    ? DownloadedMarkers.hasPendingDownload(playlistId)
+                    : DownloadedMarkers.canResumeStreamSource(playlistId))) {
                 return ResumeStart.NOT_PENDING;
             }
             if (automatic && DownloadNetwork.eligibleWifi() == null) return ResumeStart.WIFI_UNAVAILABLE;
@@ -208,8 +228,9 @@ public final class PlaylistDownloads {
 
             String browseId = "VL" + playlistId;
             JSONObject first = browse(run, browseId, null);
-            SourceHeader header = run.network == null ? header(playlistId, first)
+            DownloadHeader resolved = run.network == null ? header(playlistId, first)
                     : run.network.transfer(() -> header(playlistId, first));
+            SourceHeader header = resolved.header();
             if (!header.hasTitle()) throw new IOException("Playlist title is unavailable");
             hold.progress(header.title(), -1, str("morphe_music_downloads_starting"));
 
@@ -222,7 +243,7 @@ public final class PlaylistDownloads {
                     + " unavailable of " + tracks.size() + " tracks");
 
             if (run.mode.streamCopy()) {
-                downloadStream(playlistId, header, tracks, available, skipped, quality, run);
+                downloadStream(playlistId, resolved, tracks, available, skipped, quality, run);
             } else {
                 downloadDeviceFiles(playlistId, header.title(), available, skipped, quality, run,
                         AlbumFileTracks.batch(browseId, first));
@@ -284,16 +305,21 @@ public final class PlaylistDownloads {
                 VideoCopyDownloader.Outcome.NONE), onlyNewFile);
     }
 
-    private static void downloadStream(String playlistId, SourceHeader header, List<String> tracks,
+    private static void downloadStream(String playlistId, DownloadHeader resolved, List<String> tracks,
                                        List<String> available, int skipped, DownloadQuality quality, Run run)
             throws Exception {
+        SourceHeader header = resolved.header();
         OfflineSourceStore.Source source;
         synchronized (PlaylistSync.MUTATION) {
             if (run.removed) return;
             DownloadedMarkers.onPlaylistStarted(playlistId, tracks, header);
+            rememberAlbumMapping(resolved, playlistId);
             source = OfflineCopyStore.source(playlistId);
         }
-        if (source != null) PlaylistSync.captureDownload(source, run.automatic, run::cancelled);
+        if (source != null) {
+            saveAlbumPage(resolved, source);
+            PlaylistSync.captureDownload(source, run.automatic, run::cancelled);
+        }
 
         UnaryOperator<String> canonical = streamCopyIds();
         Predicate<String> ready = PlaylistDownloads::offlineReady;
@@ -340,6 +366,37 @@ public final class PlaylistDownloads {
             int failed = 0;
             for (String id : available) if (failures.contains(canonical.apply(id))) failed++;
             reportPartial(run, playlistId, title, result, Math.min(failed, result.total() - result.ready()));
+        }
+    }
+
+    /**
+     * Records the album page the download proved for its playlist, before any track is transferred. Best effort:
+     * {@link #saveAlbumPage} records it too, but only for a source with no saved page yet, so this early write stays;
+     * a failure here (no pages directory, a full disk) must not abort the media download.
+     */
+    private static void rememberAlbumMapping(DownloadHeader resolved, String playlistId) {
+        String pageId = resolved.albumPage();
+        if (pageId == null) return;
+
+        try {
+            OfflineBrowsePages.rememberAlbumPage(pageId, playlistId);
+        } catch (Exception ex) {
+            Logger.printDebug(() -> "AlbumOpen: could not record " + pageId + " for " + playlistId
+                    + ", the download goes on", ex);
+        }
+    }
+
+    /** The page that proved the album mapping is kept with it, so the album opens as its own page at once. */
+    private static void saveAlbumPage(DownloadHeader resolved, OfflineSourceStore.Source source) {
+        String pageId = resolved.albumPage();
+        byte[] page = resolved.albumPageBytes();
+        if (pageId == null || page == null) return;
+
+        try {
+            int written = OfflineBrowsePages.rememberAlbum(pageId, source.id(), page);
+            Logger.printDebug(() -> "AlbumOpen: saved " + pageId + " for " + source.id() + " bytes=" + written);
+        } catch (Exception ex) {
+            Logger.printDebug(() -> "AlbumOpen: could not save " + pageId + " for " + source.id(), ex);
         }
     }
 
@@ -428,36 +485,45 @@ public final class PlaylistDownloads {
 
     /** The header of a playlist or album, read off the network. For use on a worker thread. */
     static SourceHeader fetchHeader(String playlistId) throws Exception {
-        return header(playlistId, MusicBrowseRequest.browse(Utils.getContext(), "VL" + playlistId, null, null));
+        return header(playlistId, MusicBrowseRequest.browse(Utils.getContext(), "VL" + playlistId, null, null))
+                .header();
     }
 
-    private static SourceHeader header(String playlistId, JSONObject response) throws Exception {
+    /** The page of an album that was proven to be the album's, with the native first page that proved it. */
+    private record DownloadHeader(SourceHeader header, @Nullable String albumPage, @Nullable byte[] albumPageBytes) {}
+
+    private static DownloadHeader header(String playlistId, JSONObject response) throws Exception {
         SourceHeader header = SourceHeader.read(response);
-        return header.hasTitle() ? header : albumHeader(playlistId, response);
+        if (!DownloadsPageLogic.isAlbum(playlistId)) return new DownloadHeader(header, null, null);
+
+        try {
+            DownloadHeader album = albumHeader(playlistId, response);
+            if (album.albumPage() != null) {
+                return album.header().hasTitle() ? album
+                        : new DownloadHeader(header, album.albumPage(), album.albumPageBytes());
+            }
+        } catch (Exception failure) {
+            if (!header.hasTitle() || failure instanceof InterruptedException) throw failure;
+            Logger.printDebug(() -> "PlaylistDownloads: no verified album page for " + playlistId, failure);
+        }
+        return new DownloadHeader(header, null, null);
     }
 
     /**
-     * Album playlists (OLAK…) have no header in their playlist response. Every row links to
-     * the album page instead; use that page's header only if all rows agree on one album and
-     * the album page itself points back at this playlist.
+     * Album playlists (OLAK…) have no header in their playlist response. Their track rows link to the album page
+     * instead; the header of that page is used only for the page whose native response names this playlist as
+     * the owner of its primary Play button, see {@link AlbumPageResolver}.
      */
-    private static SourceHeader albumHeader(String playlistId, JSONObject response) throws Exception {
-        Set<String> albums = new HashSet<>();
-        collectAlbums(response, albums);
-        if (albums.size() != 1) return SourceHeader.EMPTY;
-        JSONObject album = MusicBrowseRequest.browse(Utils.getContext(), albums.iterator().next(), null, null);
-        return album.toString().contains("\"" + playlistId + "\"") ? SourceHeader.read(album) : SourceHeader.EMPTY;
-    }
-
-    private static void collectAlbums(Object node, Set<String> albums) {
-        if (node instanceof JSONObject object) {
-            JSONObject endpoint = object.optJSONObject("browseEndpoint");
-            String id = endpoint == null ? "" : endpoint.optString("browseId");
-            if (id.startsWith("MPREb_")) albums.add(id);
-            Iterator<String> keys = object.keys();
-            while (keys.hasNext()) collectAlbums(object.opt(keys.next()), albums);
-        } else if (node instanceof JSONArray array) {
-            for (int i = 0; i < array.length(); i++) collectAlbums(array.opt(i), albums);
+    private static DownloadHeader albumHeader(String playlistId, JSONObject response) throws Exception {
+        AlbumPageResolver.Resolved album = AlbumPageResolver.resolveOnline(playlistId, response);
+        if (album == null) {
+            Logger.printDebug(() -> "AlbumOpen: no album page proved for " + playlistId + " among "
+                    + AlbumPageResolver.candidates(response));
+            return new DownloadHeader(SourceHeader.EMPTY, null, null);
         }
+
+        Logger.printDebug(() -> "AlbumOpen: " + album.pageId() + " proven as the album page of " + playlistId);
+        JSONObject page = MusicBrowseRequest.browse(Utils.getContext(), album.pageId(), null, null);
+        return new DownloadHeader(SourceHeader.read(page), album.pageId(), album.page());
     }
 }

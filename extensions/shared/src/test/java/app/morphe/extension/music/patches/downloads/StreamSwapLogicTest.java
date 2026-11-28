@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-28.
  * Written by lavinhoque33, 2026-11-07.
  * Modified by lavinhoque33, 2026-11-10
  */
@@ -13,6 +14,7 @@ import org.junit.Test;
 import java.io.File;
 
 import app.morphe.extension.shared.innertube.PlayerResponseOuterClass.ByteRange;
+import app.morphe.extension.shared.innertube.PlayerResponseOuterClass.ExoPlayerConfig;
 import app.morphe.extension.shared.innertube.PlayerResponseOuterClass.Format;
 import app.morphe.extension.shared.innertube.PlayerResponseOuterClass.MediaCommonConfig;
 import app.morphe.extension.shared.innertube.PlayerResponseOuterClass.PlaybackRoutingConfig;
@@ -25,7 +27,7 @@ public class StreamSwapLogicTest {
     private static final String MIME = "audio/webm; codecs=\"opus\"";
 
     private RawAudioFiles.Entry raw() {
-        return new RawAudioFiles.Entry(new File("track.251"), 251, MIME, 1000, 123, "muxed", "digest");
+        return new RawAudioFiles.Entry(new File("track.251"), 251, MIME, 1000, 123, "muxed", "digest", 0);
     }
 
     private Format.Builder audio() {
@@ -53,7 +55,7 @@ public class StreamSwapLogicTest {
             String mime = itag == 139 ? "audio/mp4; codecs=\"mp4a.40.5\""
                     : itag < 200 ? "audio/mp4; codecs=\"mp4a.40.2\"" : MIME;
             RawAudioFiles.Entry copy = new RawAudioFiles.Entry(new File("track." + itag),
-                    itag, mime, 1000, 123, null, "digest");
+                    itag, mime, 1000, 123, null, "digest", 0);
             Format selected = audio().setItag(itag).setMimeType(mime).build();
             assertNull(StreamSwapLogic.mismatch(copy, selected, online().build()));
             assertNotNull(StreamSwapLogic.mismatch(copy,
@@ -63,13 +65,13 @@ public class StreamSwapLogicTest {
 
     @Test public void anOnlineResponseMissingTheSavedTierUsesTheSavedCodecRangesAndBytesOnly() {
         String aac = "audio/mp4; codecs=\"mp4a.40.5\"";
-        RawAudioFiles.Entry copy = new RawAudioFiles.Entry(new File("track.139"), 139, aac, 1000, 123, null, "d");
+        RawAudioFiles.Entry copy = new RawAudioFiles.Entry(new File("track.139"), 139, aac, 1000, 123, null, "d", 0);
         Format downloaded = audio().setItag(139).setMimeType(aac).build();
         PlayerResponse live = online().setVideoDetails(VideoDetails.newBuilder()
                 .setVideoId("track").setLengthSeconds(200)).build();
         PlayerResponse saved = live.toBuilder().setStreamingData(StreamingData.newBuilder()
                 .addAdaptiveFormats(downloaded)).build();
-        Format selected = StreamSwapLogic.savedAudio("track", copy, live, saved);
+        Format selected = StreamSwapLogic.savedAudio("track", "track", copy, live, saved);
         assertEquals(downloaded, selected);
         PlayerResponse swapped = StreamSwapLogic.replaceAudio(live, selected);
         assertEquals(139, swapped.getStreamingData().getAdaptiveFormats(0).getItag());
@@ -77,12 +79,19 @@ public class StreamSwapLogicTest {
         assertEquals(downloaded.getInitRange(), swapped.getStreamingData().getAdaptiveFormats(0).getInitRange());
         assertEquals(live.getVideoDetails(), swapped.getVideoDetails());
         assertNull(VideoCopyLogic.fallbackUrl(selected, audio().setUrl("https://example.invalid/251").build()));
-        assertNull(StreamSwapLogic.savedAudio("track", copy, live, null));
-        assertNull(StreamSwapLogic.savedAudio("track", copy, live, saved.toBuilder()
+        assertNull(StreamSwapLogic.savedAudio("track", "track", copy, live, null));
+        assertNull(StreamSwapLogic.savedAudio("track", "track", copy, live, saved.toBuilder()
                 .setVideoDetails(saved.getVideoDetails().toBuilder().setVideoId("other")).build()));
-        assertNull(StreamSwapLogic.savedAudio("track", copy, live, saved.toBuilder()
+        assertNull(StreamSwapLogic.savedAudio("track", "track", copy, live, saved.toBuilder()
                 .setStreamingData(saved.getStreamingData().toBuilder().setAdaptiveFormats(0,
                         downloaded.toBuilder().setLastModified(124))).build()));
+
+        PlayerResponse alias = live.toBuilder().setVideoDetails(live.getVideoDetails().toBuilder()
+                .setVideoId("alias")).build();
+        assertEquals(downloaded, StreamSwapLogic.savedAudio("alias", "track", copy, alias, saved));
+        assertNull(StreamSwapLogic.savedAudio("other", "track", copy, alias, saved));
+        assertNull(StreamSwapLogic.savedAudio("alias", "track", copy, alias.toBuilder()
+                .setVideoDetails(alias.getVideoDetails().toBuilder().setLengthSeconds(250)).build(), saved));
     }
 
     /** The 9.40.51 SABR shape from device round P1: empty Format.url, routing URL in StreamingData field 15. */
@@ -119,9 +128,9 @@ public class StreamSwapLogicTest {
         assertNotNull(StreamSwapLogic.mismatch(raw(), audio().setItag(140).build(), online().build()));
         assertNotNull(StreamSwapLogic.mismatch(raw(), audio().setMimeType("audio/mp4").build(), online().build()));
         assertNotNull(StreamSwapLogic.mismatch(raw(), audio().setMimeType("video/webm").build(), online().build()));
-        RawAudioFiles.Entry otherItag = new RawAudioFiles.Entry(raw().file(), 140, MIME, 1000, 123, "m", "d");
+        RawAudioFiles.Entry otherItag = new RawAudioFiles.Entry(raw().file(), 140, MIME, 1000, 123, "m", "d", 0);
         assertNotNull(StreamSwapLogic.mismatch(otherItag, audio().build(), online().build()));
-        RawAudioFiles.Entry otherMime = new RawAudioFiles.Entry(raw().file(), 251, "audio/ogg", 1000, 123, "m", "d");
+        RawAudioFiles.Entry otherMime = new RawAudioFiles.Entry(raw().file(), 251, "audio/ogg", 1000, 123, "m", "d", 0);
         assertNotNull(StreamSwapLogic.mismatch(otherMime, audio().build(), online().build()));
     }
 
@@ -213,12 +222,18 @@ public class StreamSwapLogicTest {
         assertEquals(213, swapped.getVideoDetails().getLengthSeconds());
     }
 
-    @Test public void aStoredVideoResponseKeepsItsEngineFlagsThroughTheSwap() {
+    @Test public void aColdSavedPairUnlocksVideoAndKeepsTheOtherExoFieldsByteForByte() throws Exception {
+        // Field 1 (use ExoPlayer), field 201 (force audio-only), and opaque field 202.
+        byte[] savingClientConfig = {8, 1, (byte) 0xc8, 12, 1, (byte) 0xd0, 12, 37};
+        ExoPlayerConfig exo = ExoPlayerConfig.parseFrom(savingClientConfig);
+        assertTrue(exo.getForceAudioOnly());
+
         PlayerResponse stored = PlayerResponse.newBuilder()
                 .setVideoDetails(VideoDetails.newBuilder().setVideoId("clip"))
                 .setStreamingData(StreamingData.newBuilder().addAdaptiveFormats(video().clearUrl())
                         .addAdaptiveFormats(audio()))
-                .setPlayerConfig(OfflineResponseTrim.forExoPlayer(PlayerConfig.getDefaultInstance())).build();
+                .setPlayerConfig(OfflineResponseTrim.forExoPlayer(
+                        PlayerConfig.newBuilder().setExoPlayerConfig(exo).build())).build();
 
         PlayerResponse swapped = StreamSwapLogic.replacePair(stored, video().build(), videoAudio().build());
 
@@ -227,12 +242,19 @@ public class StreamSwapLogicTest {
         assertEquals(0, swapped.getStreamingData().getFormatsCount());
         assertTrue(swapped.getPlayerConfig().getExoPlayerConfig().getUseExoPlayer());
         assertTrue(swapped.getPlayerConfig().getAudioConfig().getExoAudioGate());
+        assertArrayEquals(new byte[]{8, 1, (byte) 0xd0, 12, 37},
+                swapped.getPlayerConfig().getExoPlayerConfig().toByteArray());
+        assertArrayEquals(savingClientConfig, stored.getPlayerConfig().getExoPlayerConfig().toByteArray());
     }
 
     @Test public void theAudioSwapStillKeepsTheFormatsOutOfTheVideoField() {
-        PlayerResponse swapped = StreamSwapLogic.replaceAudio(sabrVideo(), audio().build());
+        var exo = ExoPlayerConfig.newBuilder().setForceAudioOnly(true).build();
+        PlayerResponse online = sabrVideo().toBuilder()
+                .setPlayerConfig(sabrVideo().getPlayerConfig().toBuilder().setExoPlayerConfig(exo)).build();
+        PlayerResponse swapped = StreamSwapLogic.replaceAudio(online, audio().build());
 
         assertEquals(0, swapped.getStreamingData().getFormatsCount());
         assertEquals(1, swapped.getStreamingData().getAdaptiveFormatsCount());
+        assertArrayEquals(exo.toByteArray(), swapped.getPlayerConfig().getExoPlayerConfig().toByteArray());
     }
 }

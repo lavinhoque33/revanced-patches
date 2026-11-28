@@ -1,9 +1,13 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-27
+ * Modified by lavinhoque33, 2026-11-26.
  * Written by lavinhoque33, 2026-11-14.
  */
 package app.morphe.extension.music.patches.downloads;
+
+import static java.util.concurrent.TimeUnit.SECONDS;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -35,7 +39,7 @@ public final class UncachedPendingPlaybackTest {
         PlayerFallbackFuture player = watch(registry, request, scope, stock, false);
         AtomicInteger selected = new AtomicInteger(-1);
         registry.disconnected((candidate, token) -> candidate == request && token == scope, ignored -> false,
-                () -> true, (candidate, token, completed) -> {
+                () -> true, () -> false, (candidate, token, completed) -> {
                     assertFalse(Thread.holdsLock(registry));
                     assertSame(request, candidate);
                     assertSame(scope, token);
@@ -54,7 +58,7 @@ public final class UncachedPendingPlaybackTest {
         PlayerFallbackFuture player = watch(registry, new Object(), new Object(), new ReplayFuture(), false);
         AtomicInteger inspected = new AtomicInteger();
         AtomicInteger stopped = new AtomicInteger();
-        registry.disconnected((request, scope) -> true, ignored -> false, () -> true,
+        registry.disconnected((request, scope) -> true, ignored -> false, () -> true, () -> false,
                 (request, scope, completed) -> {
                     assertEquals(-1, PlayerFallbackLogic.nextCached(List.of("old-copy", "missing", "other"),
                             1, 2, id -> { inspected.incrementAndGet(); return "old-copy".equals(id); }));
@@ -70,7 +74,7 @@ public final class UncachedPendingPlaybackTest {
     public void explicitUncachedSelectionIsUnavailableRatherThanSkipped() {
         PendingPlaybackRequests registry = new PendingPlaybackRequests();
         PlayerFallbackFuture player = watch(registry, new Object(), new Object(), new ReplayFuture(), false);
-        registry.disconnected((request, scope) -> true, ignored -> false, () -> true,
+        registry.disconnected((request, scope) -> true, ignored -> false, () -> true, () -> false,
                 (request, scope, completed) -> {
                     PlayerFallbackLogic.Decision decision = PlayerFallbackLogic.decide(true, false, "missing", true,
                             List.of("missing", "copy"), 0, "copy"::equals);
@@ -85,11 +89,11 @@ public final class UncachedPendingPlaybackTest {
         PendingPlaybackRequests registry = new PendingPlaybackRequests();
         ReplayFuture stock = new ReplayFuture();
         PlayerFallbackFuture player = watch(registry, new Object(), new Object(), stock, false);
-        registry.disconnected((request, scope) -> true, ignored -> false, () -> false,
+        registry.disconnected((request, scope) -> true, ignored -> false, () -> false, () -> false,
                 (request, scope, completed) -> { throw new AssertionError("Online request must not skip"); });
         assertFalse(player.isDone());
         stock.set("online response");
-        assertEquals("online response", player.get());
+        assertEquals("online response", player.get(1, SECONDS));
     }
 
     @Test
@@ -99,9 +103,9 @@ public final class UncachedPendingPlaybackTest {
         PlayerFallbackFuture player = watch(registry, new Object(), new Object(), stock, false);
         AtomicBoolean offline = new AtomicBoolean(true);
         registry.disconnected((request, scope) -> true, request -> { offline.set(false); return false; }, offline::get,
-                (request, scope, completed) -> { throw new AssertionError("Reconnection must win"); });
+                () -> false, (request, scope, completed) -> { throw new AssertionError("Reconnection must win"); });
         stock.set("reconnected response");
-        assertEquals("reconnected response", player.get());
+        assertEquals("reconnected response", player.get(1, SECONDS));
     }
 
     @Test
@@ -113,7 +117,7 @@ public final class UncachedPendingPlaybackTest {
         ReplayFuture playerStock = new ReplayFuture();
         PlayerFallbackFuture next = watch(registry, request, scope, nextStock, true);
         PlayerFallbackFuture player = watch(registry, request, scope, playerStock, false);
-        registry.disconnected((candidate, token) -> true, ignored -> false, () -> true,
+        registry.disconnected((candidate, token) -> true, ignored -> false, () -> true, () -> false,
                 (candidate, token, completed) -> {
                     assertFalse(player.pending());
                     assertFalse(next.pending());
@@ -132,10 +136,10 @@ public final class UncachedPendingPlaybackTest {
         PendingPlaybackRequests registry = new PendingPlaybackRequests();
         ReplayFuture stock = new ReplayFuture();
         PlayerFallbackFuture next = watch(registry, new Object(), new Object(), stock, true);
-        registry.disconnected((request, scope) -> true, ignored -> false, () -> true,
+        registry.disconnected((request, scope) -> true, ignored -> false, () -> true, () -> false,
                 (request, scope, completed) -> { throw new AssertionError("No pending player to skip"); });
         stock.set("next metadata");
-        assertEquals("next metadata", next.get());
+        assertEquals("next metadata", next.get(1, SECONDS));
     }
 
     @Test
@@ -145,6 +149,7 @@ public final class UncachedPendingPlaybackTest {
         Object replacementScope = new Object();
         PlayerFallbackFuture player = watch(registry, new Object(), previousScope, new ReplayFuture(), false);
         registry.disconnected((request, scope) -> scope == replacementScope, ignored -> false, () -> true,
+                () -> false,
                 (request, scope, completed) -> { throw new AssertionError("Stale owner must not navigate"); });
         assertFalse(player.isDone());
     }
@@ -157,7 +162,7 @@ public final class UncachedPendingPlaybackTest {
         Object oldScope = new Object();
         PlayerFallbackFuture player = watch(registry, request, scope, new ReplayFuture(), false);
         PlayerFallbackFuture other = watch(registry, request, oldScope, new ReplayFuture(), true);
-        registry.disconnected((candidate, token) -> token == scope, ignored -> false, () -> true,
+        registry.disconnected((candidate, token) -> token == scope, ignored -> false, () -> true, () -> false,
                 (candidate, token, completed) -> completed.run());
         assertTrue(player.isCancelled());
         assertFalse(other.isDone());
@@ -169,8 +174,9 @@ public final class UncachedPendingPlaybackTest {
         ReplayFuture stock = new ReplayFuture();
         PlayerFallbackFuture player = watch(registry, new Object(), new Object(), stock, false);
         registry.disconnected((request, scope) -> true, request -> { stock.set("stock winner"); return false; },
-                () -> true, (request, scope, completed) -> { throw new AssertionError("Stock already answered"); });
-        assertEquals("stock winner", player.get());
+                () -> true, () -> false,
+                (request, scope, completed) -> { throw new AssertionError("Stock already answered"); });
+        assertEquals("stock winner", player.get(1, SECONDS));
     }
 
     @Test
@@ -182,8 +188,8 @@ public final class UncachedPendingPlaybackTest {
             skipped.incrementAndGet();
             completed.run();
         };
-        registry.disconnected((request, scope) -> true, ignored -> false, () -> true, unavailable);
-        registry.disconnected((request, scope) -> true, ignored -> false, () -> true, unavailable);
+        registry.disconnected((request, scope) -> true, ignored -> false, () -> true, () -> false, unavailable);
+        registry.disconnected((request, scope) -> true, ignored -> false, () -> true, () -> false, unavailable);
         assertEquals(1, skipped.get());
     }
 }

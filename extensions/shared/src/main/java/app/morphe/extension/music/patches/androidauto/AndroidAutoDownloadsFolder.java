@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-26
  * Modified by lavinhoque33, 2026-11-14
  * Modified by lavinhoque33, 2026-11-13
  * Written by lavinhoque33, 2026-11-01.
@@ -96,6 +97,8 @@ final class AndroidAutoDownloadsFolder {
                 if (playlist.id() != playlistId) continue;
                 int count = playlist.tracks().size();
                 var artwork = new AndroidAutoDownloadsArtwork.Batch();
+                items.add(item(playAllId(playlistId, count), AndroidAutoPlaylistFolder.text("stream_play_all"), "",
+                        MediaBrowserCompat.MediaItem.FLAG_PLAYABLE, playlist.tracks().get(0), artwork));
                 for (int index = 0; index < count; index++) {
                     Track track = playlist.tracks().get(index);
                     long seconds = track.durationMs() / 1000;

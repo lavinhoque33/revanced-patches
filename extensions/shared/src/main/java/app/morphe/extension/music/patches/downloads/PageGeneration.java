@@ -23,6 +23,10 @@ final class PageGeneration {
         changes.incrementAndGet();
     }
 
+    int current() {
+        return changes.get();
+    }
+
     /** The page was built, or a refresh of it started, with the copies as they are now. */
     void built() {
         builtAt = changes.get();

@@ -13,7 +13,10 @@ import app.morphe.patcher.patch.BytecodePatchContext
 import app.morphe.patcher.util.proxy.mutableTypes.MutableMethod
 import app.morphe.patcher.util.proxy.mutableTypes.MutableMethod.Companion.toMutable
 import app.morphe.patcher.util.smali.ExternalLabel
-import app.morphe.patches.music.interaction.downloads.resolveNativeQueueBatch
+import app.morphe.patches.music.interaction.downloads.emptyQueueContext
+import app.morphe.patches.music.interaction.downloads.installPureSongMenuLookup
+import app.morphe.patches.music.interaction.downloads.onlineQueueRequesterType
+import app.morphe.patches.music.interaction.downloads.resolveIsolatedQueueBatch
 import app.morphe.patches.music.interaction.jam.*
 import app.morphe.patches.music.interaction.playlisttracktap.CommandResolverFingerprint
 import app.morphe.util.cloneMutable
@@ -119,10 +122,10 @@ internal fun BytecodePatchContext.resolveSmartShuffleNative(): () -> Unit {
     }
     val executor = bridge("patch_jamExecutor").fields().single()
     val dispatcher = requestBridge.fields().single { it.definingClass == manager.type }
-    val batch = resolveNativeQueueBatch(dispatch.getMutableMethod(),
-        Fingerprint(strings = listOf("music/get_queue")).classDef.type).apply {
-        setName("smartResolveBatch")
-    }
+    // Metadata only: a clone of the native lookup that sends an empty queue context and registers no reply observer.
+    val isolatedLookup = resolveIsolatedQueueBatch(dispatch.getMutableMethod(),
+        Fingerprint(strings = listOf("music/get_queue")).classDef.type, onlineQueueRequesterType(),
+        "smartIsolatedResolve")
 
     // PlaybackStartDescriptor's semantic diagnostic orders video, playlist, index, videoIds.
     val descriptor = Fingerprint(strings = listOf(
@@ -194,12 +197,14 @@ internal fun BytecodePatchContext.resolveSmartShuffleNative(): () -> Unit {
         manager.interfaces.add(ACCESS)
         installActivityDispatcher()
         callback.methods.add(indexedSuccess)
-        mutableClassDefBy(batch.definingClass).methods.add(batch)
+        installPureSongMenuLookup(isolatedLookup)
         manager.addBridge("smartResolve", listOf("[B", "Ljava/util/List;"),
-            "Ljava/util/concurrent/Future;", 6, body = proto.decode("p1", "v0") + """
+            "Ljava/util/concurrent/Future;", 7, body = proto.decode("p1", "v0") + """
             iget-object v1, p0, $dispatcher
             iget-object v2, p0, $executor
-            ${invokeKind(batch)} {v1, v0, v2, p2}, $batch
+            ${emptyQueueContext("v3")}
+            invoke-static {p2}, $NATIVE->isolatedResolve(Ljava/util/List;)V
+            ${invokeKind(isolatedLookup.method)} {v1, v0, v2, p2, v3}, ${isolatedLookup.method}
             move-result-object v0
             return-object v0
         """)

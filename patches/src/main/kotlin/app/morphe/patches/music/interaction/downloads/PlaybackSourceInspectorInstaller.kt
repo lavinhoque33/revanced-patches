@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-26.
  * Modified by lavinhoque33, 2026-11-23.
  * Written by lavinhoque33, 2026-11-22.
  */
@@ -39,6 +40,7 @@ private const val INSPECTOR = "Lapp/morphe/extension/music/patches/downloads/Pla
 private const val INSPECTOR_CLASS = "$INSPECTOR;"
 private const val PLAYBACK = "$INSPECTOR\$Playback;"
 private const val EVENT_PLAYBACK = "$INSPECTOR\$EventPlayback;"
+private const val STREAMS_PLAYBACK = "$INSPECTOR\$StreamsPlayback;"
 private const val LOCAL_FORMAT = "$INSPECTOR\$LocalFormat;"
 private const val READ = "$INSPECTOR\$Read;"
 private const val SWAP_SOURCE = "Lapp/morphe/extension/music/patches/downloads/StreamSwapDataSource;"
@@ -208,6 +210,29 @@ internal fun BytecodePatchContext.preparePlaybackSourceInspector(fileReader: Cla
         extensionGate.returnEarly(true)
         printInfo("Playback source inspector: active clip, selected tracks and positive file reads hooked.")
     }
+}
+
+/**
+ * The streaming data the active clip was built from: the playback's one instance field of the response's streaming
+ * type, written only by its constructors. Throws, leaving the clip unchanged, when that cannot be proved.
+ */
+internal fun BytecodePatchContext.bindPlaybackStreams(streaming: String) {
+    val playback = mutableClassDefBy(playbackAbi(packageMetadata.versionName).playback)
+    val field = playback.fields.single { !AccessFlags.STATIC.isSet(it.accessFlags) && it.type == streaming }
+    val writers = playback.methods.filter { method ->
+        method.implementation?.instructions?.any {
+            it.opcode == Opcode.IPUT_OBJECT && it.getReference<FieldReference>() == field
+        } == true
+    }
+    check(writers.isNotEmpty() && writers.all { it.name == "<init>" }) {
+        "clip streaming data ${playback.type}->${field.name} is not fixed at construction"
+    }
+
+    playback.interfaces.add(STREAMS_PLAYBACK)
+    playback.addDownloadsBridge("rvxPlaybackStreams", emptyList(), "Ljava/lang/Object;", 2, """
+        iget-object v0, p0, $field
+        return-object v0
+    """)
 }
 
 private data class PlaybackFormatDispatch(

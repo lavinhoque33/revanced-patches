@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-27.
  * Modified by lavinhoque33, 2026-11-26.
  * Modified by lavinhoque33, 2026-11-12
  * Written by lavinhoque33, 2026-11-08.
@@ -15,6 +16,7 @@ import org.junit.Test;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -22,6 +24,29 @@ import java.util.concurrent.ConcurrentMap;
 public class OfflineReplayLogicTest {
     private static OfflineCopyMetadata copy(String id, String title, String album) {
         return new OfflineCopyMetadata(id, title, "Artist", album, 185_000, "https://cover/" + id, 1, "online");
+    }
+
+    @Test public void aVideoAndItsSongKeepTheirOwnQueueOccurrencesWhenBothWereSaved() {
+        var song = OfflineReplayLogic.itemOf(copy("aaaaaaaaaaa", "Song", null));
+        var video = OfflineReplayLogic.itemOf(copy("vvvvvvvvvvv", "Video", null));
+        var items = List.of(song, video);
+
+        assertEquals(song.videoId(), OfflineReplayLogic.queueIdOf(items, video.videoId(), song.videoId(), 0));
+        assertEquals(video.videoId(), OfflineReplayLogic.queueIdOf(items, video.videoId(), song.videoId(), 1));
+        assertEquals(video.videoId(), OfflineReplayLogic.queueIdOf(items, video.videoId(), song.videoId(), -1));
+    }
+
+    @Test public void orderedAlbumPlayStartsWithAnExplicitSeedAndKeepsTheSavedSource() {
+        String source = "OLAK5uy_nISNKZiOBRS4UMf84JIh9hXyTvzGG1Ryg";
+        var first = OfflineReplayLogic.itemOf(copy("aaaaaaaaaaa", "First saved track", null));
+        var bytes = OfflineReplay.startCommand(source, first, 0, false, Map.of());
+        var target = OfflineReplayLogic.offlineWatchOf(bytes);
+
+        assertNotNull(target);
+        assertEquals(first.videoId(), target.videoId());
+        assertEquals(source, OfflineReplay.sourceOf(target.playlistId()));
+        assertEquals(0, target.index());
+        assertFalse(OfflineReplayLogic.isShuffleStart(bytes, target));
     }
 
     // region no-connection sheet
@@ -77,31 +102,17 @@ public class OfflineReplayLogicTest {
 
     // region seek snap
 
-    @Test public void emptyCacheSnapsAreDroppedOfflineWithOrWithoutASwapDecision() {
-        for (boolean localPlayback : new boolean[]{false, true}) {
-            assertTrue(OfflineReplayLogic.dropsSeekSnap(true, false, localPlayback, 0));
-            assertTrue(OfflineReplayLogic.dropsSeekSnap(true, false, localPlayback, -1));
-        }
+    @Test public void fileSeeksUseTheExactTargetWithOneOrTwoLocalFormats() {
+        assertTrue(OfflineReplayLogic.seeksFile(true, true, false, false));
+        assertTrue(OfflineReplayLogic.seeksFile(false, false, true, true));
+        assertTrue(OfflineReplayLogic.seeksFile(true, true, true, true));
     }
 
-    @Test public void emptyCacheSnapsAreDroppedOnlineOnlyForCurrentLocalPlayback() {
-        assertTrue(OfflineReplayLogic.dropsSeekSnap(true, true, true, 0));
-        assertTrue(OfflineReplayLogic.dropsSeekSnap(true, true, true, -1));
-        assertFalse(OfflineReplayLogic.dropsSeekSnap(true, true, false, 0));
-        assertFalse(OfflineReplayLogic.dropsSeekSnap(true, true, false, -1));
-    }
-
-    @Test public void realSnapsAreKeptForLocalAndOnlinePlayback() {
-        for (boolean online : new boolean[]{false, true}) {
-            for (boolean localPlayback : new boolean[]{false, true}) {
-                assertFalse(OfflineReplayLogic.dropsSeekSnap(true, online, localPlayback, 12_000));
-            }
-        }
-    }
-
-    @Test public void theSnapIsLeftAloneWhileTheSettingIsOff() {
-        assertFalse(OfflineReplayLogic.dropsSeekSnap(false, false, true, 0));
-        assertFalse(OfflineReplayLogic.dropsSeekSnap(false, true, true, -1));
+    @Test public void networkMixedAndUnknownFormatsKeepStockSeeking() {
+        assertFalse(OfflineReplayLogic.seeksFile(true, false, false, false));
+        assertFalse(OfflineReplayLogic.seeksFile(true, true, true, false));
+        assertFalse(OfflineReplayLogic.seeksFile(true, false, true, true));
+        assertFalse(OfflineReplayLogic.seeksFile(false, false, false, false));
     }
 
     // endregion
@@ -257,6 +268,73 @@ public class OfflineReplayLogicTest {
         assertEquals(0, OfflineReplayLogic.currentIndex(items, "a", -1));
     }
 
+    // region shuffle start
+
+    /** A source that always picks the same index and records how many songs it was asked to choose among. */
+    private static final class PickingRandom extends Random {
+        private final int pick;
+        int bound = -1;
+
+        PickingRandom(int pick) {
+            this.pick = pick;
+        }
+
+        @Override public int nextInt(int bound) {
+            this.bound = bound;
+            return pick;
+        }
+    }
+
+    @Test public void aShufflePressStartsOnTheChosenSongAndKeepsTheOthersInOrder() {
+        List<OfflineWatchNext.Item> items = itemsOf("a", "b", "c", "d", "e");
+        PickingRandom random = new PickingRandom(2);
+
+        List<OfflineWatchNext.Item> shuffled = OfflineReplayLogic.withRandomStart(items, random);
+
+        assertEquals(List.of("c", "a", "b", "d", "e"), idsOf(shuffled));
+        assertEquals("the pick is uniform over every song of the plan", 5, random.bound);
+        assertEquals("the saved order is not touched", List.of("a", "b", "c", "d", "e"), idsOf(items));
+    }
+
+    @Test public void everySongOfThePlanCanStartTheShuffle() {
+        List<OfflineWatchNext.Item> items = itemsOf("a", "b", "c", "d");
+
+        for (int pick = 0; pick < items.size(); pick++) {
+            List<String> shuffled = idsOf(OfflineReplayLogic.withRandomStart(items, new PickingRandom(pick)));
+            List<String> rest = new ArrayList<>(List.of("a", "b", "c", "d"));
+            String start = rest.remove(pick);
+
+            assertEquals(start, shuffled.get(0));
+            assertEquals(rest, shuffled.subList(1, shuffled.size()));
+        }
+    }
+
+    @Test public void aShuffleOfOneSongStillStartsWithoutPickingAnything() {
+        List<OfflineWatchNext.Item> one = itemsOf("a");
+        Random neverAsked = new Random() {
+            @Override public int nextInt(int bound) {
+                throw new AssertionError("a one-song plan has nothing to choose");
+            }
+        };
+
+        assertEquals(List.of("a"), idsOf(OfflineReplayLogic.withRandomStart(one, neverAsked)));
+        assertTrue(OfflineReplayLogic.withRandomStart(List.<OfflineWatchNext.Item>of(), neverAsked).isEmpty());
+    }
+
+    @Test public void theStartCommandOfAShufflePressNamesTheSongTheQueueStartsOn() {
+        List<OfflineWatchNext.Item> shuffled = OfflineReplayLogic.withRandomStart(
+                itemsOf("a", "b", "c"), new PickingRandom(1));
+
+        byte[] command = OfflineWatchCommand.build(shuffled.get(0).videoId(), "PPSVrvx:PLabc", 0,
+                CommandRewrite.TYPE_ATV, true);
+
+        assertEquals(new OfflineReplayLogic.WatchTarget("b", "PPSVrvx:PLabc", 0),
+                OfflineReplayLogic.offlineWatchOf(command));
+        assertEquals("b", shuffled.get(0).videoId());
+    }
+
+    // endregion
+
     // endregion
 
     // region routes
@@ -325,10 +403,87 @@ public class OfflineReplayLogicTest {
     }
 
     @Test public void shufflePlayDoesNotNormalizeOrBorrowAnotherSource() {
-        for (String id : List.of("", " " + SAVED_PLAYLIST, "VL" + SAVED_PLAYLIST, "RDAMPLsaved_header",
-                "MPREb_album", "OLAK5uy_album", "songs", "PPSVother", "PPSVrvx:" + SAVED_PLAYLIST)) {
+        for (String id : List.of("", " " + SAVED_PLAYLIST, "VL" + SAVED_PLAYLIST, "VLOLAK5uy_album",
+                "RDAMPLsaved_header", "MPREb_album", "songs", "PPSVother", "PPSVrvx:" + SAVED_PLAYLIST)) {
             assertNull(id, OfflineReplayLogic.shufflePlaylistOf(playlistRoot(shufflePayload(id))));
         }
+    }
+
+    @Test public void anAlbumHeaderShuffleNamesTheAudioPlaylistOfItsDownload() {
+        String album = "OLAK5uy_mz6eafmqdRHSaR4IwG0ll6J6rgv0_ZpGw";
+        byte[] shuffle = playlistRoot(shufflePayload(album));
+        Set<String> downloaded = Set.of(album);
+
+        assertEquals(album, OfflineReplayLogic.shufflePlaylistOf(shuffle));
+        assertEquals(album, OfflineReplayLogic.savedShufflePlaylistOf(shuffle, downloaded::contains));
+        assertNull(OfflineReplayLogic.savedShufflePlaylistOf(shuffle, id -> false));
+    }
+
+    @Test public void anAlbumHeaderPlayStartsTheDownloadedPlaylistWithoutASeed() {
+        String album = "OLAK5uy_mz6eafmqdRHSaR4IwG0ll6J6rgv0_ZpGw";
+        byte[] play = playlistRoot(new ProtoWriter().string(1, album));
+
+        assertEquals(new OfflineReplayLogic.WatchTarget("", album, 0), OfflineReplayLogic.playlistWatchOf(play));
+        assertNull(OfflineReplayLogic.shufflePlaylistOf(play));
+        assertTrue(OfflineReplayLogic.startsPlaylist(play));
+        assertNull(OfflineReplayLogic.playlistWatchOf(playlistRoot(new ProtoWriter().string(1, "MPREb_album"))));
+        assertNull(OfflineReplayLogic.playlistWatchOf(playlistRoot(new ProtoWriter().string(1, "OLAK5uy_a/b"))));
+    }
+
+    @Test public void validatedDeadAlbumHeaderDispatchBypassesNativeDownloadRecovery() {
+        assertAlbumHeaderLocalGate(false, true);
+    }
+
+    @Test public void silentDropAlbumHeaderDispatchBypassesNativeDownloadRecoveryWithoutADeadVerdict() {
+        assertAlbumHeaderLocalGate(true, false);
+    }
+
+    private static void assertAlbumHeaderLocalGate(boolean replayingTap, boolean upstreamDead) {
+        String album = "OLAK5uy_mz6eafmqdRHSaR4IwG0ll6J6rgv0_ZpGw";
+        byte[] play = playlistRoot(new ProtoWriter().string(1, album));
+        var header = OfflineReplayLogic.playlistWatchOf(play);
+        // Both DEAD and the one-shot DROP timeout select the saved row. Android stays validated in both runs.
+        assertEquals(album, OfflineReplay.savedOrderedPlaySource(!(upstreamDead || replayingTap),
+                true, null, header, play));
+        var first = OfflineReplayLogic.itemOf(copy("aaaaaaaaaaa", "First saved track", null));
+        var local = new GateCommand(OfflineReplay.startCommand(album, first, 0, false, Map.of()));
+
+        OfflineReplay.dispatchShuffleCommand((command, context) -> {
+            assertSame(local, command);
+            assertTrue(OfflineReplay.ownsLocalDispatch(command));
+            assertNull(OfflineReplay.replayGateRejection(true, true, true, OfflineReplay.ownsLocalDispatch(command)));
+            assertEquals("not ours", OfflineReplay.replayGateRejection(true, true, false, true));
+            assertEquals("setting off", OfflineReplay.replayGateRejection(false, true, true, true));
+
+            // Even an equal Root cannot bypass stock's download recovery on this validated network.
+            var unrelated = new GateCommand(local.toByteArray());
+            assertEquals(local, unrelated);
+            assertEquals("online request", OfflineReplay.replayGateRejection(true, true, true,
+                    OfflineReplay.ownsLocalDispatch(unrelated)));
+        }, local, Map.of());
+        assertFalse(OfflineReplay.ownsLocalDispatch(local));
+        assertEquals("online request", OfflineReplay.replayGateRejection(true, true, true,
+                OfflineReplay.ownsLocalDispatch(local)));
+    }
+
+    @Test public void coldOfflineWatchStillLetsASavedTrackReachTheNativeHandler() {
+        assertNull(OfflineReplay.replayGateRejection(true, false, true, false));
+        assertEquals("not ours", OfflineReplay.replayGateRejection(true, false, false, false));
+    }
+
+    @Test public void reachableAlbumHeaderKeepsTheNativeOnlineCommandUnseeded() {
+        String album = "OLAK5uy_mz6eafmqdRHSaR4IwG0ll6J6rgv0_ZpGw";
+        byte[] play = playlistRoot(new ProtoWriter().string(1, album));
+        var header = OfflineReplayLogic.playlistWatchOf(play);
+
+        assertNull(OfflineReplay.savedOrderedPlaySource(true, true, null, header, play));
+        assertNull(OfflineReplay.savedOrderedPlaySource(false, false, null, header, play));
+        assertNull(OfflineReplayLogic.offlineWatchOf(play));
+        assertEquals("", header.videoId());
+    }
+
+    private record GateCommand(byte[] toByteArray) implements NativeDownloads.Command {
+        @Override public Object rvxWithBytes(byte[] bytes) { return new GateCommand(bytes); }
     }
 
     @Test public void shufflePlayRequiresTheExactSavedSourceBeforeLookingUpItsQueue() {
@@ -392,10 +547,10 @@ public class OfflineReplayLogicTest {
         assertEquals("MPREb_c", OfflineReplayLogic.sourceOfBrowseId("MPREb_c"));
     }
 
-    @Test public void onlyPlaylistIdsAreEligibleForAnInitialLocalDetail() {
+    @Test public void playlistAndAlbumIdsAreEligibleForAnInitialLocalDetail() {
         assertEquals("PLa", OfflineReplayLogic.initialDetailId("VLPLa", Map.of()));
-        assertNull(OfflineReplayLogic.initialDetailId("MPREb_c", null));
-        assertNull(OfflineReplayLogic.initialDetailId("VLOLAK5uy_a", null));
+        assertEquals("MPREb_c", OfflineReplayLogic.initialDetailId("MPREb_c", null));
+        assertEquals("OLAK5uy_a", OfflineReplayLogic.initialDetailId("VLOLAK5uy_a", null));
         assertNull(OfflineReplayLogic.initialDetailId(null, null));
         assertNull(OfflineReplayLogic.initialDetailId("FEmusic_library", null));
         assertNull(OfflineReplayLogic.initialDetailId("VL", null));
@@ -414,6 +569,13 @@ public class OfflineReplayLogicTest {
         assertEquals("MPREb_c", OfflineReplayLogic.sourceOfPlaylist("OLAK5uy_q", "z", TRACKS));
         assertNull(OfflineReplayLogic.sourceOfPlaylist("OLAK5uy_q", "other", TRACKS));
         assertNull(OfflineReplayLogic.sourceOfPlaylist("PLother", "x", TRACKS));
+    }
+
+    @Test public void sharedTrackDoesNotIdentifyAnAlbum() {
+        Map<String, List<String>> albums = Map.of("MPREb_original", List.of("shared"),
+                "MPREb_compilation", List.of("shared"));
+        assertNull(OfflineReplayLogic.sourceOfPlaylist("OLAK5uy_unknown", "shared", albums));
+        assertEquals("MPREb_original", OfflineReplayLogic.sourceOfPlaylist("MPREb_original", "shared", albums));
     }
 
     @Test public void onlineEveryCommandStaysTheApps() {
@@ -438,13 +600,15 @@ public class OfflineReplayLogicTest {
         }
     }
 
-    @Test public void enablingLocalPlaylistOpeningLeavesExistingAlbumRoutingAlone() {
-        assertEquals(route(false, "MPREb_c", null, false),
-                OfflineReplayLogic.routeOf(false, "MPREb_c", null, "songs", true,
-                        TRACKS::containsKey, id -> false, id -> true, watch -> null, id -> null));
-        assertEquals(route(true, "MPREb_c", null, true),
-                OfflineReplayLogic.routeOf(true, "MPREb_c", null, "songs", true,
-                        TRACKS::containsKey, id -> true, id -> true, watch -> null, id -> null));
+    @Test public void initialAlbumBrowseNeverAutoplays() {
+        for (String browseId : List.of("MPREb_c", "VLOLAK5uy_q")) {
+            for (boolean online : new boolean[]{false, true}) {
+                assertEquals(OfflineReplayLogic.Decision.STOCK,
+                        OfflineReplayLogic.routeOf(online, browseId, null, "songs", true,
+                                id -> { throw new AssertionError("album browse must not start playback"); },
+                                id -> false, id -> true, watch -> null, id -> null));
+            }
+        }
     }
 
     @Test public void offlineOtherPagesAndUnknownListsStayTheApps() {
@@ -557,14 +721,14 @@ public class OfflineReplayLogicTest {
         assertSame(items, OfflineReplayLogic.showingVideos(items, Map.of()));
     }
 
-    @Test public void aVideoCopyOfAnotherSongIsIgnoredAndACopyNeverPointsAtItself() {
+    @Test public void aSameIdPairKeepsItsIdButMarksItsQueueRowAsVideo() {
         List<OfflineWatchNext.Item> items = itemsOf("a", "b");
 
         List<OfflineWatchNext.Item> wrapped = OfflineReplayLogic.showingVideos(items,
                 Map.of("vz", "z", "b", "b"));
 
         assertEquals(List.of("a", "b"), idsOf(wrapped));
-        assertEquals(1, wrapped.get(1).musicVideoType());
+        assertEquals(CommandRewrite.TYPE_OMV, wrapped.get(1).musicVideoType());
     }
 
     @Test public void aRequestForAMusicVideoNamesItsSong() {
@@ -590,6 +754,7 @@ public class OfflineReplayLogicTest {
         assertNull(OfflineReplayLogic.videoOf("a", videos));
         assertNull(OfflineReplayLogic.videoOf("b", Map.of("b", "b")));
         assertEquals(2, OfflineReplayLogic.startTypeOf("b", videos));
+        assertEquals(CommandRewrite.TYPE_OMV, OfflineReplayLogic.startTypeOf("b", Map.of("b", "b")));
         assertEquals(1, OfflineReplayLogic.startTypeOf("a", videos));
         assertEquals(1, OfflineReplayLogic.startTypeOf("a", Map.of()));
     }
@@ -597,10 +762,18 @@ public class OfflineReplayLogicTest {
     @Test public void theQueueShowsVideosOnlyForARequestOfAMusicVideo() {
         Map<String, String> videos = Map.of("vb", "b");
 
-        assertTrue(OfflineReplayLogic.showsVideos("vb", videos));
-        assertFalse(OfflineReplayLogic.showsVideos("b", videos));
-        assertFalse(OfflineReplayLogic.showsVideos("a", videos));
-        assertFalse(OfflineReplayLogic.showsVideos("vb", Map.of()));
+        assertTrue(OfflineReplayLogic.showsVideos("vb", videos, null));
+        assertFalse(OfflineReplayLogic.showsVideos("b", videos, null));
+        assertFalse(OfflineReplayLogic.showsVideos("a", videos, null));
+        assertFalse(OfflineReplayLogic.showsVideos("vb", Map.of(), null));
+    }
+
+    @Test public void aSameIdPairOnlyShowsVideoRowsForAnExplicitOmvRequest() {
+        Map<String, String> videos = Map.of("b", "b");
+        byte[] audio = OfflineWatchCommand.build("b", "PPSVrvx:PLabc", 0);
+        byte[] video = OfflineWatchCommand.build("b", "PPSVrvx:PLabc", 0, CommandRewrite.TYPE_OMV);
+        assertTrue(OfflineReplayLogic.showsVideos("b", videos, video));
+        assertFalse(OfflineReplayLogic.showsVideos("b", videos, audio));
     }
 
     @Test public void theOmvStartCommandNamesTheVideoAndItsType() {

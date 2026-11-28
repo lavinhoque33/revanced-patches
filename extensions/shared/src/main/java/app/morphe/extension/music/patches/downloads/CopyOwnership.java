@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-26.
  * Written by lavinhoque33, 2026-11-10.
  */
 package app.morphe.extension.music.patches.downloads;
@@ -39,13 +40,21 @@ final class CopyOwnership {
      */
     static Removal removing(String sourceId, Map<String, List<String>> sources, Set<String> individual,
                             Collection<String> copyIds) {
+        return reconciling(sourceId, sources, List.of(), individual, copyIds);
+    }
+
+    /** What the source no longer owns after publishing its replacement membership (all IDs canonical). */
+    static Removal reconciling(String sourceId, Map<String, List<String>> sources, List<String> retained,
+                               Set<String> individual, Collection<String> copyIds) {
+        Set<String> remaining = new HashSet<>(retained);
         Set<String> others = tracksOfOthers(sourceId, sources);
         List<String> deleteCopies = new ArrayList<>();
         List<String> deleteVideos = new ArrayList<>();
         List<String> kept = new ArrayList<>();
         Set<String> seen = new HashSet<>();
         for (String videoId : sources.getOrDefault(sourceId, List.of())) {
-            if (!seen.add(videoId) || !PlaylistPage.isAvailable(videoId) || !copyIds.contains(videoId)) continue;
+            if (remaining.contains(videoId) || !seen.add(videoId)
+                    || !PlaylistPage.isAvailable(videoId) || !copyIds.contains(videoId)) continue;
 
             if (others.contains(videoId)) {
                 kept.add(videoId);

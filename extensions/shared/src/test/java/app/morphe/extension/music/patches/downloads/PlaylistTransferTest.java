@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-26.
  * Modified by lavinhoque33, 2026-11-19.
  * Written by lavinhoque33, 2026-11-18.
  */
@@ -187,7 +188,9 @@ public class PlaylistTransferTest {
         private void saveAudio(String id, boolean individual) throws Exception {
             File input = temporary.newFile();
             Files.write(input.toPath(), AUDIO);
-            assertTrue(raw.retain(id, input, 251, "audio/webm; codecs=\"opus\"", AUDIO.length, 123, null, individual));
+            RawAudioFiles.Prepared prepared = RawAudioFiles.prepare(
+                    id, input, 251, "audio/webm; codecs=\"opus\"", AUDIO.length, 123, null, individual);
+            assertTrue(raw.retain(prepared));
         }
 
         private void saveResponse(String id) throws Exception {

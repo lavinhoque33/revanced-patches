@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-26.
  * Written by lavinhoque33, 2026-11-09.
  * Modified by lavinhoque33, 2026-11-10
  */
@@ -47,23 +48,50 @@ public final class PillAvailability {
 
     private PillAvailability() {}
 
+    /** A pair supplied to the current track belongs to the stock pill, not a new watch endpoint. */
+    public static boolean keepsNativeSwitch() {
+        if (!StreamSwap.supported()) return false;
+
+        String playing = VideoInformation.getVideoId();
+        return !playing.isEmpty() && PlaybackSourceInspector.activePair(playing);
+    }
+
+    /** Whether the clip playing is the bound online-video hybrid of the track: saved audio beside an online video. */
+    private static boolean playsHybrid() {
+        if (!StreamSwap.supported()) return false;
+
+        String playing = VideoInformation.getVideoId();
+        return !playing.isEmpty() && OnlineVideoHybrid.playsBound(playing);
+    }
+
+    /**
+     * Whether a press of the pill belongs to the app's own in-place switch of an online-video hybrid clip: while
+     * online in both directions; offline only toward Song, back to the saved audio, since the video cannot load.
+     */
+    static boolean keepsHybridSwitch(boolean online) {
+        return playsHybrid() && PillAvailabilityLogic.hybridSwitches(online,
+                AudioFirstLogic.isVideoMode(AudioFirst.liveMode()));
+    }
+
     /**
      * Injection point: the start of each method that computes the state of the pill, which runs when the playback,
      * the queue item or the session changes. The app's state method returns without setting the look when the state
      * it computed is the one the pill already shows (a dim pill stays dim and its look method is not reached), so a
-     * pill that is dim for a video with a copy is lit here, before the app compares: its computed state then
-     * differs from the lit one, the app sets the look, and the look hook keeps it lit.
+     * pill that is dim for a video with a copy, or for an online-video hybrid while online, is lit here, before the
+     * app compares: its computed state then differs from the lit one, the app sets the look, and the look hook keeps
+     * it lit.
      */
     public static void onPillState(@Nullable Object view) {
         try {
             String copy = copyVideo();
-            if (copy == null || !(view instanceof Gate gate)) return;
+            boolean hybrid = copy == null && playsHybrid() && PlaybackConnectivity.reachable();
+            if (copy == null && !hybrid || !(view instanceof Gate gate)) return;
 
             boolean shown = gate.rvxShown();
             if (!shown) gate.rvxBright();
             logChange("state", () -> "PillAvailability: state computed v=" + VideoInformation.getVideoId()
                     + " response=" + VideoInformation.getPlayerResponseVideoId() + " copy=" + copy
-                    + " shownBefore=" + shown);
+                    + " hybrid=" + hybrid + " shownBefore=" + shown);
         } catch (Exception ex) {
             Logger.printException(() -> "PillAvailability: pill state failure", ex);
         }
@@ -73,14 +101,19 @@ public final class PillAvailability {
      * Injection point: the start of the method that sets the pill's look.
      *
      * @param requested The look the app asks for, true when lit.
-     * @return The look to apply: lit when the app asks for it, or when the video has a copy.
+     * @return The look to apply: lit for a video with a copy; for an online-video hybrid lit online, and offline only
+     * while it shows the video (so it can go back to Song), never to offer the video offline; else the app's.
      */
     public static boolean onPillLook(@Nullable Object view, boolean requested) {
         try {
             String copy = copyVideo();
-            boolean look = PillAvailabilityLogic.opens(requested, copy != null);
+            boolean hybrid = copy == null && playsHybrid();
+            boolean online = !hybrid || PlaybackConnectivity.reachable();
+            boolean videoMode = hybrid && AudioFirstLogic.isVideoMode(AudioFirst.liveMode());
+            boolean look = PillAvailabilityLogic.look(requested, copy != null, hybrid, online, videoMode);
             logChange("look", () -> "PillAvailability: look requested=" + requested + " applied=" + look + " copy="
-                    + (copy == null ? "none" : copy) + (look && !requested ? " (forced)" : ""));
+                    + (copy == null ? "none" : copy) + " hybrid=" + hybrid + " online=" + online
+                    + (look != requested ? " (forced)" : ""));
             return look;
         } catch (Exception ex) {
             Logger.printException(() -> "PillAvailability: pill look failure", ex);
@@ -89,8 +122,8 @@ public final class PillAvailability {
     }
 
     /**
-     * Called by the click hook of {@link QueueItems} before the app's own check: a dim pill of a video with a copy is
-     * lit, so the app's listener goes on to its toggle.
+     * Called by the click hook of {@link QueueItems} before the app's own check: a dim pill of a video with a copy,
+     * or of an online-video hybrid while online, is lit, so the app's listener goes on to its toggle.
      *
      * @return True if the pill was dim and has been lit.
      */
@@ -100,9 +133,10 @@ public final class PillAvailability {
 
             boolean shown = gate.rvxShown();
             String copy = copyVideo();
+            boolean hybrid = copy == null && playsHybrid() && PlaybackConnectivity.reachable();
             logChange("click", () -> "PillAvailability: click shown=" + shown + " copy="
-                    + (copy == null ? "none" : copy));
-            if (shown || copy == null) return false;
+                    + (copy == null ? "none" : copy) + " hybrid=" + hybrid);
+            if (shown || copy == null && !hybrid) return false;
 
             gate.rvxBright();
             return true;
@@ -117,14 +151,16 @@ public final class PillAvailability {
      * display mode.
      *
      * @param open The app's answer.
-     * @return True when the app's answer is true, or when the video has a copy.
+     * @return True when the app's answer is true, when the video has a copy, or when the clip is an online-video
+     * hybrid the app's switch flips ({@link #keepsHybridSwitch}).
      */
     public static boolean onToggleGate(boolean open) {
         try {
-            String copy = copyVideo();
-            boolean result = PillAvailabilityLogic.opens(open, copy != null);
-            logChange("gate", () -> "PillAvailability: toggle gate app=" + open + " applied=" + result + " copy="
-                    + (copy == null ? "none" : copy) + (result && !open ? " (forced)" : ""));
+            boolean paired = keepsNativeSwitch();
+            boolean hybrid = !paired && keepsHybridSwitch(PlaybackConnectivity.reachable());
+            boolean result = PillAvailabilityLogic.opens(open, paired || hybrid);
+            logChange("gate", () -> "PillAvailability: toggle gate app=" + open + " applied=" + result
+                    + " paired=" + paired + " hybrid=" + hybrid + (result && !open ? " (forced)" : ""));
             return result;
         } catch (Exception ex) {
             Logger.printException(() -> "PillAvailability: toggle gate failure", ex);
@@ -132,13 +168,13 @@ public final class PillAvailability {
         }
     }
 
-    /** The id of the video being played, or of the last player response, that has a committed copy; else null. */
+    /** The playing ID (or the initial response before playback starts) with a committed copy, else null. */
     @Nullable
     private static String copyVideo() {
         if (!StreamSwap.supported()) return null;
 
         return PillAvailabilityLogic.videoWithCopy(VideoInformation.getVideoId(),
-                VideoInformation.getPlayerResponseVideoId(), VideoCopyStore::hasNow);
+                VideoInformation.getPlayerResponseVideoId(), VideoCopyStore::has);
     }
 
     /** Logs a line unless the previous one of its kind said the same: states change rarely, calls come in bursts. */

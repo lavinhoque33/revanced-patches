@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-26.
  * Modified by lavinhoque33, 2026-11-12.
  * Modified by lavinhoque33, 2026-11-22.
  * Written by lavinhoque33, 2026-11-07.
@@ -9,13 +10,11 @@ package app.morphe.extension.music.patches.downloads;
 
 import android.net.Uri;
 
+import androidx.annotation.Nullable;
+
 import java.io.File;
 import java.io.FileNotFoundException;
-import java.util.ArrayDeque;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
@@ -33,46 +32,50 @@ final class StreamSwapSources {
     static final String KIND_VIDEO_AUDIO = "vaudio";
 
     /** What a token serves: a file of a kind (the raw audio copy or a stream of a video copy), itag and length. */
-    record Served(String kind, File file, int itag, long length) {
+    record Served(String kind, File file, int itag, long length, String digest, long fileModified) {
         static Served of(RawAudioFiles.Entry raw) {
-            return new Served(KIND_RAW, raw.file(), raw.itag(), raw.length());
+            return new Served(KIND_RAW, raw.file(), raw.itag(), raw.length(), raw.digest(), raw.fileModified());
         }
 
         static Served video(VideoCopyFiles.Entry copy) {
-            return new Served(KIND_VIDEO, copy.video().file(), copy.video().itag(), copy.video().length());
+            VideoCopyFiles.Part part = copy.video();
+            return new Served(KIND_VIDEO, part.file(), part.itag(), part.length(), part.digest(), part.fileModified());
         }
 
         static Served audio(VideoCopyFiles.Entry copy) {
-            return new Served(KIND_VIDEO_AUDIO, copy.audio().file(), copy.audio().itag(), copy.audio().length());
+            VideoCopyFiles.Part part = copy.audio();
+            return new Served(KIND_VIDEO_AUDIO, part.file(), part.itag(), part.length(), part.digest(),
+                    part.fileModified());
+        }
+
+        boolean matchesFile() {
+            return file.isFile() && file.length() == length && file.lastModified() == fileModified;
         }
     }
 
     static final class Source {
         final String videoId;
         final Served served;
-        /** Original https URL of the swapped format, null for SABR formats that have none. */
-        final String online;
-        final String key;
+        /** Latest matching HTTPS URL for this file generation, if any. */
+        volatile String online;
         final String token;
         final PlaybackSourceInspector.LocalFormat inspectionFormat;
-        final long fileModified;
         volatile boolean available = true;
 
-        Source(String videoId, Served served, String online, String key, String token) {
+        Source(String videoId, Served served, String online, String token) {
             this.videoId = videoId;
             this.served = served;
             this.online = online;
-            this.key = key;
             this.token = token;
-            fileModified = served.file().lastModified();
-            inspectionFormat = PlaybackSourceInspector.supported() ? inspectionFormat(served) : null;
+            inspectionFormat = PlaybackSourceInspector.supported() ? inspectionFormat(this) : null;
         }
 
         String fallback() throws FileNotFoundException {
-            if (online == null) {
-                throw new FileNotFoundException("Local audio unavailable; reload player response: " + videoId);
+            String fallback = online;
+            if (fallback == null) {
+                throw new FileNotFoundException("Local media unavailable; reload player response: " + videoId);
             }
-            return online;
+            return fallback;
         }
     }
 
@@ -82,21 +85,19 @@ final class StreamSwapSources {
     private static final ConcurrentHashMap<String, Source> latest = new ConcurrentHashMap<>();
     /** Latest accepted response decision per id, not the last response (which may be a prefetched next item). */
     private static final ConcurrentHashMap<String, List<Source>> selected = new ConcurrentHashMap<>();
-    /** Tokens of one stream of a track stay valid for in-flight responses; older ones are dropped beyond this many. */
-    static final int TOKENS_PER_VIDEO = 4;
-    /** Issue order per stream (id and kind), guarded by the class monitor; the maps above stay readable without it. */
-    private static final Map<String, ArrayDeque<Source>> issued = new HashMap<>();
+    // Native responses and prepared clips can reopen a token without a live extension wrapper. Keep a token
+    // for the process lifetime, reused across responses for the same verified file generation.
 
     private StreamSwapSources() {}
 
-    private static PlaybackSourceInspector.LocalFormat inspectionFormat(Served served) {
-        PlaybackSourceInspector.Source source = switch (served.kind()) {
+    private static PlaybackSourceInspector.LocalFormat inspectionFormat(Source media) {
+        PlaybackSourceInspector.Source source = switch (media.served.kind()) {
             case KIND_RAW -> PlaybackSourceInspector.Source.CACHED_AUDIO;
             case KIND_VIDEO_AUDIO -> PlaybackSourceInspector.Source.CACHED_VIDEO_AUDIO;
             case KIND_VIDEO -> PlaybackSourceInspector.Source.CACHED_VIDEO;
             default -> null;
         };
-        return source == null ? null : new PlaybackSourceInspector.LocalFormat(source, served.itag());
+        return source == null ? null : new PlaybackSourceInspector.LocalFormat(source, media.served.itag(), media);
     }
 
     static void select(List<Source> sources) {
@@ -118,17 +119,27 @@ final class StreamSwapSources {
         return true;
     }
 
+    /** The accepted sources are the raw audio copy alone: no video of a copy, no online stream. */
+    static boolean playsRaw(String videoId) {
+        List<Source> sources = selected.get(videoId);
+        return sources != null && sources.size() == 1 && sources.get(0).available
+                && KIND_RAW.equals(sources.get(0).served.kind());
+    }
+
     /** The format's own URL may be empty (SABR): the source then has no online fallback. */
+    @Nullable
     static Source issue(String videoId, RawAudioFiles.Entry raw, String formatUrl) {
         return issue(videoId, Served.of(raw), formatUrl);
     }
 
     /** The source of the video-only stream of a music video's copy, {@code videoId} being the music video's id. */
+    @Nullable
     static Source issueVideo(String videoId, VideoCopyFiles.Entry copy, String formatUrl) {
         return issue(videoId, Served.video(copy), formatUrl);
     }
 
     /** The source of the audio stream of a music video's copy. */
+    @Nullable
     static Source issueVideoAudio(String videoId, VideoCopyFiles.Entry copy, String formatUrl) {
         return issue(videoId, Served.audio(copy), formatUrl);
     }
@@ -137,25 +148,30 @@ final class StreamSwapSources {
         return videoId + "/" + kind;
     }
 
+    @Nullable
     private static synchronized Source issue(String videoId, Served served, String formatUrl) {
+        if (!served.matchesFile()) return null;
+
         String onlineUrl = StreamSwapLogic.onlineUrl(formatUrl);
         String streamKey = streamKey(videoId, served.kind());
         Source previous = latest.get(streamKey);
-        if (previous != null && previous.available && previous.served.equals(served)
-                && Objects.equals(previous.online, onlineUrl)) return previous;
+        if (previous != null) {
+            if (previous.available && previous.served.equals(served)) {
+                if (onlineUrl != null) previous.online = onlineUrl;
+                return previous;
+            }
+            previous.available = false;
+        }
 
         String key = SESSION + "-" + sequence.incrementAndGet();
         String uri = StreamSwapLogic.tokenUrl(videoId, served.itag(), served.kind(), key);
-        Source source = new Source(videoId, served, onlineUrl, key, uri);
+        Source source = new Source(videoId, served, onlineUrl, uri);
         sources.put(key, source);
         latest.put(streamKey, source);
-        ArrayDeque<Source> history = issued.computeIfAbsent(streamKey, id -> new ArrayDeque<>());
-        history.addLast(source);
-        while (history.size() > TOKENS_PER_VIDEO) sources.remove(history.removeFirst().key);
         return source;
     }
 
-    /** The issued source for a token key, or null once it was replaced by newer ones for the same track. */
+    /** Resolves the token even when a native clip outlives the response that first used it. */
     static Source lookup(String key) {
         return sources.get(key);
     }
@@ -172,27 +188,31 @@ final class StreamSwapSources {
         return source;
     }
 
-    static void invalidate(String videoId) {
-        for (Source source : sources.values()) {
-            if (source.videoId.equals(videoId)) source.available = false;
-        }
-        latest.values().removeIf(source -> source.videoId.equals(videoId));
+    static synchronized void invalidate(String videoId) {
+        invalidateLatest(streamKey(videoId, KIND_RAW));
+        invalidateLatest(streamKey(videoId, KIND_VIDEO));
+        invalidateLatest(streamKey(videoId, KIND_VIDEO_AUDIO));
         selected.remove(videoId);
     }
 
+    private static void invalidateLatest(String streamKey) {
+        Source source = latest.remove(streamKey);
+        if (source != null) source.available = false;
+    }
+
     /** Every stream copy was deleted: no issued source may serve from a file again. */
-    static void invalidateAll() {
-        for (Source source : sources.values()) source.available = false;
+    static synchronized void invalidateAll() {
+        for (Source source : latest.values()) source.available = false;
         latest.clear();
         selected.clear();
     }
 
-    static void invalidateMissing() {
-        for (Source source : sources.values()) {
-            if (!source.served.file().isFile() || source.served.file().length() != source.served.length()) {
-                source.available = false;
-                latest.values().remove(source);
-            }
-        }
+    static synchronized void invalidateMissing() {
+        latest.values().removeIf(source -> {
+            if (source.served.matchesFile()) return false;
+
+            source.available = false;
+            return true;
+        });
     }
 }

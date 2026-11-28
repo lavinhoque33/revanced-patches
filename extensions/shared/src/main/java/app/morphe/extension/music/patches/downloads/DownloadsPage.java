@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-27.
  * Modified by lavinhoque33, 2026-11-26.
  * Written by lavinhoque33, 2026-11-08.
  * Modified by lavinhoque33, 2026-11-10.
@@ -18,9 +19,11 @@ import java.lang.reflect.Proxy;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import app.morphe.extension.music.patches.downloads.DownloadsPageLogic.Layout;
 import app.morphe.extension.music.patches.downloads.OfflineLibraryLogic.SourceRow;
+import app.morphe.extension.music.settings.Settings;
 import app.morphe.extension.shared.utils.Logger;
 import app.morphe.extension.shared.utils.Utils;
 
@@ -53,7 +56,14 @@ public final class DownloadsPage {
 
     private static final DownloadsPageLogic.Taps TAPS = new DownloadsPageLogic.Taps() {
         @Override public byte[] source(SourceRow row) {
-            return OfflineLibraryLogic.browseCommand("VL" + row.sourceId());
+            String id = row.sourceId();
+            String page = OfflineBrowsePages.albumPage(id);
+            String browseId = DownloadsPageLogic.browseId(id, page);
+            if (DownloadsPageLogic.isAlbum(id)) {
+                Logger.printDebug(() -> "AlbumOpen: chip row " + id + " opens " + browseId
+                        + (page == null ? " (no proved album page yet)" : " (proved album page)"));
+            }
+            return OfflineLibraryLogic.browseCommand(browseId);
         }
     };
 
@@ -62,12 +72,18 @@ public final class DownloadsPage {
 
     private static final PageGeneration generation = new PageGeneration();
     private static final PageHosts hosts = new PageHosts();
+    private static final AtomicBoolean refreshScheduled = new AtomicBoolean();
 
     private DownloadsPage() {}
 
     /** Whether the binder can encounter a generated Downloads row before the marker registry finishes loading. */
     static boolean hasBuilt() {
         return generation.hasBuilt();
+    }
+
+    /** Whether the Library page on screen shows the Downloads chip. */
+    static boolean downloadsChipShown() {
+        return hosts.downloadsStarted();
     }
 
     /**
@@ -77,20 +93,25 @@ public final class DownloadsPage {
      */
     static Object wrap(Object request, Object options, Object callback) {
         try {
-            if (NativeDownloads.deviceLibrary() || !OfflineReplay.enabled()
-                    || !(request instanceof PageRequest page)) return callback;
+            if (!OfflineReplay.enabled() || !(request instanceof PageRequest page)) return callback;
 
-            String token = DownloadsPageLogic.tokenOf(page.rvxRequestBytes());
+            byte[] bytes = page.rvxRequestBytes();
+            String token = DownloadsPageLogic.tokenOf(bytes);
             Layout layout = DownloadsPageLogic.layoutOf(token);
             Logger.printDebug(() -> "DownloadsPage: page token=" + token + " layout=" + layout);
-            if (layout == Layout.NONE) return callback;
+            if (!DownloadsPageLogic.mergesStreamCopies(Settings.DOWNLOAD_METHOD.get()) || layout == Layout.NONE) {
+                if (DownloadsPageLogic.isLibraryToken(token) || DownloadsPageLogic.isLibraryLanding(bytes)) {
+                    hosts.libraryRequested();
+                }
+                return callback;
+            }
 
-            hosts.downloadsLoaded();
-            generation.built();
+            PageHosts.Load load = hosts.downloadsRequested(generation.current());
             OfflineCopyStore.warmUp();
+            OfflineBackfill.kickNow();
             Class<?>[] interfaces = interfacesOf(callback.getClass()).toArray(new Class<?>[0]);
             return Proxy.newProxyInstance(callback.getClass().getClassLoader(), interfaces,
-                    new Delivery(callback, layout));
+                    new Delivery(callback, layout, load));
         } catch (Exception ex) {
             Logger.printException(() -> "DownloadsPage: could not wrap the page callback", ex);
             return callback;
@@ -100,21 +121,27 @@ public final class DownloadsPage {
     /**
      * Called when the stream copies or the downloaded lists changed. A Downloads page that is on screen is refreshed
      * as a pull to refresh would; one that is not (a list page is on top of it) is refreshed when it starts again.
-     * Not while a list downloads (its end calls again), and nothing for a page never opened since the app started,
-     * so a restart never opens Downloads.
+     * Bursts of media and membership changes are coalesced. No unvisited Library page is opened by the refresh.
      */
     static void onCopiesChanged() {
         generation.changed();
-        if (PlaylistDownloads.anyRunning()) return;
+        NoPlaylistDialog.onCopiesChanged();
+        scheduleRefresh();
+    }
 
-        Utils.runOnMainThreadDelayed(DownloadsPage::refreshIfStale, REFRESH_DELAY_MS);
+    private static void scheduleRefresh() {
+        if (!refreshScheduled.compareAndSet(false, true)) return;
+        Utils.runOnMainThreadDelayed(() -> {
+            refreshScheduled.set(false);
+            refreshIfStale();
+        }, REFRESH_DELAY_MS);
     }
 
     /** Injection point: a page fragment started, new or from the back stack. */
     public static void onPageStarted(Object controller, Object host) {
         try {
             hosts.started(controller, host);
-            Utils.runOnMainThreadDelayed(DownloadsPage::refreshIfStale, REFRESH_DELAY_MS);
+            scheduleRefresh();
         } catch (Exception ex) {
             Logger.printException(() -> "DownloadsPage: page start", ex);
         }
@@ -130,9 +157,8 @@ public final class DownloadsPage {
     }
 
     private static void refreshIfStale() {
-        if (!generation.isStale()) return;
-
-        Object page = hosts.startedDownloadsPage();
+        if (!DownloadsPageLogic.mergesStreamCopies(Settings.DOWNLOAD_METHOD.get())) return;
+        Object page = hosts.startedDownloadsPage(generation.current());
         if (!(page instanceof PageHost host)) return;
 
         try {
@@ -164,10 +190,13 @@ public final class DownloadsPage {
     private static final class Delivery implements InvocationHandler {
         private final Object callback;
         private final Layout layout;
+        private final PageHosts.Load load;
+        private long renderedGeneration = -1;
 
-        Delivery(Object callback, Layout layout) {
+        Delivery(Object callback, Layout layout, PageHosts.Load load) {
             this.callback = callback;
             this.layout = layout;
+            this.load = load;
         }
 
         @Override
@@ -176,16 +205,22 @@ public final class DownloadsPage {
 
             boolean page = args != null && args.length == 1 && method.getParameterTypes()[0] == Object.class
                     && args[0] instanceof PageResponse;
-            if (!page) return call(method, args);
+            if (!page) {
+                try {
+                    return call(method, args);
+                } finally {
+                    if (args != null && args.length == 1 && args[0] instanceof Throwable) failed();
+                }
+            }
 
             PageResponse response = (PageResponse) args[0];
             if (Utils.isCurrentlyOnMainThread()) {
                 Utils.runOnBackgroundThread(() -> {
                     Object answer = withCopies(response);
-                    Utils.runOnMainThread(() -> deliver(method, answer));
+                    Utils.runOnMainThread(() -> deliver(method, response, answer));
                 });
             } else {
-                deliver(method, withCopies(response));
+                deliver(method, response, withCopies(response));
             }
             return null;
         }
@@ -206,20 +241,34 @@ public final class DownloadsPage {
             }
         }
 
-        private void deliver(Method method, Object response) {
+        private void deliver(Method method, PageResponse original, Object response) {
+            boolean current = hosts.isCurrent(load)
+                    && DownloadsPageLogic.mergesStreamCopies(Settings.DOWNLOAD_METHOD.get());
             try {
-                call(method, new Object[]{response});
+                call(method, new Object[]{current ? response : original});
+                if (!current) return;
+                generation.built();
+                hosts.delivered(load, renderedGeneration);
+                if (renderedGeneration >= 0 && renderedGeneration != generation.current()) scheduleRefresh();
             } catch (Throwable failure) {
+                failed();
                 Logger.printException(() -> "DownloadsPage: the page callback failed", failure);
             }
+        }
+
+        private void failed() {
+            if (hosts.failed(load, generation.current())) scheduleRefresh();
         }
 
         /** The response with the stream copies in it, or the app's own when they cannot be added. */
         private Object withCopies(PageResponse response) {
             try {
+                long requestedGeneration = generation.current();
                 byte[] merged = DownloadsPageLogic.merge(response.rvxPageBytes(), copySections());
                 Logger.printDebug(() -> "DownloadsPage: layout=" + layout + " merged=" + (merged != null));
-                return merged == null ? response : response.rvxWithPageBytes(merged);
+                Object page = merged == null ? response : response.rvxWithPageBytes(merged);
+                if (page != null) renderedGeneration = requestedGeneration;
+                return page == null ? response : page;
             } catch (Exception ex) {
                 Logger.printException(() -> "DownloadsPage: could not add the stream copies", ex);
                 return response;
@@ -228,16 +277,31 @@ public final class DownloadsPage {
 
         /** The sections of the stream copies for the layout, by the network state when the page is built. */
         private List<byte[]> copySections() {
-            boolean online = Utils.isInternetReachable();
-            List<byte[]> items = DownloadsPageLogic.sections(layout, online, sourceRows(), noPlaylistRow(),
-                    labels(), TAPS, OfflineCopyStore::coverUrl, DownloadsPage::ownsStreamSource);
+            // This response was built by the stock local Downloads service, not returned by YouTube.
+            boolean online = PlaybackConnectivity.reachable();
+            List<byte[]> items = sectionsOf(layout, online).items();
             Logger.printDebug(() -> "DownloadsPage: online=" + online + " sections=" + items.size());
             return items;
         }
     }
 
-    private static List<SourceRow> sourceRows() {
-        return OfflineLibraryLogic.sourceRows(OfflineCopyStore.sources(), OfflineCopyStore::tracksOf);
+    /**
+     * The content items of the stream copies for a layout, built from the stores: the Downloads chip's page and the
+     * Library landing offline both show them. Never on the main thread.
+     */
+    static DownloadsPageLogic.Sections sectionsOf(Layout layout, boolean online) {
+        return DownloadsPageLogic.sections(layout, online, sourceRows(layout),
+                layout == Layout.ALBUMS ? null : noPlaylistRow(), labels(), TAPS, OfflineCopyStore::coverUrl,
+                DownloadsPage::ownsStreamSource);
+    }
+
+    /** The revision of the stream copies; every change of them counts it up. */
+    static int copiesGeneration() {
+        return generation.current();
+    }
+
+    private static List<SourceRow> sourceRows(Layout layout) {
+        return OfflineCopyStore.downloadRows(id -> DownloadsPageLogic.listsSource(layout, id));
     }
 
     private static boolean ownsStreamSource(String sourceId) {

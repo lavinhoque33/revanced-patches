@@ -1,6 +1,8 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-27.
+ * Modified by lavinhoque33, 2026-11-26.
  * Modified by lavinhoque33, 2026-11-18.
  * Written by lavinhoque33, 2026-11-07.
  * Modified by lavinhoque33, 2026-11-10
@@ -81,32 +83,25 @@ final class RawAudioStore {
         return uri == null ? null : uri.toString();
     }
 
-    /**
-     * Keeps the stream copy of a finished download: stream-only, with no native track.
-     *
-     * @param individual Whether the user downloaded this song itself and not as a track of a playlist or album.
-     * @return Whether the copy now exists.
-     */
-    static boolean retain(String videoId, File temporary, Format format, boolean individual) {
-        try {
-            Utils.verifyOffMainThread();
-            if (!StreamSwap.supported()) return false;
-            boolean kept = Storage.files.retain(videoId, temporary, format.getItag(), format.getMimeType(),
-                    format.getContentLength(), format.getLastModified(), null, individual);
-            if (!kept) return false;
+    /** Validates and hashes a private download before taking the source mutation lock. */
+    @Nullable
+    static RawAudioFiles.Prepared prepare(String videoId, File temporary, Format format, boolean individual)
+            throws Exception {
+        Utils.verifyOffMainThread();
+        if (!StreamSwap.supported()) return null;
+        return RawAudioFiles.prepare(videoId, temporary, format.getItag(), format.getMimeType(),
+                format.getContentLength(), format.getLastModified(), null, individual);
+    }
 
-            DownloadedMarkers.onStreamCopyKept(videoId);
-            return true;
-        } catch (Exception ex) {
-            Logger.printException(() -> "StreamSwap: could not retain raw copy v=" + videoId, ex);
-            return false;
-        }
+    static boolean retain(RawAudioFiles.Prepared copy) throws Exception {
+        Utils.verifyOffMainThread();
+        return Storage.files.retain(copy);
     }
 
     /** The user asked for this song itself: its copy outlives the removal of a playlist or album that holds it. */
-    static void markIndividual(String videoId) {
+    static boolean markIndividual(String videoId) {
         Utils.verifyOffMainThread();
-        Storage.files.markIndividual(videoId);
+        return Storage.files.markIndividual(videoId);
     }
 
     /** The ids of the copies the user downloaded itself. */
@@ -130,7 +125,9 @@ final class RawAudioStore {
     /** The copy that may be played, or null. Hashes the file the first time. */
     static RawAudioFiles.Entry find(String videoId) {
         Utils.verifyOffMainThread();
-        return Storage.files.find(videoId, RawAudioStore::nativeUri);
+        RawAudioFiles.Entry entry = Storage.files.find(videoId, RawAudioStore::nativeUri);
+        if (entry == null) DownloadedMarkers.onStreamCopyRemoved(videoId);
+        return entry;
     }
 
     static void delete(String videoId) {
@@ -148,8 +145,8 @@ final class RawAudioStore {
      */
     static void deleteWithNativeTrack(String videoId) {
         Utils.verifyOffMainThread();
-        StreamSwapSources.invalidate(videoId);
         if (Storage.files.deleteUnlessStreamOnly(videoId)) {
+            StreamSwapSources.invalidate(videoId);
             OfflineCopyStore.delete(videoId);
             VideoCopyStore.deleteForSong(videoId);
             DownloadedMarkers.onStreamCopyRemoved(videoId);

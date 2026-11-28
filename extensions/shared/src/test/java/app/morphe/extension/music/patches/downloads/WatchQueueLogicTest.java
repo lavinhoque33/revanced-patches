@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-26.
  * Written by lavinhoque33, 2026-11-09.
  */
 package app.morphe.extension.music.patches.downloads;
@@ -52,6 +53,20 @@ public class WatchQueueLogicTest {
         assertEquals("item 0 wrapper id=omvOne00000 type=OMV counterpart=atvOne00000 counterpartType=ATV len=3:34"
                         + " counterpartLen=3:33 title=\"First (Official Video)\" artist=\"Artist One\"",
                 WatchQueueLogic.describe(first));
+    }
+
+    @Test public void anUntypedPrimaryKeepsItsAtvEvenWhenThereIsAnOmvCounterpart() throws Exception {
+        String response = WRAPPED.replace("MUSIC_VIDEO_TYPE_OMV", "")
+                .replace("\"MUSIC_VIDEO_TYPE_ATV\"}}}}}}}]", """
+                        "MUSIC_VIDEO_TYPE_ATV"}}}}}}},
+                        {"counterpartRenderer":{"playlistPanelVideoRenderer":{"videoId":"omvTwo00000",
+                          "navigationEndpoint":{"watchEndpoint":{"watchEndpointMusicSupportedConfigs":{
+                            "watchEndpointMusicConfig":{"musicVideoType":"MUSIC_VIDEO_TYPE_OMV"}}}}}}}]
+                        """);
+        var items = WatchQueueLogic.readNext(new JSONObject(response), 0).items();
+
+        assertEquals("omvTwo00000", items.get(0).counterpartId());
+        assertEquals("atvOne00000", SongIdResolver.fromQueue("omvOne00000", items));
     }
 
     @Test public void aPlainItemHasNoCounterpart() throws Exception {

@@ -1,10 +1,12 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-26.
  * Written by lavinhoque33, 2026-11-11.
  */
 package app.morphe.patches.music.interaction.downloads
 
+import app.morphe.patcher.Fingerprint
 import app.morphe.patcher.extensions.InstructionExtensions.addInstruction
 import app.morphe.patcher.patch.BytecodePatchContext
 import app.morphe.patcher.util.proxy.mutableTypes.MutableMethod
@@ -30,25 +32,38 @@ import com.android.tools.smali.dexlib2.iface.reference.MethodReference
 import com.android.tools.smali.dexlib2.iface.reference.TypeReference
 import com.android.tools.smali.dexlib2.immutable.ImmutableMethodParameter
 import com.android.tools.smali.dexlib2.immutable.reference.ImmutableMethodReference
+import com.android.tools.smali.dexlib2.util.MethodUtil
 
 private const val EXECUTOR = "Ljava/util/concurrent/Executor;"
 private const val OPTIONAL = "Lj$/util/Optional;"
+private const val ONLINE_QUEUE_REQUESTER =
+    "com/google/android/apps/youtube/music/player/queue/requester/OnlineQueueItemRequester"
 
 internal data class PureSongMenuLookup(
     val method: MutableMethod,
-    val contextRead: String,
+    val contextProvider: FieldReference,
+    val providerGet: MethodReference,
+    val contextRead: MethodReference,
     val lower: Method,
     val raw: MethodReference,
     val receiver: FieldReference?,
 )
 
-/** Preserve native request construction and item mapping, without consuming queue commands or response context. */
+/**
+ * Preserve native request construction and item mapping, without consuming queue commands or response context.
+ * The clone takes the queue context as one more trailing parameter and never reads the shared slot or registers
+ * the stock reply observer, which would write that slot and run reply commands.
+ */
 internal fun BytecodePatchContext.resolvePureSongMenuLookup(
     lookup: Method,
     requestType: String,
     requesterType: String,
-    requester: FieldReference,
+    name: String,
 ): PureSongMenuLookup {
+    check(!AccessFlags.STATIC.isSet(lookup.accessFlags) &&
+            lookup.parameterTypes.none { it.toString() == "J" || it.toString() == "D" }) {
+        "native lookup cannot take an appended queue context parameter"
+    }
     val code = lookup.implementation!!.instructions.toList()
     val constructors = code.indices.filter {
         code[it].getReference<MethodReference>()?.let { call ->
@@ -153,44 +168,72 @@ internal fun BytecodePatchContext.resolvePureSongMenuLookup(
     }
 
     val replacements = mapOf(
-        contextStart to "move-object/from16 v$contextRegister, p3",
+        contextStart to "move-object/from16 v$contextRegister, p${lookup.parameters.size + 1}",
         sendIndex to "invoke-static {${sendRegisters.joinToString { "v$it" }}}, $raw",
     )
     removed.addAll(contextStart..contextEnd)
     removed.add(sendIndex)
     requireNoEntryInto(lookup, removed)
-    val clone = lookup.cloneMutable(name = "rvxLookupSongMenu",
+    val clone = lookup.cloneMutable(name = name,
         registerCount = lookup.implementation!!.registerCount + 1,
         parameters = lookup.parameters + ImmutableMethodParameter(OPTIONAL, null, null))
     for (index in code.indices.reversed()) {
         if (index in removed) clone.implementation!!.removeInstruction(index)
         replacements[index]?.let { clone.addInstruction(index, it) }
     }
-    val cast = if (requester.type == requesterType) "" else "check-cast v1, $requesterType"
-    return PureSongMenuLookup(clone, """
-        iget-object v1, p0, $requester
-        $cast
-        iget-object v1, v1, $contextProvider
-        ${invokeKind(providerGet)} {v1}, $providerGet
-        move-result-object v1
-        check-cast v1, ${contextRead.definingClass}
-        ${invokeKind(contextRead)} {v1}, $contextRead
-        move-result-object v1
-    """, lower, raw, receiver)
+    val observerRegistration = code[registration].getReference<MethodReference>()!!
+    check(clone.implementation!!.instructions.none {
+        it.getReference<MethodReference>().let { call -> call == contextRead || call == observerRegistration }
+    }) { "native lookup isolation left the live queue context or its reply observer in place" }
+    return PureSongMenuLookup(clone, contextProvider, providerGet, contextRead, lower, raw, receiver)
 }
 
 internal fun BytecodePatchContext.installPureSongMenuLookup(plan: PureSongMenuLookup) {
-    mutableClassDefBy(plan.raw.definingClass).addBridge(plan.raw.name,
-        plan.raw.parameterTypes.map { it.toString() }, plan.raw.returnType, 4,
-        AccessFlags.PUBLIC.value or AccessFlags.STATIC.value, body = """
-        const/4 v0, 0x0
-        ${plan.receiver?.let { "iget-object p0, p0, $it" } ?: ""}
-        ${invokeKind(plan.lower)} {p0, p1, p2, v0}, ${plan.lower}
-        move-result-object v0
-        return-object v0
-    """)
+    val transport = mutableClassDefBy(plan.raw.definingClass)
+
+    // Downloads and Smart Shuffle each clone the native lookup, but they share this one raw transport bridge.
+    if (transport.methods.none { MethodUtil.methodSignaturesMatch(it, plan.raw) }) {
+        transport.addBridge(plan.raw.name,
+            plan.raw.parameterTypes.map { it.toString() }, plan.raw.returnType, 4,
+            AccessFlags.PUBLIC.value or AccessFlags.STATIC.value, body = """
+            const/4 v0, 0x0
+            ${plan.receiver?.let { "iget-object p0, p0, $it" } ?: ""}
+            ${invokeKind(plan.lower)} {p0, p1, p2, v0}, ${plan.lower}
+            move-result-object v0
+            return-object v0
+        """)
+    }
     mutableClassDefBy(plan.method.definingClass).methods.add(plan.method)
 }
+
+/** The native read of the shared queue context, as smali that leaves its Optional in v1. */
+internal fun BytecodePatchContext.liveContextRead(
+    plan: PureSongMenuLookup,
+    requester: FieldReference,
+    requesterType: String,
+): String {
+    val cast = if (requester.type == requesterType) "" else "check-cast v1, $requesterType"
+    return """
+        iget-object v1, p0, $requester
+        $cast
+        iget-object v1, v1, ${plan.contextProvider}
+        ${invokeKind(plan.providerGet)} {v1}, ${plan.providerGet}
+        move-result-object v1
+        check-cast v1, ${plan.contextRead.definingClass}
+        ${invokeKind(plan.contextRead)} {v1}, ${plan.contextRead}
+        move-result-object v1
+    """
+}
+
+/** Smali that leaves an empty queue context in [register], for a lookup that must not touch the live one. */
+internal fun emptyQueueContext(register: String): String = """
+    invoke-static {}, $OPTIONAL->empty()$OPTIONAL
+    move-result-object $register
+"""
+
+/** The native requester that owns the live queue context a menu lookup reads. */
+internal fun BytecodePatchContext.onlineQueueRequesterType(): String =
+    Fingerprint(strings = listOf(ONLINE_QUEUE_REQUESTER)).classDef.type
 
 private fun BytecodePatchContext.menuRawCandidates(send: MethodReference): List<Method> {
     val candidates = mutableListOf<Method>()

@@ -17,6 +17,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 public class OfflineBrowsePagesLogicTest {
@@ -42,18 +43,27 @@ public class OfflineBrowsePagesLogicTest {
         assertEquals("MPREb_c", OfflineBrowsePagesLogic.ownerOf("MPREb_c", new byte[0], SOURCES));
     }
 
-    @Test public void anAlbumPageBelongsToThePlaylistItNamesMost() {
-        Set<String> sources = Set.of("PLa", "OLAK5uy_one", "OLAK5uy_two");
-        byte[] page = utf8("OLAK5uy_one;OLAK5uy_one;OLAK5uy_two;OLAK5uy_one");
+    @Test public void anAlbumPageBelongsToTheOwnerOfItsPrimaryPlayAction() {
+        String album = "OLAK5uy_one";
+        String unrelated = "OLAK5uy_two";
+        Set<String> sources = Set.of(album, unrelated);
+        byte[] header = new ProtoWriter().string(1, album).toByteArray();
+        int[] path = {13, 361_650_780, 2, 153_515_154, 172_660_663, 1, 168_777_401, 5,
+                413_471_385, 1258, 4, 1, 4, 169_495_254, 52_666_186};
+        for (int i = path.length - 1; i >= 0; i--) header = new ProtoWriter().message(path[i], header).toByteArray();
+        byte[] page = new ProtoWriter().raw(header, 0, header.length).string(9, unrelated.repeat(10)).toByteArray();
 
-        assertEquals("OLAK5uy_one", OfflineBrowsePagesLogic.ownerOf("MPREb_x", page, sources));
+        assertEquals(album, OfflineBrowsePagesLogic.ownerOf("MPREb_x", page, sources));
+        assertNull(OfflineBrowsePagesLogic.ownerOf("MPREb_x", page, Set.of(unrelated)));
+        assertNull(OfflineBrowsePagesLogic.ownerOf("MPREb_x", utf8(album + unrelated), sources));
     }
 
-    @Test public void anAlbumPageThatNamesNoPlaylistOrTiesHasNoOwner() {
-        Set<String> sources = Set.of("OLAK5uy_one", "OLAK5uy_two");
-
-        assertNull(OfflineBrowsePagesLogic.ownerOf("MPREb_x", utf8("nothing"), sources));
-        assertNull(OfflineBrowsePagesLogic.ownerOf("MPREb_x", utf8("OLAK5uy_one OLAK5uy_two"), sources));
+    @Test public void legacyAlbumMappingRequiresOneValidPageForThatSource() {
+        String album = "OLAK5uy_saved";
+        assertEquals("MPREb_release", OfflineBrowsePagesLogic.mappedAlbumPage(album,
+                Map.of("MPREb_release", album, "MPREb_wrong", "OLAK5uy_other", "MPREb_../invalid", album)));
+        assertNull(OfflineBrowsePagesLogic.mappedAlbumPage(album, Map.of("MPREb_", album)));
+        assertNull(OfflineBrowsePagesLogic.mappedAlbumPage(album, Map.of("MPREb_release", album, "MPREb_alt", album)));
     }
 
     @Test public void aPlaylistPageOfAnOtherListHasNoOwner() {
@@ -128,7 +138,7 @@ public class OfflineBrowsePagesLogicTest {
         byte[] unavailable = at(rows.get(1), 161_429_595);
         assertEquals("Unavailable offline", string(at(unavailable, 3, 1, 1)));
         assertTrue(fields(unavailable, 5).isEmpty());
-        assertArrayEquals(OnlineWatchCommand.build(second, id, 2), at(rows.get(2), 161_429_595, 5));
+        assertTrue(fields(at(rows.get(2), 161_429_595), 5).isEmpty());
         assertArrayEquals(OnlineWatchCommand.build(first, id, 3), at(rows.get(3), 161_429_595, 5));
         assertFalse(OfflineBrowsePagesLogic.isContinuation(page));
     }

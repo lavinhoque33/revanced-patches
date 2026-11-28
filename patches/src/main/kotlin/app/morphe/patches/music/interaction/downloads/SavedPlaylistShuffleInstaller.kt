@@ -35,6 +35,10 @@ import com.android.tools.smali.dexlib2.iface.reference.StringReference
 import com.android.tools.smali.dexlib2.immutable.ImmutableField
 import com.android.tools.smali.dexlib2.immutable.ImmutableMethodParameter
 
+private const val QUEUE_ACTIONS = "Lapp/morphe/extension/music/patches/downloads/OfflineQueueActions;"
+private const val FALLBACK = "Lapp/morphe/extension/music/patches/downloads/PlayerFallback;"
+private const val TAIL_QUEUE = $$"Lapp/morphe/extension/music/patches/downloads/OfflineQueueActions$TailQueue;"
+private const val COLLECTION = "Ljava/util/Collection;"
 private const val REPLAY = "Lapp/morphe/extension/music/patches/downloads/OfflineReplayHooks;"
 private const val LOCAL_QUEUE = $$"Lapp/morphe/extension/music/patches/downloads/OfflineReplay$LocalShuffleQueue;"
 internal const val OFFLINE_QUEUE_MODEL = $$"Lapp/morphe/extension/music/patches/downloads/OfflineQueueActions$Queue;"
@@ -125,7 +129,8 @@ internal fun BytecodePatchContext.prepareSavedPlaylistShuffle(
         field.definingClass == abi.shuffleState && field.name == "c" && field.type == "Z"
     } == true }) { "unrecognized shuffle panel state" }
 
-    val installNativeMatch = prepareNativeShuffleMatch(queue, localShuffle, currentIndex, primarySize, currentItem)
+    val installNativeMatch = prepareNativeShuffleMatch(queue, localShuffle, currentIndex, primarySize, currentItem,
+        splice.insert)
     val installCommit = abi.foreignCommitOwner?.let { owner ->
         prepareModernCommit(owner, queue, stockCommit, splice)
     }
@@ -207,14 +212,17 @@ internal fun BytecodePatchContext.prepareSavedPlaylistShuffle(
 }
 
 /** The stock empty-list edge already rejoins at the metadata tail with no primary mutation. */
-private class RowSplice(val receiver: Int, val selected: Int, val entry: Int, val metadata: Int) {
+private class RowSplice(
+    val receiver: Int, val selected: Int, val rows: Int, val entry: Int, val metadata: Int,
+    val insert: MethodReference,
+) {
     fun retain(method: MutableMethod, prefix: Int, token: Int, loadToken: String = "") {
-        val guard = "${method.definingClass}->$RETAIN_SHUFFLE(${OBJECT}I)I"
+        val guard = "${method.definingClass}->$RETAIN_SHUFFLE(${OBJECT}I$LIST)I"
         val index = prefix + entry
         method.addInstructionsWithLabels(index, """
             $loadToken
             if-eqz v$token, :rvx_apply_rows
-            invoke-virtual {v$receiver, v$token, v$selected}, $guard
+            invoke-virtual {v$receiver, v$token, v$selected, v$rows}, $guard
             move-result v$token
             if-gtz v$token, :rvx_apply_metadata
             if-eqz v$token, :rvx_apply_rows
@@ -292,7 +300,10 @@ private fun resolveRowSplice(
         insert.getReference<MethodReference>()?.parameterTypes == listOf("I", "I", "Ljava/util/Collection;")
     ) { "unrecognized primary row mutations" }
 
-    return RowSplice(receiver, selected, cursor - 2, metadata)
+    check(rows.registerA < 16 && rows.registerA !in setOf(selected, receiver, zero)) {
+        "native parsed rows cannot be retained without changing the stock register width"
+    }
+    return RowSplice(receiver, selected, rows.registerA, cursor - 2, metadata, insert.getReference<MethodReference>()!!)
 }
 
 /** The three modern queue owners each have one other caller, a stock command resolver that has no replay token. */
@@ -339,10 +350,23 @@ private fun FiveRegisterInstruction.withContinuation(token: Int, method: MethodR
 private fun BytecodePatchContext.prepareNativeShuffleMatch(
     queue: MutableClass, shuffle: List<Instruction>,
     currentIndex: MethodReference, primarySize: MethodReference, currentItem: MethodReference,
+    insert: MethodReference,
 ): () -> Unit {
     val state = checkNotNull(shuffle[0].getReference<FieldReference>())
     val localType = checkNotNull(shuffle[1].getReference<FieldReference>())
     val baseline = checkNotNull(shuffle[5].getReference<FieldReference>())
+    val stockAppend = queue.methods.single {
+        it.name == insert.name && it.parameterTypes == insert.parameterTypes && it.returnType == "V"
+    }
+    val appended = stockAppend.implementation!!.instructions.withIndex().single { (_, instruction) ->
+        instruction.opcode == Opcode.INVOKE_SUPER && instruction.getReference<MethodReference>() == insert
+    }
+    val appendCall = appended.value as FiveRegisterInstruction
+    val appendReceiver = stockAppend.implementation!!.registerCount - 4
+    check(appendCall.registerC == appendReceiver && appendCall.registerD == appendReceiver + 1 &&
+            appendCall.registerF == appendReceiver + 3) {
+        "unrecognized stock primary append operands"
+    }
     val typeGetter = queue.methods.single {
         it.name == "d" && it.parameterTypes.isEmpty() && it.returnType == localType.type
     }
@@ -366,6 +390,54 @@ private fun BytecodePatchContext.prepareNativeShuffleMatch(
     return {
         queue.interfaces.add(LOCAL_QUEUE)
         queue.interfaces.add(OFFLINE_QUEUE_MODEL)
+        queue.interfaces.add(TAIL_QUEUE)
+
+        val random = "Ljava/util/concurrent/ThreadLocalRandom;"
+
+        // Keep saved order in the baseline; insert only after the current row in the shuffled queue.
+        queue.addDownloadsBridge("rvxAppendReplayRows", listOf(LIST), "V", 9, """
+            const/4 v0, 0x0
+            invoke-virtual {p0, v0}, $primarySize
+            move-result v1
+            invoke-virtual {p0}, $typeGetter
+            move-result-object v2
+            sget-object v3, $localType
+            if-ne v2, v3, :append_ordered
+            iget-object v2, p0, $baseline
+            if-eqz v2, :append_ordered
+            invoke-virtual {p0}, $currentIndex
+            move-result v3
+            if-ltz v3, :append_ordered
+            if-ge v3, v1, :append_ordered
+            add-int/lit8 v3, v3, 0x1
+            invoke-interface {v2, p1}, $LIST->addAll($COLLECTION)Z
+            invoke-interface {p1}, $LIST->iterator()Ljava/util/Iterator;
+            move-result-object v2
+            invoke-static {}, $random->current()$random
+            move-result-object v4
+            :insert_next
+            invoke-interface {v2}, Ljava/util/Iterator;->hasNext()Z
+            move-result v5
+            if-eqz v5, :append_done
+            invoke-interface {v2}, Ljava/util/Iterator;->next()$OBJECT
+            move-result-object v5
+            invoke-static {v5}, Ljava/util/Collections;->singletonList($OBJECT)$LIST
+            move-result-object v5
+            add-int/lit8 v6, v1, 0x1
+            invoke-virtual {v4, v3, v6}, $random->nextInt(II)I
+            move-result v6
+            invoke-super {p0, v0, v6, v5}, $insert
+            add-int/lit8 v1, v1, 0x1
+            goto :insert_next
+            :append_ordered
+            invoke-virtual {p0, v0, v1, p1}, $stockAppend
+            :append_done
+            return-void
+        """)
+        // The native append also feeds the shuffle baseline; observe the loaded source position before a user edit.
+        stockAppend.addInstruction(appended.index + 1,
+            "invoke-static {v$appendReceiver, v${appendCall.registerD}, v${appendCall.registerF}}, " +
+                "$FALLBACK->recordOnlineRows(${OBJECT}I$COLLECTION)V")
         queue.addDownloadsBridge("rvxOfflineCursor", emptyList(), "I", 2, """
             invoke-virtual {p0}, $currentIndex
             move-result v0
@@ -424,7 +496,7 @@ private fun BytecodePatchContext.prepareNativeShuffleMatch(
             const/4 v0, 0x0
             return v0
         """)
-        queue.addDownloadsBridge(RETAIN_SHUFFLE, listOf(OBJECT, "I"), "I", 4, """
+        queue.addDownloadsBridge(RETAIN_SHUFFLE, listOf(OBJECT, "I", LIST), "I", 5, """
             monitor-enter p0
             :rvx_check_start
             invoke-virtual {p0}, $currentIndex
@@ -434,6 +506,8 @@ private fun BytecodePatchContext.prepareNativeShuffleMatch(
             :rvx_same_cursor
             invoke-static {p0, p1, p2}, $REPLAY->retainQueueRows($OBJECT${OBJECT}I)I
             move-result v0
+            if-lez v0, :rvx_check_end
+            invoke-static {p0, p1, p3}, $QUEUE_ACTIONS->appendReplayTail($OBJECT$OBJECT$LIST)V
             :rvx_check_end
             monitor-exit p0
             return v0

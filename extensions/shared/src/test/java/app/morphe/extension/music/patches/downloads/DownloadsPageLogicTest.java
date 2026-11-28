@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-27.
  * Modified by lavinhoque33, 2026-11-26.
  * Written by lavinhoque33, 2026-11-08.
  * Modified by lavinhoque33, 2026-11-10
@@ -77,6 +78,23 @@ public class DownloadsPageLogicTest {
         assertEquals(Layout.NONE, DownloadsPageLogic.layoutOf(null));
     }
 
+    @Test public void onlyStreamModeMergesPrivateCopiesIntoLibraryDownloads() {
+        String stock = "CONTENT_RELOAD_CONTINUATION_TOKEN_DEFAULT";
+        assertTrue(DownloadsPageLogic.mergesStreamCopies(DownloadMethod.STREAM));
+        assertFalse(DownloadsPageLogic.mergesStreamCopies(DownloadMethod.DEVICE_FILES));
+        assertFalse(DownloadsPageLogic.mergesStreamCopies(DownloadMethod.DELEGATED));
+        assertEquals(stock, DownloadsPageLogic.libraryToken(DownloadMethod.DELEGATED, stock));
+        assertEquals("SIDELOADED_LIBRARY_RELOAD_CONTINUATION_TOKEN_TRACKS",
+                DownloadsPageLogic.libraryToken(DownloadMethod.DEVICE_FILES, stock));
+    }
+
+    @Test public void albumNavigationUsesOnlyTheVerifiedNativePageId() {
+        assertEquals("MPREb_real", DownloadsPageLogic.browseId("OLAK5uy_source", "MPREb_real"));
+        assertEquals("VLOLAK5uy_source", DownloadsPageLogic.browseId("OLAK5uy_source", "MPREb_../broken"));
+        assertEquals("VLOLAK5uy_source", DownloadsPageLogic.browseId("OLAK5uy_source", null));
+        assertEquals("VLplaylist", DownloadsPageLogic.browseId("playlist", "MPREb_unrelated"));
+    }
+
     // endregion
 
     // region sections
@@ -133,6 +151,23 @@ public class DownloadsPageLogicTest {
         assertEquals(List.of("Mix", "No Playlist"), rowTitles(items.get(0)));
     }
 
+    @Test public void retainedEmptySourcesStillRenderButDoNotMakeTheLibraryPlayable() {
+        var retained = DownloadsPageLogic.sections(Layout.ALL, false, List.of(ALBUM), null,
+                LABELS, TAPS, COVERS, id -> true);
+        assertEquals(List.of("Album"), rowTitles(retained.items().get(0)));
+        assertFalse(retained.playable());
+
+        var mixed = DownloadsPageLogic.sections(Layout.ALL, false, List.of(ALBUM, PLAYLIST), null,
+                LABELS, TAPS, COVERS, id -> true);
+        assertEquals(List.of("Album", "Mix"), rowTitles(mixed.items().get(0)));
+        assertTrue(mixed.playable());
+
+        var loose = DownloadsPageLogic.sections(Layout.ALL, false, List.of(), NO_PLAYLIST,
+                LABELS, TAPS, COVERS, id -> false);
+        assertEquals(List.of("No Playlist"), rowTitles(loose.items().get(0)));
+        assertTrue(loose.playable());
+    }
+
     @Test public void onlineASourceWithoutAPlayableSongIsShown() {
         List<byte[]> items = sections(Layout.ALL, true, List.of(PLAYLIST, ALBUM), NO_PLAYLIST);
 
@@ -152,7 +187,7 @@ public class DownloadsPageLogicTest {
         DownloadsPageLogic.Taps browse = row -> OfflineLibraryLogic.browseCommand("VL" + row.sourceId());
         for (Layout layout : List.of(Layout.ALL, Layout.PLAYLISTS)) {
             List<byte[]> cards = rows(DownloadsPageLogic.sections(layout, true, List.of(PLAYLIST, delegated, ALBUM),
-                    NO_PLAYLIST, LABELS, browse, COVERS, PLAYLIST.sourceId()::equals).get(0));
+                    NO_PLAYLIST, LABELS, browse, COVERS, PLAYLIST.sourceId()::equals).items().get(0));
 
             assertEquals(PLAYLIST.sourceId(), DownloadsPageLogic.playlistCardSourceId(cards.get(0)));
             assertEquals("", DownloadsPageLogic.playlistCardSourceId(cards.get(1)));
@@ -170,7 +205,7 @@ public class DownloadsPageLogicTest {
         DownloadsPageLogic.Taps wrongField = row -> new ProtoWriter().message(48_687_626,
                 new ProtoWriter().string(1, "VL" + row.sourceId()).toByteArray()).toByteArray();
         List<byte[]> cards = rows(DownloadsPageLogic.sections(Layout.PLAYLISTS, true, List.of(PLAYLIST),
-                null, LABELS, wrongField, COVERS, id -> true).get(0));
+                null, LABELS, wrongField, COVERS, id -> true).items().get(0));
 
         assertEquals("", DownloadsPageLogic.playlistCardSourceId(cards.get(0)));
     }
@@ -178,7 +213,7 @@ public class DownloadsPageLogicTest {
     @Test public void aRowWithoutACommandIsLeftOut() {
         DownloadsPageLogic.Taps none = row -> row.sourceId().equals("songs") ? TAPS.source(row) : null;
         List<byte[]> items = DownloadsPageLogic.sections(Layout.ALL, true, List.of(PLAYLIST), NO_PLAYLIST,
-                LABELS, none, COVERS, id -> false);
+                LABELS, none, COVERS, id -> false).items();
 
         assertEquals(List.of("No Playlist"), rowTitles(items.get(0)));
     }
@@ -186,7 +221,7 @@ public class DownloadsPageLogicTest {
     @Test public void aRowWithoutACoverHasNoImage() {
         SourceRow plain = new SourceRow("songs", "No Playlist", 1, 1, "s", null);
         byte[] shelf = DownloadsPageLogic.sections(Layout.ALL, true, List.of(), plain, LABELS, TAPS,
-                (id, url) -> null, id -> false).get(0);
+                (id, url) -> null, id -> false).items().get(0);
 
         assertEquals(List.of(), rowCovers(shelf));
     }
@@ -257,7 +292,8 @@ public class DownloadsPageLogicTest {
 
     private static List<byte[]> sections(Layout layout, boolean online, List<SourceRow> sources,
                                          SourceRow noPlaylist) {
-        return DownloadsPageLogic.sections(layout, online, sources, noPlaylist, LABELS, TAPS, COVERS, id -> false);
+        return DownloadsPageLogic.sections(layout, online, sources, noPlaylist, LABELS, TAPS, COVERS, id -> false)
+                .items();
     }
 
     private static byte[] headerEntry() {

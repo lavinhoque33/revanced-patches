@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-28.
  * Written by lavinhoque33, 2026-11-07.
  * Modified by lavinhoque33, 2026-11-10
  */
@@ -54,9 +55,9 @@ final class StreamSwapLogic {
      * live; only this format is substituted. Older copies without saved data still require an exact live match.
      */
     @Nullable
-    static Format savedAudio(String videoId, RawAudioFiles.Entry raw, PlayerResponse online,
+    static Format savedAudio(String videoId, String copyId, RawAudioFiles.Entry raw, PlayerResponse online,
                              @Nullable PlayerResponse saved) {
-        if (saved == null || !videoId.equals(saved.getVideoDetails().getVideoId())
+        if (saved == null || !copyId.equals(saved.getVideoDetails().getVideoId())
                 || !videoId.equals(online.getVideoDetails().getVideoId())
                 || online.getVideoDetails().getLengthSeconds() <= 0
                 || online.getStreamingData().hasHlsManifestUrl()
@@ -100,7 +101,7 @@ final class StreamSwapLogic {
         var streaming = online.getStreamingData().toBuilder().clearFormats().clearAdaptiveFormats()
                 .addAdaptiveFormats(audio);
         streaming.clearServerAbrStreamingUrl();
-        return withoutServerAbr(online, streaming);
+        return withDirectStreams(online, streaming, false);
     }
 
     /**
@@ -114,26 +115,31 @@ final class StreamSwapLogic {
         var streaming = online.getStreamingData().toBuilder().clearFormats().clearAdaptiveFormats()
                 .addAdaptiveFormats(video).addAdaptiveFormats(audio).clearHlsManifestUrl();
         streaming.clearServerAbrStreamingUrl();
-        return withoutServerAbr(online, streaming);
+        return withDirectStreams(online, streaming, true);
     }
 
-    /** The response with this streaming data and no request hint that forces the player onto SABR. */
-    private static PlayerResponse withoutServerAbr(PlayerResponse online, StreamingData.Builder streaming) {
+    /** Rebuild only a response with verified direct streams. Audio-only swaps keep the native modality lock. */
+    static PlayerResponse withDirectStreams(PlayerResponse online, StreamingData.Builder streaming,
+                                            boolean hasVideo) {
         var replacement = online.toBuilder().setStreamingData(streaming);
         if (!online.hasPlayerConfig()) return replacement.build();
 
-        return replacement.setPlayerConfig(withoutServerAbr(online.getPlayerConfig())).build();
+        return replacement.setPlayerConfig(directStreamConfig(online.getPlayerConfig(), hasVideo)).build();
     }
 
-    /** The player configuration without the request hints that force the player onto SABR; the rest is kept. */
-    static PlayerConfig withoutServerAbr(PlayerConfig config) {
+    /** Redirect to the direct streams without discarding any unrelated player settings. */
+    private static PlayerConfig directStreamConfig(PlayerConfig config, boolean hasVideo) {
         var common = config.getMediaCommonConfig();
         var routing = config.getPlaybackRoutingConfig();
         boolean stripCommon = common.hasMediaUstreamerRequestConfig() || common.hasEnableSabr();
         boolean stripForced = routing.getPreferredEngine() == 3;
-        if (!stripCommon && !stripForced) return config;
+        var exo = config.getExoPlayerConfig();
+        boolean unlockVideo = hasVideo && exo.getForceAudioOnly();
+        if (!stripCommon && !stripForced && !unlockVideo) return config;
 
         var player = config.toBuilder();
+        // Song still mutes video normally, but its native switch must be able to unmute this same clip.
+        if (unlockVideo) player.setExoPlayerConfig(exo.toBuilder().clearForceAudioOnly());
         if (stripCommon) {
             // Include opaque request hints; keep every unrelated field in the surrounding configuration.
             var withoutUstreamer = common.toBuilder().clearMediaUstreamerRequestConfig().clearEnableSabr().build();

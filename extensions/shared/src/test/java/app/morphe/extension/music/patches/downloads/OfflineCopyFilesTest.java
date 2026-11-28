@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-26.
  * Written by lavinhoque33, 2026-11-07.
  */
 package app.morphe.extension.music.patches.downloads;
@@ -91,11 +92,28 @@ public class OfflineCopyFilesTest {
         files.write(metadata("track", "download"), bytes(10), bytes(5));
         Files.write(stored("track.resp").toPath(), bytes(9));
         assertNull(files().read("track"));
-        Files.write(stored("track.resp").toPath(), bytes(10));
-        Files.write(stored("track.thumb").toPath(), bytes(4));
-        assertNull(files().read("track"));
         Files.write(stored("track.json").toPath(), "{".getBytes(StandardCharsets.UTF_8));
         assertNull(files().read("track"));
+    }
+
+    @Test public void missingOrDamagedOptionalCoverDoesNotInvalidatePlayback() throws Exception {
+        OfflineCopyFiles files = files();
+        OfflineCopyMetadata data = metadata("track", "download");
+        files.write(data, bytes(10), bytes(5));
+        Files.write(stored("track.thumb").toPath(), bytes(4));
+
+        OfflineCopyFiles reopened = files();
+        reopened.ensureLoaded();
+        assertTrue(reopened.has("track"));
+        assertEquals(data, reopened.metadata("track"));
+        assertArrayEquals(bytes(10), reopened.readResponse("track"));
+        assertArrayEquals(bytes(10), reopened.read("track").response());
+        assertNull(reopened.read("track").thumbnail());
+        assertNull(reopened.thumbnailFile("track"));
+
+        assertTrue(stored("track.thumb").delete());
+        assertArrayEquals(bytes(10), reopened.readResponse("track"));
+        assertNull(reopened.read("track").thumbnail());
     }
 
     @Test public void rejectsAResponseOverTheCapAndWritesNothing() throws Exception {

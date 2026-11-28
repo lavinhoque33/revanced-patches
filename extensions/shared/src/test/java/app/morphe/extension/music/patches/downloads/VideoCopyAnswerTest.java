@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-26.
  * Written by lavinhoque33, 2026-11-09.
  */
 package app.morphe.extension.music.patches.downloads;
@@ -19,10 +20,8 @@ import app.morphe.extension.shared.innertube.PlayerResponseOuterClass.ThumbnailL
 import app.morphe.extension.shared.innertube.PlayerResponseOuterClass.VideoDetails;
 
 public class VideoCopyAnswerTest {
-    private static byte[] bytes(int... values) {
-        byte[] result = new byte[values.length];
-        for (int index = 0; index < values.length; index++) result[index] = (byte) values[index];
-        return result;
+    private static byte[] bytes(int value) {
+        return new ProtoWriter().int32(1000, value).toByteArray();
     }
 
     /** The response the saving client returned and the copy stored: per-video fields and the client's own. */
@@ -41,7 +40,7 @@ public class VideoCopyAnswerTest {
     }
 
     @Test public void withTheTemplateTheAppGenericFieldsAreTheTemplatesAndThePerVideoFieldsTheCopys() throws Exception {
-        VideoCopyAnswer.Answer answer = VideoCopyAnswer.of(saved(), null, template());
+        VideoCopyAnswer.Answer answer = VideoCopyAnswer.of(saved(), null, VideoCopyAnswerTest::template);
 
         assertEquals(VideoCopyAnswer.TEMPLATE, answer.base());
         byte[] bytes = answer.bytes();
@@ -59,7 +58,7 @@ public class VideoCopyAnswerTest {
     @Test public void aFieldOnlyTheSavedResponseHasIsKept() throws Exception {
         byte[] withExtra = new ProtoWriter().message(4, bytes(40)).message(33, bytes(33)).toByteArray();
 
-        byte[] bytes = VideoCopyAnswer.of(withExtra, null, template()).bytes();
+        byte[] bytes = VideoCopyAnswer.of(withExtra, null, VideoCopyAnswerTest::template).bytes();
 
         assertArrayEquals(bytes(33), ProtoFields.one(bytes, 33));
     }
@@ -70,7 +69,9 @@ public class VideoCopyAnswerTest {
                 .message(9, bytes(91)).message(10, bytes(101)).message(11, bytes(111)).message(15, bytes(152))
                 .message(71, bytes(72)).toByteArray();
 
-        VideoCopyAnswer.Answer answer = VideoCopyAnswer.of(saved(), live, template());
+        VideoCopyAnswer.Answer answer = VideoCopyAnswer.of(saved(), live, () -> {
+            throw new AssertionError("A valid live response should not read the template");
+        });
 
         assertEquals(VideoCopyAnswer.LIVE, answer.base());
         byte[] bytes = answer.bytes();
@@ -83,10 +84,24 @@ public class VideoCopyAnswerTest {
     }
 
     @Test public void withNeitherTheSavedResponseIsTheAnswer() throws Exception {
-        VideoCopyAnswer.Answer answer = VideoCopyAnswer.of(saved(), null, null);
+        VideoCopyAnswer.Answer answer = VideoCopyAnswer.of(saved(), null, () -> null);
 
         assertEquals(VideoCopyAnswer.SAVED, answer.base());
         assertArrayEquals(saved(), answer.bytes());
+    }
+
+    @Test public void aMalformedLiveResponseFallsBackToTheTemplate() {
+        byte[] corrupt = new ProtoWriter().message(15, new byte[]{0}).toByteArray();
+        assertEquals(VideoCopyAnswer.TEMPLATE,
+                VideoCopyAnswer.of(saved(), corrupt, VideoCopyAnswerTest::template).base());
+    }
+
+    @Test public void damagedOptionalBasesFallBackToTheSavedResponse() {
+        byte[] saved = saved();
+        byte[] corrupt = {0};
+        VideoCopyAnswer.Answer answer = VideoCopyAnswer.of(saved, corrupt, () -> corrupt);
+        assertEquals(VideoCopyAnswer.SAVED, answer.base());
+        assertSame(saved, answer.bytes());
     }
 
     private static byte[] responseWithThumbnail(String title, String url) {
@@ -112,5 +127,10 @@ public class VideoCopyAnswerTest {
         byte[] answer = responseWithThumbnail("Video", "https://video/thumb");
 
         assertSame(answer, VideoCopyAnswer.withSongArtwork(answer, responseWithThumbnail("Song", null)));
+    }
+
+    @Test public void damagedSongArtworkDoesNotDiscardTheVideoResponse() {
+        byte[] answer = responseWithThumbnail("Video", "https://video/thumb");
+        assertSame(answer, VideoCopyAnswer.withSongArtwork(answer, new byte[]{0}));
     }
 }

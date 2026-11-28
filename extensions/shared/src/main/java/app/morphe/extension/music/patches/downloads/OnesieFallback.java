@@ -1,12 +1,13 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-27
+ * Modified by lavinhoque33, 2026-11-26.
  * Written by lavinhoque33, 2026-11-14.
  */
 package app.morphe.extension.music.patches.downloads;
 
 import app.morphe.extension.shared.utils.Logger;
-import app.morphe.extension.shared.utils.Utils;
 
 /** Settles a genuinely failed native Onesie transport before its retry loop can hide the failure. */
 @SuppressWarnings("unused")
@@ -27,11 +28,16 @@ public final class OnesieFallback {
     private OnesieFallback() { }
 
     public static boolean disconnected() {
-        return OnesieFallbackLogic.disconnected(OfflineReplay.enabled(), Utils.isInternetReachable());
+        return OnesieFallbackLogic.disconnected(OfflineReplay.enabled(), PlaybackConnectivity.reachable());
     }
 
     public static boolean failed(Object controller, Exception failure) {
-        if (!disconnected() || !(controller instanceof Controller nativeController)) return false;
+        if (!disconnected()) {
+            // A transport failure on a network Android calls fine: ask whether YouTube is reachable at all.
+            UpstreamProbe.probe("onesie");
+            return false;
+        }
+        if (!(controller instanceof Controller nativeController)) return false;
         boolean accepted = OnesieFallbackLogic.complete(nativeController, failure);
         if (accepted) Logger.printDebug(() -> "PlayerFallback: Onesie transport failure forwarded before retry");
         return accepted;

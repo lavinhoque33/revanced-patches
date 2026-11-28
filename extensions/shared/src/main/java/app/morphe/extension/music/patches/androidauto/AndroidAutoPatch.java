@@ -3,6 +3,8 @@
  * https://github.com/MorpheApp/morphe-patches/pull/3341
  *
  * See the included NOTICE file for GPLv3 Section 7 terms that apply to this code.
+ * Modified by lavinhoque33, 2026-11-27
+ * Modified by lavinhoque33, 2026-11-26
  * Modified by lavinhoque33, 2026-11-14: browse playlist songs before selecting Play all or a track.
  * Modified by lavinhoque33, 2026-11-13: merge stream copies into account-scoped Android Auto Playlists.
  *
@@ -55,6 +57,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
@@ -64,6 +67,7 @@ import app.morphe.extension.music.patches.androidauto.AndroidAutoSearchResponseP
 import app.morphe.extension.music.patches.downloads.AudioFirst;
 import app.morphe.extension.music.patches.downloads.AndroidAutoQueue;
 import app.morphe.extension.music.patches.downloads.OfflineStreamBrowse;
+import app.morphe.extension.music.patches.downloads.PlaybackConnectivity;
 import app.morphe.extension.shared.utils.Logger;
 import app.morphe.extension.shared.utils.ResourceUtils;
 import app.morphe.extension.shared.utils.Utils;
@@ -272,6 +276,7 @@ public final class AndroidAutoPatch {
     private static final int PLAYLIST_TIMEOUT_MS = 30_000;
     private static final int LIBRARY_REFRESH_DELAY_MS = 5_000;
     static final long DEADLINE_MS = 8_000;
+    private static final long SAVED_ALBUM_LOOKUP_MS = 1_100;
 
     private static final int MAX_COMMAND_BYTES = 16 * 1024;
     static final int MAX_MEDIA_ID_LENGTH = 24 * 1024;
@@ -430,11 +435,12 @@ public final class AndroidAutoPatch {
         try {
             String requestedMediaId = request.patch_getRequestedMediaId();
             if (requestedMediaId == null) return false;
+            PlaybackConnectivity.probeUnlessFresh("aa-browse");
             if (requestedMediaId.startsWith(AndroidAutoPlaylistChildren.LIST_PREFIX)) {
                 new PlaylistChildrenLoad(request, requestedMediaId).start();
                 return true;
             }
-            if (ROOT_MEDIA_ID.equals(requestedMediaId) && !Utils.isInternetReachable()) {
+            if (ROOT_MEDIA_ID.equals(requestedMediaId) && !PlaybackConnectivity.reachable()) {
                 return loadOfflineRoot(request, null);
             }
             if (requestedMediaId.startsWith(AndroidAutoDownloadsData.PREFIX)
@@ -473,7 +479,7 @@ public final class AndroidAutoPatch {
     private static void startPlaylists(BrowseRequest request) {
         PhoneBrowseClient client = phoneBrowseClient;
         PlaylistsFolderLoad load = new PlaylistsFolderLoad(client, getFolderDelivery(request));
-        if (!Utils.isInternetReachable() || client == null) {
+        if (!PlaybackConnectivity.reachable() || client == null) {
             deliverPlaylists(request, load, "offline");
             return;
         }
@@ -755,7 +761,7 @@ public final class AndroidAutoPatch {
         }
     }
 
-    /** Uses the same native phone request bridge, load numbers and deadline as the other phone-backed folders. */
+    /** Complete downloaded pages bypass the phone request; other pages retain the bounded native browse. */
     private static final class PlaylistChildrenLoad extends Load {
         private final String scope = AndroidAutoPlaylistFolder.account();
         private final AndroidAutoPlaylistCatalog.Load owner = AndroidAutoPlaylistFolder.begin();
@@ -763,6 +769,12 @@ public final class AndroidAutoPatch {
         private final List<AndroidAutoPlaylistChildren.Track> tracks = new ArrayList<>();
         private final Set<String> continuations = new HashSet<>();
         private String playlistId;
+        private volatile LocalPage local;
+
+        private record LocalPage(AndroidAutoPlaylistFolder.LocalTracks snapshot,
+                                 AndroidAutoPlaylistChildren.Page page, Set<String> ready,
+                                 boolean fullyDownloaded) {
+        }
 
         PlaylistChildrenLoad(BrowseRequest request, String mediaId) {
             super(request);
@@ -773,11 +785,26 @@ public final class AndroidAutoPatch {
         @Override void load() {
             if (sourceId == null) {
                 finish(List.of());
-            } else if (!Utils.isInternetReachable() || client == null || OfflineStreamBrowse.SONGS.equals(sourceId)) {
-                finishTracks(null, false);
-            } else {
-                loadTracks("");
+                return;
             }
+
+            LocalPage saved = loadLocalPage();
+            local = saved;
+            if (saved.fullyDownloaded() || !PlaybackConnectivity.reachable() || client == null
+                    || OfflineStreamBrowse.SONGS.equals(sourceId)) {
+                if (takeDelivery()) present(saved.page(), saved, true);
+                return;
+            }
+            loadTracks("");
+        }
+
+        private LocalPage loadLocalPage() {
+            var snapshot = AndroidAutoPlaylistFolder.localTracks(sourceId);
+            var page = AndroidAutoPlaylistFolder.localPage(sourceId, snapshot);
+            Set<String> ready = Set.copyOf(snapshot.ready());
+            boolean fullyDownloaded = AndroidAutoPlaylistChildren.fullyDownloaded(
+                    page.tracks(), ready, snapshot.aliases());
+            return new LocalPage(snapshot, page, ready, fullyDownloaded);
         }
 
         private void loadTracks(String continuation) {
@@ -805,17 +832,38 @@ public final class AndroidAutoPatch {
         private void finishTracks(@Nullable AndroidAutoPlaylistChildren.Page fetched, boolean complete) {
             if (!takeDelivery()) return;
             BACKGROUND_EXECUTOR.execute(() -> {
-                List<MediaBrowserCompat.MediaItem> items;
                 try {
-                    var page = AndroidAutoPlaylistChildren.choose(fetched, complete,
-                            complete ? null : AndroidAutoPlaylistFolder.localPage(sourceId));
+                    LocalPage saved = local;
+                    if (saved == null) saved = loadLocalPage();
+                    var page = AndroidAutoPlaylistChildren.choose(fetched, complete, saved.page());
                     if (complete) AndroidAutoPlaylistFolder.publishTracks(owner, scope, sourceId, page);
-                    items = limitBrowseItems(AndroidAutoPlaylistFolder.children(sourceId, page));
+                    present(page, saved, true);
                 } catch (RuntimeException ex) {
                     Logger.printException(() -> "Could not prepare Android Auto playlist songs", ex);
-                    items = List.of();
+                    deliverFinished(List.of());
                 }
-                deliverFinished(items);
+            });
+        }
+
+        private void present(AndroidAutoPlaylistChildren.Page page, LocalPage saved, boolean allowRebuild) {
+            boolean online = PlaybackConnectivity.reachable();
+            List<MediaBrowserCompat.MediaItem> items;
+            try {
+                items = limitBrowseItems(AndroidAutoPlaylistFolder.children(
+                        sourceId, page, saved.snapshot(), saved.ready(), online));
+            } catch (RuntimeException ex) {
+                Logger.printException(() -> "Could not prepare Android Auto playlist songs", ex);
+                deliverFinished(List.of());
+                return;
+            }
+            mainHandler.post(() -> {
+                if (allowRebuild && canDeliver() && online != PlaybackConnectivity.reachable()) {
+                    // Recheck only once: an unstable network must not keep the detached result pending.
+                    BACKGROUND_EXECUTOR.execute(() -> present(page, saved, false));
+                    return;
+                }
+
+                folderDelivery.deliver(loadNumber, () -> deliver(canDeliver() ? items : List.of()));
             });
         }
 
@@ -836,11 +884,11 @@ public final class AndroidAutoPatch {
     @Nullable
     public static String onPlayFromMediaId(PlaybackCallback callback, String mediaId, @Nullable Bundle extras) {
         long request = streamPlayback.begin();
+        OfflineStreamBrowse.onPlaybackRequested();
         if (mediaId != null && (mediaId.startsWith(AndroidAutoPlaylists.PREFIX)
                 || mediaId.startsWith(AndroidAutoPlaylistChildren.TRACK_PREFIX))) {
             return onPlayPlaylist(callback, mediaId, extras, request);
         }
-        OfflineStreamBrowse.onPlaybackRequested();
         AudioFirst.onAndroidAutoStart();
         if (mediaId == null || !mediaId.startsWith(AndroidAutoDownloadsData.PREFIX)) return mediaId;
 
@@ -857,95 +905,150 @@ public final class AndroidAutoPatch {
                 : encodeCommand(AndroidAutoDownloadsData.playCommand(play));
     }
 
-    private record PlaylistPlayback(@Nullable String mediaId, String sourceId, int index, boolean online) {}
-
     @Nullable
     private static String onPlayPlaylist(PlaybackCallback callback, String mediaId, @Nullable Bundle extras,
                                          long request) {
         String scope = AndroidAutoPlaylistFolder.account();
-        boolean playAll = mediaId.startsWith(AndroidAutoPlaylists.PREFIX);
-        String sourceId = playAll ? AndroidAutoPlaylists.parseId(mediaId, scope) : null;
-        var selection = playAll ? null : AndroidAutoPlaylistChildren.parseTrack(mediaId, scope);
-        if ((playAll && sourceId == null) || (!playAll && selection == null)) {
+        var selection = AndroidAutoPlaylistChildren.parsePlayback(mediaId, scope);
+        if (selection == null) {
             unavailablePlaylist();
             return null;
         }
-        String source = playAll ? sourceId : selection.sourceId();
-        String videoId = playAll ? "" : selection.videoId();
-        int index = playAll ? 0 : selection.index();
-        streamPlayback.resolve(request, () -> resolvePlaylistPlayback(source, videoId, index, playAll), target -> {
+
+        streamPlayback.resolve(request, () -> resolvePlaylistPlayback(selection), target -> {
             if (!scope.equals(AndroidAutoPlaylistFolder.account())) return;
-            if (target.mediaId() == null) {
+
+            boolean deadForTarget = PlaybackConnectivity.upstreamDead() && target.offlineId() != null;
+            boolean online = PlaybackConnectivity.osReachable() && !deadForTarget;
+            String targetId = target.atDelivery(online);
+            if (targetId == null) {
                 unavailablePlaylist();
                 return;
             }
-            OfflineStreamBrowse.onPlaybackRequested();
+
             AudioFirst.onAndroidAutoStart();
-            Bundle playExtras = target.online() && OfflineStreamBrowse.SONGS.equals(target.sourceId())
-                    ? AndroidAutoQueue.prepare(target.sourceId(), target.index(), extras, request) : extras;
-            callback.rvxPlayFromMediaId(target.mediaId(), playExtras);
+            var loose = target.loose();
+            Bundle playExtras = online && loose != null
+                    ? AndroidAutoQueue.prepare(loose.song(), loose.following(), extras, request) : extras;
+            callback.rvxPlayFromMediaId(targetId, playExtras);
+            if (online && target.offlineId() != null) watchPlaylistStart(callback, target, extras, request, scope);
         });
         return null;
     }
 
-    private static PlaylistPlayback resolvePlaylistPlayback(String sourceId, String videoId, int index,
-                                                            boolean playAll) throws Exception {
-        boolean online = Utils.isInternetReachable();
-        boolean songs = OfflineStreamBrowse.SONGS.equals(sourceId);
-        if (online && !songs) {
-            if (AndroidAutoPlaylistChildren.route(true, playAll, videoId, -1)
-                    == AndroidAutoPlaylistChildren.Route.UNAVAILABLE) {
-                return new PlaylistPlayback(null, sourceId, index, true);
-            }
-            String playlistId = resolveNativePlaylistId(sourceId);
-            String mediaId = playAll ? createPlaylistMediaId(playlistId)
-                    : encodeCommand(onlineTrackCommand(sourceId, playlistId, videoId, index));
-            return new PlaylistPlayback(mediaId, sourceId, index, true);
-        }
-
-        String localId = AndroidAutoPlaylistFolder.localSourceId(sourceId);
-        List<String> ready = AndroidAutoPlaylistFolder.readyIds(sourceId);
-        Map<String, String> aliases = OfflineStreamBrowse.aliases();
-        String songId = aliases.getOrDefault(videoId, videoId);
-        List<String> full = OfflineStreamBrowse.tracksOf(localId).stream()
-                .map(OfflineStreamBrowse.Track::videoId).toList();
-        int readyIndex = playAll ? (ready.isEmpty() ? -1 : 0)
-                : AndroidAutoPlaylistChildren.readyIndex(full, ready, songId, index);
-        var route = AndroidAutoPlaylistChildren.route(online, playAll, videoId, readyIndex);
-        if (route == AndroidAutoPlaylistChildren.Route.UNAVAILABLE || readyIndex < 0) {
-            return new PlaylistPlayback(null, localId, index, online);
-        }
-        byte[] command = OfflineStreamBrowse.playCommand(localId, readyIndex, online);
-        return new PlaylistPlayback(command == null ? null : encodeCommand(command), localId, readyIndex, online);
+    /**
+     * The car's selection went the online way, because nothing says yet that YouTube is unreachable. If that turns
+     * out in the next seconds and the selection is still the latest one, the saved queue of the same song or list
+     * starts instead. Watched after the start is dispatched, so the navigation it moved on to identifies it; this
+     * replaces the watcher the in-app start may have set for the same command.
+     */
+    private static void watchPlaylistStart(PlaybackCallback callback, AndroidAutoPlaylistChildren.Playback target,
+                                           @Nullable Bundle extras, long request, String scope) {
+        PlaybackConnectivity.watchStart("aa-play", List.of(),
+                () -> streamPlayback.current(request) && scope.equals(AndroidAutoPlaylistFolder.account()),
+                () -> {
+                    AudioFirst.onAndroidAutoStart();
+                    callback.rvxPlayFromMediaId(target.offlineId(), extras);
+                });
     }
 
-    private static String resolveNativePlaylistId(String sourceId) throws Exception {
-        String nativeId = AndroidAutoPlaylistFolder.nativeId(sourceId);
-        if (!nativeId.isEmpty()) return nativeId;
-        var saved = AndroidAutoPlaylistFolder.savedTrackPage(sourceId);
-        if (saved != null && !saved.playlistId().isEmpty()) return saved.playlistId();
-        AndroidAutoPlaylists.Source source = AndroidAutoPlaylistFolder.source(sourceId);
-        if (source != null && !source.canonicalId().startsWith("MPREb_")) return source.canonicalId();
+    private static AndroidAutoPlaylistChildren.Playback resolvePlaylistPlayback(
+            AndroidAutoPlaylistChildren.PlaybackSelection selection) {
+        String sourceId = selection.row().sourceId();
+        String videoId = selection.row().videoId();
+        int index = selection.row().index();
+        boolean playAll = selection.playAll();
+        if (!playAll && AndroidAutoPlaylistChildren.unavailableId(videoId)) {
+            return new AndroidAutoPlaylistChildren.Playback(null, null, null);
+        }
+
+        var local = AndroidAutoPlaylistFolder.localTracks(sourceId);
+        List<String> ready = local.ready();
+        int readyIndex = playAll ? (ready.isEmpty() ? -1 : 0) : localReadyIndex(local, videoId, index);
+        var offlineRoute = AndroidAutoPlaylistChildren.route(false, playAll, videoId, readyIndex);
+        String offlineId = offlineRoute == AndroidAutoPlaylistChildren.Route.LOCAL_QUEUE ? encodeCommand(
+                OfflineStreamBrowse.offlineCommand(local.sourceId(), ready.get(readyIndex), readyIndex)) : null;
+        if (OfflineStreamBrowse.SONGS.equals(sourceId)) {
+            var loose = AndroidAutoPlaylistChildren.looseQueue(ready, readyIndex);
+            String onlineId = loose == null ? null
+                    : encodeCommand(OfflineStreamBrowse.onlineCommand(loose.song(), "", 0));
+            return new AndroidAutoPlaylistChildren.Playback(onlineId, offlineId, loose);
+        }
+
+        String playlistId = selection.albumPlaylistId();
+        if (playlistId.isEmpty()) playlistId = AndroidAutoPlaylistFolder.nativeId(sourceId);
+        if (playlistId.isEmpty()) playlistId = AndroidAutoPlaylistFolder.nativeId(local.sourceId());
+        var saved = !playAll || playlistId.isEmpty() ? AndroidAutoPlaylistFolder.savedTrackPage(sourceId) : null;
+        if (playlistId.isEmpty() && saved != null) playlistId = saved.playlistId();
+        if (playlistId.isEmpty() && sourceId.startsWith("MPREb_") && PlaybackConnectivity.reachable()) {
+            // An earlier song-list timeout can leave Play all visible without a resolved native playlist ID.
+            playlistId = lookupAlbumPlaylistId(sourceId, offlineId != null);
+        }
+
+        String onlineId = playlistId.isEmpty() ? null : onlinePlaylistMediaId(local, saved, playlistId, videoId, index,
+                playAll);
+        return new AndroidAutoPlaylistChildren.Playback(onlineId, offlineId, null);
+    }
+
+    private static String lookupAlbumPlaylistId(String sourceId, boolean hasLocalQueue) {
         PhoneBrowseClient client = phoneBrowseClient;
-        if (client == null) throw new IllegalStateException("Phone browse client is unavailable");
-        var future = client.patch_requestBrowse(sourceId, BACKGROUND_EXECUTOR);
+        if (client == null) return "";
+
+        ListenableFuture<PhoneBrowseResponse> future = null;
         try {
-            var page = AndroidAutoBrowseResponseParser.playlistPage(
-                    future.get(DEADLINE_MS, TimeUnit.MILLISECONDS).patch_responseBytes());
-            if (!page.playlistId().isEmpty()) return page.playlistId();
-            throw new IllegalStateException("Album has no playback playlist");
+            future = client.patch_requestBrowse(sourceId, BACKGROUND_EXECUTOR);
+            // Give the connected route a chance without imposing the full browse deadline on a saved queue.
+            long timeout = hasLocalQueue ? SAVED_ALBUM_LOOKUP_MS : DEADLINE_MS;
+            var response = future.get(timeout, TimeUnit.MILLISECONDS);
+            return AndroidAutoBrowseResponseParser.playlistPage(response.patch_responseBytes()).playlistId();
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+        } catch (TimeoutException ex) {
+            Logger.printDebug(() -> "Android Auto album playlist lookup timed out");
+        } catch (ExecutionException | RuntimeException ex) {
+            Logger.printException(() -> "Could not resolve the Android Auto album playlist", ex);
         } finally {
-            future.cancel(true);
+            if (future != null) future.cancel(true);
         }
+        return "";
     }
 
-    private static byte[] onlineTrackCommand(String sourceId, String playlistId, String videoId, int index) {
-        var saved = AndroidAutoPlaylistFolder.savedTrackPage(sourceId);
+    private static int localReadyIndex(AndroidAutoPlaylistFolder.LocalTracks local, String videoId, int index) {
+        if (local.ready().isEmpty()) return -1;
+
+        Map<String, String> aliases = local.aliases();
+        List<String> full = local.tracks().stream().map(OfflineStreamBrowse.Track::videoId)
+                .map(id -> aliases.getOrDefault(id, id)).toList();
+        String songId = aliases.getOrDefault(videoId, videoId);
+        return AndroidAutoPlaylistChildren.readyIndex(full, local.ready(), songId, index);
+    }
+
+    private static String onlinePlaylistMediaId(AndroidAutoPlaylistFolder.LocalTracks local,
+            @Nullable AndroidAutoPlaylistChildren.Page saved, String playlistId, String videoId, int index,
+            boolean playAll) {
+        if (!playAll) return encodeCommand(onlineTrackCommand(saved, playlistId, videoId, index));
+        if (!local.ready().isEmpty()) {
+            for (int position = 0; position < local.tracks().size(); position++) {
+                String first = local.tracks().get(position).videoId();
+                if (AndroidAutoPlaylistChildren.unavailableId(first)) continue;
+                if (local.ready().get(0).equals(local.aliases().getOrDefault(first, first))) {
+                    // Keep the saved seed and its native index, so this start can recover locally.
+                    return encodeCommand(OfflineStreamBrowse.onlineCommand(first, playlistId, position));
+                }
+                break;
+            }
+        }
+        return createPlaylistMediaId(playlistId);
+    }
+
+    private static byte[] onlineTrackCommand(@Nullable AndroidAutoPlaylistChildren.Page saved, String playlistId,
+            String videoId, int index) {
         var track = saved == null ? null
                 : AndroidAutoPlaylistChildren.selectedTrack(saved.tracks(), videoId, index);
         if (track != null) {
             var watch = new ProtoMessage(track.command()).messageField(AndroidAutoBrowseResponseParser.WATCH);
-            if (videoId.equals(watch.stringField(1)) && playlistId.equals(watch.stringField(2))) {
+            if (videoId.equals(watch.stringField(1)) && playlistId.equals(watch.stringField(2))
+                    && index == watch.varintField(3)) {
                 return track.command();
             }
         }

@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-26.
  * Written by lavinhoque33, 2026-11-07.
  * Modified by lavinhoque33, 2026-11-10
  */
@@ -46,7 +47,12 @@ public class RawAudioFilesTest {
     }
 
     private void retain(RawAudioFiles store, String id) throws Exception {
-        store.retain(id, input(), 251, MIME, 8, 123, MUXED, false);
+        retain(store, id, input(), 251, MIME, 8, 123, MUXED, false);
+    }
+
+    private static boolean retain(RawAudioFiles store, String id, File input, int itag, String mime, long length,
+                                  long modified, String muxed, boolean individual) throws Exception {
+        return store.retain(RawAudioFiles.prepare(id, input, itag, mime, length, modified, muxed, individual));
     }
 
     private void write(File file, String text) throws Exception {
@@ -57,7 +63,7 @@ public class RawAudioFilesTest {
         RawAudioFiles store = store();
         File input = input();
         byte[] expected = Files.readAllBytes(input.toPath());
-        store.retain("track", input, 251, MIME, 8, 123, MUXED, false);
+        retain(store, "track", input, 251, MIME, 8, 123, MUXED, false);
         RawAudioFiles.Entry entry = store.find("track", muxed(MUXED));
         assertNotNull(entry);
         assertArrayEquals(expected, Files.readAllBytes(entry.file().toPath()));
@@ -78,7 +84,7 @@ public class RawAudioFilesTest {
         for (int itag : new int[]{139, 140, 141, 249, 250, 251, 774}) {
             String mime = itag == 139 ? "audio/mp4; codecs=\"mp4a.40.5\""
                     : itag < 200 ? "audio/mp4; codecs=\"mp4a.40.2\"" : MIME;
-            assertTrue(store.retain("new" + itag, input(), itag, mime, 8, 123, null, true));
+            assertTrue(retain(store, "new" + itag, input(), itag, mime, 8, 123, null, true));
             RawAudioFiles.Entry entry = store.find("new" + itag, id -> null);
             assertNotNull(entry);
             assertEquals(itag, entry.itag());
@@ -234,10 +240,10 @@ public class RawAudioFilesTest {
     @Test public void invalidMetadataCannotPublishAndPathTraversalCannotDelete() throws Exception {
         RawAudioFiles store = store();
         File input = input();
-        store.retain("../escape", input, 251, MIME, 8, 123, MUXED, false);
-        store.retain("track", input, 251, MIME, 7, 123, MUXED, false);
-        store.retain("track", input, 140, "audio/mp4", 8, 123, MUXED, false);
-        store.retain("track", input, 251, MIME, 8, 0, MUXED, false);
+        retain(store, "../escape", input, 251, MIME, 8, 123, MUXED, false);
+        retain(store, "track", input, 251, MIME, 7, 123, MUXED, false);
+        retain(store, "track", input, 140, "audio/mp4", 8, 123, MUXED, false);
+        retain(store, "track", input, 251, MIME, 8, 0, MUXED, false);
         assertTrue(input.exists());
         assertNull(store.find("track", muxed(MUXED)));
         store.delete("../escape");
@@ -249,13 +255,17 @@ public class RawAudioFilesTest {
         retain(store, "track");
         File replacement = input();
         Files.write(replacement.toPath(), new byte[8]);
-        store.retain("track", replacement, 251, MIME, 8, 456, MUXED, false);
+        RawAudioFiles.Prepared prepared = RawAudioFiles.prepare("track", replacement, 251, MIME, 8, 456, MUXED, false);
+        assertEquals(123, store.find("track", muxed(MUXED)).modified());
+        assertTrue(replacement.exists());
+
+        assertTrue(store.retain(prepared));
         assertEquals(456, store.find("track", muxed(MUXED)).modified());
         assertArrayEquals(new byte[8], Files.readAllBytes(raw("track.251").toPath()));
     }
 
     private boolean retainStreamOnly(RawAudioFiles store, String id) throws Exception {
-        return store.retain(id, input(), 251, MIME, 8, 123, null, false);
+        return retain(store, id, input(), 251, MIME, 8, 123, null, false);
     }
 
     @Test public void streamOnlyCopyIsSelfContainedAndNeedsNoNativeTrack() throws Exception {
@@ -296,7 +306,7 @@ public class RawAudioFilesTest {
         Files.write(raw("corrupt.251").toPath(), new byte[8]);
         assertNull(store.find("corrupt", muxed(null)));
 
-        assertFalse(store.retain("bad", input(), 140, "audio/mp4", 8, 123, null, false));
+        assertFalse(retain(store, "bad", input(), 140, "audio/mp4", 8, 123, null, false));
         assertNull(store.find("bad", muxed(null)));
     }
 
@@ -426,7 +436,7 @@ public class RawAudioFilesTest {
     @Test public void aCopyIsIndividualOnlyWhenTheUserAskedForTheSongItself() throws Exception {
         RawAudioFiles store = store();
         retain(store, "listed");
-        store.retain("single", input(), 251, MIME, 8, 123, null, true);
+        retain(store, "single", input(), 251, MIME, 8, 123, null, true);
         assertEquals(Set.of("single"), store.individualIds());
 
         assertTrue(store.markIndividual("listed"));

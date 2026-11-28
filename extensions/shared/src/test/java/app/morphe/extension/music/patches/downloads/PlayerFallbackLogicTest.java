@@ -1,16 +1,23 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-27
+ * Modified by lavinhoque33, 2026-11-26.
  * Written by lavinhoque33, 2026-11-14.
  */
 package app.morphe.extension.music.patches.downloads;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import org.chromium.net.NetworkException;
 import org.junit.Test;
 
+import java.io.IOException;
 import java.util.List;
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public final class PlayerFallbackLogicTest {
@@ -88,5 +95,37 @@ public final class PlayerFallbackLogicTest {
         }));
         assertEquals(1, visits.get());
         assertEquals(3, PlayerFallbackLogic.nextCached(queue, 1, 3, "saved"::equals));
+    }
+
+    @Test
+    public void cronetNetworkErrorIsAFailureOfTheWayToYouTube() {
+        assertTrue(PlayerFallbackLogic.isCronetNetworkFailure(new NetworkException("net::ERR_NAME_NOT_RESOLVED"),
+                false));
+        assertTrue(PlayerFallbackLogic.isCronetNetworkFailure(new NetworkException.Quic("quic handshake"), false));
+    }
+
+    @Test
+    public void cronetNetworkErrorIsFoundAnywhereInTheCauseChain() {
+        Throwable wrapped = new ExecutionException(new IOException("player request failed",
+                new NetworkException("net::ERR_CONNECTION_REFUSED")));
+        assertTrue(PlayerFallbackLogic.isCronetNetworkFailure(wrapped, false));
+    }
+
+    @Test
+    public void otherFailuresAreNotNetworkFailures() {
+        assertFalse(PlayerFallbackLogic.isCronetNetworkFailure(new IOException("HTTP 403"), false));
+        assertFalse(PlayerFallbackLogic.isCronetNetworkFailure(new IllegalStateException("parse"), false));
+        assertFalse(PlayerFallbackLogic.isCronetNetworkFailure(null, false));
+    }
+
+    @Test
+    public void cancellationAndInterruptionAreNeverNetworkFailures() {
+        NetworkException network = new NetworkException("net::ERR_ABORTED");
+        assertFalse(PlayerFallbackLogic.isCronetNetworkFailure(new CancellationException(), false));
+        assertFalse(PlayerFallbackLogic.isCronetNetworkFailure(
+                new ExecutionException(new InterruptedException()), false));
+        assertFalse(PlayerFallbackLogic.isCronetNetworkFailure(
+                new CancellationException("cancelled while waiting").initCause(network), false));
+        assertFalse(PlayerFallbackLogic.isCronetNetworkFailure(network, true));
     }
 }

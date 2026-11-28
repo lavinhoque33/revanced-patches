@@ -1,6 +1,8 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-27
+ * Modified by lavinhoque33, 2026-11-26
  * Modified by lavinhoque33, 2026-11-14
  * Modified by lavinhoque33, 2026-11-10.
  * Written by lavinhoque33, 2026-11-10.
@@ -29,6 +31,11 @@ final class AndroidAutoStreamPlayback {
     /** Every selection, including stock media IDs and a new service connection, supersedes pending local work. */
     long begin() {
         return generation.incrementAndGet();
+    }
+
+    /** Whether the selection is still the latest one: nothing began after it. */
+    boolean current(long request) {
+        return request == generation.get();
     }
 
     <T> void resolve(long request, Callable<T> resolve, Consumer<T> dispatch) {

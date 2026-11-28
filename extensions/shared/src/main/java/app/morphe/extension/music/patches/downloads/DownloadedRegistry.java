@@ -67,13 +67,13 @@ final class DownloadedRegistry {
         aliases.putAll(known);
     }
 
-    void add(String videoId) {
-        tracks.add(videoId);
+    boolean add(String videoId) {
+        return tracks.add(videoId);
     }
 
-    void remove(String videoId) {
-        tracks.remove(videoId);
-        aliases.values().removeIf(songId -> songId.equals(videoId));
+    boolean remove(String videoId) {
+        boolean tracked = tracks.remove(videoId);
+        return aliases.values().removeIf(songId -> songId.equals(videoId)) || tracked;
     }
 
     void addAll(Collection<String> videoIds) {

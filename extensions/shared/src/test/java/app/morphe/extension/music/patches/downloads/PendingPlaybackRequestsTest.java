@@ -1,10 +1,14 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-27
+ * Modified by lavinhoque33, 2026-11-26.
  * Modified by lavinhoque33, 2026-11-14.
  * Written by lavinhoque33, 2026-11-14.
  */
 package app.morphe.extension.music.patches.downloads;
+
+import static java.util.concurrent.TimeUnit.SECONDS;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -17,6 +21,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Executor;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Predicate;
 
 public final class PendingPlaybackRequestsTest {
@@ -33,8 +38,8 @@ public final class PendingPlaybackRequestsTest {
 
     private static void disconnect(PendingPlaybackRequests registry, PendingPlaybackRequests.Ownership owns,
                                    Predicate<Object> cached) {
-        registry.disconnected(owns, cached, () -> false, (request, scope, completed) -> {
-            throw new AssertionError("Reconnected uncached requests must remain online");
+        registry.disconnected(owns, cached, () -> true, () -> false, (request, scope, completed) -> {
+            throw new AssertionError("Cached playback should not be abandoned");
         });
     }
 
@@ -46,10 +51,10 @@ public final class PendingPlaybackRequestsTest {
         ReplayFuture stock = new ReplayFuture();
         PlayerFallbackFuture future = watch(registry, request, ownership, stock, Runnable::run);
         disconnect(registry, (candidate, scope) -> candidate == request && scope == ownership, ignored -> true);
-        assertEquals("saved copy", future.get());
+        assertEquals("saved copy", future.get(1, SECONDS));
         assertFalse(stock.isDone());
         stock.set("late online response");
-        assertEquals("saved copy", future.get());
+        assertEquals("saved copy", future.get(1, SECONDS));
     }
 
     @Test
@@ -63,7 +68,7 @@ public final class PendingPlaybackRequestsTest {
         stock.set("late response while reading the copy");
         assertFalse(future.isDone());
         pending.get(0).run();
-        assertEquals("saved copy", future.get());
+        assertEquals("saved copy", future.get(1, SECONDS));
     }
 
     @Test
@@ -86,7 +91,7 @@ public final class PendingPlaybackRequestsTest {
         PlayerFallbackFuture future = watch(registry, new Object(), new Object(), stock, Runnable::run);
         stock.set("native success");
         disconnect(registry, (request, ownership) -> true, ignored -> true);
-        assertEquals("native success", future.get());
+        assertEquals("native success", future.get(1, SECONDS));
     }
 
     @Test
@@ -94,10 +99,53 @@ public final class PendingPlaybackRequestsTest {
         PendingPlaybackRequests registry = new PendingPlaybackRequests();
         ReplayFuture stock = new ReplayFuture();
         PlayerFallbackFuture future = watch(registry, new Object(), new Object(), stock, Runnable::run);
-        disconnect(registry, (request, ownership) -> true, ignored -> false);
+        registry.disconnected((request, ownership) -> true, ignored -> false, () -> false, () -> false,
+                (request, scope, completed) -> {
+                    throw new AssertionError("Reconnect must not stop native playback");
+                });
         assertFalse(future.isDone());
         stock.set("native uncached stream");
-        assertEquals("native uncached stream", future.get());
+        assertEquals("native uncached stream", future.get(1, SECONDS));
+    }
+
+    @Test
+    public void reconnectWhileInspectingCachedMediaLeavesNativeRequestPending() throws Exception {
+        PendingPlaybackRequests registry = new PendingPlaybackRequests();
+        ReplayFuture stock = new ReplayFuture();
+        PlayerFallbackFuture future = watch(registry, new Object(), new Object(), stock, Runnable::run);
+        AtomicBoolean offline = new AtomicBoolean(true);
+        registry.disconnected((request, ownership) -> true, ignored -> {
+            offline.set(false);
+            return true;
+        }, offline::get, () -> false,
+                (request, scope, completed) -> { throw new AssertionError("Reconnect must win"); });
+        assertFalse(future.isDone());
+        stock.set("native cached stream");
+        assertEquals("native cached stream", future.get(1, SECONDS));
+    }
+
+    @Test
+    public void deadUpstreamRecoversCachedPlaybackWhileAndroidStillSaysOnline() throws Exception {
+        PendingPlaybackRequests registry = new PendingPlaybackRequests();
+        ReplayFuture stock = new ReplayFuture();
+        PlayerFallbackFuture future = watch(registry, new Object(), new Object(), stock, Runnable::run);
+        registry.disconnected((request, ownership) -> true, ignored -> true, () -> false, () -> true,
+                (request, scope, completed) -> { throw new AssertionError("Cached playback must not be abandoned"); });
+        assertEquals("saved copy", future.get(1, SECONDS));
+        stock.set("late online response");
+        assertEquals("saved copy", future.get(1, SECONDS));
+    }
+
+    @Test
+    public void deadUpstreamNeverAbandonsPlaybackThatHasNoCopy() throws Exception {
+        PendingPlaybackRequests registry = new PendingPlaybackRequests();
+        ReplayFuture stock = new ReplayFuture();
+        PlayerFallbackFuture future = watch(registry, new Object(), new Object(), stock, Runnable::run);
+        registry.disconnected((request, ownership) -> true, ignored -> false, () -> false, () -> true,
+                (request, scope, completed) -> { throw new AssertionError("A dead upstream keeps stock"); });
+        assertFalse(future.isDone());
+        stock.set("native uncached stream");
+        assertEquals("native uncached stream", future.get(1, SECONDS));
     }
 
     @Test
@@ -126,7 +174,7 @@ public final class PendingPlaybackRequestsTest {
         disconnect(registry, (request, ownership) -> true, ignored -> true);
         assertEquals(1, pending.size());
         pending.get(0).run();
-        assertEquals("saved copy", future.get());
+        assertEquals("saved copy", future.get(1, SECONDS));
     }
 
     @Test

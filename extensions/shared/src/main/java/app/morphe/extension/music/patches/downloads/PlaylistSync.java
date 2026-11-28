@@ -31,10 +31,12 @@ import java.net.URL;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Callable;
 import java.util.function.BooleanSupplier;
 
@@ -61,6 +63,8 @@ public final class PlaylistSync {
     private static final Runnable RESUME_SCAN = PlaylistSync::scanPending;
     private static final Map<String, Long> attempts = new HashMap<>();
     private static final Map<String, DownloadRetryPlan.Attempt> resumes = new HashMap<>();
+    private static final Set<String> urgent = new HashSet<>();
+    private static final Set<String> stagedCopies = ConcurrentHashMap.newKeySet();
     private static final ThreadLocal<Run> worker = new ThreadLocal<>();
     private static ConnectivityManager manager;
     private static volatile Activity visible;
@@ -106,6 +110,34 @@ public final class PlaylistSync {
 
         visited = id;
         schedule(START_DELAY);
+    }
+
+    static void onOnlineDetail(String id, byte[] response) {
+        if (!syncSupported()) return;
+        OfflineSourceStore.Source source = OfflineCopyStore.source(id);
+        if (source == null) return;
+
+        try {
+            var header = PlaylistSyncPage.headerOf(response);
+            if (headerChanged(source, header) || PlaylistSyncPage.changedFirstPage(id, source.videoIds(), response)) {
+                synchronized (PlaylistSync.class) {
+                    urgent.add(id);
+                    if (canRefresh(source)) schedule(0);
+                }
+            }
+        } catch (IOException failure) {
+            Logger.printDebug(() -> "PlaylistSync: could not compare the online detail of " + id, failure);
+        }
+    }
+
+    static void hideStagedCopies(Set<String> loose) {
+        loose.removeAll(stagedCopies);
+    }
+
+    private static boolean headerChanged(OfflineSourceStore.Source source, @Nullable SourceHeader header) {
+        return header != null && (!source.title().equals(header.title()) || !source.subtitle().equals(header.subtitle())
+                || !Objects.equals(PlaylistArtworkWire.imageKey(source.thumbnailUrl()),
+                        PlaylistArtworkWire.imageKey(header.thumbnailUrl())));
     }
 
     private static synchronized void shown(Activity activity) {
@@ -247,7 +279,7 @@ public final class PlaylistSync {
     /** The transfer already knows the saved queue; fetch its genuine renderer independently of all media work. */
     static void captureDownload(OfflineSourceStore.Source source, boolean automatic, BooleanSupplier stopped) {
         if (!OfflineReplayHooks.usable() || !OfflineReplayHooks.localDetailSupported()
-                || !OfflineBrowsePagesLogic.isPlaylistId(source.id())) return;
+                || !OfflineBrowsePagesLogic.isLocalDetailId(source.id())) return;
 
         Utils.runOnBackgroundThread(() -> {
             Network network = automatic ? DownloadNetwork.eligibleWifi() : null;
@@ -280,6 +312,15 @@ public final class PlaylistSync {
     private static void captureSavedMembership(OfflineSourceStore.Source source, BooleanSupplier allowed)
             throws Exception {
         if (!allowed.getAsBoolean() || OfflineCopyStore.source(source.id()) != source) return;
+        if (source.kind() == OfflineSourceStore.Kind.ALBUM) {
+            String pageId = OfflineBrowsePages.albumPage(source.id());
+            if (pageId != null && !OfflineBrowsePages.has(pageId)) {
+                byte[] page = MusicBrowseRequest.browseNative(Utils.getContext(), pageId, null);
+                if (allowed.getAsBoolean()) OfflineBrowsePages.rememberAlbum(pageId, source.id(), page);
+            }
+            return;
+        }
+
         byte[] existing = OfflineBrowsePages.committed(source);
         if (existing != null) {
             OfflineBrowsePages.rememberCover(source.id(), existing, source.thumbnailUrl());
@@ -418,20 +459,23 @@ public final class PlaylistSync {
     }
 
     private static List<OfflineSourceStore.Source> candidates() {
-        List<OfflineSourceStore.Source> retained = OfflineCopyStore.sources();
+        List<OfflineSourceStore.Source> retained = OfflineCopyStore.sourcesForSync();
         long now = SystemClock.elapsedRealtime();
         synchronized (PlaylistSync.class) {
-            attempts.keySet().retainAll(OfflineCopyStore.tracksBySource().keySet());
+            Set<String> current = OfflineCopyStore.tracksBySource().keySet();
+            attempts.keySet().retainAll(current);
+            urgent.retainAll(current);
             List<OfflineSourceStore.Source> result = new ArrayList<>();
             for (OfflineSourceStore.Source source : retained) {
                 if (!canRefresh(source)) continue;
                 String id = source.id();
                 long interval = id.equals(visited) ? VISIT_INTERVAL : SOURCE_INTERVAL;
                 Long previous = attempts.get(id);
-                if (previous == null || now - previous >= interval) result.add(source);
+                if (urgent.contains(id) || previous == null || now - previous >= interval) result.add(source);
                 else if (id.equals(visited)) schedule(interval - (now - previous));
             }
-            result.sort(Comparator.comparing((OfflineSourceStore.Source source) -> !source.id().equals(visited))
+            result.sort(Comparator.comparing((OfflineSourceStore.Source source) -> !urgent.contains(source.id()))
+                    .thenComparing(source -> !source.id().equals(visited))
                     .thenComparingLong(source -> attempts.getOrDefault(source.id(), 0L)));
             return result.subList(0, Math.min(result.size(), SOURCES_PER_SWEEP));
         }
@@ -439,6 +483,7 @@ public final class PlaylistSync {
 
     private static synchronized void noteAttempt(String id) {
         attempts.put(id, SystemClock.elapsedRealtime());
+        urgent.remove(id);
         if (id.equals(visited)) visited = null;
     }
 
@@ -448,7 +493,13 @@ public final class PlaylistSync {
 
     private static synchronized void finished(Run run) {
         if (active == run) active = null;
-        schedule(visited != null || run.cancelled ? START_DELAY : SWEEP_INTERVAL);
+        boolean preferred = eligible(visited) || urgent.stream().anyMatch(PlaylistSync::eligible);
+        schedule(preferred || run.cancelled ? START_DELAY : SWEEP_INTERVAL);
+    }
+
+    private static boolean eligible(@Nullable String id) {
+        OfflineSourceStore.Source source = id == null ? null : OfflineCopyStore.source(id);
+        return source != null && canRefresh(source);
     }
 
     private static boolean canRefresh(OfflineSourceStore.Source source) {
@@ -467,7 +518,9 @@ public final class PlaylistSync {
 
         PlaylistSyncPage.Snapshot fresh = fetchPage(id, run::allowed);
         run.check();
-        if (source.videoIds().equals(fresh.tracks())) {
+        byte[] response = fresh.browseBytes();
+        SourceHeader header = PlaylistSyncPage.headerOf(response);
+        if (source.videoIds().equals(fresh.tracks()) && !headerChanged(source, header)) {
             byte[] existing = OfflineBrowsePages.committed(source);
             if (existing != null) {
                 OfflineBrowsePages.rememberCover(id, existing, source.thumbnailUrl());
@@ -477,11 +530,11 @@ public final class PlaylistSync {
 
         Set<String> additions = PlaylistSyncPlan.additions(source.videoIds(), fresh.tracks());
         if (additions.isEmpty()) {
-            applyRefresh(run, source, fresh, additions, null);
+            applyRefresh(run, source, fresh, header, response, additions, null);
         } else if (run.beginTransfer(source)) {
             try (DownloadKeepAlive.Hold hold = run.hold) {
                 Logger.printInfo(() -> "PlaylistSync: downloading additions for " + id);
-                applyRefresh(run, source, fresh, additions, new DownloadNetwork(true,
+                applyRefresh(run, source, fresh, header, response, additions, new DownloadNetwork(true,
                         () -> run.cancelled() || !enabled(), hold));
             } finally {
                 if (run.cancelled()) run.cancelled = true;
@@ -491,49 +544,85 @@ public final class PlaylistSync {
     }
 
     private static void applyRefresh(Run run, OfflineSourceStore.Source source, PlaylistSyncPage.Snapshot fresh,
-                                     Set<String> additions, @Nullable DownloadNetwork network) throws Exception {
+                                     @Nullable SourceHeader header, byte[] response, Set<String> additions,
+                                     @Nullable DownloadNetwork network) throws Exception {
         String id = source.id();
+        Set<String> stagedAudio = new HashSet<>();
+        boolean committed = false;
+        try {
+            Map<String, String> ready = network == null ? Map.of() : transferAdditions(run, source, fresh.tracks(),
+                    additions, network, stagedAudio);
+            committed = publishRefresh(run, source, fresh.tracks(), header, response, ready);
+        } finally {
+            synchronized (MUTATION) {
+                if (!committed && !stagedAudio.isEmpty()) reconcileCopies(id, stagedAudio, List.of(), true);
+                stagedCopies.removeAll(stagedAudio);
+            }
+        }
+        if (!committed) return;
+
+        Logger.printInfo(() -> "PlaylistSync: committed " + id + " tracks=" + fresh.tracks().size()
+                + " additions=" + additions.size());
+        OfflineBrowsePages.rememberCover(id, response, header == null ? source.thumbnailUrl() : header.thumbnailUrl());
+        OfflineReplay.refreshSavedSource(id);
+    }
+
+    private static Map<String, String> transferAdditions(Run run, OfflineSourceStore.Source source,
+                                                         List<String> tracks, Set<String> additions,
+                                                         DownloadNetwork network, Set<String> stagedAudio)
+            throws Exception {
         DownloadQuality quality = Settings.DOWNLOAD_QUALITY.get();
         Set<String> own = RawAudioStore.copyIds();
         Map<String, String> aliases = RawAudioStore.aliases();
         Map<String, String> ready = new HashMap<>();
-        if (network != null) {
-            int index = 0;
-            for (String videoId : additions) {
-                run.hold.progress(source.title(), index * 100 / additions.size(),
-                        str("morphe_music_playlist_ready", index, additions.size()));
-                String copyId = OfflineCopyStore.copyId(videoId, own, aliases);
-                ready.put(videoId, network.transfer(() -> ensureAudio(videoId, copyId, quality)));
-                index++;
+        int index = 0;
+        for (String videoId : additions) {
+            run.hold.progress(source.title(), index * 100 / additions.size(),
+                    str("morphe_music_playlist_ready", index, additions.size()));
+            String copyId = OfflineCopyStore.copyId(videoId, own, aliases);
+            if (RawAudioStore.find(copyId) == null) {
+                stagedAudio.add(videoId);
+                stagedCopies.add(videoId);
             }
-            VideoCopyDownloader.ensureForSync(id, source.title(), PlaylistPage.available(fresh.tracks()), additions,
+            ready.put(videoId, network.transfer(() -> ensureAudio(videoId, copyId, quality)));
+            index++;
+        }
+        try {
+            VideoCopyDownloader.ensureForSync(source.id(), source.title(), PlaylistPage.available(tracks), additions,
                     ready::get, quality, network, run.hold);
-            if (!network.awaitTransferConnection()) throw new IOException("Playlist sync lost its transfer Wi-Fi");
+        } catch (InterruptedException failure) {
+            Thread.currentThread().interrupt();
+            throw failure;
+        } catch (Exception failure) {
+            Logger.printWarn(() -> "PlaylistSync: some videos could not be saved for " + source.id(), failure);
         }
-        if (!hasPlayableTrack(fresh.tracks(), ready, own, aliases)) {
-            throw new IOException("The refreshed playlist would have no playable copy");
-        }
+        if (!network.awaitTransferConnection()) throw new IOException("Playlist sync lost its transfer Wi-Fi");
+        return ready;
+    }
 
+    private static boolean publishRefresh(Run run, OfflineSourceStore.Source source, List<String> tracks,
+                                          @Nullable SourceHeader header, byte[] response, Map<String, String> ready)
+            throws Exception {
         if (!run.mayCommit()) throw new IOException("Playlist sync was stopped");
-        byte[] response = fresh.browseBytes();
+        String id = source.id();
         File staged = OfflineCopyStore.stagePlaylistPage(response);
         boolean committed = false;
         try {
             synchronized (MUTATION) {
                 if (canRefresh(source) && ready.values().stream().allMatch(OfflineCopyStore::has)
                         && (run.hold == null || run.hold.finish())) {
-                    committed = OfflineCopyStore.commitPlaylist(source, fresh.tracks(), staged, run::mayCommit);
-                    if (committed) DownloadedMarkers.onPlaylistSynced(id, fresh.tracks());
+                    List<String> previous = OfflineCopyStore.copyTrackLists().getOrDefault(id, List.of());
+                    committed = OfflineCopyStore.commitPlaylist(source, tracks, header, staged, run::mayCommit);
+                    if (committed) {
+                        reconcileCopies(id, previous, tracks, false);
+                        DownloadedMarkers.onPlaylistSynced(id, tracks);
+                    }
                 }
             }
         } finally {
             if (!committed) staged.delete();
         }
-        if (committed) {
-            Logger.printInfo(() -> "PlaylistSync: committed " + id + " tracks=" + fresh.tracks().size()
-                    + " additions=" + additions.size());
-            OfflineBrowsePages.rememberCover(id, response, source.thumbnailUrl());
-        }
+        return committed;
     }
 
     private static String ensureAudio(String id, String copyId, DownloadQuality quality) throws Exception {
@@ -548,14 +637,18 @@ public final class PlaylistSync {
         return copyId;
     }
 
-    private static boolean hasPlayableTrack(List<String> tracks, Map<String, String> added, Set<String> own,
-                                            Map<String, String> aliases) {
-        if (!added.isEmpty()) return true;
-        for (String track : tracks) {
-            String id = OfflineCopyStore.copyId(track, own, aliases);
-            if (own.contains(id) && OfflineCopyStore.find(id) != null) return true;
-        }
-        return false;
+    private static void reconcileCopies(String id, java.util.Collection<String> previous, List<String> tracks,
+                                        boolean aborted) {
+        Map<String, List<String>> ownership = OfflineCopyStore.copyTrackLists();
+        Set<String> own = RawAudioStore.copyIds();
+        Map<String, String> aliases = RawAudioStore.aliases();
+        List<String> retained = aborted ? ownership.getOrDefault(id, List.of())
+                : tracks.stream().map(track -> OfflineCopyStore.copyId(track, own, aliases)).toList();
+        ownership.put(id, new ArrayList<>(previous));
+        CopyOwnership.Removal removal = CopyOwnership.reconciling(id, ownership, retained,
+                RawAudioStore.individualIds(), own);
+        for (String video : removal.deleteVideos()) VideoCopyStore.deleteForSong(video);
+        for (String copy : removal.deleteCopies()) RawAudioStore.delete(copy);
     }
 
     private static final class WifiChanges extends ConnectivityManager.NetworkCallback {

@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-26.
  * Modified by lavinhoque33, 2026-11-14.
  * Written by lavinhoque33, 2026-11-10.
  */
@@ -38,6 +39,9 @@ private const val EXECUTOR = "Ljava/util/concurrent/Executor;"
 private const val LIST = "Ljava/util/List;"
 private const val OBJECT = "Ljava/lang/Object;"
 private const val REGISTRY = "Lcom/google/protobuf/ExtensionRegistryLite;"
+
+/** The native song-menu lookup clone: it takes the queue context as a parameter and never reads the live one. */
+internal const val SONG_MENU_LOOKUP = "rvxLookupSongMenu"
 
 private fun Method.createdTypes(): Set<String> = implementation?.instructions?.toList().orEmpty()
     .mapNotNull { it.getReference<TypeReference>()?.type }.toSet()
@@ -157,9 +161,7 @@ internal fun BytecodePatchContext.installSongMenus(commandType: String) {
         val parser = mutableClassDefBy(parserOwner).methods.single {
             it.name == "parseFrom" && it.parameterTypes == listOf(parserOwner, "[B", REGISTRY)
         }
-        val requesterType = Fingerprint(strings = listOf(
-            "com/google/android/apps/youtube/music/player/queue/requester/OnlineQueueItemRequester",
-        )).classDef.type
+        val requesterType = onlineQueueRequesterType()
         val captures = client.methods.filter { it.name == "<init>" }.mapNotNull { constructor ->
             constructor.storedRequester(requesterType)?.let { constructor to it }
         }
@@ -199,7 +201,7 @@ internal fun BytecodePatchContext.installSongMenus(commandType: String) {
         val defaultRenderer = classDefBy(rendererType).fields.single {
             it.type == rendererType && AccessFlags.STATIC.isSet(it.accessFlags)
         }
-        val isolated = resolvePureSongMenuLookup(lookup, requestType, requesterType, requesterField)
+        val isolated = resolvePureSongMenuLookup(lookup, requestType, requesterType, SONG_MENU_LOOKUP)
         val presentation = resolveSongMenuPresentation(commandType, menuType)
 
         // Resolve the full ABI first; no partially installed capability on older clients.
@@ -218,7 +220,7 @@ internal fun BytecodePatchContext.installSongMenus(commandType: String) {
             invoke-static {v0, p1, v1}, $parser
             move-result-object v0
             check-cast v0, $commandType
-            ${isolated.contextRead}
+            ${liveContextRead(isolated, requesterField, requesterType)}
             invoke-virtual {p0, v0, p2, v1}, ${isolated.method}
             move-result-object v0
             return-object v0

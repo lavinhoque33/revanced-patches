@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-26.
  * Modified by lavinhoque33, 2026-11-22.
  * Written by lavinhoque33, 2026-11-22.
  */
@@ -21,7 +22,9 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertTrue;
 
+import java.io.File;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -48,6 +51,24 @@ public class PlaybackSourceInspectorTest {
 
     @After public void stop() {
         selectPlayback(coordinator, null);
+    }
+
+    @Test public void aDeclinedResponseForTheSameVideoDoesNotClearTheActiveClipsPair() {
+        String id = "active_pair";
+        var served = new StreamSwapSources.Served(StreamSwapSources.KIND_VIDEO_AUDIO, new File("audio"),
+                140, 400, "digest", 1);
+        var media = new StreamSwapSources.Source(id, served, null, "file-token");
+        var pairAudio = new LocalFormat(CACHED_VIDEO_AUDIO, 140, media);
+        Playback playback = new TestPlayback("playing-a-local-pair");
+        selectPlayback(coordinator, playback);
+        selectFormats(playback, pairAudio, null, 140, -1);
+
+        assertTrue(PlaybackSourceInspector.activePair(id));
+        StreamSwapSources.selectOnline(id);
+        assertTrue(PlaybackSourceInspector.activePair(id));
+
+        selectFormats(playback, null, null, 140, -1);
+        assertFalse(PlaybackSourceInspector.activePair(id));
     }
 
     @Test public void openingAndEmptyReadsAreNotEvidence() {

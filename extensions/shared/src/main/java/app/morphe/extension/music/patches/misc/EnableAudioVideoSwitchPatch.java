@@ -9,6 +9,7 @@
  * Modified by lavinhoque33, 2026-10-24: encodes the queue command with the ported Jam
  * QueueCommand again, like Morphe, instead of an inlined copy.
  * Modified by lavinhoque33, 2026-11-12.
+ * Modified by lavinhoque33, 2026-11-26.
  */
 
 package app.morphe.extension.music.patches.misc;
@@ -50,6 +51,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 import app.morphe.extension.music.patches.CrossfadeManager;
+import app.morphe.extension.music.patches.downloads.PillAvailability;
+import app.morphe.extension.music.patches.downloads.PillVideoSwitch;
 import app.morphe.extension.music.patches.jam.QueueCommand;
 import app.morphe.extension.music.settings.Settings;
 import app.morphe.extension.music.shared.VideoInformation;
@@ -149,8 +152,11 @@ public final class EnableAudioVideoSwitchPatch {
                 }
                 switch (event.getActionMasked()) {
                     case MotionEvent.ACTION_DOWN:
-                        // Leave the tap to the fork's "Disable music video in album" redirect when it owns it.
-                        claimed[0] = isLeftHalf(pill, event) && !albumRedirectOwnsTap();
+                        // Leave the tap to the fork's "Disable music video in album" redirect when it owns it, and
+                        // to the stream-copy switch (a pair, a track on saved audio, a tracked item) when it does.
+                        claimed[0] = isLeftHalf(pill, event) && !PillAvailability.keepsNativeSwitch()
+                                && !PillVideoSwitch.ownsPillTap()
+                                && Utils.isInternetReachable() && !albumRedirectOwnsTap();
                         break;
                     case MotionEvent.ACTION_CANCEL:
                         claimed[0] = false;
@@ -199,11 +205,13 @@ public final class EnableAudioVideoSwitchPatch {
     }
 
     private static void openCounterpart(Context context) {
-        if (busy) return;
+        if (busy || PillAvailability.keepsNativeSwitch() || !Utils.isInternetReachable()) return;
         busy = true;
 
         Utils.runOnBackgroundThread(() -> {
             try {
+                if (PillAvailability.keepsNativeSwitch() || !Utils.isInternetReachable()) return;
+
                 QueueAccess access = queue.get();
                 String currentId = currentQueueVideoId(access);
                 if (!isVideoId(currentId)) {
@@ -212,6 +220,8 @@ public final class EnableAudioVideoSwitchPatch {
                 }
                 String known = switchedVersions.get(currentId);
                 String targetId = known != null ? known : resolveCounterpart(currentId);
+                if (PillAvailability.keepsNativeSwitch() || !Utils.isInternetReachable()) return;
+
                 Logger.printDebug(() -> "audio/video switch: interceptor " + currentId + " -> " + targetId
                         + " lookup=" + (known == null ? "search" : "cache"));
                 if (targetId == null || !isVideoId(targetId) || targetId.equals(currentId)) {
@@ -503,7 +513,7 @@ public final class EnableAudioVideoSwitchPatch {
 
         String title = metadata.optString("title", "");
         String author = metadata.optString("author_name", "");
-        if (title.trim().isEmpty()) return null;
+        if (title.trim().isEmpty() || !Utils.isInternetReachable()) return null;
 
         JSONObject response = requestJson(SEARCH_URL, buildQuery(title, author));
 

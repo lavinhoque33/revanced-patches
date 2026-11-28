@@ -81,4 +81,16 @@ public class OfflineBackfillLogicTest {
 
         assertEquals("aaa", schedule.next(List.of("aaa"), 0));
     }
+
+    @Test public void anAlbumWithoutItsPageIsDueInAFixedOrder() {
+        List<String> due = OfflineBackfillLogic.albumsWithoutPage(
+                List.of("OLAK5uy_b", "PLplaylist", "OLAK5uy_a", "OLAK5uy_done", "songs"), "OLAK5uy_done"::equals);
+
+        assertEquals(List.of("OLAK5uy_a", "OLAK5uy_b"), due);
+    }
+
+    @Test public void aPlaylistNeverNeedsAnAlbumPage() {
+        assertTrue(OfflineBackfillLogic.albumsWithoutPage(List.of("PLplaylist", "songs"), id -> false).isEmpty());
+        assertTrue(OfflineBackfillLogic.albumsWithoutPage(List.of("OLAK5uy_a"), id -> true).isEmpty());
+    }
 }

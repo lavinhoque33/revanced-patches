@@ -1,6 +1,8 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-27
+ * Modified by lavinhoque33, 2026-11-26
  * Modified by lavinhoque33, 2026-11-14
  * Written by lavinhoque33, 2026-11-13.
  */
@@ -21,12 +23,12 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
 import app.morphe.extension.music.patches.downloads.OfflineStreamBrowse;
+import app.morphe.extension.music.patches.downloads.PlaybackConnectivity;
 import app.morphe.extension.shared.utils.Logger;
 import app.morphe.extension.shared.utils.ResourceUtils;
 import app.morphe.extension.shared.utils.Utils;
@@ -114,7 +116,7 @@ final class AndroidAutoPlaylistFolder {
     }
 
     static List<MediaBrowserCompat.MediaItem> items(List<AndroidAutoPlaylistCatalog.Entry> catalog) {
-        boolean online = Utils.isInternetReachable();
+        boolean online = PlaybackConnectivity.reachable();
         String selected = account();
         List<MediaBrowserCompat.MediaItem> result = new ArrayList<>();
         var artwork = new AndroidAutoDownloadsArtwork.Batch();
@@ -148,15 +150,22 @@ final class AndroidAutoPlaylistFolder {
         return source == null ? OfflineStreamBrowse.sourceId(sourceId) : source.id();
     }
 
-    static List<String> readyIds(String sourceId) {
-        return AndroidAutoDownloadsFolder.streamEnabled()
-                ? OfflineStreamBrowse.readyIds(localSourceId(sourceId)) : List.of();
+    record LocalTracks(String sourceId, List<OfflineStreamBrowse.Track> tracks, List<String> ready,
+                       Map<String, String> aliases) {}
+
+    static LocalTracks localTracks(String sourceId) {
+        String localId = OfflineStreamBrowse.SONGS.equals(sourceId) ? sourceId : localSourceId(sourceId);
+        List<OfflineStreamBrowse.Track> tracks = OfflineStreamBrowse.tracksOf(localId);
+        List<String> ready = !AndroidAutoDownloadsFolder.streamEnabled() ? List.of()
+                : OfflineStreamBrowse.SONGS.equals(localId)
+                        ? tracks.stream().map(OfflineStreamBrowse.Track::videoId).toList()
+                        : OfflineStreamBrowse.readyIds(localId);
+        return new LocalTracks(localId, tracks, ready, ready.isEmpty() ? Map.of() : OfflineStreamBrowse.aliases());
     }
 
-    static AndroidAutoPlaylistChildren.Page localPage(String sourceId) {
+    static AndroidAutoPlaylistChildren.Page localPage(String sourceId, LocalTracks snapshot) {
         AndroidAutoPlaylistChildren.Page cached = savedTrackPage(sourceId);
-        String localId = localSourceId(sourceId);
-        List<OfflineStreamBrowse.Track> local = OfflineStreamBrowse.tracksOf(localId);
+        List<OfflineStreamBrowse.Track> local = snapshot.tracks();
         if (local.isEmpty()) {
             return cached == null ? new AndroidAutoPlaylistChildren.Page(nativeId(sourceId), List.of(), "") : cached;
         }
@@ -211,12 +220,11 @@ final class AndroidAutoPlaylistFolder {
         return sourceId.startsWith("MPREb_") || OfflineStreamBrowse.SONGS.equals(sourceId) ? "" : sourceId;
     }
 
-    static List<MediaBrowserCompat.MediaItem> children(String sourceId, AndroidAutoPlaylistChildren.Page page) {
-        boolean online = Utils.isInternetReachable();
+    static List<MediaBrowserCompat.MediaItem> children(String sourceId, AndroidAutoPlaylistChildren.Page page,
+            LocalTracks snapshot, Set<String> ready, boolean online) {
         String scope = account();
-        List<String> readyQueue = readyIds(sourceId);
-        Set<String> ready = new HashSet<>(readyQueue);
-        Map<String, String> aliases = OfflineStreamBrowse.aliases();
+        List<String> readyQueue = snapshot.ready();
+        Map<String, String> aliases = snapshot.aliases();
         List<MediaBrowserCompat.MediaItem> items = new ArrayList<>();
         var artwork = new AndroidAutoDownloadsArtwork.Batch();
         for (var row : AndroidAutoPlaylistChildren.rows(page, online, ready, aliases)) {
@@ -225,6 +233,7 @@ final class AndroidAutoPlaylistFolder {
             String canonical = aliases.getOrDefault(videoId, videoId);
             String id = row.playAll() ? AndroidAutoPlaylists.mediaId(scope, sourceId)
                     : AndroidAutoPlaylistChildren.trackId(scope, sourceId, videoId, row.index());
+            id = AndroidAutoPlaylistChildren.withAlbumPlaylist(id, sourceId, page.playlistId());
             String title = row.playAll() ? text("stream_play_all")
                     : track == null ? text(online ? "songs_unavailable" : "unavailable_offline") : track.title();
             if (title.isEmpty()) title = text("track_unavailable");
@@ -259,7 +268,10 @@ final class AndroidAutoPlaylistFolder {
         return ResourceUtils.getString("morphe_music_android_auto_" + suffix);
     }
 
-    /** Default-network callbacks are notifications only; every selection still checks current reachability. */
+    /**
+     * Default-network callbacks, and a change of the verdict about YouTube, are notifications only; every selection
+     * still checks current reachability.
+     */
     static synchronized void monitorConnectivity() {
         if (monitoring) return;
         Object service = Utils.getContext().getSystemService(android.content.Context.CONNECTIVITY_SERVICE);
@@ -279,6 +291,7 @@ final class AndroidAutoPlaylistFolder {
                     AndroidAutoPatch.onPlaylistsChanged();
                 }
             });
+            PlaybackConnectivity.listenForVerdict(AndroidAutoPatch::onPlaylistsChanged);
             monitoring = true;
         } catch (RuntimeException ex) {
             Logger.printException(() -> "Could not monitor Android Auto connectivity", ex);

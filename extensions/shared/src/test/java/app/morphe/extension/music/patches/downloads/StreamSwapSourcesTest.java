@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-26.
  * Modified by lavinhoque33, 2026-11-12.
  * Written by lavinhoque33, 2026-11-07.
  */
@@ -19,8 +20,14 @@ public class StreamSwapSourcesTest {
     @Rule public TemporaryFolder temporary = new TemporaryFolder();
 
     private RawAudioFiles.Entry raw() throws Exception {
-        return new RawAudioFiles.Entry(temporary.newFile(), 251, "audio/webm; codecs=\"opus\"",
-                1000, 123, "content://media/external/audio/media/42", "digest");
+        var file = temporary.newFile();
+        java.nio.file.Files.write(file.toPath(), new byte[1000]);
+        return new RawAudioFiles.Entry(file, 251, "audio/webm; codecs=\"opus\"",
+                1000, 123, "content://media/external/audio/media/42", "digest", file.lastModified());
+    }
+
+    private static StreamSwapSources.Source lookup(StreamSwapSources.Source source) {
+        return StreamSwapSources.lookup(source.token.substring(source.token.lastIndexOf("&t=") + 3));
     }
 
     @Test public void nullOnlineUrlStillIssuesAndReusesALocalToken() throws Exception {
@@ -51,28 +58,50 @@ public class StreamSwapSourcesTest {
         assertEquals(online, source.fallback());
     }
 
-    @Test public void onlyTheLatestTokensOfATrackStayIssuedAndTheLatestStillResolves() throws Exception {
+    @Test public void concurrentClipsKeepTheirTokenAcrossResponseRefreshes() throws Exception {
         RawAudioFiles.Entry raw = raw();
-        StreamSwapSources.Source other = StreamSwapSources.issue("other_track", raw, null);
-        StreamSwapSources.Source[] issued = new StreamSwapSources.Source[StreamSwapSources.TOKENS_PER_VIDEO + 2];
-        for (int index = 0; index < issued.length; index++) {
-            issued[index] = StreamSwapSources.issue("busy", raw, "https://example.invalid/" + index);
+        StreamSwapSources.Source first = StreamSwapSources.issue("busy", raw, "https://example.invalid/first");
+        for (int index = 0; index < 8; index++) {
+            assertSame(first, StreamSwapSources.issue("busy", raw, "https://example.invalid/" + index));
         }
 
-        for (int index = 0; index < issued.length; index++) {
-            boolean kept = index >= issued.length - StreamSwapSources.TOKENS_PER_VIDEO;
-            assertEquals("token " + index, kept, StreamSwapSources.lookup(issued[index].key) == issued[index]);
-        }
-        assertSame(other, StreamSwapSources.lookup(other.key));
-        assertSame(issued[issued.length - 1], StreamSwapSources.issue("busy", raw,
-                "https://example.invalid/" + (issued.length - 1)));
+        assertSame(first, lookup(first));
+        assertTrue(first.available);
+        assertEquals("https://example.invalid/7", first.fallback());
+        assertSame(first, StreamSwapSources.issue("busy", raw, null));
+    }
+
+    @Test public void modifiedFileGetsANewTokenWithoutForgettingTheOldClipsFallback() throws Exception {
+        RawAudioFiles.Entry raw = raw();
+        String url = "https://example.invalid/same-stream";
+        StreamSwapSources.Source first = StreamSwapSources.issue("replaced", raw, url);
+        assertTrue(raw.file().setLastModified(first.served.fileModified() + 10_000));
+
+        assertNull(StreamSwapSources.issue("replaced", raw, url));
+        RawAudioFiles.Entry refreshed = new RawAudioFiles.Entry(raw.file(), raw.itag(), raw.mime(), raw.length(),
+                raw.modified(), raw.muxed(), raw.digest(), raw.file().lastModified());
+        StreamSwapSources.Source replacement = StreamSwapSources.issue("replaced", refreshed, url);
+        assertNotSame(first, replacement);
+        assertEquals(first.served.fileModified() + 10_000, replacement.served.fileModified());
+        assertFalse(first.available);
+        assertTrue(replacement.available);
+        assertSame(first, lookup(first));
+        assertEquals(url, first.fallback());
+        assertSame(replacement, lookup(replacement));
     }
 
     private VideoCopyFiles.Entry copy() throws Exception {
         return new VideoCopyFiles.Entry(
-                new VideoCopyFiles.Part(temporary.newFile(), 134, "video/mp4; codecs=\"avc1.4D401E\"", 1000, 123, "d1"),
-                new VideoCopyFiles.Part(temporary.newFile(), 251, "audio/webm; codecs=\"opus\"", 400, 456, "d2"),
+                part(134, "video/mp4; codecs=\"avc1.4D401E\"", 1000, 123, "d1"),
+                part(251, "audio/webm; codecs=\"opus\"", 400, 456, "d2"),
                 temporary.newFile(), "clip00000000", "song0000000", null, 213_000);
+    }
+
+    private VideoCopyFiles.Part part(int itag, String mime, int length, long modified, String digest)
+            throws Exception {
+        var file = temporary.newFile();
+        java.nio.file.Files.write(file.toPath(), new byte[length]);
+        return new VideoCopyFiles.Part(file, itag, mime, length, modified, digest, file.lastModified());
     }
 
     @Test public void aVideoCopyIssuesOneTokenPerStreamAndEachResolvesToItsOwnFile() throws Exception {
@@ -83,8 +112,8 @@ public class StreamSwapSourcesTest {
         assertTrue(video.token.startsWith("http://127.0.0.1:1/rvx?v=clip00000000&i=134&m=video&t="));
         assertTrue(audio.token.startsWith("http://127.0.0.1:1/rvx?v=clip00000000&i=251&m=vaudio&t="));
         assertNotSame(video, audio);
-        assertSame(video, StreamSwapSources.lookup(video.key));
-        assertSame(audio, StreamSwapSources.lookup(audio.key));
+        assertSame(video, lookup(video));
+        assertSame(audio, lookup(audio));
         assertSame(video, StreamSwapSources.issueVideo("clip00000000", copy, null));
         assertSame(audio, StreamSwapSources.issueVideoAudio("clip00000000", copy, null));
         assertEquals(StreamSwapSources.KIND_VIDEO, video.served.kind());
@@ -120,8 +149,6 @@ public class StreamSwapSourcesTest {
         assertTrue(StreamSwapSources.playsLocal("current_local"));
         assertFalse(StreamSwapSources.playsLocal("next_online"));
         assertFalse(StreamSwapSources.playsLocal(""));
-        assertFalse(OfflineReplayLogic.dropsSeekSnap(true, true,
-                StreamSwapSources.playsLocal("next_online"), 0));
     }
 
     @Test public void nextResponseCannotHideTheCurrentItemsLocalDecision() throws Exception {
@@ -137,8 +164,6 @@ public class StreamSwapSourcesTest {
         StreamSwapSources.selectOnline("reload_online");
 
         assertFalse(StreamSwapSources.playsLocal("reload_online"));
-        assertFalse(OfflineReplayLogic.dropsSeekSnap(true, true,
-                StreamSwapSources.playsLocal("reload_online"), -1));
     }
 
     @Test public void aNewLocalResponseReplacesTheInvalidSourceOfTheSameItem() throws Exception {
@@ -158,14 +183,13 @@ public class StreamSwapSourcesTest {
         assertFalse(StreamSwapSources.playsLocal("fallback_seek"));
     }
 
-    @Test public void bothPillsOfAVideoCopyKeepTheSeekTargetOnline() throws Exception {
+    @Test public void bothSelectedLocalSourcesAreInvalidatedTogether() throws Exception {
         VideoCopyFiles.Entry copy = copy();
         StreamSwapSources.Source video = StreamSwapSources.issueVideo("seek_video", copy, null);
         StreamSwapSources.Source audio = StreamSwapSources.issueVideoAudio("seek_video", copy, null);
         StreamSwapSources.select(List.of(video, audio));
 
-        assertTrue(OfflineReplayLogic.dropsSeekSnap(true, true, StreamSwapSources.playsLocal("seek_video"), 0));
-        assertTrue(OfflineReplayLogic.dropsSeekSnap(true, true, StreamSwapSources.playsLocal("seek_video"), -1));
+        assertTrue(StreamSwapSources.playsLocal("seek_video"));
 
         StreamSwapSources.invalidate("seek_video");
         assertFalse(StreamSwapSources.playsLocal("seek_video"));

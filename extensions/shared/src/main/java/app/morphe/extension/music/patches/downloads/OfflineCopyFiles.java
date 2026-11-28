@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-26.
  * Written by lavinhoque33, 2026-11-07.
  */
 package app.morphe.extension.music.patches.downloads;
@@ -81,11 +82,19 @@ final class OfflineCopyFiles {
         loaded = true;
     }
 
-    /** The file of the stored cover of a copy, or null when it has none. */
+    boolean loaded() {
+        return loaded;
+    }
+
+    /** The cover is independent of playback readiness, but must match its own commit. */
     @Nullable
     File thumbnailFile(String videoId) {
-        File file = file(videoId, THUMBNAIL);
-        return file.isFile() && file.length() > 0 ? file : null;
+        try {
+            Commit commit = committed(videoId);
+            return commit == null ? null : thumbnailFile(videoId, commit.thumbnailBytes());
+        } catch (IOException | JSONException ex) {
+            return null;
+        }
     }
 
     /** Whether the copy has stored data. False until {@link #ensureLoaded} has finished. No disk access. */
@@ -161,12 +170,41 @@ final class OfflineCopyFiles {
             if (commit == null) return null;
 
             byte[] response = Files.readAllBytes(file(videoId, RESPONSE).toPath());
-            byte[] thumbnail = commit.thumbnailBytes() > 0
-                    ? Files.readAllBytes(file(videoId, THUMBNAIL).toPath()) : null;
-            return new Stored(commit.metadata(), response, thumbnail);
+            return new Stored(commit.metadata(), response, readThumbnail(videoId, commit.thumbnailBytes()));
         } catch (IOException | JSONException ex) {
             return null;
         }
+    }
+
+    /** Reads only the committed response; playback does not need to touch the image file. */
+    @Nullable
+    synchronized byte[] readResponse(String videoId) {
+        try {
+            return committed(videoId) == null ? null : Files.readAllBytes(file(videoId, RESPONSE).toPath());
+        } catch (IOException | JSONException ex) {
+            return null;
+        }
+    }
+
+    @Nullable
+    private byte[] readThumbnail(String videoId, long expectedBytes) {
+        File thumbnail = thumbnailFile(videoId, expectedBytes);
+        if (thumbnail == null) return null;
+
+        try {
+            byte[] bytes = Files.readAllBytes(thumbnail.toPath());
+            return bytes.length == expectedBytes ? bytes : null;
+        } catch (IOException ex) {
+            return null;
+        }
+    }
+
+    @Nullable
+    private File thumbnailFile(String videoId, long expectedBytes) {
+        if (expectedBytes <= 0 || expectedBytes > MAX_THUMBNAIL_BYTES) return null;
+
+        File thumbnail = file(videoId, THUMBNAIL);
+        return thumbnail.isFile() && thumbnail.length() == expectedBytes ? thumbnail : null;
     }
 
     /** The metadata of a copy that has committed stored data, or null. Does not read the response. */
@@ -225,7 +263,7 @@ final class OfflineCopyFiles {
         }
     }
 
-    /** The commit record when it is well formed and its files have the recorded lengths, otherwise null. */
+    /** The commit record when well formed and its required response has the recorded length. */
     @Nullable
     private Commit committed(String videoId) throws IOException, JSONException {
         if (!RawAudioFiles.validId(videoId)) return null;
@@ -237,9 +275,8 @@ final class OfflineCopyFiles {
         OfflineCopyMetadata metadata = OfflineCopyMetadata.fromJson(json);
         long responseBytes = json.getLong("responseBytes");
         long thumbnailBytes = json.optLong("thumbnailBytes");
-        if (!videoId.equals(metadata.videoId()) || responseBytes <= 0
+        if (!videoId.equals(metadata.videoId()) || responseBytes <= 0 || responseBytes > MAX_RESPONSE_BYTES
                 || file(videoId, RESPONSE).length() != responseBytes) return null;
-        if (thumbnailBytes > 0 && file(videoId, THUMBNAIL).length() != thumbnailBytes) return null;
 
         return new Commit(metadata, responseBytes, thumbnailBytes);
     }

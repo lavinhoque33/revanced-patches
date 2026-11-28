@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-26
  * Written by lavinhoque33, 2026-11-01.
  */
 package app.morphe.extension.music.patches.androidauto;
@@ -37,6 +38,17 @@ public class AndroidAutoDownloadsDataTest {
                 PREFIX + "play/12/2147483648/9", ROOT_ID}) {
             assertNull(parsePlayId(invalid));
         }
+    }
+
+    @Test
+    public void playAllIsDistinctFromTheFirstRowButUsesTheSameWholeQueue() {
+        String first = playId(12, 0, 8);
+        String all = playAllId(12, 8);
+        assertFalse(all.equals(first));
+        assertEquals(new PlayRequest(12, 0, 8), parsePlayId(all));
+        assertArrayEquals(playCommand(parsePlayId(first)), playCommand(parsePlayId(all)));
+        assertNull(parsePlayId(PREFIX + "play-all/12/1/8"));
+        assertNull(parsePlayId(PREFIX + "play-all/12/0/0"));
     }
 
     @Test

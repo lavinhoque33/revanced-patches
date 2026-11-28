@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-26.
  * Modified by lavinhoque33, 2026-11-22.
  * Written by lavinhoque33, 2026-11-07.
  * Modified by lavinhoque33, 2026-11-10
@@ -9,7 +10,8 @@ package app.morphe.extension.music.patches.downloads;
 
 import android.net.Uri;
 
-import java.io.File;
+import androidx.annotation.Nullable;
+
 import java.io.IOException;
 
 import app.morphe.extension.shared.utils.Logger;
@@ -24,6 +26,12 @@ public final class StreamSwapDataSource {
         return "file".equals(uri.getScheme());
     }
 
+    /** Main-safe: checks the selected format's actual URI, not the latest decision for its video ID. */
+    static boolean isAvailableToken(@Nullable Uri uri) {
+        StreamSwapSources.Source source = StreamSwapSources.find(uri);
+        return source != null && source.available;
+    }
+
     /**
      * Null for unrelated sources, the file URI of the audio copy, or of a stream of a video copy, while it is intact. Otherwise the format's
      * online URL, or an IOException (a failed file open, like stock) when a SABR response never had one.
@@ -33,16 +41,14 @@ public final class StreamSwapDataSource {
         if (source == null) return null;
         if (!StreamSwap.supported() || StreamSwap.onMainThread() || !source.available) return fallback(uri, source);
         try {
-            File file = source.served.file();
-            long size = source.served.length();
-            if (!file.isFile() || file.length() != size || file.lastModified() != source.fileModified) {
+            if (!source.served.matchesFile()) {
                 source.available = false;
                 return fallback(uri, source);
             }
             Logger.printDebug(() -> "StreamSwap: source=FILE v=" + source.videoId + " kind=" + source.served.kind()
                     + " itag=" + source.served.itag() + " position=" + position
                     + " length=" + length + " thread=" + Thread.currentThread().getName());
-            return Uri.fromFile(file);
+            return Uri.fromFile(source.served.file());
         } catch (SecurityException ex) {
             source.available = false;
             return fallback(uri, source);

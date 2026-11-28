@@ -14,8 +14,8 @@ import com.google.protobuf.WireFormat;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.function.BooleanSupplier;
 import java.util.function.Function;
@@ -66,33 +66,20 @@ final class OfflineBrowsePagesLogic {
 
     /**
      * The downloaded list a page belongs to, or null. A page of the list's own id belongs to it. An album page
-     * ({@code MPREb_}) belongs to the album playlist (a source id of {@code OLAK5uy_}) its content names most often:
-     * the play and shuffle buttons and every row carry it, other albums' ids appear only in shelves. A tie or no
-     * name is no owner.
+     * only belongs to the source named by its primary header's playlist command.
      */
     @Nullable
     static String ownerOf(String browseId, byte[] response, Set<String> sourceIds) {
         String pageId = OfflineReplayLogic.sourceOfBrowseId(browseId);
         if (sourceIds.contains(pageId)) return pageId;
 
-        if (!pageId.startsWith(ALBUM_PAGE_PREFIX)) return null;
-
-        String owner = null;
-        int most = 0;
-        boolean tie = false;
-        for (String id : sourceIds) {
-            if (!id.startsWith(ALBUM_PLAYLIST_PREFIX)) continue;
-
-            int count = occurrences(response, id.getBytes(StandardCharsets.UTF_8));
-            if (count > most) {
-                owner = id;
-                most = count;
-                tie = false;
-            } else if (count == most && count > 0) {
-                tie = true;
-            }
+        if (!isAlbumPage(pageId)) return null;
+        try {
+            String id = PlaylistSyncPage.albumPlaylistOf(response);
+            return id != null && sourceIds.contains(id) ? id : null;
+        } catch (IOException badPage) {
+            return null;
         }
-        return tie ? null : owner;
     }
 
     /** How many times the bytes occur in the response, without overlapping. */
@@ -120,6 +107,28 @@ final class OfflineBrowsePagesLogic {
     static boolean isPlaylistId(String id) {
         return isFileSafe(id) && !id.startsWith("FE") && !id.equals("songs")
                 && !id.startsWith(ALBUM_PAGE_PREFIX) && !id.startsWith(ALBUM_PLAYLIST_PREFIX);
+    }
+
+    static boolean isAlbumPage(@Nullable String id) {
+        return id != null && id.startsWith(ALBUM_PAGE_PREFIX) && id.length() > ALBUM_PAGE_PREFIX.length()
+                && isFileSafe(id);
+    }
+
+    @Nullable
+    static String mappedAlbumPage(String sourceId, Map<String, String> owners) {
+        if (!DownloadsPageLogic.isAlbum(sourceId)) return null;
+        String match = null;
+        for (Map.Entry<String, String> owner : owners.entrySet()) {
+            String page = owner.getKey();
+            if (!sourceId.equals(owner.getValue()) || !isAlbumPage(page)) continue;
+            if (match != null) return null;
+            match = page;
+        }
+        return match;
+    }
+
+    static boolean isLocalDetailId(String id) {
+        return isPlaylistId(id) || isAlbumPage(id) || DownloadsPageLogic.isAlbum(id) && isFileSafe(id);
     }
 
     /** Native two-column song rows in a playlist detail shelf, without fabricated server menus or tracking. */
@@ -152,8 +161,8 @@ final class OfflineBrowsePagesLogic {
     /** The payload of one shelf row; also used to fill in the tail of a partially captured legacy page. */
     static byte[] fallbackRow(String playlistId, int position, String id, @Nullable TrackMetadata track,
                               String unavailableTitle) {
-        boolean available = VIDEO_ID.matcher(id).matches();
-        String title = !available ? unavailableTitle : track != null && !track.title().isEmpty() ? track.title() : id;
+        boolean available = VIDEO_ID.matcher(id).matches() && track != null;
+        String title = track == null || track.title().isEmpty() ? (available ? id : unavailableTitle) : track.title();
         ProtoWriter row = new ProtoWriter().message(3, text(title));
         if (track != null) {
             String byline = OfflineLibraryLogic.songSubtitle(track.artist(), track.durationMs());

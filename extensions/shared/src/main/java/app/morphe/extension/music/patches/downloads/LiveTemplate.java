@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-26.
  * Written by lavinhoque33, 2026-11-09.
  */
 package app.morphe.extension.music.patches.downloads;
@@ -14,6 +15,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import java.util.Arrays;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import app.morphe.extension.shared.innertube.PlayerResponseOuterClass.PlayerResponse;
 import app.morphe.extension.shared.utils.Logger;
@@ -34,7 +36,8 @@ final class LiveTemplate {
     private static final String FILE_NAME = "rvx_live_template.pb";
 
     private static final Object lock = new Object();
-    private static long lastChecked;
+    private static final AtomicBoolean refreshing = new AtomicBoolean();
+    private static volatile long lastChecked;
     private static boolean loaded;
     @Nullable
     private static byte[] held;
@@ -43,32 +46,34 @@ final class LiveTemplate {
 
     /**
      * Keeps the app-generic fields of an online response of a video copy when the kept ones are old or none are
-     * kept. Called for every online answer of a copy, so a response that is not due costs only this check. Off the
-     * main thread.
+     * kept. The response thread only decides whether to schedule the refresh.
      */
     static void rememberFrom(String videoId, byte[] onlineResponse, PlayerResponse parsed) {
-        try {
-            synchronized (lock) {
-                if (!LiveTemplateLogic.due(lastChecked, SystemClock.elapsedRealtime())) return;
-            }
-            if (!LiveTemplateLogic.isAppResponse(parsed)) return;
+        if (!LiveTemplateLogic.due(lastChecked, SystemClock.elapsedRealtime())
+                || !LiveTemplateLogic.isAppResponse(parsed) || !refreshing.compareAndSet(false, true)) return;
 
+        Utils.runOnBackgroundThread(() -> refresh(videoId, onlineResponse));
+    }
+
+    private static void refresh(String videoId, byte[] onlineResponse) {
+        try {
             byte[] template = ResponseFields.without(onlineResponse, LiveTemplateLogic.PER_VIDEO_FIELDS);
-            boolean changed;
-            synchronized (lock) {
-                changed = !Arrays.equals(template, current());
-                if (changed) {
-                    write(template);
-                    held = template;
-                }
+            if (Arrays.equals(template, get())) {
                 lastChecked = SystemClock.elapsedRealtime();
+                return;
             }
-            if (changed) {
-                Logger.printDebug(() -> "LiveTemplate: kept the app's online response of v=" + videoId + " "
-                        + template.length + "B");
+
+            write(template);
+            synchronized (lock) {
+                held = template;
             }
+            lastChecked = SystemClock.elapsedRealtime();
+            Logger.printDebug(() -> "LiveTemplate: kept the app's online response of v=" + videoId + " "
+                    + template.length + "B");
         } catch (Exception ex) {
             Logger.printException(() -> "LiveTemplate: could not keep the online response", ex);
+        } finally {
+            refreshing.set(false);
         }
     }
 
@@ -87,7 +92,7 @@ final class LiveTemplate {
 
         loaded = true;
         File file = file();
-        if (!file.isFile()) return null;
+        if (!file.isFile() || file.length() > VideoCopyFiles.MAX_RESPONSE_BYTES) return null;
 
         try {
             held = Files.readAllBytes(file.toPath());

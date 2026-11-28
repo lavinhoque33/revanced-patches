@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-26
  * Written by lavinhoque33, 2026-11-01.
  */
 package app.morphe.extension.music.patches.androidauto;
@@ -17,6 +18,8 @@ final class AndroidAutoDownloadsData {
     static final String ROOT_ID = PREFIX + "playlists";
     static final String LIBRARY_ID = PREFIX + "library";
     static final String UNSORTED_KEY = "rvx:not_in_playlist";
+    private static final String PLAY_PREFIX = PREFIX + "play/";
+    private static final String PLAY_ALL_PREFIX = PREFIX + "play-all/";
 
     record Track(long mediaId, long position, String title, String artist, String album, long durationMs,
                  long modifiedSeconds, long fileSize) {}
@@ -52,12 +55,20 @@ final class AndroidAutoDownloadsData {
 
     static String playId(long playlistId, int index, int count) {
         if (playlistId < 0 || index < 0 || count <= index) throw new IllegalArgumentException("Invalid local queue");
-        return PREFIX + "play/" + playlistId + "/" + index + "/" + count;
+        return PLAY_PREFIX + playlistId + "/" + index + "/" + count;
+    }
+
+    static String playAllId(long playlistId, int count) {
+        if (playlistId < 0 || count <= 0) throw new IllegalArgumentException("Invalid local queue");
+        return PLAY_ALL_PREFIX + playlistId + "/0/" + count;
     }
 
     static PlayRequest parsePlayId(String mediaId) {
-        String prefix = PREFIX + "play/";
-        if (mediaId == null || !mediaId.startsWith(prefix)) return null;
+        if (mediaId == null) return null;
+        boolean playAll = mediaId.startsWith(PLAY_ALL_PREFIX);
+        if (!playAll && !mediaId.startsWith(PLAY_PREFIX)) return null;
+
+        String prefix = playAll ? PLAY_ALL_PREFIX : PLAY_PREFIX;
         String[] parts = mediaId.substring(prefix.length()).split("/", -1);
         if (parts.length != 3) return null;
         for (String part : parts) {
@@ -70,7 +81,7 @@ final class AndroidAutoDownloadsData {
             long playlistId = Long.parseLong(parts[0]);
             int index = Integer.parseInt(parts[1]);
             int count = Integer.parseInt(parts[2]);
-            return count > index ? new PlayRequest(playlistId, index, count) : null;
+            return count > index && (!playAll || index == 0) ? new PlayRequest(playlistId, index, count) : null;
         } catch (NumberFormatException ignored) {
             return null;
         }

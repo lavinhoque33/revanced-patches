@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-26.
  * Modified by lavinhoque33, 2026-11-10.
  * Written by lavinhoque33, 2026-11-10.
  */
@@ -16,6 +17,7 @@ import android.graphics.BitmapFactory;
 import android.graphics.Typeface;
 import android.graphics.drawable.Drawable;
 import android.text.TextUtils;
+import android.util.LruCache;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
@@ -29,10 +31,7 @@ import android.widget.TextView;
 
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.function.Consumer;
 
 import app.morphe.extension.music.patches.flyout.SongMenus;
 import app.morphe.extension.shared.utils.BaseThemeUtils;
@@ -43,8 +42,7 @@ import app.morphe.extension.shared.utils.Utils;
  * The page of No Playlist: the songs that have a stream copy and belong to no downloaded playlist or album. It is our
  * own full screen page over the Downloads view, as the songs list has no page of the app to open, online or offline;
  * Back returns to the Downloads view. A tap plays the list in its shown order from the tapped song, from the copies:
- * offline as one queue; online as the app's own watch of the song (so radio and lyrics stay) with the rest of the
- * list queued after it, see {@link OnlineQueueCommand}.
+ * offline as one queue; online as the app's own watch of the song (so radio and lyrics stay).
  * Every song has a check at the right end and the app's regular song menu just left of it. Remove download asks the
  * same confirmation as any other song menu and updates this page once the copy is gone.
  */
@@ -55,21 +53,18 @@ final class NoPlaylistDialog {
     private static final int HEADER_HEIGHT_DP = 56;
     private static final int CHECK_DP = 20;
     private static final int MENU_DP = 40;
-    private static WeakReference<SongsAdapter> displayedAdapter = new WeakReference<>(null);
+    private static volatile WeakReference<SongsAdapter> displayedAdapter = new WeakReference<>(null);
+    private static final CoalescedRunner refresh = new CoalescedRunner(
+            Utils::runOnBackgroundThread, NoPlaylistDialog::refreshRows);
 
     private NoPlaylistDialog() {}
 
-    /** Shows the list. Main thread; the songs and their covers are read in the background first. */
+    /** Shows the rows before loading the visible covers. */
     static void show() {
         Utils.runOnBackgroundThread(() -> {
             try {
-                List<OfflineWatchNext.Item> songs = new ArrayList<>(OfflineReplay.queueOf(OfflineReplay.SONGS));
-                Map<String, Bitmap> covers = new HashMap<>();
-                for (OfflineWatchNext.Item song : songs) {
-                    Bitmap cover = coverOf(song.videoId());
-                    if (cover != null) covers.put(song.videoId(), cover);
-                }
-                Utils.runOnMainThread(() -> display(songs, covers));
+                List<OfflineWatchNext.Item> songs = OfflineReplay.queueOf(OfflineReplay.SONGS);
+                Utils.runOnMainThread(() -> display(songs));
                 SongMenus.backfill();
             } catch (Exception ex) {
                 Logger.printException(() -> "NoPlaylistDialog: could not read the songs", ex);
@@ -90,7 +85,7 @@ final class NoPlaylistDialog {
         return BitmapFactory.decodeByteArray(bytes, 0, bytes.length, options);
     }
 
-    private static void display(List<OfflineWatchNext.Item> songs, Map<String, Bitmap> covers) {
+    private static void display(List<OfflineWatchNext.Item> songs) {
         Activity activity = Utils.getActivity();
         if (activity == null) {
             Logger.printDebug(() -> "NoPlaylistDialog: no activity to show the list in");
@@ -104,12 +99,13 @@ final class NoPlaylistDialog {
             page.setBackgroundColor(BaseThemeUtils.getAppBackgroundColor());
             TextView count = new TextView(activity);
             page.addView(headerOf(activity, count, dialog));
-            page.addView(listOf(activity, songs, covers, dialog, count),
+            page.addView(listOf(activity, songs, dialog, count),
                     new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
             showCount(count, songs.size());
 
             dialog.setContentView(page);
             dialog.show();
+            refresh.request();
             Window window = dialog.getWindow();
             if (window != null) {
                 window.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
@@ -159,42 +155,43 @@ final class NoPlaylistDialog {
                 : str("morphe_music_offline_library_songs_count", songs));
     }
 
-    /** A stock-menu Remove completed, so the open page follows the copy deletion like every other view. */
-    static void onSongRemoved(String songId) {
+    static void onCopiesChanged() {
+        if (displayedAdapter.get() != null) refresh.request();
+    }
+
+    private static void refreshRows() {
         SongsAdapter adapter = displayedAdapter.get();
         if (adapter == null) return;
-        for (OfflineWatchNext.Item song : adapter.songs) {
-            if (song.videoId().equals(songId)) {
-                adapter.onRemoved.accept(song);
-                break;
-            }
+        try {
+            List<OfflineWatchNext.Item> songs = OfflineReplay.queueOf(OfflineReplay.SONGS);
+            Utils.runOnMainThread(() -> {
+                if (displayedAdapter.get() == adapter) adapter.replaceSongs(songs);
+            });
+            SongMenus.backfill();
+        } catch (Exception ex) {
+            Logger.printException(() -> "NoPlaylistDialog: could not refresh the songs", ex);
         }
     }
 
-    private static ListView listOf(Context context, List<OfflineWatchNext.Item> songs, Map<String, Bitmap> covers,
-                                   Dialog dialog, TextView count) {
+    private static ListView listOf(Context context, List<OfflineWatchNext.Item> songs, Dialog dialog, TextView count) {
         ListView list = new ListView(context);
         list.setDivider(null);
-        SongsAdapter adapter = new SongsAdapter(context, songs, covers, dialog, song -> {
-            // The copy is gone: the row goes, the count follows, and an empty list closes.
-            songs.remove(song);
-            showCount(count, songs.size());
-            if (songs.isEmpty()) dialog.dismiss();
-            ((SongsAdapter) list.getAdapter()).notifyDataSetChanged();
-        });
+        SongsAdapter adapter = new SongsAdapter(context, songs, dialog, count);
         list.setAdapter(adapter);
         displayedAdapter = new WeakReference<>(adapter);
         dialog.setOnDismissListener(ignored -> {
             if (displayedAdapter.get() == adapter) displayedAdapter.clear();
         });
         list.setOnItemClickListener((parent, view, position, id) -> {
+            if (!(view.getTag() instanceof OfflineWatchNext.Item song)) return;
             dialog.dismiss();
-            if (!OfflineReplay.play(OfflineReplay.SONGS, position)) {
+            if (!OfflineReplay.playLooseSong(song.videoId())) {
                 Utils.showToastShort(str("morphe_music_offline_library_not_ready"));
             }
         });
         list.setOnItemLongClickListener((parent, view, position, id) -> {
-            SongMenus.open(songs.get(position).videoId(), view, dialog);
+            if (!(view.getTag() instanceof OfflineWatchNext.Item song)) return false;
+            SongMenus.open(song.videoId(), view, dialog);
             return true;
         });
         return list;
@@ -203,18 +200,24 @@ final class NoPlaylistDialog {
     /** One row per song: its cover, its title, its artist with its length, its menu and its check. */
     private static final class SongsAdapter extends BaseAdapter {
         private final Context context;
-        private final List<OfflineWatchNext.Item> songs;
-        private final Map<String, Bitmap> covers;
-        private final Consumer<OfflineWatchNext.Item> onRemoved;
+        private List<OfflineWatchNext.Item> songs;
+        private final LruCache<String, Bitmap> covers = new LruCache<>(48);
         private final Dialog dialog;
+        private final TextView count;
 
-        SongsAdapter(Context context, List<OfflineWatchNext.Item> songs, Map<String, Bitmap> covers, Dialog dialog,
-                     Consumer<OfflineWatchNext.Item> onRemoved) {
+        SongsAdapter(Context context, List<OfflineWatchNext.Item> songs, Dialog dialog, TextView count) {
             this.context = context;
             this.songs = songs;
-            this.covers = covers;
-            this.onRemoved = onRemoved;
             this.dialog = dialog;
+            this.count = count;
+        }
+
+        void replaceSongs(List<OfflineWatchNext.Item> updated) {
+            if (songs.equals(updated)) return;
+            songs = updated;
+            showCount(count, updated.size());
+            if (updated.isEmpty()) dialog.dismiss();
+            else notifyDataSetChanged();
         }
 
         @Override public int getCount() {
@@ -235,12 +238,30 @@ final class NoPlaylistDialog {
             ImageView cover = (ImageView) row.getChildAt(0);
             LinearLayout texts = (LinearLayout) row.getChildAt(1);
 
-            cover.setImageBitmap(covers.get(song.videoId()));
+            row.setTag(song);
+            loadCover(cover, song.videoId());
             ((TextView) texts.getChildAt(0)).setText(song.title());
             String subtitle = OfflineLibraryLogic.songSubtitle(song.artist(), song.durationMs());
             ((TextView) texts.getChildAt(1)).setText(subtitle);
             row.getChildAt(2).setOnClickListener(menu -> showMenu(menu, song));
             return row;
+        }
+
+        private void loadCover(ImageView view, String songId) {
+            if (songId.equals(view.getTag())) return;
+            view.setTag(songId);
+            Bitmap cached = covers.get(songId);
+            view.setImageBitmap(cached);
+            if (cached != null) return;
+
+            Utils.runOnBackgroundThread(() -> {
+                Bitmap bitmap = coverOf(songId);
+                if (bitmap == null) return;
+                covers.put(songId, bitmap);
+                Utils.runOnMainThread(() -> {
+                    if (songId.equals(view.getTag())) view.setImageBitmap(bitmap);
+                });
+            });
         }
 
         private LinearLayout newRow() {

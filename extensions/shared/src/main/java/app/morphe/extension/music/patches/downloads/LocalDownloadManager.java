@@ -3,6 +3,7 @@
  * https://github.com/MorpheApp/morphe-patches/pull/2528
  *
  * See the included NOTICE file for GPLv3 Section 7 terms that apply to this code.
+ * Modified by lavinhoque33, 2026-11-26.
  * Modified by lavinhoque33, 2026-11-20.
  * Modified by lavinhoque33, 2026-11-19.
  *
@@ -98,6 +99,8 @@ public final class LocalDownloadManager {
 
     // song and playlist requests share one result for each active media download.
     private static final ConcurrentHashMap<String, FutureTask<Saved>> ACTIVE_DOWNLOADS = new ConcurrentHashMap<>();
+    private static volatile long streamEpoch;
+    private static final ThreadLocal<Long> singleStreamEpoch = new ThreadLocal<>();
 
     private static volatile String currentTitle;
     private static volatile String currentArtist;
@@ -175,6 +178,11 @@ public final class LocalDownloadManager {
         return registry.hasOwnCopy(songId) ? songId : null;
     }
 
+    static void cancelStreamDownloads() {
+        streamEpoch++;
+        DownloadNetwork.wakeWaiters();
+    }
+
     /** Must be called from the main thread. Resolution and downloading happen in background. */
     public static void enqueue(String videoId) {
         DownloadMode mode = downloadMode();
@@ -191,23 +199,32 @@ public final class LocalDownloadManager {
         }
         String title = videoId.equals(VideoInformation.getVideoId()) ? currentTitle : videoId;
         DownloadKeepAlive.Hold hold = DownloadKeepAlive.acquire(videoId, title);
+        long requestedEpoch = streamEpoch;
         Utils.submitOnBackgroundThread(() -> {
             try (hold) {
+                if (mode.streamCopy()) {
+                    singleStreamEpoch.set(requestedEpoch);
+                    if (requestedEpoch != streamEpoch) return null;
+                }
                 if (mode.localFiles()) NativeDownloads.migrateLegacy();
-                // A music video saved before as its song names that song: there is nothing left to save.
-                String known = mode.streamCopy() ? RawAudioStore.aliases().get(videoId) : null;
-                if (known != null || plan(videoId, mode) == DownloadMode.Work.SKIP) {
-                    if (mode.streamCopy()) RawAudioStore.markIndividual(known != null ? known : videoId);
+                String known = mode.streamCopy() ? RawAudioStore.aliases().getOrDefault(videoId, videoId) : videoId;
+                boolean alreadySaved = mode.streamCopy() ? keepIndividual(known, requestedEpoch)
+                        : plan(known, mode) == DownloadMode.Work.SKIP;
+                if (alreadySaved) {
                     Utils.showToastShort(str(mode.localFiles()
                             ? "morphe_music_downloads_already_saved" : "morphe_music_downloads_stream_already_saved"));
                     return null;
                 }
                 Utils.showToastShort(str("morphe_music_downloads_started"));
                 if (mode.streamCopy()) {
-                    new DownloadNetwork(false, hold::timedOut, hold).transfer(() -> {
-                        downloadSingle(videoId, mode, quality, hold);
-                        return null;
-                    });
+                    boolean canRepair = !OfflineCopyStore.has(known) && RawAudioStore.find(known) != null;
+                    new DownloadNetwork(false, () -> hold.timedOut() || requestedEpoch != streamEpoch, hold)
+                            .transfer(() -> {
+                                if (!canRepair || !repairSingle(known, requestedEpoch)) {
+                                    downloadSingle(videoId, mode, quality, hold);
+                                }
+                                return null;
+                            });
                 } else if (!downloadSingle(videoId, mode, quality, hold).downloaded()) {
                     Utils.showToastShort(str("morphe_music_downloads_already_saved"));
                     return null;
@@ -216,14 +233,29 @@ public final class LocalDownloadManager {
                         ? "morphe_music_downloads_complete" : "morphe_music_downloads_stream_complete"));
                 if (mode.localFiles()) NativePlaylistStore.refreshUnsortedLater(); // list the new single.
             } catch (Exception ex) {
+                if (mode.streamCopy() && requestedEpoch != streamEpoch) return null;
                 Logger.printException(() -> "Local audio download failed: " + videoId, ex);
                 awaitNotificationSlot();
                 showDownloadNotification(videoId, hold.title(), 0, false,
                         str("morphe_music_downloads_failed_reason", PlaylistText.failureReason(ex)));
                 Utils.showToastShort(str("morphe_music_downloads_failed_reason", PlaylistText.failureReason(ex)));
+            } finally {
+                singleStreamEpoch.remove();
             }
             return null;
         });
+    }
+
+    private static boolean repairSingle(String id, long epoch) throws IOException {
+        OfflineBackfill.fetchAndStore(id, true);
+        return keepIndividual(id, epoch);
+    }
+
+    private static boolean keepIndividual(String id, long epoch) throws IOException {
+        synchronized (PlaylistSync.MUTATION) {
+            if (epoch != streamEpoch) throw new IOException("Stream download was canceled");
+            return streamCopyExists(id) && RawAudioStore.markIndividual(id);
+        }
     }
 
     /**
@@ -272,8 +304,6 @@ public final class LocalDownloadManager {
             saved = download(savedId, mode, quality, Request.SONG_OF_VIDEO, hold, null);
             RawAudioStore.addAlias(savedId, videoId);
         }
-        // A copy that was there already (kept by a playlist before) is now also one the user asked for.
-        if (mode.streamCopy() && !saved.downloaded()) RawAudioStore.markIndividual(savedId);
         if (mode.streamCopy()) app.morphe.extension.music.patches.flyout.SongMenus.remember(savedId);
         return saved;
     }
@@ -285,7 +315,7 @@ public final class LocalDownloadManager {
 
     private static boolean streamCopyExists(String videoId) {
         try {
-            return RawAudioStore.find(videoId) != null;
+            return OfflineCopyStore.metadataOf(videoId) != null && RawAudioStore.find(videoId) != null;
         } catch (Exception ex) {
             Logger.printDebug(() -> "Could not check the stream copy: " + videoId, ex);
             return false;
@@ -312,7 +342,7 @@ public final class LocalDownloadManager {
         String artist = playing ? currentArtist : null;
 
         while (true) {
-            if (plan(videoId, mode) == DownloadMode.Work.SKIP) return saved(videoId, mode, false);
+            if (workFor(videoId, mode, request) == DownloadMode.Work.SKIP) return saved(videoId, mode, false);
 
             FutureTask<Saved> task = new FutureTask<>(
                     () -> downloadBlocking(videoId, mode, quality, request, title, artist, hold, albumTracks));
@@ -339,6 +369,13 @@ public final class LocalDownloadManager {
         }
     }
 
+    private static DownloadMode.Work workFor(String id, DownloadMode mode, Request request) throws IOException {
+        if (mode.streamCopy() && request.individual()) {
+            return keepIndividual(id, singleStreamEpoch.get()) ? DownloadMode.Work.SKIP : DownloadMode.Work.STREAM_COPY;
+        }
+        return plan(id, mode);
+    }
+
     private static Saved saved(String videoId, DownloadMode mode, boolean downloaded) throws IOException {
         if (!mode.localFiles()) return new Saved(null, downloaded, null);
 
@@ -355,13 +392,15 @@ public final class LocalDownloadManager {
             throws Exception {
         NativeAudioStore.Destination destination = null;
         File temporary = null;
-        BooleanSupplier stopped = hold == null ? PlaylistDownloads.stopSignal() : hold::timedOut;
+        Long epoch = singleStreamEpoch.get();
+        BooleanSupplier stopped = hold == null ? PlaylistDownloads.stopSignal()
+                : () -> hold.timedOut() || (epoch != null && epoch.longValue() != streamEpoch);
         // Device-file batches report only at list level, including on older Music versions without keep-alive.
         boolean report = (hold != null || !mode.localFiles() && !DownloadKeepAlive.supported())
                 && !PlaylistDownloads.quietTransfer();
         try {
             // A competing request may have finished the track between the lookup and single-flight ownership.
-            DownloadMode.Work work = plan(videoId, mode);
+            DownloadMode.Work work = workFor(videoId, mode, request);
             if (work == DownloadMode.Work.SKIP) return saved(videoId, mode, false);
 
             checkStopped(stopped);
@@ -416,17 +455,21 @@ public final class LocalDownloadManager {
                 publishedMimeType = destination.mimeType();
                 destination = null;
             } else if (work.keepsStreamCopy()) {
-                File completed = temporary;
                 Format savedFormat = format;
                 ResolvedStream selected = resolved;
-                PlaylistDownloads.publishMedia(() -> {
-                    checkStopped(stopped);
-                    if (!RawAudioStore.retain(videoId, completed, savedFormat, request.individual())) {
-                        throw new IOException("Could not keep the stream copy");
-                    }
-                    OfflineCopyStore.storeDownloaded(videoId, savedFormat, selected.details(), tags);
-                    return true;
-                });
+                RawAudioFiles.Prepared copy = RawAudioStore.prepare(videoId, temporary, format, request.individual());
+                if (copy == null) throw new IOException("Could not prepare the stream copy");
+
+                synchronized (PlaylistSync.MUTATION) {
+                    PlaylistDownloads.publishMedia(() -> {
+                        checkStopped(stopped);
+                        if (!RawAudioStore.retain(copy)) {
+                            throw new IOException("Could not keep the stream copy");
+                        }
+                        OfflineCopyStore.storeDownloaded(videoId, savedFormat, selected.details(), tags);
+                        return true;
+                    });
+                }
             }
             if (hold != null) {
                 if (!hold.finish()) throw new IOException("Download stopped");

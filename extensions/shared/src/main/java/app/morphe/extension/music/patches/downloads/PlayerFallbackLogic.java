@@ -1,6 +1,8 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-27
+ * Modified by lavinhoque33, 2026-11-26.
  * Modified by lavinhoque33, 2026-11-14.
  * Written by lavinhoque33, 2026-11-14.
  */
@@ -9,6 +11,7 @@ package app.morphe.extension.music.patches.downloads;
 import android.view.KeyEvent;
 
 import java.util.List;
+import java.util.concurrent.CancellationException;
 import java.util.function.Predicate;
 
 /** Per-request routing, with no session-wide offline latch and no unbounded native Next loop. */
@@ -19,6 +22,8 @@ final class PlayerFallbackLogic {
     private static final Decision NETWORK = new Decision(Route.NETWORK, -1);
     private static final Decision LOCAL = new Decision(Route.LOCAL, -1);
     private static final Decision UNAVAILABLE = new Decision(Route.UNAVAILABLE, -1);
+    /** Cronet's error for a request that never got an answer; the class is Music's own, so it is read by name. */
+    private static final String CRONET_NETWORK_EXCEPTION = "org.chromium.net.NetworkException";
 
     private PlayerFallbackLogic() { }
 
@@ -46,6 +51,29 @@ final class PlayerFallbackLogic {
 
     static boolean isExplicitPlayKey(int action, int repeat, int keyCode) {
         return action == KeyEvent.ACTION_DOWN && repeat == 0 && keyCode == KeyEvent.KEYCODE_MEDIA_PLAY;
+    }
+
+    /**
+     * Whether the failure, or one of its causes, is a Cronet network error: no DNS answer, a refused or reset
+     * connection, a timeout. Like a socket failure, it says the way to YouTube is broken, not what YouTube answered.
+     */
+    static boolean isCronetNetworkFailure(Throwable failure, boolean threadInterrupted) {
+        if (threadInterrupted) return false;
+
+        boolean network = false;
+        for (int depth = 0; failure != null && depth < 16; depth++, failure = failure.getCause()) {
+            if (failure instanceof InterruptedException || failure instanceof CancellationException) return false;
+
+            network |= isCronetNetworkException(failure.getClass());
+        }
+        return network;
+    }
+
+    private static boolean isCronetNetworkException(Class<?> type) {
+        for (; type != null; type = type.getSuperclass()) {
+            if (CRONET_NETWORK_EXCEPTION.equals(type.getName())) return true;
+        }
+        return false;
     }
 
     /** Debug-only inventory includes cached occurrences outside the bounded scan, including duplicate video IDs. */

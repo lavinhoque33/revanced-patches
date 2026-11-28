@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-26.
  * Written by lavinhoque33, 2026-11-09.
  */
 package app.morphe.extension.music.patches.downloads;
@@ -14,7 +15,7 @@ final class PillAvailabilityLogic {
     private PillAvailabilityLogic() {}
 
     /**
-     * The video that has a video copy: the one being played, else the one the last player response was for.
+     * The playing ID, or the initial response ID before a track starts, if it has a video copy.
      *
      * @param playing  The id of the video being played, empty when none.
      * @param response The id of the last player response, empty when none.
@@ -23,9 +24,9 @@ final class PillAvailabilityLogic {
      */
     @Nullable
     static String videoWithCopy(@Nullable String playing, @Nullable String response, Predicate<String> hasCopy) {
-        if (namesCopy(playing, hasCopy)) return playing;
+        if (playing != null && !playing.isEmpty()) return hasCopy.test(playing) ? playing : null;
 
-        return namesCopy(response, hasCopy) ? response : null;
+        return response != null && !response.isEmpty() && hasCopy.test(response) ? response : null;
     }
 
     /**
@@ -36,7 +37,24 @@ final class PillAvailabilityLogic {
         return appsAnswer || videoHasCopy;
     }
 
-    private static boolean namesCopy(@Nullable String videoId, Predicate<String> hasCopy) {
-        return videoId != null && !videoId.isEmpty() && hasCopy.test(videoId);
+    /**
+     * The pill's look. A video copy keeps it lit. An online-video hybrid clip (saved audio beside an online video)
+     * is lit while online; offline its video cannot come, so it is not offered: the pill is dim unless the clip
+     * shows the video already, where the app's look stands so the press back to Song still works.
+     */
+    static boolean look(boolean appsAnswer, boolean videoHasCopy, boolean hybrid, boolean online,
+                        boolean videoMode) {
+        if (videoHasCopy) return true;
+        if (!hybrid) return appsAnswer;
+
+        return online || videoMode && appsAnswer;
+    }
+
+    /**
+     * Whether the app's own switch flips an online-video hybrid clip in place: online in both directions, offline
+     * only back to Song, the saved audio.
+     */
+    static boolean hybridSwitches(boolean online, boolean videoMode) {
+        return online || videoMode;
     }
 }

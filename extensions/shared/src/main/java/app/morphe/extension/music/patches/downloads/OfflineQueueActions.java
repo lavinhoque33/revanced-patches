@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-27.
  * Written by lavinhoque33, 2026-11-26.
  */
 package app.morphe.extension.music.patches.downloads;
@@ -13,7 +14,6 @@ import com.google.protobuf.MessageLite;
 import java.io.IOException;
 import java.lang.ref.WeakReference;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CancellationException;
@@ -22,6 +22,8 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import app.morphe.extension.music.patches.downloads.NativeDownloads.Command;
+import app.morphe.extension.music.patches.jam.JamUI;
+import app.morphe.extension.music.settings.Settings;
 import app.morphe.extension.shared.innertube.PlayerResponseOuterClass.PlayerResponse;
 import app.morphe.extension.shared.utils.Logger;
 import app.morphe.extension.shared.utils.Utils;
@@ -62,23 +64,81 @@ public final class OfflineQueueActions {
         ListenableFuture<?> rvxStockQueueLookup(Object command, Executor executor);
     }
 
+    /**
+     * The same native lookup without a reply token, observer or live queue-context write. The patch adds this
+     * interface only where that clone was resolved.
+     */
+    public interface IsolatedLookup {
+        ListenableFuture<?> rvxIsolatedQueueLookup(Object command, Executor executor);
+        List<?> rvxIsolatedQueueRows(Object result);
+    }
+
+    /** Live conditions that keep a connected Add to queue off the isolated lookup. */
+    interface AddConditions {
+        boolean reachable();
+        boolean jamOwnsQueue();
+    }
+
     private record PlayerCommand(int connectivity) {}
 
+    public interface NoticeSource {
+        void rvxQueueNotice(Object endpoint);
+    }
+
+    static final class Notice {
+        private final WeakReference<NoticeSource> source;
+        @Nullable private Object endpoint;
+
+        Notice(NoticeSource source, Object endpoint) {
+            this.source = new WeakReference<>(source);
+            this.endpoint = endpoint;
+        }
+
+        synchronized void deliver() {
+            Object value = endpoint;
+            endpoint = null;
+            NoticeSource dispatcher = source.get();
+            if (value != null && dispatcher != null) {
+                Utils.runOnMainThreadNowOrLater(() -> dispatcher.rvxQueueNotice(value));
+            }
+        }
+    }
+
     private record Ticket(Owner owner, Queue queue, OfflineQueueCommand command, @Nullable Object tag,
-                          int connectivity) {}
+                          int connectivity, Notice notice) {}
+
+    /**
+     * A connected single-song Add to queue admitted to the isolated lookup. Never a Ticket: nothing is offline.
+     * {@code tailEpoch} is the tail placement's offline-edge count when the Add was prepared.
+     */
+    private record IsolatedAdd(Owner owner, Queue queue, String videoId, int tailEpoch) {}
 
     record Insertion(WeakReference<Queue> queue, WeakReference<Owner> owner, int connectivity,
-                     @Nullable WeakReference<Object> playerOccurrence) {}
+                     @Nullable WeakReference<Object> playerOccurrence, @Nullable Notice notice) {}
 
-    /** Selected occurrence and an ordered snapshot of actual native rows, never a second mutable queue. */
+    /** Selected occurrence in the native queue. */
     record Selection(Queue queue, Object occurrence, int index, int connectivity) {}
 
-    record Continuation(Selection selected, List<?> rows, int cursor, Object playbackSelection, Object request,
-                        int connectivity) {}
+    record Continuation(Selection selected, Object playbackSelection, Object request, int tailFrom,
+                        @Nullable OfflinePlaybackArtwork.Retained artwork) {}
+
+    public interface TailQueue {
+        void rvxAppendReplayRows(List<?> rows);
+    }
 
     private static final String TAG = "com.google.android.libraries.youtube.innertube.endpoint.tag";
     private static final int MENU_WRAPPER = 20;
     private static final int MENU_RENDERER = 66_439_850;
+    private static final int INSERT_AT_END = 2;
+    private static final AddConditions LIVE_CONDITIONS = new AddConditions() {
+        @Override public boolean reachable() {
+            return PlaybackConnectivity.reachable();
+        }
+
+        @Override public boolean jamOwnsQueue() {
+            return Settings.JAM_ENABLED.get() && JamUI.ownsQueue();
+        }
+    };
     private static final AtomicInteger connectivity = new AtomicInteger();
 
     private OfflineQueueActions() {}
@@ -110,7 +170,7 @@ public final class OfflineQueueActions {
 
     private static boolean offline() {
         return supported() && OfflineReplay.enabled() && LocalDownloadManager.downloadMode().streamCopy()
-                && !Utils.isInternetReachable();
+                && !PlaybackConnectivity.reachable();
     }
 
     private static boolean mayHold(String videoId) {
@@ -158,24 +218,36 @@ public final class OfflineQueueActions {
         return playerCommand(original) == null ? original : null;
     }
 
-    /** Called only inside the resolver's non-Cast, nonempty branch; its native fast path is still next. */
+    /** Called in the populated non-Cast arm; defer its notice until insertion commits. */
     @Nullable
-    public static Object prepare(Object manager, Object original, @Nullable Map<?, ?> context) {
+    public static Object prepare(Object manager, Object original, @Nullable Map<?, ?> context,
+                                 NoticeSource notifier, Object endpoint) {
+        return prepare(manager, original, context, notifier, endpoint, LIVE_CONDITIONS);
+    }
+
+    @Nullable
+    static Object prepare(Object manager, Object original, @Nullable Map<?, ?> context,
+                          NoticeSource notifier, Object endpoint, AddConditions live) {
         PlayerCommand player = playerCommand(original);
-        if (!(manager instanceof Owner owner) || !(original instanceof Command command) || !offline()) {
+        if (!(manager instanceof Owner owner) || !(original instanceof Command command)) {
             return player == null ? original : null;
         }
+        if (!offline()) return player == null ? scopeConnectedAdd(owner, command, live) : null;
         Object tag = context == null ? null : context.get(TAG);
 
         try {
             byte[] bytes = command.toByteArray();
             OfflineQueueCommand target = OfflineQueueCommand.parse(bytes);
-            if (target == null) return player == null ? original : null;
+            if (target == null) {
+                PlayerFallback.unavailable();
+                return null;
+            }
             if (target.playerOnly() != (player != null)) return target.playerOnly() ? null : original;
 
             // The exact populated non-Cast resolver arm owns this manager, independently of navigation.
-            if (!mayHold(target.videoId()) || !(owner.rvxOfflineQueue() instanceof Queue queue)
-                    || !populated(queue)) return player == null ? original : null;
+            if (!(owner.rvxOfflineQueue() instanceof Queue queue) || !populated(queue)) {
+                return player == null ? original : null;
+            }
             int generation = connectivity.get();
             if (player != null && (player.connectivity() != generation || !currentOccurrence(queue, tag)
                     || !target.videoId().equals(queue.rvxOfflineVideoId(tag)))) {
@@ -185,7 +257,8 @@ public final class OfflineQueueActions {
             // A dedicated Root carries this invocation's ticket. The original can be shared by menus and threads.
             Object copy = command.rvxWithBytes(bytes);
             if (copy != original && copy instanceof Carrier carrier) {
-                carrier.rvxQueueTicket(new Ticket(owner, queue, target, tag, generation));
+                carrier.rvxQueueTicket(new Ticket(owner, queue, target, tag, generation,
+                        new Notice(notifier, endpoint)));
                 return copy;
             }
         } catch (Exception | LinkageError failure) {
@@ -195,20 +268,72 @@ public final class OfflineQueueActions {
         return player == null ? original : null;
     }
 
+    /**
+     * Only the resolver's populated non-Cast arm calls this, so a Cast queue never reaches it. A user Add to queue
+     * of one song, on a local queue without Jam, gets a copy of its command that carries the isolated route.
+     */
+    private static Object scopeConnectedAdd(Owner owner, Command command, AddConditions live) {
+        OfflineQueueCommand target = null;
+        String reason;
+        try {
+            byte[] bytes = command.toByteArray();
+            target = OfflineQueueCommand.parse(bytes);
+            Queue queue = owner.rvxOfflineQueue() instanceof Queue local ? local : null;
+            reason = stockReason(target, queue, live);
+            if (reason == null) {
+                // A dedicated Root carries this invocation's route. The original can be shared by menus and threads.
+                Object copy = command.rvxWithBytes(bytes);
+                if (copy != command && copy instanceof Carrier carrier) {
+                    carrier.rvxQueueTicket(new IsolatedAdd(owner, queue, target.videoId(),
+                            QueueAddTail.connectivityEpoch()));
+                    return copy;
+                }
+                reason = "the command cannot carry the isolated route";
+            }
+        } catch (Exception | LinkageError failure) {
+            reason = "could not scope enqueue (" + failure.getClass().getSimpleName() + ")";
+        }
+
+        logStockRequest(target == null ? "?" : target.videoId(), reason);
+        return command;
+    }
+
+    /** Why an Add to queue keeps the stock request and its reply token; null when the isolated lookup may serve it. */
+    @Nullable
+    static String stockReason(@Nullable OfflineQueueCommand target, @Nullable Queue queue, AddConditions live) {
+        if (target == null) return "not a single song (playlist, album, several videos or unknown command)";
+        if (target.playerOnly()) return "offline player action";
+        if (target.position() != INSERT_AT_END) return "wire mode " + target.position() + " is not Add to queue";
+        if (queue == null || !populated(queue)) return "no populated local queue";
+        if (!live.reachable()) return "no internet";
+        return live.jamOwnsQueue() ? "Jam owns the queue" : null;
+    }
+
+    private static void logStockRequest(String videoId, String reason) {
+        Logger.printDebug(() -> "QueueAdd: stock request v=" + videoId + " (" + reason + ")");
+    }
+
     /** Jam may wrap the stock enqueue; a ticket can only come from the resolver's local branch. */
     public static boolean localTicket(Object manager, Object command) {
         return playerCommand(command) != null || (command instanceof Carrier carrier
-                && carrier.rvxQueueTicket() instanceof Ticket ticket && ticket.owner() == manager
-                && (ticket.command().playerOnly() || offline()));
+                && carrier.rvxQueueTicket() instanceof Ticket ticket && ticket.owner() == manager);
     }
 
     /** Replaces the sole lookup call inside stock enqueue; callback and insertion still belong to Music. */
     public static ListenableFuture<?> lookup(Object manager, Lookup client, Object command, Executor executor) {
+        return lookup(manager, client, command, executor, LIVE_CONDITIONS);
+    }
+
+    static ListenableFuture<?> lookup(Object manager, Lookup client, Object command, Executor executor,
+                                      AddConditions live) {
         if (playerCommand(command) != null) {
             // The click was admitted, but stock took an arm other than the populated local queue.
             ReplayFuture declined = new ReplayFuture();
             declined.cancel(false);
             return declined;
+        }
+        if (command instanceof Carrier routed && routed.rvxQueueTicket() instanceof IsolatedAdd add) {
+            return isolatedLookup(manager, client, command, executor, add, live);
         }
         if (!(command instanceof Carrier carrier) || !(carrier.rvxQueueTicket() instanceof Ticket ticket)
                 || ticket.owner() != manager) {
@@ -223,9 +348,10 @@ public final class OfflineQueueActions {
                     reply.cancel(false);
                     return;
                 }
-                OfflineWatchNext.Item stored = currentOffline(ticket) ? storedRow(ticket.command().videoId()) : null;
-                if (stored == null || !currentOffline(ticket)) {
-                    finishDeclined(ticket, reply, client, command, executor);
+                OfflineWatchNext.Item stored = storedRow(ticket.command().videoId());
+                if (stored == null) {
+                    if (stillOwns(ticket)) PlayerFallback.unavailable();
+                    reply.cancel(false);
                     return;
                 }
                 byte[] watch = watchFor(ticket.command(), stored);
@@ -235,16 +361,14 @@ public final class OfflineQueueActions {
                 Object result = client.rvxOfflineResult(List.of(item));
                 if (!stillOwns(ticket)) {
                     reply.cancel(false);
-                } else if (!currentOffline(ticket)) {
-                    finishDeclined(ticket, reply, client, command, executor);
-                } else {
-                    WeakReference<Object> occurrence = ticket.command().playerOnly()
-                            ? new WeakReference<>(ticket.tag()) : null;
-                    row.rvxOfflineInsertion(new Insertion(
-                            new WeakReference<>(ticket.queue()), new WeakReference<>(ticket.owner()),
-                            ticket.connectivity(), occurrence));
-                    reply.set(result);
+                    return;
                 }
+
+                WeakReference<Object> occurrence = ticket.command().playerOnly()
+                        ? new WeakReference<>(ticket.tag()) : null;
+                row.rvxOfflineInsertion(new Insertion(new WeakReference<>(ticket.queue()),
+                        new WeakReference<>(ticket.owner()), ticket.connectivity(), occurrence, ticket.notice()));
+                reply.set(result);
             } catch (Exception | LinkageError failure) {
                 reply.setException(failure);
                 Logger.printDebug(() -> "OfflineQueueActions: local native reply failed (" +
@@ -254,14 +378,55 @@ public final class OfflineQueueActions {
         return reply;
     }
 
+    /**
+     * Sends the same request without the reply token and returns its mapped native result, so Music inserts the row
+     * itself. The shared queue context is neither read for the request nor written by the reply.
+     */
+    private static ListenableFuture<?> isolatedLookup(Object manager, Lookup client, Object command,
+                                                      Executor executor, IsolatedAdd add, AddConditions live) {
+        String reason = isolatedBlocker(manager, client, add, live);
+        if (reason != null) {
+            logStockRequest(add.videoId(), reason);
+            return client.rvxStockQueueLookup(command, executor);
+        }
+
+        IsolatedLookup isolated = (IsolatedLookup) client;
+        ListenableFuture<?> future = isolated.rvxIsolatedQueueLookup(command, executor);
+        future.addListener(() -> recordIsolatedRows(add, isolated, future), Runnable::run);
+        return future;
+    }
+
+    /** The route was admitted in the resolver; it must still hold when the enqueue reaches its lookup. */
+    @Nullable
+    private static String isolatedBlocker(Object manager, Lookup client, IsolatedAdd add, AddConditions live) {
+        if (!(client instanceof IsolatedLookup)) return "the native lookup could not be isolated";
+        if (add.owner() != manager || manager instanceof Owner owner && owner.rvxOfflineQueue() != add.queue()) {
+            return "the local queue was replaced before the request";
+        }
+        if (!live.reachable()) return "no internet";
+        return live.jamOwnsQueue() ? "Jam owns the queue" : null;
+    }
+
+    /** Logs the mapped rows and hands them to the tail placement, before Music's own callback inserts them. */
+    private static void recordIsolatedRows(IsolatedAdd add, IsolatedLookup client, ListenableFuture<?> future) {
+        String videoId = add.videoId();
+        try {
+            List<?> rows = client.rvxIsolatedQueueRows(future.get());
+            QueueAddTail.pending(add.queue(), rows, add.tailEpoch());
+            Logger.printDebug(() -> "QueueAdd: isolated lookup v=" + videoId + " rows=" + rows.size());
+        } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
+        } catch (ExecutionException | CancellationException failure) {
+            Logger.printDebug(() -> "QueueAdd: isolated lookup v=" + videoId + " ended: " + failure);
+        } catch (Exception | LinkageError failure) {
+            Logger.printDebug(() -> "QueueAdd: isolated lookup v=" + videoId + " rows unknown: " + failure);
+        }
+    }
+
     private static boolean stillOwns(Ticket ticket) {
         Queue queue = ticket.queue();
         return ticket.owner().rvxOfflineQueue() == queue && (ticket.command().playerOnly()
                 ? currentOccurrence(queue, ticket.tag()) : populated(queue));
-    }
-
-    private static boolean currentOffline(Ticket ticket) {
-        return connectivity.get() == ticket.connectivity() && offline();
     }
 
     /** The native completion executor may run after the target queue has already been replaced. */
@@ -270,8 +435,7 @@ public final class OfflineQueueActions {
                 || !(row.rvxOfflineInsertion() instanceof Insertion insertion)) return true;
 
         Queue live = insertion.queue().get();
-        if (live == null || !offline() || insertion.connectivity() != connectivity.get()
-                || !(manager instanceof Owner owner) || owner.rvxOfflineQueue() != live) return false;
+        if (live == null || !(manager instanceof Owner owner) || owner.rvxOfflineQueue() != live) return false;
 
         WeakReference<Object> occurrence = insertion.playerOccurrence();
         boolean allowed = occurrence == null ? populated(live) : currentOccurrence(live, occurrence.get());
@@ -279,29 +443,40 @@ public final class OfflineQueueActions {
         return allowed;
     }
 
-    private static void finishDeclined(Ticket ticket, ReplayFuture reply, Lookup client, Object command,
-                                       Executor executor) {
-        if (ticket.command().playerOnly() || (ticket.connectivity() != connectivity.get() && offline())) {
-            reply.cancel(false);
-        } else {
-            forwardStock(reply, client.rvxStockQueueLookup(command, executor));
+    public static void noticeIfUnscoped(NoticeSource source, Object endpoint, Object command) {
+        if (!(command instanceof Carrier carrier) || !(carrier.rvxQueueTicket() instanceof Ticket)) {
+            source.rvxQueueNotice(endpoint);
         }
     }
 
-    private static void forwardStock(ReplayFuture reply, ListenableFuture<?> stock) {
-        stock.addListener(() -> {
-            if (reply.isDone()) return;
-            try {
-                reply.set(stock.get());
-            } catch (CancellationException cancelled) {
-                reply.cancel(false);
-            } catch (ExecutionException failed) {
-                reply.setException(failed.getCause());
-            } catch (InterruptedException interrupted) {
-                Thread.currentThread().interrupt();
-                reply.setException(interrupted);
-            }
-        }, Runnable::run);
+    public static void fastInsertionCommitted(Object command) {
+        if (command instanceof Carrier carrier && carrier.rvxQueueTicket() instanceof Ticket ticket) {
+            ticket.notice().deliver();
+        }
+    }
+
+    public static void insertionCommitted(@Nullable List<?> items) {
+        if (items == null || items.size() != 1 || !(items.get(0) instanceof Row row)
+                || !(row.rvxOfflineInsertion() instanceof Insertion insertion) || insertion.notice() == null) return;
+
+        Owner owner = insertion.owner().get();
+        Queue queue = insertion.queue().get();
+        if (owner == null || queue == null || owner.rvxOfflineQueue() != queue) return;
+        boolean inserted;
+        synchronized (queue) {
+            inserted = nativeOccurrenceIndex(queue, row, -1) >= 0;
+        }
+        if (inserted) insertion.notice().deliver();
+    }
+
+    /** Called inside the stock primary queue monitor after validating the exact replay continuation. */
+    public static void appendReplayTail(Object queue, Object token, List<?> parsedRows) {
+        if (!(queue instanceof TailQueue target) || !(token instanceof Continuation replay)
+                || replay.tailFrom() < 0 || parsedRows.size() <= 1
+                || !PlayerFallback.markTailInstalled(queue, replay.tailFrom())) return;
+
+        target.rvxAppendReplayRows(parsedRows.subList(1, parsedRows.size()));
+        Logger.printDebug(() -> "OfflineReplay: appended " + (parsedRows.size() - 1) + " saved tail rows");
     }
 
     @Nullable
@@ -333,7 +508,7 @@ public final class OfflineQueueActions {
         if (raw == null || raw.tiedToNativeTrack()) return null;
 
         PlayerResponse player = PlayerResponse.parseFrom(saved.response());
-        return StreamSwapLogic.savedAudio(id, raw, player, player) == null ? null
+        return StreamSwapLogic.savedAudio(id, id, raw, player, player) == null ? null
                 : localArtwork(saved.metadata(), id, CommandRewrite.TYPE_ATV);
     }
 
@@ -408,21 +583,13 @@ public final class OfflineQueueActions {
 
     @Nullable
     static Selection select(Object owner, Object row, int index) {
-        if (!offline() || !(owner instanceof Owner access) || !(access.rvxOfflineQueue() instanceof Queue queue)) {
+        if (!supported() || !(owner instanceof Owner access) || !(access.rvxOfflineQueue() instanceof Queue queue)) {
             return null;
         }
         synchronized (queue) {
             int cursor = nativeOccurrenceIndex(queue, row, index);
-            if (cursor < 0) return null;
-            int size = queue.rvxOfflineSize();
-            for (int i = 0; i < size; i++) {
-                if (queue.rvxOfflineItem(i) instanceof Row inserted
-                        && inserted.rvxOfflineInsertion() instanceof Insertion edit && edit.queue().get() == queue) {
-                    return new Selection(queue, row, cursor, connectivity.get());
-                }
-            }
+            return cursor < 0 ? null : new Selection(queue, row, cursor, connectivity.get());
         }
-        return null;
     }
 
     /** Caller holds the native monitor. An unindexed presenter may find only its own bound occurrence. */
@@ -458,8 +625,12 @@ public final class OfflineQueueActions {
         return -1;
     }
 
-    /** Only the native current-row publisher treats a live offline insertion as a distinct occurrence. */
+    /**
+     * Only the native current-row publisher treats a live offline insertion as a distinct occurrence. The same
+     * publisher tells the tail placement which added occurrence started playing.
+     */
     public static boolean samePublishedOccurrence(Object model, @Nullable Object previous, @Nullable Object current) {
+        QueueAddTail.published(model, current);
         boolean distinguish = distinctEditedOccurrences(model, previous, current, connectivity.get()) && offline();
         return samePublishedOccurrence(previous, current, distinguish);
     }
@@ -487,35 +658,27 @@ public final class OfflineQueueActions {
 
     static boolean ownsLiveOccurrence(Object owner, Selection selected) {
         Queue queue = selected.queue();
-        if (!(owner instanceof Owner access) || selected.connectivity() != connectivity.get()
-                || access.rvxOfflineQueue() != queue) return false;
+        if (!(owner instanceof Owner access) || access.rvxOfflineQueue() != queue) return false;
         synchronized (queue) {
             return nativeOccurrenceIndex(queue, selected.occurrence(), selected.index()) >= 0;
         }
     }
 
-    @Nullable
-    static Continuation continuation(Selection selected, Object playbackSelection, Object request) {
-        if (!offline() || selected.connectivity() != connectivity.get()) return null;
-        Queue queue = selected.queue();
-        synchronized (queue) {
-            int cursor = selected.index();
-            int count = queue.rvxOfflineSize();
-            if (cursor < 0 || cursor >= count || queue.rvxOfflineItem(cursor) != selected.occurrence()) return null;
-            List<Object> rows = new ArrayList<>(count);
-            for (int index = 0; index < count; index++) rows.add(queue.rvxOfflineItem(index));
-            return new Continuation(selected, rows, cursor, playbackSelection, request, selected.connectivity());
-        }
+    static boolean currentReplayOccurrence(Queue queue, Object occurrence) {
+        int cursor = queue.rvxOfflineCursor();
+        return cursor >= 0 && cursor < queue.rvxOfflineSize() && queue.rvxOfflineItem(cursor) == occurrence;
     }
 
     /** Called under the native model's monitor by the R9 metadata-only splice. */
     static boolean retains(Object queue, Continuation reply) {
         Queue live = reply.selected().queue();
-        if (live != queue || live != PlayerFallback.localQueue() || !offline()
-                || reply.connectivity() != connectivity.get()
+        if (live != queue || live != PlayerFallback.localQueue()
                 || !PlayerFallback.ownsQueueContinuation(reply.playbackSelection(), reply.request())) return false;
-        boolean same = sameRows(live, reply.rows(), reply.cursor());
-        if (same) Logger.printDebug(() -> "OfflineQueueActions: retained edited native queue on selection");
+        boolean same = currentReplayOccurrence(live, reply.selected().occurrence());
+        if (same) Logger.printDebug(() -> "OfflineQueueActions: retained exact native queue occurrence");
+        if (same) {
+            if (reply.artwork() != null) reply.artwork().apply();
+        }
         return same;
     }
 

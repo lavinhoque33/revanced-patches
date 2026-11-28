@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-27.
  * Modified by lavinhoque33, 2026-11-26.
  * Written by lavinhoque33, 2026-11-08.
  * Modified by lavinhoque33, 2026-11-10
@@ -13,6 +14,7 @@ import com.google.protobuf.CodedInputStream;
 import com.google.protobuf.WireFormat;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.IntFunction;
@@ -65,6 +67,9 @@ final class DownloadsPageLogic {
     /** The texts of the shelf and rows; {@code songCount} formats a count of songs. */
     record Labels(String sources, String noPlaylist, String untitled, IntFunction<String> songCount) {}
 
+    /** The same rendered entries serve both surfaces; retained but unplayable entries do not open Library. */
+    record Sections(List<byte[]> items, boolean playable) {}
+
     private static final String TOKEN_PREFIX = "CONTENT_RELOAD_CONTINUATION_TOKEN_";
 
     private static final String SUBCHIP_SUFFIX = "_DOWNLOADED_SUBCHIP";
@@ -112,6 +117,28 @@ final class DownloadsPageLogic {
             case "ALBUMS" -> "SIDELOADED_LIBRARY_RELOAD_CONTINUATION_TOKEN_ALBUMS";
             default -> token;
         };
+    }
+
+    static boolean mergesStreamCopies(DownloadMethod method) {
+        return method == DownloadMethod.STREAM;
+    }
+
+    static boolean isLibraryToken(@Nullable String token) {
+        return token != null && (token.startsWith(TOKEN_PREFIX) || token.startsWith("SIDELOADED_LIBRARY_"));
+    }
+
+    static boolean isLibraryLanding(byte[] request) {
+        try {
+            byte[] id = NativeDownloads.fieldBytes(request, 2);
+            return id != null && LibraryRestoreLogic.isLanding(new String(id, StandardCharsets.UTF_8));
+        } catch (IOException ignored) {
+            return false;
+        }
+    }
+
+    static String browseId(String sourceId, @Nullable String verifiedAlbumPage) {
+        return isAlbum(sourceId) && OfflineBrowsePagesLogic.isAlbumPage(verifiedAlbumPage)
+                ? verifiedAlbumPage : "VL" + sourceId;
     }
 
     /** The continuation token of a page request (field 7 of its message), or null when it has none. */
@@ -162,30 +189,39 @@ final class DownloadsPageLogic {
      * a song that can play offline is left out while offline. {@code noPlaylist} is the row of the songs no
      * downloaded list holds, or null when there are none; it ends the playlists.
      */
-    static List<byte[]> sections(Layout layout, boolean online, List<SourceRow> sources,
-                                 @Nullable SourceRow noPlaylist, Labels labels, Taps taps, CoverOf covers,
-                                 Predicate<String> ownsStreamSource) {
+    static Sections sections(Layout layout, boolean online, List<SourceRow> sources,
+                             @Nullable SourceRow noPlaylist, Labels labels, Taps taps, CoverOf covers,
+                             Predicate<String> ownsStreamSource) {
         List<byte[]> items = new ArrayList<>();
         boolean all = layout == Layout.ALL;
         List<byte[]> sourceRows = new ArrayList<>();
+        boolean playable = false;
         for (SourceRow source : sources) {
-            if (listsSource(layout, source.sourceId()) && (online || source.availableCount() > 0)) {
-                String id = source.sourceId();
+            String id = source.sourceId();
+            if (!listsSource(layout, id)) continue;
+            boolean owned = ownsStreamSource.test(id);
+            if (online || source.availableCount() > 0 || owned) {
                 boolean playlist = OfflineBrowsePagesLogic.isPlaylistId(id);
-                byte[] row = sourceRow(source, labels, taps, covers, playlist, playlist && ownsStreamSource.test(id));
-                if (row != null) sourceRows.add(row);
+                byte[] row = sourceRow(source, labels, taps, covers, playlist, playlist && owned);
+                if (row != null) {
+                    sourceRows.add(row);
+                    playable |= source.availableCount() > 0;
+                }
             }
         }
         boolean listsNoPlaylist = layout == Layout.ALL || layout == Layout.PLAYLISTS;
         if (noPlaylist != null && listsNoPlaylist) {
             byte[] row = sourceRow(noPlaylist, labels, taps, covers, true, false);
-            if (row != null) sourceRows.add(row);
+            if (row != null) {
+                sourceRows.add(row);
+                playable |= noPlaylist.availableCount() > 0;
+            }
         }
         addShelf(items, all ? labels.sources() : null, sourceRows);
-        return items;
+        return new Sections(items, playable);
     }
 
-    private static boolean listsSource(Layout layout, String sourceId) {
+    static boolean listsSource(Layout layout, String sourceId) {
         return switch (layout) {
             case ALL -> true;
             case ALBUMS -> isAlbum(sourceId);

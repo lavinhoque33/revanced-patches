@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-26.
  * Modified by lavinhoque33, 2026-11-19.
  * Modified by lavinhoque33, 2026-11-18.
  * Modified by lavinhoque33, 2026-11-17.
@@ -81,15 +82,11 @@ final class VideoCopyDownloader {
                         + sourceId);
                 return Outcome.NONE;
             }
-            if (!pairing.hasOtherIds()) {
-                Logger.printInfo(() -> "VideoCopy: video pairing: list " + sourceId + " no counterparts in /next");
-                return Outcome.NONE;
-            }
             logDecisions(sourceId, pairing);
             Set<VideoPairingLogic.Pair> pairs = new java.util.LinkedHashSet<>();
             for (VideoPairingLogic.Pair pair : pairing.pairs()) {
                 String id = copyId.apply(pair.songId());
-                if (!id.equals(pair.videoId())) pairs.add(new VideoPairingLogic.Pair(id, pair.videoId()));
+                pairs.add(new VideoPairingLogic.Pair(id, pair.videoId()));
             }
             return download(sourceId, title, pairs, quality, network, hold);
         } catch (Exception ex) {
@@ -114,7 +111,6 @@ final class VideoCopyDownloader {
         for (VideoPairingLogic.Pair pair : pairing.pairs()) {
             if (!additions.contains(pair.songId())) continue;
             String id = copyId.apply(pair.songId());
-            if (id.equals(pair.videoId())) continue;
             VideoPairingLogic.Pair canonical = new VideoPairingLogic.Pair(id, pair.videoId());
             if (seen.add(canonical)) pairs.add(canonical);
         }
@@ -124,7 +120,21 @@ final class VideoCopyDownloader {
     }
 
     private static VideoPairingLogic.Result pairing(String sourceId, List<String> songIds) throws Exception {
-        return VideoPairingLogic.pair(songsOf(songIds), queueOf(sourceId, songIds.get(0), songIds.size()));
+        return VideoPairingLogic.pair(songsOf(songIds), queueOf(sourceId, songIds.get(0), songIds.size()),
+                VideoCopyDownloader::savedOfficialVideo);
+    }
+
+    /** The exact saved response can identify an official video when the playlist queue omits its type or row. */
+    private static boolean savedOfficialVideo(String id) {
+        byte[] response = OfflineCopyStore.response(id);
+        if (response == null) return false;
+
+        try {
+            var details = PlayerResponse.parseFrom(response).getVideoDetails();
+            return id.equals(details.getVideoId()) && details.getMusicVideoType() == CommandRewrite.TYPE_OMV;
+        } catch (IOException ex) {
+            return false;
+        }
     }
 
     private static List<VideoPairingLogic.Song> songsOf(List<String> songIds) {
@@ -183,8 +193,9 @@ final class VideoCopyDownloader {
             int position = index++;
             if (!audioCopies.contains(pair.songId())) continue;
 
-            VideoCopyFiles.Entry existing = VideoCopyStore.find(pair.videoId());
-            if (existing != null && existing.songId().equals(pair.songId())) {
+            VideoCopyStore.Playable existing = VideoCopyStore.playable(pair.videoId());
+            if (existing != null && (pair.videoId().equals(pair.songId())
+                    || existing.copy().songId().equals(pair.songId()))) {
                 present++;
                 continue;
             }

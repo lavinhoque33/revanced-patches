@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-26.
  * Written by lavinhoque33, 2026-11-07.
  * Modified by lavinhoque33, 2026-11-09.
  */
@@ -28,6 +29,8 @@ import app.morphe.extension.shared.utils.Utils;
  */
 @SuppressWarnings({"unused", "deprecation"})
 public class StreamDownloadsPreference extends Preference {
+    private final Runnable copyListener = this::refreshSummary;
+    private int summaryRevision;
 
     public StreamDownloadsPreference(Context context, AttributeSet attrs, int defStyleAttr, int defStyleRes) {
         super(context, attrs, defStyleAttr, defStyleRes);
@@ -55,14 +58,24 @@ public class StreamDownloadsPreference extends Preference {
         // The tap is the whole feature and the row is declared non-selectable, so this is what lets it through.
         setSelectable(true);
         refreshSummary();
+        StreamDownloads.addCopyListener(copyListener);
     }
 
-    /** The copies are counted off the main thread; the settings page reopens often enough to stay current. */
+    /** The copies are counted off the main thread. */
     private void refreshSummary() {
+        int revision = ++summaryRevision;
         Utils.runOnBackgroundThread(() -> {
             final String summary = summaryText(StreamDownloads.summary());
-            Utils.runOnMainThread(() -> setSummary(summary));
+            Utils.runOnMainThread(() -> {
+                if (revision == summaryRevision) setSummary(summary);
+            });
         });
+    }
+
+    @Override
+    protected void onPrepareForRemoval() {
+        StreamDownloads.removeCopyListener(copyListener);
+        super.onPrepareForRemoval();
     }
 
     @Override
@@ -100,10 +113,7 @@ public class StreamDownloadsPreference extends Preference {
     private void deleteAll() {
         Utils.runOnBackgroundThread(() -> {
             final int deleted = StreamDownloads.deleteAll();
-            Utils.runOnMainThread(() -> {
-                Utils.showToastShort(str("morphe_music_stream_downloads_deleted", deleted));
-                refreshSummary();
-            });
+            Utils.runOnMainThread(() -> Utils.showToastShort(str("morphe_music_stream_downloads_deleted", deleted)));
         });
     }
 

@@ -40,6 +40,8 @@ public final class OfflineBrowsePages {
     private static final String DIRECTORY = "rvx_offline_pages";
     private static final String SUFFIX = ".page";
     private static final String OWNER_SUFFIX = ".list";
+    /** Written only after verifying the album relationship, independently of a captured renderer. */
+    private static final String VERIFIED_OWNER = "album-v1:";
 
     private static final Set<String> ids = ConcurrentHashMap.newKeySet();
     /** The list of the pages whose id is not the list's own, by page id. */
@@ -71,21 +73,95 @@ public final class OfflineBrowsePages {
 
         for (File file : files) {
             String name = file.getName();
-            if (name.endsWith(SUFFIX)) {
-                ids.add(name.substring(0, name.length() - SUFFIX.length()));
-            } else if (name.endsWith(OWNER_SUFFIX)) {
+            String pageId = name.endsWith(SUFFIX) ? name.substring(0, name.length() - SUFFIX.length()) : "";
+            if (OfflineBrowsePagesLogic.isFileSafe(pageId)) ids.add(pageId);
+        }
+        for (File file : files) {
+            String name = file.getName();
+            if (name.endsWith(OWNER_SUFFIX)) {
                 readOwner(file, name.substring(0, name.length() - OWNER_SUFFIX.length()));
             }
         }
+        recoverAlbumOwners();
         loaded = true;
     }
 
+    /** An album page whose list file is gone gets its album back from the page's own primary Play button. */
+    private static void recoverAlbumOwners() {
+        for (String pageId : ids) {
+            if (!OfflineBrowsePagesLogic.isAlbumPage(pageId) || owners.containsKey(pageId)
+                    || ownerFileOf(pageId).exists()) continue;
+
+            try {
+                byte[] page = readLegacy(pageId);
+                String album = page == null ? null : PlaylistSyncPage.albumPlaylistOf(page);
+                if (album == null || !PlaylistSyncPage.isAlbumPage(pageId, album, page)) continue;
+
+                writeVerifiedOwner(ownerFileOf(pageId), album);
+                owners.put(pageId, album);
+                Logger.printDebug(() -> "OfflineBrowsePages: recovered the album " + album + " of the page " + pageId);
+            } catch (IOException ex) {
+                Logger.printException(() -> "OfflineBrowsePages: could not recover the album of " + pageId, ex);
+            }
+        }
+    }
+
     private static void readOwner(File file, String pageId) {
+        if (!OfflineBrowsePagesLogic.isAlbumPage(pageId)) return;
+
         try {
-            owners.put(pageId, new String(Files.readAllBytes(file.toPath()), StandardCharsets.UTF_8));
+            String recorded = new String(Files.readAllBytes(file.toPath()), StandardCharsets.UTF_8);
+            if (recorded.startsWith(VERIFIED_OWNER)) {
+                String sourceId = recorded.substring(VERIFIED_OWNER.length());
+                if (DownloadsPageLogic.isAlbum(sourceId) && OfflineBrowsePagesLogic.isFileSafe(sourceId)) {
+                    owners.put(pageId, sourceId);
+                }
+                return;
+            }
+
+            byte[] page = readLegacy(pageId);
+            if (page == null || !PlaylistSyncPage.isAlbumPage(pageId, recorded, page)) return;
+            owners.put(pageId, recorded);
+            writeVerifiedOwner(file, recorded);
         } catch (IOException ex) {
             Logger.printException(() -> "OfflineBrowsePages: could not read the list of the page " + pageId, ex);
         }
+    }
+
+    @Nullable
+    static String albumPage(String sourceId) {
+        if (!DownloadsPageLogic.isAlbum(sourceId)) return null;
+        load();
+        return OfflineBrowsePagesLogic.mappedAlbumPage(sourceId, owners);
+    }
+
+    /** Whether the proved album pages are known yet. In memory, so the main thread may ask. */
+    static boolean mappingLoaded() {
+        return loaded;
+    }
+
+    /** The album page a downloaded album is proved to have, or null: none yet, or not loaded. In memory. */
+    @Nullable
+    static String albumPageIfLoaded(String sourceId) {
+        return loaded && DownloadsPageLogic.isAlbum(sourceId)
+                ? OfflineBrowsePagesLogic.mappedAlbumPage(sourceId, owners) : null;
+    }
+
+    /** The download obtained both directions of the album relationship before recording it. */
+    static void rememberAlbumPage(String pageId, String sourceId) throws IOException {
+        if (!OfflineBrowsePagesLogic.isAlbumPage(pageId) || !DownloadsPageLogic.isAlbum(sourceId)
+                || !OfflineBrowsePagesLogic.isFileSafe(sourceId)) return;
+        load();
+        File directory = directory();
+        if (!directory.isDirectory() && !directory.mkdirs() && !directory.isDirectory()) {
+            throw new IOException("No pages directory");
+        }
+        writeVerifiedOwner(ownerFileOf(pageId), sourceId);
+        owners.put(pageId, sourceId);
+    }
+
+    private static void writeVerifiedOwner(File file, String sourceId) throws IOException {
+        replace(file, (VERIFIED_OWNER + sourceId).getBytes(StandardCharsets.UTF_8));
     }
 
     /** Whether a page is recorded under the id. In memory, so the main thread may ask; false until loaded. */
@@ -101,36 +177,60 @@ public final class OfflineBrowsePages {
 
     /** Cheap warm negative only; cold routing must let the authoritative worker check run. */
     static boolean mayOpen(String pageId) {
-        return OfflineBrowsePagesLogic.isPlaylistId(pageId) && OfflineCopyStore.mayHaveSource(pageId);
+        return OfflineBrowsePagesLogic.isLocalDetailId(pageId)
+                && (!loaded || OfflineCopyStore.mayHaveSource(sourceOf(pageId)));
     }
 
     /** The genuine complete local page, or a native renderer built from the current stream source's local metadata. */
     @Nullable
     static byte[] readForOpening(String pageId) {
         Utils.verifyOffMainThread();
-        if (!OfflineBrowsePagesLogic.isPlaylistId(pageId)) return null;
-
-        OfflineSourceStore.Source source = OfflineCopyStore.sourceForOpening(pageId);
-        if (source == null || source.videoIds().isEmpty() || !OfflineCopyStore.ownsStreamSource(source)) return null;
+        if (!OfflineBrowsePagesLogic.isLocalDetailId(pageId)) return null;
+        load();
+        String sourceId = sourceOf(pageId);
+        OfflineSourceStore.Source source = OfflineCopyStore.sourceForOpening(sourceId);
+        if (source == null || !OfflineCopyStore.ownsStreamSource(source)) return null;
 
         DownloadedRegistry markers = DownloadedMarkers.loadedRegistry();
-        if (markers != null && !hasResidentTrack(source, markers)) return null;
 
-        byte[] page = committed(source);
+        byte[] page = source.kind() == OfflineSourceStore.Kind.ALBUM ? readAlbum(pageId, sourceId) : committed(source);
         if (page == null) page = fromMetadata(source, markers);
+        if (source.kind() == OfflineSourceStore.Kind.PLAYLIST) {
+            var availability = new HashMap<String, Boolean>();
+            Map<String, String> aliases = markers == null ? RawAudioStore.aliases() : Map.of();
+            try {
+                page = PlaylistSyncPage.maskUnavailable(page, track -> availability.computeIfAbsent(track, id -> {
+                    String copyId = markers == null ? aliases.getOrDefault(id, id) : markers.canonicalId(id);
+                    return OfflineCopyStore.metadataOf(copyId) != null && RawAudioStore.find(copyId) != null;
+                }));
+            } catch (IOException ex) {
+                Logger.printDebug(() -> "OfflineBrowsePages: could not update row availability for " + sourceId, ex);
+            }
+        }
 
         // This read owns one coherent saved revision. A concurrent sync may publish its next revision, but an
         // explicit removal must not turn into a stock or stale local open for this playlist.
-        OfflineSourceStore.Source current = OfflineCopyStore.sourceForOpening(pageId);
+        OfflineSourceStore.Source current = OfflineCopyStore.sourceForOpening(sourceId);
         if (current == source) return page;
         return current != null && OfflineCopyStore.ownsStreamSource(current) ? page : null;
     }
 
-    private static boolean hasResidentTrack(OfflineSourceStore.Source source, DownloadedRegistry markers) {
-        for (String track : source.videoIds()) {
-            if (markers.isDownloaded(track)) return true;
-        }
-        return false;
+    /**
+     * The saved page of the album's own page id, or of the album page the playlist is mapped to, when it is the
+     * genuine page of that album. A page that is only the rows of its playlist (the list of an album, which has no
+     * header) is not: the metadata page serves then.
+     */
+    @Nullable
+    private static byte[] readAlbum(String pageId, String sourceId) {
+        String album = OfflineBrowsePagesLogic.isAlbumPage(pageId) ? pageId : albumPage(sourceId);
+        byte[] page = album == null ? null : readLegacy(album);
+        return page != null && PlaylistSyncPage.isAlbumPage(album, sourceId, page) ? page : null;
+    }
+
+    /** Whether the genuine page of the downloaded album is saved: it is mapped to an album page that has a file. */
+    static boolean hasAlbumPage(String sourceId) {
+        String page = albumPage(sourceId);
+        return page != null && ids.contains(page);
     }
 
     @Nullable
@@ -147,10 +247,12 @@ public final class OfflineBrowsePages {
 
     private static byte[] fromMetadata(OfflineSourceStore.Source source, @Nullable DownloadedRegistry markers) {
         var metadata = new HashMap<String, OfflineBrowsePagesLogic.TrackMetadata>();
+        Map<String, String> aliases = markers == null ? RawAudioStore.aliases() : Map.of();
         Function<String, OfflineBrowsePagesLogic.TrackMetadata> lookup = track -> {
             if (!RawAudioFiles.validId(track)) return null;
-            String id = markers == null ? track : markers.canonicalId(track);
-            if (!metadata.containsKey(id)) metadata.put(id, OfflineCopyStore.openingMetadata(id));
+            String id = markers == null ? aliases.getOrDefault(track, track) : markers.canonicalId(track);
+            if (!metadata.containsKey(id)) metadata.put(id,
+                    RawAudioStore.find(id) == null ? null : OfflineCopyStore.openingMetadata(id));
             return metadata.get(id);
         };
         String unavailable = str("morphe_music_player_unavailable_offline");
@@ -184,10 +286,27 @@ public final class OfflineBrowsePages {
         return publishCapture(source, complete, () -> true);
     }
 
+    /**
+     * Records the page a verified native fetch or an open of the album page returned, and the cover it shows. The
+     * response must be the first page of {@code pageId} and its primary Play button must own the album.
+     *
+     * @return the bytes written, or -1 when the album is not downloaded or the page is not the album's
+     */
+    static int rememberAlbum(String pageId, String sourceId, byte[] response) throws Exception {
+        int written = capture(pageId, sourceId, response);
+        OfflineSourceStore.Source source = written < 0 ? null : OfflineCopyStore.source(sourceId);
+        if (source != null) rememberCover(pageId, response, source.thumbnailUrl());
+        return written;
+    }
+
     /** Keep the existing album browse-id mapping and capture format separate from playlist reconstruction. */
     private static int captureAlbum(String pageId, OfflineSourceStore.Source source, byte[] response)
             throws IOException {
         if (!OfflineBrowsePagesLogic.isFileSafe(pageId) || source.browsePage() != null) return -1;
+        // The page of an album page id is recorded only as the album's own page; the rows of its playlist
+        // (the page under the playlist id) have no header and are kept as they were.
+        if (!source.id().equals(pageId) && !PlaylistSyncPage.isAlbumPage(pageId, source.id(), response)) return -1;
+
         byte[] packed = OfflineBrowsePagesLogic.gzip(response);
         if (!loaded) load();
 
@@ -198,10 +317,7 @@ public final class OfflineBrowsePages {
             if (!directory.isDirectory() && !directory.mkdirs() && !directory.isDirectory()) {
                 throw new IOException("No pages directory");
             }
-            if (!source.id().equals(pageId)) {
-                replace(ownerFileOf(pageId), source.id().getBytes(StandardCharsets.UTF_8));
-                owners.put(pageId, source.id());
-            }
+            if (!source.id().equals(pageId)) rememberAlbumPage(pageId, source.id());
             replace(fileOf(pageId), packed);
             ids.add(pageId);
         }
@@ -289,7 +405,9 @@ public final class OfflineBrowsePages {
     static void retainOnly(Set<String> listIds) {
         if (!loaded) load();
         Set<String> artworkIds = new HashSet<>(listIds);
-        for (String id : Set.copyOf(ids)) {
+        Set<String> knownPages = new HashSet<>(ids);
+        knownPages.addAll(owners.keySet());
+        for (String id : knownPages) {
             if (listIds.contains(owners.getOrDefault(id, id))) {
                 artworkIds.add(id);
                 continue;

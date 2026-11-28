@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-26.
  * Written by lavinhoque33, 2026-11-08.
  */
 package app.morphe.extension.music.patches.downloads;
@@ -14,6 +15,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.function.Predicate;
 
 /**
  * The decisions of the backfill that fills in the stored data of stream copies that lack it. Pure: the worker
@@ -43,6 +45,15 @@ final class OfflineBackfillLogic {
     static List<String> pending(Collection<String> copyIds, Set<String> storedIds) {
         Set<String> missing = new TreeSet<>(copyIds);
         missing.removeAll(storedIds);
+        return new ArrayList<>(missing);
+    }
+
+    /** The downloaded albums that have no genuine album page saved, in a fixed order like {@link #pending}. */
+    static List<String> albumsWithoutPage(Collection<String> sourceIds, Predicate<String> hasAlbumPage) {
+        Set<String> missing = new TreeSet<>();
+        for (String id : sourceIds) {
+            if (DownloadsPageLogic.isAlbum(id) && !hasAlbumPage.test(id)) missing.add(id);
+        }
         return new ArrayList<>(missing);
     }
 

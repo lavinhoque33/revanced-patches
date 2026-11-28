@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-27.
  * Modified by lavinhoque33, 2026-11-26.
  * Modified by lavinhoque33, 2026-11-19.
  * Modified by lavinhoque33, 2026-11-18.
@@ -107,6 +108,17 @@ public final class DownloadedMarkers {
         return registry.isPending(sourceId);
     }
 
+    static boolean isStreamSourceRetained(String sourceId) {
+        if (registry.isPending(sourceId)) return true;
+        OfflineSourceStore.Source source = OfflineCopyStore.source(sourceId);
+        return source != null && OfflineCopyStore.ownsStreamSource(source);
+    }
+
+    static boolean canResumeStreamSource(String sourceId) {
+        return isStreamSourceRetained(sourceId)
+                && (registry.isPending(sourceId) || !registry.isSourceDownloaded(sourceId));
+    }
+
     /** The automatic worker can start on cold launch, before the header registry is loaded. */
     static boolean hasPendingDownload(String sourceId) {
         return pendingPreferences().contains(sourceId);
@@ -114,7 +126,7 @@ public final class DownloadedMarkers {
 
     @Nullable
     static PlaylistTransfer.Progress playlistProgress(String sourceId) {
-        if (!registry.isPending(sourceId)) return null;
+        if (!canResumeStreamSource(sourceId)) return null;
 
         List<String> tracks = registry.sourceTracks(sourceId);
         if (tracks == null) return null;
@@ -197,7 +209,7 @@ public final class DownloadedMarkers {
             return;
         } else if (model == null) {
             reason = "model-gone";
-        } else if (!registry.hasTracks() && (loaded || !DownloadsPage.hasBuilt())) {
+        } else if (!registry.hasTracks() && (loaded || !(DownloadsPage.hasBuilt() || LibraryLanding.hasBuilt()))) {
             reason = "registry-empty";
         } else if ((bytes = DownloadedModels.serialize(model)) == null) {
             reason = "model-has-no-proto";
@@ -234,10 +246,10 @@ public final class DownloadedMarkers {
         rowLog.decided(state, reason, id, outcome);
     }
 
-    /** Called when a stream copy was kept: the track has one from now on. */
+    /** Called after both the media and a matching offline playback response have been published. */
     static void onStreamCopyKept(String videoId) {
-        registry.add(videoId);
-        refreshLater();
+        if (registry.add(videoId)) refreshLater();
+        else refresh.request();
     }
 
     /** Called when a music video id was recorded as the same song as a song with a stream copy. */
@@ -248,8 +260,7 @@ public final class DownloadedMarkers {
 
     /** Called when a track's stream copy was deleted. */
     static void onStreamCopyRemoved(String videoId) {
-        registry.remove(videoId);
-        refreshLater();
+        if (registry.remove(videoId)) refreshLater();
     }
 
     /** Called when every stream copy was deleted: no row or header keeps its check. */
@@ -321,16 +332,13 @@ public final class DownloadedMarkers {
         refreshLater();
     }
 
-    static void forgetCompletedSources() {
+    static void forgetStreamSources() {
         SharedPreferences tracks = trackPreferences();
-        Set<String> pending = pendingPreferences().getAll().keySet();
-        SharedPreferences.Editor editor = tracks.edit();
-        for (String id : tracks.getAll().keySet()) {
-            if (pending.contains(id)) continue;
-            registry.removeSource(id);
-            editor.remove(id);
+        for (String id : tracks.getAll().keySet()) registry.removeSource(id);
+        boolean pendingCleared = pendingPreferences().edit().clear().commit();
+        if (!tracks.edit().clear().commit() || !pendingCleared) {
+            Logger.printException(() -> "Could not forget the removed stream playlists");
         }
-        if (!editor.commit()) Logger.printException(() -> "Could not forget the removed stream playlists");
     }
 
     private static SharedPreferences pendingPreferences() {
@@ -376,7 +384,7 @@ public final class DownloadedMarkers {
 
         Utils.submitOnBackgroundThread(() -> {
             try {
-                registry.addAll(RawAudioStore.copyIds());
+                registry.addAll(OfflineCopyStore.readyIds());
                 registry.setAliases(RawAudioStore.aliases());
                 synchronized (PlaylistSync.MUTATION) {
                     Map<String, List<String>> saved = savedTrackLists();
@@ -458,7 +466,7 @@ public final class DownloadedMarkers {
      */
     static void rescanStreamCopies() {
         Set<String> knownBefore = registry.snapshot();
-        Set<String> present = RawAudioStore.copyIds();
+        Set<String> present = OfflineCopyStore.readyIds();
 
         registry.prune(knownBefore, present);
         registry.setAliases(RawAudioStore.aliases());

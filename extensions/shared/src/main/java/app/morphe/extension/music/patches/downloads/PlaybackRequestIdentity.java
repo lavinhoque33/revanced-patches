@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-26.
  * Written by lavinhoque33, 2026-11-14.
  */
 package app.morphe.extension.music.patches.downloads;
@@ -15,7 +16,7 @@ public final class PlaybackRequestIdentity {
 
     private PlaybackRequestIdentity() { }
 
-    private static Object original(Object request) {
+    static Object original(Object request) {
         if (request instanceof Request identity) {
             Object origin = identity.rvxRequestOrigin();
             if (origin != null) return origin;

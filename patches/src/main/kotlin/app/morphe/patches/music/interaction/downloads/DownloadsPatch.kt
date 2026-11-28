@@ -278,6 +278,7 @@ val downloadsPatch = bytecodePatch(
         """)
         installOfflineReplay()
         try {
+            injectOnCreateMethodCall("$DOWNLOADS_PATH/OfflineReplayHooks;", "warmPlayback")
             injectOnCreateMethodCall(PLAYLIST_SYNC, "install")
         } catch (failure: Exception) {
             printWarn("Playlist auto-resume and sync unavailable on Music ${packageMetadata.versionName}: " +

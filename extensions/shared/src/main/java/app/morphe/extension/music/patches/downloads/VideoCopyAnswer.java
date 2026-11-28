@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-26.
  * Written by lavinhoque33, 2026-11-09.
  */
 package app.morphe.extension.music.patches.downloads;
@@ -9,6 +10,7 @@ import androidx.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.Set;
+import java.util.function.Supplier;
 
 import app.morphe.extension.shared.innertube.PlayerResponseOuterClass.PlayerResponse;
 import app.morphe.extension.shared.innertube.PlayerResponseOuterClass.ThumbnailList;
@@ -45,12 +47,25 @@ final class VideoCopyAnswer {
 
     private VideoCopyAnswer() {}
 
-    static Answer of(byte[] saved, @Nullable byte[] live, @Nullable byte[] template) throws IOException {
-        if (live != null) return new Answer(ResponseFields.baseWithOwn(live, saved, OWN_OVER_LIVE), LIVE);
-        if (template != null) {
-            return new Answer(ResponseFields.baseWithOwn(template, saved, OWN_OVER_TEMPLATE), TEMPLATE);
+    static Answer of(byte[] saved, @Nullable byte[] live, Supplier<byte[]> template) {
+        Answer merged = merge(saved, live, OWN_OVER_LIVE, LIVE);
+        if (merged != null) return merged;
+
+        merged = merge(saved, template.get(), OWN_OVER_TEMPLATE, TEMPLATE);
+        return merged == null ? new Answer(saved, SAVED) : merged;
+    }
+
+    @Nullable
+    private static Answer merge(byte[] saved, @Nullable byte[] base, Set<Integer> ownFields, String kind) {
+        if (base == null || base.length == 0) return null;
+
+        try {
+            byte[] bytes = ResponseFields.baseWithOwn(base, saved, ownFields);
+            PlayerResponse.parseFrom(bytes);
+            return new Answer(bytes, kind);
+        } catch (IOException ex) {
+            return null;
         }
-        return new Answer(saved, SAVED);
     }
 
     /**
@@ -60,12 +75,16 @@ final class VideoCopyAnswer {
      * app's image cache. The video display shows the video itself and does not read them. The answer is returned as
      * it is when the song has no thumbnails.
      */
-    static byte[] withSongArtwork(byte[] answer, byte[] songResponse) throws IOException {
-        ThumbnailList artwork = PlayerResponse.parseFrom(songResponse).getVideoDetails().getThumbnail();
-        if (artwork.getThumbnailsCount() == 0) return answer;
+    static byte[] withSongArtwork(byte[] answer, byte[] songResponse) {
+        try {
+            ThumbnailList artwork = PlayerResponse.parseFrom(songResponse).getVideoDetails().getThumbnail();
+            if (artwork.getThumbnailsCount() == 0) return answer;
 
-        PlayerResponse parsed = PlayerResponse.parseFrom(answer);
-        return parsed.toBuilder()
-                .setVideoDetails(parsed.getVideoDetails().toBuilder().setThumbnail(artwork)).build().toByteArray();
+            PlayerResponse parsed = PlayerResponse.parseFrom(answer);
+            return parsed.toBuilder()
+                    .setVideoDetails(parsed.getVideoDetails().toBuilder().setThumbnail(artwork)).build().toByteArray();
+        } catch (IOException ex) {
+            return answer;
+        }
     }
 }

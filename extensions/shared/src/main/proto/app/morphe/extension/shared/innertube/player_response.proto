@@ -177,6 +177,9 @@ message AudioConfig {
 
 message ExoPlayerConfig {
   optional bool useExoPlayer = 1;
+  // With AudioConfig.exoAudioGate, this locks native playback in audio-only mode even when video is present.
+  // Verified in Music 8.12.54, 8.28.54, 8.30.54, 9.15.51, 9.40.51, and 9.45.51.
+  optional bool forceAudioOnly = 201;
 }
 
 message AndroidMedialibConfig {

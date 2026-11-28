@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-26.
  * Written by lavinhoque33, 2026-11-10.
  */
 package app.morphe.extension.music.patches.downloads;
@@ -34,6 +35,20 @@ public class CopyOwnershipTest {
         assertEquals(List.of("a"), removal.deleteCopies());
         assertEquals(List.of("b"), removal.deleteVideos());
         assertEquals(List.of("b", "c"), removal.kept());
+    }
+
+    @Test public void reconciliationKeepsRetainedOccurrencesSharedCopiesAndIndividualAudio() {
+        Map<String, List<String>> before = Map.of(
+                "changed", List.of("keep", "keep", "lost", "mine", "shared"),
+                "other", List.of("shared"));
+        Set<String> copies = Set.of("keep", "lost", "mine", "shared", "new");
+
+        CopyOwnership.Removal result = CopyOwnership.reconciling("changed", before, List.of("new", "keep"),
+                Set.of("mine"), copies);
+
+        assertEquals(List.of("lost"), result.deleteCopies());
+        assertEquals(List.of("mine"), result.deleteVideos());
+        assertEquals(List.of("mine", "shared"), result.kept());
     }
 
     @Test public void aSongOfAnotherListKeepsBothItsAudioAndItsVideo() {

@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-27.
  * Modified by lavinhoque33, 2026-11-26.
  * Written by lavinhoque33, 2026-11-08.
  * Modified by lavinhoque33, 2026-11-14.
@@ -66,6 +67,9 @@ final class OfflineWatchNext {
     static final int TAB_CONTENT_FIELD = 4;
     static final int TAB_PANEL_HOLDER_FIELD = 278_751_218;
     static final int PANEL_HOLDER_RENDERER_FIELD = 1;
+    private static final int PANEL_HOLDER_HEADER_FIELD = 4;
+    private static final int QUEUE_HEADER_RENDERER_FIELD = 278_751_219;
+    private static final int QUEUE_HEADER_SOURCE_TITLE_FIELD = 2;
     static final int PANEL_RENDERER_FIELD = 50_631_000;
     static final int PANEL_ITEMS_FIELD = 2;
     static final int PANEL_CURRENT_INDEX_FIELD = 3;
@@ -112,10 +116,16 @@ final class OfflineWatchNext {
      * {@code currentIndex}.
      */
     static byte[] build(String playlistId, List<Item> items, int currentIndex) {
-        return build(playlistId, items, currentIndex, false);
+        return build(playlistId, items, currentIndex, false, null);
     }
 
-    static byte[] build(String playlistId, List<Item> items, int currentIndex, boolean shuffledStart) {
+    /** The exact saved source of the fresh shuffled queue, not the header retained from the previous session. */
+    static byte[] buildSavedShuffle(String playlistId, List<Item> items, String sourceTitle) {
+        return build(playlistId, items, 0, true, sourceTitle);
+    }
+
+    private static byte[] build(String playlistId, List<Item> items, int currentIndex, boolean shuffledStart,
+                                @Nullable String sourceTitle) {
         if (playlistId == null || playlistId.isEmpty()) throw new IllegalArgumentException("playlistId is empty");
         if (items == null || items.isEmpty()) throw new IllegalArgumentException("a queue needs at least one item");
         if (currentIndex < 0 || currentIndex >= items.size()) {
@@ -124,29 +134,66 @@ final class OfflineWatchNext {
 
         Item current = items.get(currentIndex);
         return response(panel(playlistId, items, currentIndex, shuffledStart),
-                OfflineWatchCommand.build(current.videoId(), playlistId, currentIndex, current.musicVideoType()));
+                OfflineWatchCommand.build(current.videoId(), playlistId, currentIndex, current.musicVideoType()),
+                sourceTitle);
     }
 
     /** Replays the native queue's complete rows and online endpoints without substituting a downloaded-only list. */
-    static byte[] buildCaptured(String playlistId, List<byte[]> renderers, int currentIndex, byte[] command)
+    static byte[] buildCaptured(String playlistId, List<byte[]> renderers, int currentIndex, byte[] command,
+                                @Nullable String currentArtwork)
             throws IOException {
         ProtoWriter panel = new ProtoWriter();
         for (int index = 0; index < renderers.size(); index++) {
-            byte[] renderer = ResponseFields.without(renderers.get(index), Set.of(TRACK_SELECTED_FIELD));
-            byte[] selected = new ProtoWriter().raw(renderer, 0, renderer.length)
-                    .int32(TRACK_SELECTED_FIELD, index == currentIndex ? 1 : 0).toByteArray();
-            panel.message(PANEL_ITEMS_FIELD, new ProtoWriter().message(ITEM_TRACK_FIELD, selected).toByteArray());
+            boolean current = index == currentIndex;
+            boolean localArtwork = current && currentArtwork != null;
+            byte[] renderer = ResponseFields.without(renderers.get(index), localArtwork
+                    ? Set.of(TRACK_SELECTED_FIELD, TRACK_THUMBNAIL_FIELD) : Set.of(TRACK_SELECTED_FIELD));
+            ProtoWriter row = new ProtoWriter().raw(renderer, 0, renderer.length)
+                    .int32(TRACK_SELECTED_FIELD, current ? 1 : 0);
+            if (localArtwork) row.message(TRACK_THUMBNAIL_FIELD, thumbnail(currentArtwork));
+            panel.message(PANEL_ITEMS_FIELD, new ProtoWriter().message(ITEM_TRACK_FIELD, row.toByteArray())
+                    .toByteArray());
         }
         byte[] bytes = panel.int32(PANEL_CURRENT_INDEX_FIELD, currentIndex)
                 .string(PANEL_PLAYLIST_ID_FIELD, playlistId == null ? "" : playlistId)
                 .int32(PANEL_COUNT_FIELD, renderers.size()).toByteArray();
-        return response(bytes, command);
+        return response(bytes, command, null);
     }
 
-    private static byte[] response(byte[] panel, byte[] command) {
+    /** Parse only selected-row metadata and any missing tail. The native splice retains existing rows. */
+    static byte[] buildContinuation(String playlistId, byte[] renderer, @Nullable List<byte[]> tail,
+                                    int currentIndex, byte[] command, @Nullable String artwork) throws IOException {
+        byte[] row = ResponseFields.without(renderer, Set.of(TRACK_SELECTED_FIELD));
+        byte[] selected = new ProtoWriter().raw(row, 0, row.length)
+                .int32(TRACK_SELECTED_FIELD, 1).toByteArray();
+        if (artwork != null) selected = withArtwork(selected, artwork);
+
+        ProtoWriter panel = new ProtoWriter();
+        panel.message(PANEL_ITEMS_FIELD, new ProtoWriter().message(ITEM_TRACK_FIELD, selected).toByteArray());
+        if (tail != null) for (byte[] added : tail) {
+            panel.message(PANEL_ITEMS_FIELD, new ProtoWriter().message(ITEM_TRACK_FIELD, added).toByteArray());
+        }
+        return response(panel.int32(PANEL_CURRENT_INDEX_FIELD, currentIndex)
+                .string(PANEL_PLAYLIST_ID_FIELD, playlistId == null ? "" : playlistId)
+                .int32(PANEL_COUNT_FIELD, 1 + (tail == null ? 0 : tail.size())).toByteArray(), command, null);
+    }
+
+    static byte[] withArtwork(byte[] renderer, String artwork) throws IOException {
+        byte[] row = ResponseFields.without(renderer, Set.of(TRACK_THUMBNAIL_FIELD));
+        return new ProtoWriter().raw(row, 0, row.length).message(TRACK_THUMBNAIL_FIELD, thumbnail(artwork))
+                .toByteArray();
+    }
+
+    private static byte[] response(byte[] panel, byte[] command, @Nullable String sourceTitle) {
         byte[] panelHolder = new ProtoWriter().message(PANEL_RENDERER_FIELD, panel).toByteArray();
-        byte[] panelContent = new ProtoWriter().message(PANEL_HOLDER_RENDERER_FIELD, panelHolder).toByteArray();
-        byte[] tabContent = new ProtoWriter().message(TAB_PANEL_HOLDER_FIELD, panelContent).toByteArray();
+        ProtoWriter panelContent = new ProtoWriter().message(PANEL_HOLDER_RENDERER_FIELD, panelHolder);
+        if (sourceTitle != null) {
+            byte[] header = new ProtoWriter().message(QUEUE_HEADER_SOURCE_TITLE_FIELD, plainText(sourceTitle))
+                    .toByteArray();
+            panelContent.message(PANEL_HOLDER_HEADER_FIELD,
+                    new ProtoWriter().message(QUEUE_HEADER_RENDERER_FIELD, header).toByteArray());
+        }
+        byte[] tabContent = new ProtoWriter().message(TAB_PANEL_HOLDER_FIELD, panelContent.toByteArray()).toByteArray();
         byte[] tab = new ProtoWriter()
                 .string(TAB_TITLE_FIELD, TAB_TITLE)
                 .message(TAB_CONTENT_FIELD, tabContent)

@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-27.
  * Modified by lavinhoque33, 2026-11-15.
  * Written by lavinhoque33, 2026-11-15.
  */
@@ -14,6 +15,8 @@ import android.net.NetworkCapabilities;
 
 import java.util.ArrayDeque;
 import java.util.List;
+import java.util.Objects;
+import java.util.function.BooleanSupplier;
 
 import app.morphe.extension.shared.settings.BooleanSetting;
 import app.morphe.extension.shared.utils.Logger;
@@ -131,7 +134,7 @@ public final class SmartShuffleManager {
         }
         SmartShuffleNative.cancelPending();
         SmartShuffleKeep.cancelPending();
-        removeFutureSuggestions("new-activation");
+        removeFutureSuggestions("new-activation", null);
     }
 
     /** Restored sessions have no armed Pending and can therefore never activate recommendations. */
@@ -174,7 +177,7 @@ public final class SmartShuffleManager {
         }
         SmartShuffleNative.cancelPending();
         SmartShuffleKeep.cancelPending();
-        removeFutureSuggestions(reason);
+        removeFutureSuggestions(reason, null);
     }
 
     public static boolean isSuggested(long occurrenceId) {
@@ -498,7 +501,7 @@ public final class SmartShuffleManager {
         }
     }
 
-    private static void removeFutureSuggestions(String reason) {
+    private static void removeFutureSuggestions(String reason, BooleanSupplier activeWindow) {
         SmartShufflePolicy owner;
         long generation;
         synchronized (LOCK) {
@@ -509,6 +512,7 @@ public final class SmartShuffleManager {
         SmartShuffleNative.snapshot(snapshot -> {
             List<Long> future;
             synchronized (LOCK) {
+                if (activeWindow != null && !activeWindow.getAsBoolean()) return;
                 if (snapshot == null || generation != snapshot.generation()) {
                     debug(() -> "Smart Shuffle removal stale generation=" + generation + " reason=" + reason);
                     return;
@@ -518,7 +522,7 @@ public final class SmartShuffleManager {
                         + " count=" + future.size());
             }
             for (long occurrenceId : future) {
-                SmartShuffleNative.remove(snapshot.generation(), occurrenceId, true, removed -> {
+                SmartShuffleNative.removeIf(snapshot.generation(), occurrenceId, true, activeWindow, removed -> {
                     boolean changed;
                     synchronized (LOCK) {
                         changed = removed && policy == owner && owner.removedOffline(occurrenceId);
@@ -538,8 +542,9 @@ public final class SmartShuffleManager {
             Context context = Utils.getContext();
             if (context == null || !(context.getSystemService(Context.CONNECTIVITY_SERVICE)
                     instanceof ConnectivityManager connectivity)) return;
-            online = networkAvailable();
-            connectivity.registerDefaultNetworkCallback(new NetworkObserver(connectivity));
+            Network initial = connectivity.getActiveNetwork();
+            online = initial != null && validated(connectivity.getNetworkCapabilities(initial));
+            connectivity.registerDefaultNetworkCallback(new NetworkObserver(initial));
             watchingNetwork = true;
         }
     }
@@ -547,11 +552,11 @@ public final class SmartShuffleManager {
     /** Callback state is authoritative: onLost can precede ConnectivityManager clearing its active network. */
     private static void networkChanged(String callback, boolean reachable) {
         debug(() -> "Smart Shuffle network callback=" + callback + " reachable=" + reachable);
+        long generation;
         synchronized (LOCK) {
             if (online == reachable) return;
             online = reachable;
-            revision++;
-            long generation = revision;
+            generation = ++revision;
             debug(() -> "Smart Shuffle network online=" + reachable + " revision=" + generation);
             pending = null;
             if (active != null) {
@@ -562,27 +567,37 @@ public final class SmartShuffleManager {
             }
         }
         SmartShuffleNative.cancelPending();
-        if (!reachable) removeFutureSuggestions("offline");
-        else requestSnapshot();
+        if (reachable) {
+            requestSnapshot();
+        } else {
+            removeFutureSuggestions("offline", () -> {
+                synchronized (LOCK) {
+                    return !online && revision == generation;
+                }
+            });
+        }
     }
 
-    @SuppressLint("MissingPermission")
     static final class NetworkObserver extends ConnectivityManager.NetworkCallback {
-        private final ConnectivityManager connectivity;
+        private Network current;
 
-        NetworkObserver(ConnectivityManager connectivity) {
-            this.connectivity = connectivity;
+        NetworkObserver(Network initial) {
+            current = initial;
         }
 
         @Override public void onAvailable(Network network) {
-            networkChanged("onAvailable", validated(connectivity.getNetworkCapabilities(network)));
+            // Android 8+ delivers that network's capabilities next. A synchronous query here can be stale.
+            current = network;
         }
 
         @Override public void onLost(Network network) {
+            if (!Objects.equals(current, network)) return;
+            current = null;
             networkChanged("onLost", false);
         }
 
         @Override public void onCapabilitiesChanged(Network network, NetworkCapabilities capabilities) {
+            if (!Objects.equals(current, network)) return;
             networkChanged("onCapabilitiesChanged", validated(capabilities));
         }
     }

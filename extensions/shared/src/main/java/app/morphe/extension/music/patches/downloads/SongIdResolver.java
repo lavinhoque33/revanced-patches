@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-26.
  * Written by lavinhoque33, 2026-11-10.
  */
 package app.morphe.extension.music.patches.downloads;
@@ -30,7 +31,6 @@ final class SongIdResolver {
     static final int TYPE_SONG = CommandRewrite.TYPE_ATV;
     static final int TYPE_VIDEO = CommandRewrite.TYPE_OMV;
 
-    private static final String COUNTERPART_SONG = "ATV";
     private static final String VIDEO_TYPE = "OMV";
     private static final Pattern CHANNEL_NOISE = Pattern.compile("vevo|topic|official|records|music");
     private static final Pattern SPACES = Pattern.compile("\\s+");
@@ -69,11 +69,9 @@ final class SongIdResolver {
     @Nullable
     static String fromQueue(String videoId, List<WatchQueueLogic.NextItem> queue) {
         for (WatchQueueLogic.NextItem item : queue) {
-            if (!item.hasCounterpart() || !VideoPairingLogic.isVideoId(item.counterpartId())) continue;
-
-            if (videoId.equals(item.videoId()) && COUNTERPART_SONG.equals(item.counterpartType())
-                    && !videoId.equals(item.counterpartId())) {
-                return item.counterpartId();
+            if (videoId.equals(item.videoId()) && VideoPairingLogic.isVideoId(item.audioCounterpart())
+                    && !videoId.equals(item.audioCounterpart())) {
+                return item.audioCounterpart();
             }
         }
         return null;

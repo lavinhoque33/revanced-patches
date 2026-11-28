@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-26
  * Modified by lavinhoque33, 2026-11-17.
  * Modified by lavinhoque33, 2026-11-14
  * Modified by lavinhoque33, 2026-11-13
@@ -124,10 +125,9 @@ public final class OfflineStreamBrowse {
         return OnlineWatchCommand.build(videoId, playlistId, index);
     }
 
-    /** Resolves the selected song in the same order as browse. Reads copy metadata: a worker thread only. */
-    @Nullable
-    public static byte[] playCommand(String sourceId, int index, boolean online) {
-        return OfflineReplay.autoCommand(sourceId, index, online);
+    /** Encodes a selection already resolved against AA's ready-queue snapshot, keeping its Song-mode ID. */
+    public static byte[] offlineCommand(String sourceId, String videoId, int index) {
+        return OfflineWatchCommand.build(videoId, OfflineReplay.playlistId(sourceId), index);
     }
 
     /** A new session selection cancels queued Play-next work from the previous one. No disk access. */

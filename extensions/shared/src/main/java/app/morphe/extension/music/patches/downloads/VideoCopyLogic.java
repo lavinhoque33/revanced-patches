@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-26.
  * Written by lavinhoque33, 2026-11-09.
  * Modified by lavinhoque33, 2026-11-09.
  */
@@ -123,6 +124,25 @@ final class VideoCopyLogic {
         if (storedVideo == null || storedAudio == null) return null;
 
         return new Stored(storedVideo, storedAudio);
+    }
+
+    /** Validate the saved descriptors against the exact media commit, not just the itags. */
+    @Nullable
+    static Stored stored(PlayerResponse response, VideoCopyFiles.Entry copy) {
+        if (!copy.videoId().equals(response.getVideoDetails().getVideoId())) return null;
+
+        Stored formats = stored(response, copy.video().itag(), copy.audio().itag());
+        return formats != null && matches(formats.video(), copy.video()) && matches(formats.audio(), copy.audio())
+                ? formats : null;
+    }
+
+    private static boolean matches(Format format, VideoCopyFiles.Part stream) {
+        return format.getMimeType().equals(stream.mime()) && format.getContentLength() == stream.length()
+                && format.getLastModified() == stream.modified()
+                && validRange(format.hasInitRange(), format.getInitRange().getStart(),
+                        format.getInitRange().getEnd(), stream.length())
+                && validRange(format.hasIndexRange(), format.getIndexRange().getStart(),
+                        format.getIndexRange().getEnd(), stream.length());
     }
 
     /**

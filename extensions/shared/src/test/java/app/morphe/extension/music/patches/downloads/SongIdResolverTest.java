@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-26.
  * Written by lavinhoque33, 2026-11-10.
  */
 package app.morphe.extension.music.patches.downloads;
@@ -30,7 +31,7 @@ public class SongIdResolverTest {
 
     private static WatchQueueLogic.NextItem item(String id, String counterpartId, String counterpartType) {
         return new WatchQueueLogic.NextItem(0, "wrapper", id, "OMV", "t", "a", "3:20", counterpartId,
-                counterpartType, "3:22");
+                counterpartType, "3:22", "ATV".equals(counterpartType) ? counterpartId : "");
     }
 
     @Test public void onlyAMusicVideoTypeHasASongToFind() {
@@ -42,9 +43,9 @@ public class SongIdResolverTest {
 
     @Test public void theQueuesOwnTypeDecidesWhetherTheVideoIsAMusicVideo() {
         WatchQueueLogic.NextItem asVideo = new WatchQueueLogic.NextItem(0, "plain", OMV, "OMV", "t", "a", "3:20",
-                "", "", "");
+                "", "", "", "");
         WatchQueueLogic.NextItem asSong = new WatchQueueLogic.NextItem(0, "plain", OMV, "ATV", "t", "a", "3:20",
-                "", "", "");
+                "", "", "", "");
         assertTrue(SongIdResolver.isMusicVideo(OMV, List.of(asVideo), false));
         assertFalse(SongIdResolver.isMusicVideo(OMV, List.of(asSong), true));
         assertTrue(SongIdResolver.isMusicVideo(OMV, List.of(), true));

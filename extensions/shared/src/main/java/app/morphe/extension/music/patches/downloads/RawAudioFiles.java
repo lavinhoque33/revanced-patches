@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-26.
  * Written by lavinhoque33, 2026-11-07.
  * Modified by lavinhoque33, 2026-11-10
  */
@@ -37,7 +38,7 @@ import java.util.regex.Pattern;
 final class RawAudioFiles {
     /** {@code muxed} is the native track's URI for an entry tied to a native track, null for a stream-only copy. */
     record Entry(File file, int itag, String mime, long length, long modified, @Nullable String muxed,
-                 String digest) {
+                 String digest, long fileModified) {
         boolean tiedToNativeTrack() {
             return muxed != null;
         }
@@ -70,28 +71,29 @@ final class RawAudioFiles {
         return id != null && VIDEO_ID.matcher(id).matches();
     }
 
-    /**
-     * Publishes the copy. {@code muxed} is the native track's URI, or null for a stream-only copy.
-     *
-     * @param individual Whether the user downloaded this song itself and not as part of a playlist or album.
-     * @return Whether the copy was published; false when the arguments cannot describe a playable copy.
-     */
-    boolean retain(String videoId, File temporary, int itag, String mime, long length,
-                   long modified, @Nullable String muxed, boolean individual) throws Exception {
+    /** A private temporary copy with its digest and commit metadata computed before publication. */
+    record Prepared(String videoId, File temporary, int itag, JSONObject metadata) {}
+
+    @Nullable
+    static Prepared prepare(String videoId, File temporary, int itag, String mime, long length,
+                            long modified, @Nullable String muxed, boolean individual) throws Exception {
         if (!validId(videoId) || !StreamSwapLogic.supportedAudio(itag, mime) || length <= 0
                 || modified <= 0 || temporary.length() != length || (muxed != null && muxed.isEmpty())) {
-            return false;
+            return null;
         }
-        // The temporary file is private to this download: hash it before taking the monitor playback needs.
         String digest = digest(temporary);
         JSONObject metadata = new JSONObject().put("itag", itag).put("mime", mime).put("length", length)
                 .put("lmt", modified).put("sha256", digest)
                 .put(ORIGIN, muxed == null ? ORIGIN_STREAM : ORIGIN_NATIVE);
         if (muxed != null) metadata.put("muxed", muxed);
         if (individual) metadata.put(INDIVIDUAL, true);
-        synchronized (this) {
-            publish(videoId, temporary, itag, metadata);
-        }
+        return new Prepared(videoId, temporary, itag, metadata);
+    }
+
+    /** Returns false when preparation rejected the copy. */
+    synchronized boolean retain(@Nullable Prepared copy) throws Exception {
+        if (copy == null) return false;
+        publish(copy.videoId(), copy.temporary(), copy.itag(), copy.metadata());
         return true;
     }
 
@@ -156,7 +158,7 @@ final class RawAudioFiles {
         if (entry == null) return null;
         if (entry.tiedToNativeTrack() && !entry.muxed().equals(currentMuxed)) return null;
 
-        return new Candidate(entry, entry.file().length(), entry.file().lastModified());
+        return new Candidate(entry, entry.length(), entry.fileModified());
     }
 
     /**
@@ -274,7 +276,7 @@ final class RawAudioFiles {
         if (!StreamSwapLogic.supportedAudio(itag, mime) || length <= 0 || modified <= 0
                 || !raw.isFile() || raw.length() != length) return null;
 
-        return new Entry(raw, itag, mime, length, modified, muxed, checksum);
+        return new Entry(raw, itag, mime, length, modified, muxed, checksum, raw.lastModified());
     }
 
     /**

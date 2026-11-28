@@ -1,6 +1,8 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-27.
+ * Modified by lavinhoque33, 2026-11-26.
  * Written by lavinhoque33, 2026-11-26.
  */
 package app.morphe.patches.music.interaction.downloads
@@ -15,6 +17,7 @@ import app.morphe.patcher.util.proxy.mutableTypes.MutableMethod
 import app.morphe.patcher.util.smali.ExternalLabel
 import app.morphe.patches.music.interaction.jam.JAM_UI
 import app.morphe.patches.music.interaction.jam.getMutableMethod
+import app.morphe.patches.music.interaction.jam.invokeKind
 import app.morphe.patches.music.interaction.jam.p0Register
 import app.morphe.patches.music.interaction.jam.registerAt
 import app.morphe.patches.music.interaction.manualqueue.ACCESS as MANUAL_ACCESS
@@ -23,6 +26,7 @@ import app.morphe.patches.music.interaction.manualqueue.EXT as MANUAL_QUEUE
 import app.morphe.patches.music.interaction.playlisttracktap.QueueAddEndpointCommandFingerprint
 import app.morphe.util.Utils.printInfo
 import app.morphe.util.Utils.printWarn
+import app.morphe.util.cloneMutable
 import app.morphe.util.fingerprint.matchSingle
 import app.morphe.util.getReference
 import com.android.tools.smali.dexlib2.AccessFlags
@@ -44,7 +48,9 @@ private const val EXT = "Lapp/morphe/extension/music/patches/downloads/OfflineQu
 private const val CARRIER = $$"Lapp/morphe/extension/music/patches/downloads/OfflineQueueActions$Carrier;"
 private const val OWNER = $$"Lapp/morphe/extension/music/patches/downloads/OfflineQueueActions$Owner;"
 private const val LOOKUP = $$"Lapp/morphe/extension/music/patches/downloads/OfflineQueueActions$Lookup;"
+private const val ISOLATED = $$"Lapp/morphe/extension/music/patches/downloads/OfflineQueueActions$IsolatedLookup;"
 private const val ROW = $$"Lapp/morphe/extension/music/patches/downloads/OfflineQueueActions$Row;"
+private const val NOTICE = $$"Lapp/morphe/extension/music/patches/downloads/OfflineQueueActions$NoticeSource;"
 private const val TAP_SOURCE = $$"Lapp/morphe/extension/music/patches/downloads/OfflineQueueActions$TapSource;"
 private const val NAVIGATOR = $$"Lapp/morphe/extension/music/patches/downloads/PlayerFallback$Navigator;"
 private const val QUEUE_ROW = $$"Lapp/morphe/extension/music/patches/downloads/PlayerFallback$QueueRow;"
@@ -53,6 +59,8 @@ private const val FUTURE = "Lcom/google/common/util/concurrent/ListenableFuture;
 private const val MAP = "Ljava/util/Map;"
 private const val OBJECT = "Ljava/lang/Object;"
 private const val LIST = "Ljava/util/List;"
+private const val OPTIONAL = "Lj$/util/Optional;"
+private const val TAIL = "Lapp/morphe/extension/music/patches/downloads/QueueAddTail;"
 private const val TAG = "com.google.android.libraries.youtube.innertube.endpoint.tag"
 private const val CAST_MOVE = "Move performed instead of add while casting."
 private const val LOCAL_ENQUEUE = "patch_jamLocalEnqueue"
@@ -145,6 +153,14 @@ internal fun BytecodePatchContext.installOfflineQueueActions(commandType: String
             "native row factory is not the captured watch-next row ABI"
         }
 
+        // The song menu clones the native lookup with its queue context as a parameter. Without it Add keeps stock.
+        stage = "isolated Add to queue lookup ${abi.lookup}->$SONG_MENU_LOOKUP"
+        val isolated = client.isolatedLookup(commandType)
+        if (isolated == null) {
+            printWarn("OfflineQueueActions: Add to queue keeps the stock request on Music " +
+                "${packageMetadata.versionName}: the native lookup could not be isolated")
+        }
+
         stage = "local queue ownership and replay continuation for ${abi.manager} via ${abi.wrapper}"
         val modelAccess = prepareLocalModelAccess(manager, abi.wrapper)
 
@@ -174,6 +190,7 @@ internal fun BytecodePatchContext.installOfflineQueueActions(commandType: String
                 return-object v0
             """,
         )
+        if (isolated != null) installIsolatedLookup(client, isolated, abi.result)
         val bridge = "${manager.type}->rvxOfflineLookup(${client.type}$commandType$EXECUTOR)$FUTURE"
         manager.addDownloadsBridge("rvxOfflineLookup", listOf(client.type, commandType, EXECUTOR), FUTURE, 4, """
             invoke-static {p0, p1, p2, p3}, $EXT->lookup($OBJECT$LOOKUP$OBJECT$EXECUTOR)$FUTURE
@@ -189,10 +206,47 @@ internal fun BytecodePatchContext.installOfflineQueueActions(commandType: String
         printInfo("OfflineQueueActions: 1 local resolver scope $resolver; 1 metadata future $nativeLookup in " +
             "$nativeBody; result ${abi.result} via $factory; 1 native completion gate $callback; " +
             "1 Up Next click; 1 native occurrence commit; 1 native occurrence publisher")
+        if (isolated != null) {
+            printInfo("OfflineQueueActions: 1 isolated token-free Add to queue lookup $isolated in ${client.type}")
+            installQueueAddTail()
+        }
     } catch (exception: Exception) {
         printWarn("OfflineQueueActions: native enqueue unavailable on Music ${packageMetadata.versionName}: " +
             "$stage: ${exception.message}")
     }
+}
+
+/** The song menu's token-free clone of the native lookup, absent when that patch could not build it. */
+private fun MutableClass.isolatedLookup(commandType: String): Method? = methods.singleOrNull {
+    it.name == SONG_MENU_LOOKUP && it.parameterTypes == listOf(commandType, EXECUTOR, OPTIONAL) &&
+            it.returnType == FUTURE
+}
+
+/** Typed bridges for [ISOLATED]: the lookup with an empty queue context, and the rows of its mapped native reply. */
+private fun BytecodePatchContext.installIsolatedLookup(client: MutableClass, isolated: Method, result: String) {
+    client.interfaces.add(ISOLATED)
+    client.addDownloadsBridge("rvxIsolatedQueueLookup", listOf(OBJECT, EXECUTOR), FUTURE, 4, """
+        check-cast p1, ${isolated.parameterTypes.first()}
+        ${emptyQueueContext("v0")}
+        ${invokeKind(isolated)} {p0, p1, p2, v0}, $isolated
+        move-result-object p1
+        return-object p1
+    """)
+    client.addDownloadsBridge("rvxIsolatedQueueRows", listOf(OBJECT), LIST, 2, """
+        ${resultRows(result)}
+        return-object p1
+    """)
+}
+
+/** Smali that leaves the rows of a native queue reply in p1. The reply is the list itself on 8.x. */
+private fun BytecodePatchContext.resultRows(result: String): String {
+    if (result == LIST) return "check-cast p1, $LIST"
+
+    val rows = classDefBy(result).fields.single { it.type == LIST && !AccessFlags.STATIC.isSet(it.accessFlags) }
+    return """
+        check-cast p1, $result
+        iget-object p1, p1, $rows
+    """
 }
 
 /** A locally materialized reply may have been queued on the native executor before its model was replaced. */
@@ -200,14 +254,8 @@ private fun BytecodePatchContext.prepareApplyReply(callback: Method, manager: St
     val owner = mutableClassDefBy(callback.definingClass)
     val managerField = owner.fields.single { it.type == manager && !AccessFlags.STATIC.isSet(it.accessFlags) }
     val body = callback.getMutableMethod()
-    val start = body.steps().first()
-    val fetchItems = if (result == LIST) "check-cast p1, $LIST" else {
-        val items = classDefBy(result).fields.single { it.type == LIST && !AccessFlags.STATIC.isSet(it.accessFlags) }
-        """
-            check-cast p1, $result
-            iget-object p1, p1, $items
-        """
-    }
+    val stock = body.cloneMutable(name = "rvxQueueStockSuccess")
+    val fetchItems = resultRows(result)
     check(body.p0Register in 1..14) { "native queue callback registers cannot address its result" }
 
     return {
@@ -223,13 +271,41 @@ private fun BytecodePatchContext.prepareApplyReply(callback: Method, manager: St
             const/4 v0, 0x1
             return v0
         """)
-        body.addInstructionsWithLabels(0, """
+        val commit = "${owner.type}->rvxCommitOfflineQueueNotice($OBJECT)V"
+        owner.addDownloadsBridge("rvxCommitOfflineQueueNotice", listOf(OBJECT), "V", 3, """
+            if-eqz p1, :done
+            $fetchItems
+            invoke-static {p1}, $EXT->insertionCommitted($LIST)V
+            iget-object v0, p0, $managerField
+            invoke-static {v0, p1}, $TAIL->committed($OBJECT$LIST)V
+            :done
+            return-void
+        """)
+        val wrapper = body.cloneMutable(registerCount = 3, clearImplementation = true)
+        val invokeStock = if (AccessFlags.PRIVATE.isSet(stock.accessFlags)) "invoke-direct" else "invoke-virtual"
+        wrapper.addInstructionsWithLabels(0, """
             invoke-virtual {p0, p1}, $guard
             move-result v0
-            if-nez v0, :rvx_stock_callback
+            if-eqz v0, :done
+            $invokeStock {p0, p1}, $stock
+            invoke-virtual {p0, p1}, $commit
+            :done
             return-void
-        """, ExternalLabel("rvx_stock_callback", start))
+        """)
+        owner.replaceMethod(body, stock, wrapper)
     }
+}
+
+/**
+ * Swaps [method] for [replacements]. A class hashes its methods by name, so a method renamed in place can no longer
+ * be removed by value: Jam renames the native callback that way, and the removal then silently kept the stock body
+ * while the new wrapper with the same signature was dropped when the dex was written.
+ */
+private fun MutableClass.replaceMethod(method: MutableMethod, vararg replacements: MutableMethod) {
+    val kept = methods.filter { it !== method }
+    methods.clear()
+    methods.addAll(kept)
+    methods.addAll(replacements)
 }
 
 /** Replace Jam's enable check at the same width so its already-assembled branch targets stay valid. */
@@ -265,7 +341,7 @@ internal fun BytecodePatchContext.finishOfflineQueueActions() {
 }
 
 /** Prove the populated non-Cast branch even when the FIFO patch has already rewritten its slow join. */
-private fun prepareLocalQueueScope(
+private fun BytecodePatchContext.prepareLocalQueueScope(
     resolver: MutableMethod, enqueue: Method, commandType: String,
 ): () -> Unit {
     val steps = resolver.steps()
@@ -339,10 +415,48 @@ private fun prepareLocalQueueScope(
         check-cast v$rootReg, $commandType
     """
 
+    val localCall = steps[local] as ReferenceInstruction
+    val notifier = localCall.reg(0)
+    val endpoint = localCall.reg(1)
+    val fastCall = steps[fast] as ReferenceInstruction
+    val fastMethod = fastCall.call()!!
+    val fastRow = fastCall.reg(1)
+    val position = fastCall.reg(2)
+    val noticeArgs = "$OBJECT$OBJECT$MAP$NOTICE$OBJECT"
+    check(listOf(notifier, endpoint, fastRow, position).all { it < 16 } && endpoint != rootReg &&
+            steps[local].opcode == Opcode.INVOKE_DIRECT) { "unrecognized queue notice receiver" }
+
     return {
+        val dispatcher = mutableClassDefBy(resolver.definingClass)
+        dispatcher.interfaces.add(NOTICE)
+        val notifyType = notify.parameterTypes.single()
+        dispatcher.addDownloadsBridge("rvxQueueNotice", listOf(OBJECT), "V", 2, """
+            check-cast p1, $notifyType
+            invoke-direct {p0, p1}, $notify
+            return-void
+        """)
+        val manager = mutableClassDefBy(enqueue.definingClass)
+        val fastParams = fastMethod.parameterTypes.map(CharSequence::toString) + commandType
+        val fastBridge = "${manager.type}->rvxQueueFast(${fastParams.joinToString("")})Z"
+        manager.addDownloadsBridge("rvxQueueFast", fastParams, "Z", 5, """
+            invoke-virtual {p0, p1, p2}, $fastMethod
+            move-result v0
+            if-eqz v0, :done
+            invoke-static {p3}, $EXT->fastInsertionCommitted($OBJECT)V
+            :done
+            return v0
+        """)
+        resolver.replaceInstruction(fast,
+            "invoke-virtual {v$managerReg, v$fastRow, v$position, v$rootReg}, $fastBridge")
+        resolver.replaceInstruction(local, "nop")
+        val prepare = filterCommand("v$managerReg, v$rootReg, v$mapReg, v$notifier, v$endpoint",
+            "prepare($noticeArgs)$OBJECT")
+        resolver.addInstructionsWithLabels(local + 1, """
+            $prepare
+            invoke-static {v$notifier, v$endpoint, v$rootReg}, $EXT->noticeIfUnscoped($NOTICE$OBJECT$OBJECT)V
+        """)
         val context = "v$managerReg, v$rootReg, v$mapReg"
         val signature = "($OBJECT$OBJECT$MAP)$OBJECT"
-        resolver.addInstructionsWithLabels(local + 1, filterCommand(context, "prepare$signature"))
         // Only the Cast fallthrough enters this arm. The stock branch still owns the non-Cast route.
         resolver.addInstructionsWithLabels(castGate + 1,
             filterCommand("v$rootReg", "castCommand($OBJECT)$OBJECT"))

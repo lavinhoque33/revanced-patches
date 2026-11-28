@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-27.
  * Modified by lavinhoque33, 2026-11-26.
  * Modified by lavinhoque33, 2026-11-19.
  * Modified by lavinhoque33, 2026-11-17.
@@ -22,7 +23,6 @@ import app.morphe.patcher.util.getReference
 import app.morphe.patcher.util.smali.ExternalLabel
 import app.morphe.patches.music.video.information.ModernVideoEndFingerprint
 import app.morphe.patches.shared.misc.fix.proto.parseByteArrayMethodRef
-import app.morphe.patches.shared.misc.fix.proto.parseByteArrayWithRegistryMethodRef
 import app.morphe.util.Utils.printInfo
 import app.morphe.util.Utils.printWarn
 import app.morphe.util.addInstructionsAtControlFlowLabel
@@ -107,19 +107,26 @@ internal fun BytecodePatchContext.installOfflineReplay() {
     try {
         val commandType = nativeDownloadsCommandResolverFingerprint.method.parameterTypes[1].toString()
         val supported = mutableClassDefBy(REPLAY).methods.single { it.name == "supported" }
-        val installGate = prepareReplayGate(commandType)
+        val (watchHandler, installGate) = prepareReplayGate(commandType)
         val (requestType, installTail) = prepareReplayTail()
         val (shuffleAvailable, installNext) = prepareReplayNext(requestType, commandType)
+        val installShuffleBinding = if (shuffleAvailable) {
+            prepareShuffleRequestBinding(watchHandler, commandType, requestType)
+        } else null
 
         val installPage = prepareDownloadsPage()
         val installBrowse = prepareBrowsePages(shuffleAvailable)
         val installSeek = prepareSeekSnap()
         val installSheet = prepareNoConnectionSheet()
+        val installLanding = prepareLibraryLanding()
 
         installGate()
         installTail()
         installNext()
+        installShuffleBinding?.invoke()
+        installWatchMetadata()
         installPage?.invoke()
+        installLanding?.invoke()
         installBrowse?.invoke()
         installSeek?.invoke()
         installSheet?.invoke()?.let(::printInfo)
@@ -359,7 +366,7 @@ private fun BytecodePatchContext.pageResponseShape(type: String): PageResponseSh
 }
 
 /** The reference of the serializing method of a message class, which a base class of it may define. */
-private fun BytecodePatchContext.serializerOf(message: String): String {
+internal fun BytecodePatchContext.serializerOf(message: String): String {
     var type: String? = message
     while (type != null) {
         val owner = classDefByOrNull(type) ?: break
@@ -372,8 +379,8 @@ private fun BytecodePatchContext.serializerOf(message: String): String {
 }
 
 /**
- * Captures the native detail model at success and retains existing album failure replay on its original versions.
- * Playlist requests use the first-load bridge when available instead of waiting for the stock error callback.
+ * Captures the native detail model at success. Playlist and album snapshots use the same worker-first bridge;
+ * failures of a concurrent native request must not erase a saved detail already on screen.
  */
 private fun BytecodePatchContext.prepareBrowsePages(shuffleAvailable: Boolean): (() -> Unit)? {
     try {
@@ -420,19 +427,10 @@ private fun BytecodePatchContext.prepareBrowsePages(shuffleAvailable: Boolean): 
             it.type == messageType && AccessFlags.STATIC.isSet(it.accessFlags)
         }
         val serialize = serializerOf(messageType)
-        val keepLegacy = packageMetadata.versionName in PLAYLIST_SYNC_VERSIONS
-        val legacyParser = if (keepLegacy) checkNotNull(parseByteArrayWithRegistryMethodRef.get()) else null
-        val installInitial = try {
-            prepareInitialDetail(page, success, stateType, requestType, modelInit, default, shuffleAvailable)
-        } catch (ex: Exception) {
-            printWarn("OfflineReplay: initial playlist detail load not hooked: ${ex.message}")
-            if (!keepLegacy) return null
-            null
-        }
-        val stock = if (keepLegacy) {
-            check(failure.implementation!!.registerCount - 3 in 1..13) { "browse: failure registers" }
-            ExternalLabel("rvx_page_stock", failure.getInstruction<Instruction>(0))
-        } else null
+        val installInitial = prepareInitialDetail(page, success, failure, stateType, requestType,
+            modelInit, default, shuffleAvailable)
+        check(failure.implementation!!.registerCount - 3 in 1..13) { "browse: failure registers" }
+        val stock = ExternalLabel("rvx_page_stock", failure.getInstruction<Instruction>(0))
 
         return {
             modelClass.interfaces.add(BROWSE_BYTES)
@@ -456,34 +454,15 @@ private fun BytecodePatchContext.prepareBrowsePages(shuffleAvailable: Boolean): 
             success.addInstructions(0, """
                 invoke-virtual {p0, p1}, ${page.type}->rvxPageId($stateType)$STRING
                 move-result-object v0
-                const/4 v1, ${if (keepLegacy) 1 else 0}
-                invoke-static {v0, p2, v1}, $REPLAY->onBrowseResponse($STRING${OBJECT}Z)V
+                invoke-static {p0, p1, v0, p2}, $REPLAY->onBrowseResponse($OBJECT$OBJECT$STRING$OBJECT)V
             """)
-            if (stock != null && legacyParser != null) {
-                page.addDownloadsBridge("rvxPageModel", listOf("[B"), OBJECT, 4, """
-                    sget-object v0, $default
-                    invoke-static {}, $REGISTRY->getGeneratedRegistry()$REGISTRY
-                    move-result-object v1
-                    invoke-static {v0, p1, v1}, $legacyParser
-                    move-result-object v0
-                    check-cast v0, $messageType
-                    new-instance v1, $modelType
-                    invoke-direct {v1, v0}, $modelInit
-                    return-object v1
-                """)
-                failure.addInstructionsWithLabels(0, """
-                    invoke-virtual {p0, p1}, ${page.type}->rvxPageId($stateType)$STRING
-                    move-result-object v0
-                    invoke-static {v0, p2}, $REPLAY->answerBrowse($STRING$THROWABLE)[B
-                    move-result-object v0
-                    if-eqz v0, :rvx_page_stock
-                    invoke-virtual {p0, v0}, ${page.type}->rvxPageModel([B)$OBJECT
-                    move-result-object v0
-                    invoke-virtual {p0, p1, v0}, ${page.type}->${success.name}($stateType$OBJECT)V
-                    return-void
-                """, stock)
-            }
-            installInitial?.invoke()
+            failure.addInstructionsWithLabels(0, """
+                invoke-static {p0, p1, p2}, $REPLAY->keepSavedDetail($OBJECT$OBJECT$THROWABLE)Z
+                move-result v0
+                if-eqz v0, :rvx_page_stock
+                return-void
+            """, stock)
+            installInitial()
         }
     } catch (ex: Exception) {
         printWarn("OfflineReplay: browse pages not hooked; a downloaded list opens as before: ${ex.message}")
@@ -506,13 +485,12 @@ private fun BytecodePatchContext.detailModelType(success: Method): String {
 }
 
 /**
- * The fragment's onCreate and deferred first-load entry both call its abstract request issuer. Replacing those
- * invocations (rather than the issuer itself) leaves button and mutation refreshes alone. Stock onDestroy cancels
- * the request state; stock success sets it to LOADED. The worker's delivery checks the same identity and INITIAL
- * phase, so it cannot render a replaced, refreshed, or destroyed request.
+ * The fragment's onCreate and deferred first-load entry both call its abstract request issuer. Connected loads
+ * use that issuer in parallel with their snapshot. Stock onDestroy cancels the request state; local delivery
+ * checks both the exact current request and the canceled phase before applying a model.
  */
 private fun BytecodePatchContext.prepareInitialDetail(
-    page: MutableClass, success: MutableMethod, stateType: String, requestType: String,
+    page: MutableClass, success: MutableMethod, failure: MutableMethod, stateType: String, requestType: String,
     modelInit: MethodReference, default: FieldReference,
     shuffleAvailable: Boolean,
 ): () -> Unit {
@@ -537,6 +515,9 @@ private fun BytecodePatchContext.prepareInitialDetail(
     val phase = state.fields.single { classDefByOrNull(it.type)?.superclass == "Ljava/lang/Enum;" }
     val initial = state.methods.single { it.name == "<init>" && it.parameterTypes.isEmpty() }
         .implementation!!.instructions.filter { it.opcode == Opcode.SGET_OBJECT }
+        .mapNotNull { it.getReference<FieldReference>() }
+        .single { it.definingClass == phase.type && it.type == phase.type }
+    val canceled = failure.implementation!!.instructions.take(4).filter { it.opcode == Opcode.SGET_OBJECT }
         .mapNotNull { it.getReference<FieldReference>() }
         .single { it.definingClass == phase.type && it.type == phase.type }
     val flags = state.methods.single {
@@ -564,12 +545,43 @@ private fun BytecodePatchContext.prepareInitialDetail(
     val shuffleHook = if (shuffleAvailable) {
         mutableClassDefBy(REPLAY).methods.single { it.name == "localPlaylistShuffleSupported" }
     } else null
-    val (onlinePage, service) = stockDetailPage(issuer, requestType)
+    val (onlinePage, service, nativeRequest) = stockDetailPage(issuer, requestType)
+    check(nativeRequest.implementation!!.registerCount - 2 in 1..14) { "browse: native refresh registers" }
+    val stockRequest = ExternalLabel("rvx_native_detail", nativeRequest.getInstruction<Instruction>(0))
     val installSavedModel = prepareSavedPlaylistModel(onlinePage, service, modelInit, default)
 
     return {
         installSavedModel()
         onlinePage.interfaces.add(DETAIL_PAGE)
+        nativeRequest.addInstructionsWithLabels(0, """
+            invoke-static {p0, p1}, $REPLAY->refreshSavedDetail($OBJECT$OBJECT)Z
+            move-result v0
+            if-eqz v0, :rvx_native_detail
+            return-void
+        """, stockRequest)
+        page.addDownloadsBridge("rvxOwnsDetail", listOf(OBJECT), "Z", 4, """
+            iget-object v0, p0, $current
+            if-eqz v0, :rvx_inactive_detail
+            if-ne v0, p1, :rvx_inactive_detail
+            iget-object v0, v0, $phase
+            sget-object v1, $canceled
+            if-eq v0, v1, :rvx_inactive_detail
+            const/4 v0, 0x1
+            return v0
+            :rvx_inactive_detail
+            const/4 v0, 0x0
+            return v0
+        """)
+        page.addDownloadsBridge("rvxIssueDetail", listOf(OBJECT), "V", 2, """
+            check-cast p1, $stateType
+            invoke-virtual {p0, p1}, $issuer
+            return-void
+        """)
+        page.addDownloadsBridge("rvxFailDetail", listOf(OBJECT, THROWABLE), "V", 3, """
+            check-cast p1, $stateType
+            invoke-virtual {p0, p1, p2}, $failure
+            return-void
+        """)
         page.addDownloadsBridge("rvxOwnsInitialBrowse", listOf(OBJECT), "Z", 4, """
             instance-of v0, p1, $requestType
             if-eqz v0, :rvx_other_request
@@ -605,16 +617,13 @@ private fun BytecodePatchContext.prepareInitialDetail(
             return-object v0
         """)
         page.addDownloadsBridge("rvxFinishInitialBrowse", listOf(OBJECT, OBJECT), "Z", 4, """
-            invoke-virtual {p0, p1}, ${page.type}->rvxOwnsInitialBrowse($OBJECT)Z
+            invoke-virtual {p0, p1}, ${page.type}->rvxOwnsDetail($OBJECT)Z
             move-result v0
             if-eqz v0, :rvx_not_delivered
             check-cast p1, $stateType
-            if-eqz p2, :rvx_issue_stock
             invoke-virtual {p0, p1, p2}, ${page.type}->${success.name}($stateType$OBJECT)V
             const/4 v0, 0x1
             return v0
-            :rvx_issue_stock
-            invoke-virtual {p0, p1}, $issuer
             :rvx_not_delivered
             const/4 v0, 0x0
             return v0
@@ -634,7 +643,7 @@ private fun BytecodePatchContext.prepareInitialDetail(
         }
         hook.returnEarly(true)
         shuffleHook?.returnEarly(true)
-        printInfo("OfflineReplay: local first playlist detail load hooked in ${page.type} (${onlinePage.type})")
+        printInfo("OfflineReplay: local-first playlist and album detail hooked in ${page.type} (${onlinePage.type})")
     }
 }
 
@@ -644,7 +653,7 @@ private fun BytecodePatchContext.prepareInitialDetail(
  */
 private fun BytecodePatchContext.stockDetailPage(
     issuer: MethodReference, requestType: String,
-): Pair<MutableClass, FieldReference> {
+): Triple<MutableClass, FieldReference, MutableMethod> {
     val match = Fingerprint(
         accessFlags = listOf(AccessFlags.PUBLIC, AccessFlags.FINAL),
         returnType = "V",
@@ -664,7 +673,7 @@ private fun BytecodePatchContext.stockDetailPage(
     val service = code.single(::isBrowseServiceCall).getReference<MethodReference>()!!.definingClass
     val field = code.filter { it.opcode == Opcode.IGET_OBJECT }.mapNotNull { it.getReference<FieldReference>() }
         .distinct().single { it.definingClass == page.type && it.type == service }
-    return page to field
+    return Triple(page, field, match.method)
 }
 
 private fun isBrowseServiceCall(instruction: Instruction): Boolean {
@@ -675,13 +684,9 @@ private fun isBrowseServiceCall(instruction: Instruction): Boolean {
 }
 
 /**
- * The seek of the player after a drag on the progress bar (`Lacbd.ap` in 9.40.51, found by the strings the video
- * information patch also uses). It asks the app's stream cache for the start of the span nearest to the target:
- * a negative answer cancels the seek, one below the target moves the target there, one at or above it seeks to the
- * target. A copy played from a file has no span, the lookup answers 0 and the seek restarts the song. The answer goes
- * through [REPLAY] on its way, which replaces a 0 with a value above any target while there is no network. The
- * lookup is the one call in the method that takes two objects, a long and a boolean and returns a long. Optional:
- * a version where it is not found only keeps the stock seek, and the rest still installs.
+ * The seek method gets two selected formats from the seeking player before asking the stream cache to snap a
+ * target. Wrap only that call: a clip reading local files has no relevant cache spans (even if stock finds an
+ * old one), so return a sentinel above the requested target; any other clip keeps the stock policy.
  */
 private fun BytecodePatchContext.prepareSeekSnap(): (() -> Unit)? {
     try {
@@ -689,6 +694,7 @@ private fun BytecodePatchContext.prepareSeekSnap(): (() -> Unit)? {
         val instructions = method.implementation!!.instructions.toList()
         val lookups = instructions.indices.filter { index ->
             val call = instructions[index]
+            // The same selected format type is passed for both lanes.
             call.opcode in setOf(
                 Opcode.INVOKE_VIRTUAL, Opcode.INVOKE_INTERFACE,
                 Opcode.INVOKE_VIRTUAL_RANGE, Opcode.INVOKE_INTERFACE_RANGE,
@@ -696,21 +702,60 @@ private fun BytecodePatchContext.prepareSeekSnap(): (() -> Unit)? {
                 call.getReference<MethodReference>()?.let { reference ->
                     val parameters = reference.parameterTypes.map(CharSequence::toString)
                     reference.returnType == "J" && parameters.size == 4 && parameters[0].startsWith("L") &&
-                        parameters[1].startsWith("L") && parameters[2] == "J" && parameters[3] == "Z"
+                        parameters[0] == parameters[1] && parameters[2] == "J" && parameters[3] == "Z"
                 } == true
         }
         check(lookups.size == 1) { "seek: found ${lookups.size} cache lookups" }
 
-        val result = instructions[lookups.single() + 1]
-        check(result.opcode == Opcode.MOVE_RESULT_WIDE) { "seek: lookup result is not used" }
-        val register = (result as OneRegisterInstruction).registerA
-        val insertion = lookups.single() + 1
+        val index = lookups.single()
+        val instruction = instructions[index]
+        val lookup = instruction.getReference<MethodReference>()!!
+        val parameters = lookup.parameterTypes.map(CharSequence::toString)
+        val uriType = "Landroid/net/Uri;"
+        val format = mutableClassDefBy(parameters.first())
+        val uri = format.fields.single {
+            it.type == uriType && AccessFlags.PUBLIC.isSet(it.accessFlags) && !AccessFlags.STATIC.isSet(it.accessFlags)
+        }
+        check(instructions[index + 1].opcode == Opcode.MOVE_RESULT_WIDE) { "seek: lookup result is not used" }
+        val receiver = mutableClassDefBy(lookup.definingClass)
+        check(!AccessFlags.INTERFACE.isSet(receiver.accessFlags)) { "seek: cache lookup is not a virtual method" }
+
+        val registers = when (instruction.opcode) {
+            Opcode.INVOKE_VIRTUAL_RANGE -> (instruction as RegisterRangeInstruction).let {
+                check(it.registerCount == 6) { "seek: unexpected cache lookup arguments" }
+                "v${it.startRegister} .. v${it.startRegister + it.registerCount - 1}"
+            }
+            else -> error("seek: cache lookup does not pass six contiguous registers")
+        }
+        val bridge = "rvxSeekSnap"
+        val signature = parameters.joinToString(separator = "", prefix = "(", postfix = ")J")
 
         return {
-            method.addInstructions(insertion + 1, """
-                invoke-static/range {v$register .. v${register + 1}}, $REPLAY->seekSnap(J)J
-                move-result-wide v$register
+            receiver.addDownloadsBridge(bridge, parameters, "J", 10, """
+                const/4 v0, 0x0
+                const/4 v1, 0x0
+                const/4 v2, 0x0
+                const/4 v3, 0x0
+                if-eqz p1, :second_format
+                iget-object v0, p1, $uri
+                const/4 v2, 0x1
+                :second_format
+                if-eqz p2, :decide
+                iget-object v1, p2, $uri
+                const/4 v3, 0x1
+                :decide
+                invoke-static {v0, v1, v2, v3}, $REPLAY->seeksFile($uriType${uriType}ZZ)Z
+                move-result v0
+                if-eqz v0, :stock
+                const-wide v0, 0x7fffffffffffffffL
+                return-wide v0
+                :stock
+                invoke-virtual/range {p0 .. p5}, $lookup
+                move-result-wide v0
+                return-wide v0
             """)
+            method.replaceInstruction(index, "invoke-virtual/range {$registers}, ${receiver.type}->$bridge$signature")
+            printInfo("OfflineReplay: seek from selected clip formats via ${receiver.type}->$bridge")
         }
     } catch (ex: Exception) {
         printWarn("OfflineReplay: seek snap not hooked; a drag on the progress bar seeks as stock: ${ex.message}")
@@ -805,10 +850,12 @@ private fun Method.isMealbarDismiss(): Boolean {
 /**
  * The offline watch command resolver (`Laocx` extension 57703777). Behind an experiment flag it either drops the
  * command while the app counts itself offline or goes on to the watch endpoint handler `d(command, message, context)`.
- * Right after the flag is read the song's id is asked of [REPLAY]: a song with stored data while the device has no
- * network goes straight to the handler. Both branches of the stock code are left as they are otherwise.
+ * The bypass recognizes the exact fork-owned local dispatch as well as a saved command when playback is offline.
+ * It skips the stock recovery prompt and takes the native handler; unowned commands keep the stock decisions.
+ *
+ * @return the watch endpoint handler and the installation.
  */
-private fun BytecodePatchContext.prepareReplayGate(commandType: String): () -> Unit {
+private fun BytecodePatchContext.prepareReplayGate(commandType: String): Pair<Method, () -> Unit> {
     val match = Fingerprint(
         returnType = "V",
         parameters = listOf(commandType, MAP),
@@ -866,6 +913,10 @@ private fun BytecodePatchContext.prepareReplayGate(commandType: String): () -> U
     val context = handlerCall.registerF
     val invokeHandler = if (handlerCall.opcode == Opcode.INVOKE_DIRECT) "invoke-direct" else "invoke-virtual"
     val handlerSignature = "${owner.type}->${handler.name}(${commandType}${messageType}$MAP)V"
+    val handlerMethod = owner.methods.single {
+        it.name == handler.name &&
+            it.parameterTypes.map(CharSequence::toString) == listOf(commandType, messageType, MAP)
+    }
 
     val videoId = instructions.drop(literal).first {
         it.opcode == Opcode.IGET_OBJECT && it.getReference<FieldReference>()?.let { field ->
@@ -883,6 +934,14 @@ private fun BytecodePatchContext.prepareReplayGate(commandType: String): () -> U
     for (register in listOf(self, command, context)) {
         check(instructions.count { it.writes(register) } == 1) { "gate: register v$register is reassigned" }
     }
+    val commandInput = method.implementation!!.registerCount - 2 // p1: the Root supplied by the dispatcher.
+    val commandCopy = instructions.take(castIndex).singleOrNull { it.writes(command) }
+        ?: error("gate: missing initial copy of dispatcher Root")
+    check(commandCopy.opcode in listOf(Opcode.MOVE_OBJECT, Opcode.MOVE_OBJECT_FROM16, Opcode.MOVE_OBJECT_16) &&
+        (commandCopy as TwoRegisterInstruction).registerB == commandInput &&
+        instructions.takeWhile { it !== commandCopy }.none { it.writes(commandInput) }) {
+        "gate: handler does not receive the dispatcher Root unchanged"
+    }
     check(listOf(self, command, message, context, scratch, flag).all { it <= 15 }) { "gate: register range" }
     check(instructions.isDeadFrom(insertion + 1, scratch) &&
         instructions.isDeadFrom((flagTest as BuilderOffsetInstruction).target.location.index, scratch)) {
@@ -890,24 +949,85 @@ private fun BytecodePatchContext.prepareReplayGate(commandType: String): () -> U
     }
 
     val stock = ExternalLabel("rvx_replay_gate_stock", method.getInstruction<Instruction>(insertion))
-    return {
+    return handlerMethod to {
         method.addInstructionsWithLabels(insertion, """
             invoke-static {v$flag}, $REPLAY->noteGateFlag(Z)V
             iget-object v$scratch, v$message, ${videoId.definingClass}->${videoId.name}:$STRING
-            invoke-static {v$scratch}, $REPLAY->holdsForGate($STRING)Z
+            invoke-static {v$command, v$scratch}, $REPLAY->holdsForGate($OBJECT$STRING)Z
             move-result v$scratch
             if-eqz v$scratch, :rvx_replay_gate_stock
             $invokeHandler {v$self, v$command, v$message, v$context}, $handlerSignature
             return-void
         """, stock)
+        printInfo("OfflineReplay: exact gate command ${owner.type}->${method.name} v$command; video v$scratch")
     }
+}
+
+/**
+ * The watch request the app derives from the command of an offline watch: the handler of [prepareReplayGate] hands the
+ * command to the watch controller (`Lieo.s(command, options)` in 9.45.51), and the controller builds the request
+ * from it with the request builder (`Labpk.a = command`, `Labpk.a()` -> `Labpl`, in `Liem.s`). Right after the build,
+ * on the thread that dispatched the command, the request goes to [REPLAY], which binds it to the Shuffle Play dispatch
+ * of that very command. The controller is found by the handler's call: the one method of the app with the same
+ * parameters that builds the request type from a builder it gave the command to. Optional: without it a request still
+ * takes its plan by the dispatched object or the dispatch token.
+ */
+private fun BytecodePatchContext.prepareShuffleRequestBinding(
+    handler: Method, commandType: String, requestType: String,
+): (() -> Unit)? = try {
+    val controllerCall = handler.implementation!!.instructions.filter { it.opcode == Opcode.INVOKE_INTERFACE }
+        .mapNotNull { it.getReference<MethodReference>() }
+        .single { it.returnType == "V" && it.parameterTypes.size == 2 && it.parameterTypes[0] == commandType }
+    val parameters = controllerCall.parameterTypes.map(CharSequence::toString)
+
+    val builders = mutableListOf<Pair<ClassDef, Method>>()
+    classDefForEach { owner ->
+        owner.methods.filter { method ->
+            method.returnType == "V" && method.parameterTypes.map(CharSequence::toString) == parameters &&
+                method.requestBuildIndex(commandType, requestType) != null
+        }.forEach { builders.add(owner to it) }
+    }
+    val (owner, controller) = builders.singleOrNull()
+        ?: error("${builders.size} request builders for $controllerCall")
+    val build = controller.requestBuildIndex(commandType, requestType)!!
+    val result = controller.implementation!!.instructions.elementAt(build + 1)
+    check(result.opcode == Opcode.MOVE_RESULT_OBJECT) { "the built request is not kept" }
+    val request = (result as OneRegisterInstruction).registerA
+
+    val install = {
+        mutableClassDefBy(owner.type).findMutableMethodOf(controller).addInstruction(build + 2,
+            "invoke-static/range {v$request .. v$request}, $REPLAY->bindShuffleRequest($OBJECT)V")
+        printInfo("OfflineReplay: shuffle request binding ${owner.type}->${controller.name}, request v$request")
+    }
+    install
+} catch (exception: Exception) {
+    printWarn("OfflineReplay: shuffle request binding not hooked; requests match by command only: " +
+        "${exception.message}")
+    null
+}
+
+/** The one call of the method that builds [requestType] with a builder that is given a [commandType] field. */
+private fun Method.requestBuildIndex(commandType: String, requestType: String): Int? {
+    val steps = implementation?.instructions?.toList() ?: return null
+    val builderTypes = steps.filter { it.opcode == Opcode.IPUT_OBJECT }
+        .mapNotNull { it.getReference<FieldReference>() }
+        .filter { it.type == commandType }
+        .map { it.definingClass }
+        .toSet()
+    if (builderTypes.isEmpty()) return null
+
+    return steps.indices.filter { index ->
+        steps[index].opcode == Opcode.INVOKE_VIRTUAL && steps[index].getReference<MethodReference>()?.let { call ->
+            call.definingClass in builderTypes && call.parameterTypes.isEmpty() && call.returnType == requestType
+        } == true
+    }.singleOrNull()
 }
 
 /**
  * The offline player lookup. A song the stock lookup does not know (the user's stream copies are no entity of the
  * app's own offline store) ends in the `Unplayable Video` failure, which is delivered to the callback. In front of
  * that failure the lookup asks [REPLAY] for the stored response of the request's video; when it has one, the response
- * is built with the app's own factory (so the audio swap routes it to the copy) and delivered instead.
+ * is built by the saved-only clone of the app's factory, so the audio swap can route it to the copy.
  *
  * @return the type of the request and the installation.
  */
@@ -958,19 +1078,21 @@ private fun BytecodePatchContext.prepareReplayTail(): Pair<String, () -> Unit> {
     val deliver = callbackNames.single()
 
     val wrapper = streamSwapAdapterClass()
-    val factories = wrapper.methods.filter {
-        AccessFlags.STATIC.isSet(it.accessFlags) && it.returnType.startsWith("L") &&
-            it.parameterTypes.map(CharSequence::toString) == listOf("[B", "J")
-    }
-    check(factories.isNotEmpty()) { "player: no response factory" }
-    // The small one only wraps the bytes; the large one is the variant for a feature flag.
-    val factory = factories.minBy { it.implementation?.instructions?.count() ?: Int.MAX_VALUE }
-    val installPlayerFallback = preparePlayerFallback(requestType, offlineOnly, videoId, wrapper, factory)
+    val savedFactory = wrapper.methods.single { it.name == SAVED_PLAYER_FACTORY }
+    val installPlayerFallback = preparePlayerFallback(requestType, offlineOnly, videoId, wrapper, savedFactory)
     val cancelCallback = instructions.mapNotNull { it.getReference<MethodReference>() }.distinct().single {
         it.definingClass == callbackType && it.returnType == "V" &&
             it.parameterTypes.map(CharSequence::toString) == listOf(OBJECT, "Ljava/lang/Exception;")
     }
 
+    val watchWitness = packageMetadata.versionName in setOf("9.45.51", "9.40.51")
+    val captureWatch = if (watchWitness) """
+        invoke-static {p1}, $PLAYER_FALLBACK->localPlayerOwner($OBJECT)$OBJECT
+        move-result-object v5
+    """ else ""
+    val markWatch = if (watchWitness) """
+        invoke-static {v2, v5}, $PLAYER_FALLBACK->markLocalPlayer($OBJECT$OBJECT)V
+    """ else ""
     // Every failure of the lookup (an id the offline store lacks ends in a different catch block than a stale entry)
     // jumps to the guard: the hook takes over that jump target, so no failure path can skip it.
     return requestType to {
@@ -983,11 +1105,12 @@ private fun BytecodePatchContext.prepareReplayTail(): Pair<String, () -> Unit> {
             invoke-interface {p1, v0, v1}, $cancelCallback
             return-void
         """)
-        owner.addDownloadsBridge("rvxTail", listOf(requestType, callbackType), "Z", 8, """
+        owner.addDownloadsBridge("rvxTail", listOf(requestType, callbackType), "Z", if (watchWitness) 9 else 8, """
             invoke-virtual {p1}, ${offlineOnly.definingClass}->${offlineOnly.name}()Z
             move-result v0
             invoke-virtual {p1}, ${videoId.definingClass}->${videoId.name}()$STRING
             move-result-object v1
+            $captureWatch
             invoke-static {v1, v0}, $REPLAY->storedForPlayer(${STRING}Z)[B
             move-result-object v2
             if-nez v2, :stored
@@ -997,7 +1120,7 @@ private fun BytecodePatchContext.prepareReplayTail(): Pair<String, () -> Unit> {
             :stored
             invoke-static {}, Landroid/os/SystemClock;->elapsedRealtime()J
             move-result-wide v3
-            invoke-static {v2, v3, v4}, ${wrapper.type}->${factory.name}([BJ)${factory.returnType}
+            invoke-static {v2, v3, v4}, $savedFactory
             move-result-object v2
             invoke-static {v2, v1}, $REPLAY->finishPlayer($OBJECT$STRING)$OBJECT
             move-result-object v2
@@ -1006,6 +1129,7 @@ private fun BytecodePatchContext.prepareReplayTail(): Pair<String, () -> Unit> {
             move-result v0
             return v0
             :deliver
+            $markWatch
             const/4 v0, 0x0
             invoke-interface {p2, v0, v2}, $callbackType->$deliver($OBJECT$OBJECT)V
             const/4 v0, 0x1
@@ -1099,6 +1223,7 @@ private fun BytecodePatchContext.prepareReplayNext(
             new-instance v1, $responseType
             invoke-direct {v1, v0}, $responseType-><init>($protoType)V
             $attachShuffle
+            invoke-virtual {v1, p0}, $responseType->rvxLocalWatchRequest($OBJECT)V
             return-object v1
         """)
         method.addInstructions(returnIndex, """

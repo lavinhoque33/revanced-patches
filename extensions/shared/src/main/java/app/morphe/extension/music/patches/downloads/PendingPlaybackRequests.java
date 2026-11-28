@@ -1,6 +1,8 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-27
+ * Modified by lavinhoque33, 2026-11-26.
  * Modified by lavinhoque33, 2026-11-14.
  * Written by lavinhoque33, 2026-11-14.
  */
@@ -48,8 +50,13 @@ final class PendingPlaybackRequests {
         }
     }
 
+    /**
+     * Android says the network is gone ({@code offline}), or YouTube is not reachable on it ({@code upstreamDead}).
+     * A pending request that has a copy is answered from it in both cases; one that has none is only abandoned when
+     * the network is gone: with a dead upstream it keeps the stock outcome, an error.
+     */
     void disconnected(Ownership owns, Predicate<Object> cached, BooleanSupplier offline,
-                      Unavailable unavailable) {
+                      BooleanSupplier upstreamDead, Unavailable unavailable) {
         List<Entry> snapshot;
         synchronized (this) {
             if (entries.isEmpty()) return;
@@ -59,7 +66,9 @@ final class PendingPlaybackRequests {
             if (!entry.pending() || !owns.owns(entry.request(), entry.ownership())) {
                 remove(entry);
             } else if (cached.test(entry.request())) {
-                entry.recover(new PlaybackConnectionLoss(entry.request(), entry.ownership()));
+                if (offline.getAsBoolean() || upstreamDead.getAsBoolean()) {
+                    entry.recover(new PlaybackConnectionLoss(entry.request(), entry.ownership()));
+                }
             } else if (entry.player() && offline.getAsBoolean() && entry.selectUnavailable()) {
                 abandon(snapshot, entry, unavailable);
             }

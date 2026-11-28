@@ -28,6 +28,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BooleanSupplier;
+import java.util.function.Predicate;
 
 import app.morphe.extension.music.patches.androidauto.AndroidAutoPatch;
 import app.morphe.extension.shared.innertube.PlayerResponseOuterClass.Format;
@@ -75,6 +76,10 @@ final class OfflineCopyStore {
 
     static void loadPlaybackData() {
         Storage.copies.ensureLoaded();
+    }
+
+    static boolean playbackIndexReady() {
+        return Storage.copies.loaded();
     }
 
     /**
@@ -133,6 +138,11 @@ final class OfflineCopyStore {
         return Storage.sources.replacePlaylist(previous, tracks, page, previous.updatedAt(), allowed);
     }
 
+    static boolean commitPlaylist(OfflineSourceStore.Source previous, List<String> tracks, SourceHeader header,
+                                  File page, BooleanSupplier allowed) throws IOException, JSONException {
+        return Storage.sources.replacePlaylist(previous, tracks, header, page, previous.updatedAt(), allowed);
+    }
+
     @Nullable
     static byte[] readPlaylistPage(String sourceId) throws IOException {
         return Storage.sources.readBrowsePage(sourceId);
@@ -180,6 +190,13 @@ final class OfflineCopyStore {
         return Storage.copies.read(videoId);
     }
 
+    /** The playback response alone; a missing or damaged cover is not a playback error. */
+    @Nullable
+    static byte[] response(String videoId) {
+        Utils.verifyOffMainThread();
+        return Storage.copies.readResponse(videoId);
+    }
+
     /**
      * The url of the cover of a song for the app's image loader: the stored cover file when the copy has one, which
      * loads with no network, else the url recorded for it. Null when neither is known. Touches the disk.
@@ -204,6 +221,16 @@ final class OfflineCopyStore {
         Utils.verifyOffMainThread();
         Storage.copies.ensureLoaded();
         return Storage.copies.allMetadata();
+    }
+
+    static List<OfflineCopyMetadata> copiesWithData(Set<String> ids) {
+        Utils.verifyOffMainThread();
+        List<OfflineCopyMetadata> copies = new ArrayList<>(ids.size());
+        for (String id : ids) {
+            OfflineCopyMetadata metadata = metadataOf(id);
+            if (metadata != null && RawAudioStore.find(id) != null) copies.add(metadata);
+        }
+        return copies;
     }
 
     /**
@@ -231,6 +258,47 @@ final class OfflineCopyStore {
         return sources;
     }
 
+    static List<OfflineLibraryLogic.SourceRow> downloadRows(Predicate<String> included) {
+        Utils.verifyOffMainThread();
+        loadSources();
+        adoptEarlierSources();
+        Set<String> own = RawAudioStore.copyIds();
+        Map<String, String> aliases = RawAudioStore.aliases();
+        Storage.copies.ensureLoaded();
+
+        List<OfflineLibraryLogic.SourceRow> rows = new ArrayList<>();
+        Map<String, Boolean> ready = new HashMap<>();
+        for (OfflineSourceStore.Source source : Storage.sources.sources()) {
+            if (!included.test(source.id()) || !ownsStreamSource(source)) continue;
+
+            int count = 0;
+            String cover = null;
+            for (String id : source.videoIds()) {
+                String copy = copyId(id, own, aliases);
+                if (own.contains(copy) && ready.computeIfAbsent(copy,
+                        track -> Storage.copies.has(track) && RawAudioStore.find(track) != null)) {
+                    if (cover == null) cover = copy;
+                    count++;
+                }
+            }
+            rows.add(new OfflineLibraryLogic.SourceRow(source.id(), source.title(), count, count, cover,
+                    source.thumbnailUrl().isEmpty() ? null : source.thumbnailUrl()));
+        }
+        return rows;
+    }
+
+    static Set<String> readyIds() {
+        Storage.copies.ensureLoaded();
+        return readyFrom(RawAudioStore.copyIds());
+    }
+
+    private static Set<String> readyFrom(Set<String> copies) {
+        Set<String> ready = new HashSet<>(copies);
+        ready.retainAll(Storage.copies.ids());
+        ready.removeIf(id -> RawAudioStore.find(id) == null);
+        return ready;
+    }
+
     static String copyId(String videoId, Set<String> own, Map<String, String> aliases) {
         return own.contains(videoId) ? videoId : aliases.getOrDefault(videoId, videoId);
     }
@@ -248,6 +316,12 @@ final class OfflineCopyStore {
             if (!Collections.disjoint(source.videoIds(), copyIds)) present.add(source);
         }
         return present;
+    }
+
+    static List<OfflineSourceStore.Source> sourcesForSync() {
+        loadSources();
+        adoptEarlierSources();
+        return Storage.sources.sources();
     }
 
     /**
@@ -317,17 +391,16 @@ final class OfflineCopyStore {
      * from the one an earlier online response described. Title, artist and album are the tags the download wrote,
      * the cover is the one it embedded (stored when small), the response is built from the resolved format.
      */
-    static void storeDownloaded(String videoId, Format format, VideoDetails details, AudioTagger.Tags tags) {
-        try {
-            Utils.verifyOffMainThread();
-            long duration = format.getApproxDurationMs() > 0
-                    ? format.getApproxDurationMs() : details.getLengthSeconds() * 1000L;
-            OfflineCopyMetadata metadata = new OfflineCopyMetadata(videoId, tags.title, tags.artist, tags.album,
-                    duration, OfflineCopyMetadata.largestThumbnail(details), System.currentTimeMillis(),
-                    OfflineCopyMetadata.SOURCE_DOWNLOAD);
-            write(metadata, OfflineResponseTrim.fromDownload(format, details), tags.artwork);
-        } catch (Exception ex) {
-            Logger.printException(() -> "OfflineCopyStore: could not store the download of v=" + videoId, ex);
+    static void storeDownloaded(String videoId, Format format, VideoDetails details, AudioTagger.Tags tags)
+            throws Exception {
+        Utils.verifyOffMainThread();
+        long duration = format.getApproxDurationMs() > 0
+                ? format.getApproxDurationMs() : details.getLengthSeconds() * 1000L;
+        OfflineCopyMetadata metadata = new OfflineCopyMetadata(videoId, tags.title, tags.artist, tags.album,
+                duration, OfflineCopyMetadata.largestThumbnail(details), System.currentTimeMillis(),
+                OfflineCopyMetadata.SOURCE_DOWNLOAD);
+        if (write(metadata, OfflineResponseTrim.fromDownload(format, details), tags.artwork) == null) {
+            throw new IOException("Could not store the playback response");
         }
     }
 
@@ -381,8 +454,7 @@ final class OfflineCopyStore {
         Utils.verifyOffMainThread();
         Storage.copies.ensureLoaded();
         Set<String> copyIds = RawAudioStore.copyIds();
-        int missing = OfflineBackfillLogic.pending(copyIds, Storage.copies.ids()).size();
-        return new StreamDownloads.Readiness(copyIds.size() - missing, copyIds.size());
+        return new StreamDownloads.Readiness(readyFrom(copyIds).size(), copyIds.size());
     }
 
     private static Outcome storeOnlineNow(String videoId, byte[] responseBytes, int itag) throws Exception {
@@ -404,8 +476,11 @@ final class OfflineCopyStore {
         String coverUrl = metadata.thumbnailUrl();
         if (cover == null && coverUrl != null) cover = TrackMetadata.artwork(videoId, coverUrl);
 
-        OfflineCopyFiles.Written written = write(metadata, trimmed, cover);
-        return written == null ? Outcome.skipped("rejected, response over the limit") : Outcome.stored(written);
+        synchronized (PlaylistSync.MUTATION) {
+            if (RawAudioStore.find(videoId) == null) return Outcome.skipped("the copy is gone");
+            OfflineCopyFiles.Written written = write(metadata, trimmed, cover);
+            return written == null ? Outcome.skipped("rejected, response over the limit") : Outcome.stored(written);
+        }
     }
 
     @Nullable
@@ -420,8 +495,8 @@ final class OfflineCopyStore {
         Logger.printDebug(() -> "OfflineCopyStore: stored v=" + metadata.videoId() + " response="
                 + written.responseBytes() + "B thumb=" + written.thumbnailBytes() + "B source="
                 + metadata.responseSource());
-        DownloadedMarkers.onPlaylistActivityChanged();
-        AndroidAutoPatch.onPlaylistsChanged();
+        DownloadedMarkers.onStreamCopyKept(metadata.videoId());
+        StreamDownloads.readinessChanged();
         return written;
     }
 
@@ -476,9 +551,7 @@ final class OfflineCopyStore {
     static void clearAll() {
         try {
             Storage.copies.clear();
-            Set<String> pending = DownloadedMarkers.pendingPlaylistIds();
-            if (pending.isEmpty()) Storage.sources.clear();
-            else Storage.sources.retainWithCopies(Collections.emptySet(), pending);
+            Storage.sources.clear();
             OfflineBrowsePages.retainOnly(Collections.emptySet());
         } catch (Exception ex) {
             Logger.printException(() -> "OfflineCopyStore: could not clear the stored data", ex);

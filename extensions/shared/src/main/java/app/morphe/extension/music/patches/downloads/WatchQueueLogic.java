@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-26.
  * Written by lavinhoque33, 2026-11-09.
  */
 package app.morphe.extension.music.patches.downloads;
@@ -22,9 +23,17 @@ final class WatchQueueLogic {
 
     /** One item of a watch queue: what the primary renderer is and what its counterpart is, if it has one. */
     record NextItem(int index, String kind, String videoId, String type, String title, String artist, String length,
-                    String counterpartId, String counterpartType, String counterpartLength) {
+                    String counterpartId, String counterpartType, String counterpartLength, String audioCounterpart) {
         boolean hasCounterpart() {
             return !counterpartId.isEmpty();
+        }
+
+        boolean isOfficialVideo() {
+            return "OMV".equals(type);
+        }
+
+        boolean counterpartIsOfficialVideo() {
+            return "OMV".equals(counterpartType);
         }
     }
 
@@ -50,7 +59,7 @@ final class WatchQueueLogic {
             } else if (entry.has(PLAIN)) {
                 JSONObject renderer = entry.optJSONObject(PLAIN);
                 items.add(new NextItem(firstIndex + items.size(), "plain", videoIdOf(renderer), typeOf(renderer),
-                        titleOf(renderer), artistOf(renderer), lengthOf(renderer), "", "", ""));
+                        titleOf(renderer), artistOf(renderer), lengthOf(renderer), "", "", "", ""));
             } else if (entry.has(AUTOMIX)) {
                 automix++;
             } else {
@@ -64,9 +73,13 @@ final class WatchQueueLogic {
     private static NextItem readWrapper(JSONObject wrapper, int index) {
         JSONObject primary = wrapper == null ? null : wrapper.optJSONObject("primaryRenderer");
         JSONObject renderer = primary == null ? null : primary.optJSONObject(PLAIN);
+        String primaryId = videoIdOf(renderer);
+        String primaryType = typeOf(renderer);
+        String preferredType = "OMV".equals(primaryType) ? "ATV" : "OMV";
         String counterpartId = "";
         String counterpartType = "";
         String counterpartLength = "";
+        String audioCounterpart = "";
         JSONArray counterparts = wrapper == null ? null : wrapper.optJSONArray("counterpart");
         for (int position = 0; counterparts != null && position < counterparts.length(); position++) {
             JSONObject counterpart = counterparts.optJSONObject(position);
@@ -74,13 +87,22 @@ final class WatchQueueLogic {
             JSONObject other = holder == null ? null : holder.optJSONObject(PLAIN);
             if (other == null) continue;
 
-            counterpartId = videoIdOf(other);
-            counterpartType = typeOf(other);
+            String id = videoIdOf(other);
+            if (!VideoPairingLogic.isVideoId(id) || id.equals(primaryId)) continue;
+
+            String type = typeOf(other);
+            if (audioCounterpart.isEmpty() && "ATV".equals(type)) audioCounterpart = id;
+            if (preferredType.equals(counterpartType) || (!counterpartId.isEmpty() && !preferredType.equals(type))) {
+                continue;
+            }
+
+            counterpartId = id;
+            counterpartType = type;
             counterpartLength = lengthOf(other);
-            break;
         }
-        return new NextItem(index, "wrapper", videoIdOf(renderer), typeOf(renderer), titleOf(renderer),
-                artistOf(renderer), lengthOf(renderer), counterpartId, counterpartType, counterpartLength);
+        return new NextItem(index, "wrapper", primaryId, primaryType, titleOf(renderer),
+                artistOf(renderer), lengthOf(renderer), counterpartId, counterpartType, counterpartLength,
+                audioCounterpart);
     }
 
     private static String videoIdOf(JSONObject renderer) {

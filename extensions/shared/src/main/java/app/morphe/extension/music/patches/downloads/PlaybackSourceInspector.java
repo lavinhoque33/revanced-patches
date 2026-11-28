@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-26.
  * Modified by lavinhoque33, 2026-11-23.
  * Written by lavinhoque33, 2026-11-22.
  */
@@ -26,15 +27,26 @@ public final class PlaybackSourceInspector {
         Object rvxPlaybackEvents();
     }
 
-    /** Identity (not value equality) stands for one issued stream generation. Contains no media identifier. */
+    /** Implemented on the native playback object by the Downloads patch: the streaming data it was built from. */
+    public interface StreamsPlayback {
+        Object rvxPlaybackStreams();
+    }
+
+    /** Identity (not value equality) stands for one issued stream generation. */
     public static final class LocalFormat {
         private final Source source;
         private final int itag;
+        private final StreamSwapSources.Source media;
         private boolean fellBack;
 
         LocalFormat(Source source, int itag) {
+            this(source, itag, null);
+        }
+
+        LocalFormat(Source source, int itag, StreamSwapSources.Source media) {
             this.source = source;
             this.itag = itag;
+            this.media = media;
         }
     }
 
@@ -164,6 +176,38 @@ public final class PlaybackSourceInspector {
 
     public static Snapshot snapshot() {
         return current;
+    }
+
+    /** In Song mode the clip selects only the audio of the pair; in Video mode both formats are selected. */
+    static boolean activePair(String videoId) {
+        synchronized (LOCK) {
+            if (active == null || active.selectedAudio == null) return false;
+
+            LocalFormat audio = active.selectedAudio;
+            if (audio.source != Source.CACHED_VIDEO_AUDIO || !matchesLocal(audio, videoId)) return false;
+
+            LocalFormat video = active.selectedVideo;
+            return video == null ? active.selectedVideoItag < 0 : matchesLocal(video, videoId);
+        }
+    }
+
+    /**
+     * Whether the active clip is an accepted online-video hybrid of the track: its selected audio is a confirmed read
+     * of a current saved raw file, and the streaming data the clip was built from carries the hybrid of that file.
+     */
+    static boolean activeHybrid(String videoId) {
+        synchronized (LOCK) {
+            if (active == null || !(active.playback instanceof StreamsPlayback clip)) return false;
+
+            LocalFormat audio = active.confirmed(active.selectedAudio);
+            return audio != null && audio.source == Source.CACHED_AUDIO && matchesLocal(audio, videoId)
+                    && OnlineVideoHybrid.marks(clip.rvxPlaybackStreams(), videoId, audio.media);
+        }
+    }
+
+    private static boolean matchesLocal(LocalFormat format, String videoId) {
+        return format.media != null && format.media.available && !format.fellBack
+                && videoId.equals(format.media.videoId);
     }
 
     /** Enabled only when the native ownership, format and file-reader hooks are all present. */

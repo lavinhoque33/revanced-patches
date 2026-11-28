@@ -1,12 +1,14 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-26
  * Written by lavinhoque33, 2026-11-14.
  */
 package app.morphe.extension.music.patches.androidauto;
 
 import org.junit.Test;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -116,6 +118,66 @@ public class AndroidAutoPlaylistChildrenTest {
         Page complete = new Page("PLone", List.of(MIDDLE, LAST), "");
         assertSame(complete, choose(complete, true, PAGE));
         assertEquals(List.of(MIDDLE, LAST), choose(complete, true, PAGE).tracks());
+    }
+
+    @Test public void fullDownloadRequiresEveryPlayableRowAndAcceptsAliasesAndDuplicates() {
+        assertTrue(fullyDownloaded(List.of(FIRST, MIDDLE, FIRST), Set.of("first", "copy"),
+                Map.of("middle", "copy")));
+        assertFalse(fullyDownloaded(PAGE.tracks(), Set.of("first", "middle"), Map.of()));
+        assertFalse(fullyDownloaded(List.of(), Set.of("first"), Map.of()));
+    }
+
+    @Test public void fullDownloadIgnoresUnavailablePositionsWithoutRemovingTheirRows() {
+        Track missing = new Track("-", "Deleted", "", "");
+        Track noId = new Track("", "Unavailable", "", "");
+        var tracks = List.of(FIRST, missing, MIDDLE, noId);
+        var ready = Set.of("first", "middle");
+        assertTrue(fullyDownloaded(tracks, ready, Map.of()));
+        assertFalse(fullyDownloaded(List.of(missing, noId), ready, Map.of()));
+
+        var page = new Page("PLsaved", tracks, "");
+        for (boolean online : new boolean[]{true, false}) {
+            var children = rows(page, online, ready, Map.of()).subList(1, 5);
+            assertEquals(tracks, children.stream().map(Row::track).toList());
+            assertEquals(List.of(0, 1, 2, 3), children.stream().map(Row::index).toList());
+            assertEquals(List.of(false, true, false, true), children.stream().map(Row::unavailable).toList());
+        }
+    }
+
+    @Test public void albumPlaybackKeepsTheNativePlaylistIdOnAccountScopedRowsAndPlayAll() {
+        String source = "MPREb_album";
+        String playlist = "OLAK5uy_album";
+        String row = trackId(ACCOUNT, source, "middle", 1);
+        String all = AndroidAutoPlaylists.mediaId(ACCOUNT, source);
+
+        var track = withAlbumPlaylist(row, source, playlist);
+        assertEquals(new PlaybackSelection(new Selection(source, "middle", 1), false, playlist),
+                parsePlayback(track, ACCOUNT));
+        assertEquals(new PlaybackSelection(new Selection(source, "", 0), true, playlist),
+                parsePlayback(withAlbumPlaylist(all, source, playlist), ACCOUNT));
+        assertNull(parsePlayback(track, "b".repeat(64)));
+        assertNull(parsePlayback(track + "/extra", ACCOUNT));
+        assertEquals(row, withAlbumPlaylist(row, source, ""));
+        assertNull(parsePlayback(trackId(ACCOUNT, "PLregular", "middle", 1) + "#" + playlist, ACCOUNT));
+    }
+
+    @Test public void playbackChoosesUsingTheDeliveryConnectionAndCanUseAnAlbumWithoutANativeId() {
+        var playlist = new Playback("online", "offline", null);
+        assertEquals("online", playlist.atDelivery(true));
+        assertEquals("offline", playlist.atDelivery(false));
+        assertEquals("offline", new Playback(null, "offline", null).atDelivery(true));
+        assertNull(new Playback("online", null, null).atDelivery(false));
+    }
+
+    @Test public void looseQueuePinsTheSelectedSongAndWrapsOneSnapshotInNativeInsertionOrder() {
+        var rows = new ArrayList<>(List.of("first", "middle", "last", "first"));
+        var queue = looseQueue(rows, 1);
+        rows.remove(0);
+
+        assertEquals("middle", queue.song());
+        assertEquals(List.of("last", "first", "first"), queue.following());
+        assertEquals(new LooseQueue("only", List.of()), looseQueue(List.of("only"), 0));
+        assertNull(looseQueue(rows, 3));
     }
 
     @Test public void downloadedSongsUsesTheSamePlayAllAndSongOrder() {

@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-26.
  * Modified by lavinhoque33, 2026-11-14.
  * Written by lavinhoque33, 2026-11-14.
  */
@@ -168,13 +169,13 @@ internal fun BytecodePatchContext.preparePlayerTransport(selector: ClassDef, req
             move-result-object v0
         """)
         installResultWrapper(delegateOwner, packed, """
-            invoke-static {p1}, $FALLBACK->routeOffline($OBJECT)Z
-            move-result v0
-            if-eqz v0, :network
-            invoke-static {p1}, $FALLBACK->localPlayer($OBJECT)$FUTURE
+            invoke-static {p1}, $FALLBACK->localPair($OBJECT)$PAIR
             move-result-object v0
-            invoke-static {p1}, $REPLAY->localNext($OBJECT)$FUTURE
-            move-result-object v1
+            if-eqz v0, :network
+            iget-object v1, v0, $PAIR->second:$OBJECT
+            iget-object v0, v0, $PAIR->first:$OBJECT
+            check-cast v0, $FUTURE
+            check-cast v1, $FUTURE
             invoke-static {v0, v1}, $pack
             move-result-object v0
             return-object v0

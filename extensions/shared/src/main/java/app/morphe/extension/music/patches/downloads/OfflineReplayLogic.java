@@ -20,6 +20,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.ConcurrentMap;
 import java.util.Map;
+import java.util.Random;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -56,6 +57,8 @@ final class OfflineReplayLogic {
     private static final String AUDIO_PLAYLIST_PREFIX = "OLAK5uy_";
     private static final long SKIP_LOG_INTERVAL_MS = 60_000L;
     private static final int OFFLINE_RESPONSE_FIELD = OfflineReplayResponse.OFFLINE_MARKER_FIELD;
+    /** The top-level field that carries the token of a dispatch: a number no command of the app uses. */
+    private static final int DISPATCH_TOKEN_FIELD = 536_870_000;
 
     private OfflineReplayLogic() {}
 
@@ -95,14 +98,9 @@ final class OfflineReplayLogic {
         return sourceId;
     }
 
-    /**
-     * Whether the seek snap of the player must be dropped. Both progress-bar and MediaSession seeks use this
-     * lookup. A copy played from a file has no stream-cache span: audio answers 0 (restart), video -1 (cancel).
-     * Preserve the target for a current local source even online, and retain the existing offline behavior.
-     * Online streams without a current local-source decision keep the stock answer.
-     */
-    static boolean dropsSeekSnap(boolean enabled, boolean online, boolean localPlayback, long snappedMillis) {
-        return enabled && (!online || localPlayback) && snappedMillis <= 0;
+    /** An absent renderer is fine, but every selected renderer must be local and at least one must exist. */
+    static boolean seeksFile(boolean hasFirst, boolean firstLocal, boolean hasSecond, boolean secondLocal) {
+        return (hasFirst || hasSecond) && (!hasFirst || firstLocal) && (!hasSecond || secondLocal);
     }
 
     /**
@@ -191,6 +189,11 @@ final class OfflineReplayLogic {
      */
     @Nullable
     static WatchTarget onlineWatchOf(byte[] command) {
+        return onlineWatchOf(command, false);
+    }
+
+    @Nullable
+    static WatchTarget onlineWatchOf(byte[] command, boolean allowPlaylistWithoutVideo) {
         try {
             byte[] endpoint = lengthDelimitedField(command, CommandRewrite.WATCH_ENDPOINT_FIELD);
             if (endpoint == null) return null;
@@ -214,8 +217,32 @@ final class OfflineReplayLogic {
                     break;
                 }
             }
-            return videoId.isEmpty() ? null : new WatchTarget(videoId, playlistId, index);
+            return videoId.isEmpty() && (!allowPlaylistWithoutVideo || !isShufflePlaylistId(playlistId))
+                    ? null : new WatchTarget(videoId, playlistId, index);
         } catch (IOException ex) {
+            return null;
+        }
+    }
+
+    /** Native Play and Shuffle Play have a playlist but can omit the seed on the watch-next request. */
+    @Nullable
+    static WatchTarget playlistWatchOf(byte[] command) {
+        try {
+            byte[] endpoint = lengthDelimitedField(command, WATCH_PLAYLIST_ENDPOINT);
+            if (endpoint == null) return null;
+
+            CodedInputStream input = CodedInputStream.newInstance(endpoint);
+            String playlistId = "";
+            while (!input.isAtEnd()) {
+                int tag = input.readTag();
+                if (tag == (1 << 3 | WireFormat.WIRETYPE_LENGTH_DELIMITED)) {
+                    playlistId = input.readStringRequireUtf8();
+                } else if (!input.skipField(tag)) {
+                    break;
+                }
+            }
+            return isShufflePlaylistId(playlistId) ? new WatchTarget("", playlistId, 0) : null;
+        } catch (IOException malformed) {
             return null;
         }
     }
@@ -225,9 +252,15 @@ final class OfflineReplayLogic {
         return hasField(command, WATCH_PLAYLIST_ENDPOINT);
     }
 
+    /**
+     * Whether the id may be the list of a Play or Shuffle Play action of a detail header: a playlist, or the audio
+     * playlist of an album, which the header of an album's own page names. Whether it is a downloaded list is
+     * decided where the action is taken; radios and other generated lists are never.
+     */
     static boolean isShufflePlaylistId(String id) {
-        return OfflineBrowsePagesLogic.isPlaylistId(id) && !id.startsWith("RD") && !id.startsWith("VL")
-                && !id.startsWith("PPSV");
+        boolean playlist = OfflineBrowsePagesLogic.isPlaylistId(id) && !id.startsWith("RD")
+                && !id.startsWith("VL") && !id.startsWith("PPSV");
+        return playlist || DownloadsPageLogic.isAlbum(id) && OfflineBrowsePagesLogic.isFileSafe(id);
     }
 
     /** Match the literal owner; no route through a different playlist that happens to hold the same songs. */
@@ -381,6 +414,216 @@ final class OfflineReplayLogic {
     }
 
     /**
+     * Whether {@code request} is the shuffled start that {@code planned} was dispatched as: an offline watch of the
+     * same first song, playlist and place that carries the shuffle bit and the dispatch token of {@code planned}.
+     * The app can hand a request another object for the command it was given (rebuilt with a start time, parsed
+     * again), so the bytes need not be the planned ones. The token is what makes the match mean this dispatch: two
+     * presses of the same Shuffle Play write the same song, playlist and place, so a request of the first press
+     * would otherwise take the plan, and the one reply, of the second.
+     */
+    static boolean isPlannedShuffleStart(byte[] request, byte[] planned) {
+        long token = dispatchTokenOf(planned);
+        if (token == 0 || token != dispatchTokenOf(request)) return false;
+
+        return sameShuffleStart(request, planned);
+    }
+
+    private static boolean sameShuffleStart(byte[] request, byte[] planned) {
+        WatchTarget wanted = offlineWatchOf(planned);
+        WatchTarget actual = offlineWatchOf(request);
+        return wanted != null && wanted.equals(actual) && isShuffleStart(request, actual);
+    }
+
+    /**
+     * Whether the command is the shuffled start of some Shuffle Play press: it carries a dispatch token, or it is the
+     * offline watch of a saved list's first place with the shuffle bit, which only a press of ours writes.
+     */
+    static boolean isShufflePressStart(byte[] command) {
+        if (dispatchTokenOf(command) != 0) return true;
+
+        WatchTarget target = offlineWatchOf(command);
+        return target != null && isShuffleStart(command, target);
+    }
+
+    /**
+     * Whether the command is the shuffled start of a press that a later one replaced: it carries the token of a
+     * dispatch other than the current selection's. Only such a request fails closed; one without a token cannot be
+     * placed and is left to the ordinary path.
+     */
+    static boolean isSupersededShuffleStart(byte[] command, int currentGeneration) {
+        long token = dispatchTokenOf(command);
+        return token != 0 && token != currentGeneration;
+    }
+
+    /**
+     * The command bytes marked as one dispatch: an unknown field that the app keeps when it rebuilds the command and
+     * never reads. It is written at the top level of the command and inside the offline watch endpoint and its config,
+     * so that it survives whichever of them the app rebuilds. {@code token} must not be zero, which means "none".
+     */
+    static byte[] withDispatchToken(byte[] command, long token) {
+        if (token == 0) throw new IllegalArgumentException("token is zero");
+
+        byte[] marked = withTokenInEndpoint(command, token);
+        return withTokenField(marked, token);
+    }
+
+    private static byte[] withTokenField(byte[] message, long token) {
+        return new ProtoWriter().raw(message, 0, message.length).int64(DISPATCH_TOKEN_FIELD, token).toByteArray();
+    }
+
+    /** The command with the token also inside its offline watch endpoint and the config of that endpoint. */
+    private static byte[] withTokenInEndpoint(byte[] command, long token) {
+        try {
+            byte[] payload = lengthDelimitedField(command, OFFLINE_WATCH_ENDPOINT);
+            if (payload == null) return command;
+
+            byte[] config = lengthDelimitedField(payload, OfflineWatchCommand.CONFIG_FIELD);
+            byte[] markedPayload = config == null ? payload
+                    : replaceField(payload, OfflineWatchCommand.CONFIG_FIELD, withTokenField(config, token));
+            return replaceField(command, OFFLINE_WATCH_ENDPOINT, withTokenField(markedPayload, token));
+        } catch (IOException unreadable) {
+            return command;
+        }
+    }
+
+    /** The message with every length-delimited {@code field} replaced by {@code replacement}, the rest as it was. */
+    private static byte[] replaceField(byte[] message, int field, byte[] replacement) throws IOException {
+        ProtoWriter out = new ProtoWriter();
+        CodedInputStream input = CodedInputStream.newInstance(message);
+        while (!input.isAtEnd()) {
+            int start = input.getTotalBytesRead();
+            int tag = input.readTag();
+            boolean target = WireFormat.getTagFieldNumber(tag) == field
+                    && WireFormat.getTagWireType(tag) == WireFormat.WIRETYPE_LENGTH_DELIMITED;
+            if (!input.skipField(tag)) throw new IOException("unexpected end group");
+
+            if (target) out.message(field, replacement);
+            else out.raw(message, start, input.getTotalBytesRead() - start);
+        }
+        return out.toByteArray();
+    }
+
+    /**
+     * The token of the dispatch the command bytes are for, wherever the app kept it (the command, its offline watch
+     * endpoint or that endpoint's config): zero when they carry none or cannot be read.
+     */
+    static long dispatchTokenOf(byte[] command) {
+        long token = tokenIn(command);
+        if (token != 0) return token;
+
+        try {
+            byte[] payload = lengthDelimitedField(command, OFFLINE_WATCH_ENDPOINT);
+            if (payload == null) return 0;
+
+            token = tokenIn(payload);
+            if (token != 0) return token;
+
+            byte[] config = lengthDelimitedField(payload, OfflineWatchCommand.CONFIG_FIELD);
+            return config == null ? 0 : tokenIn(config);
+        } catch (IOException ignored) {
+            // Bytes that cannot be read carry no token, so they are no dispatch of ours.
+            return 0;
+        }
+    }
+
+    /**
+     * The field layout of the command, its offline watch endpoint and that endpoint's config, for the logs: each
+     * field as {@code number:v} (a number) or {@code number:sLength} (bytes), in wire order.
+     */
+    static String shapeOf(byte[] command) {
+        StringBuilder shape = new StringBuilder(fieldsOf(command));
+        try {
+            byte[] payload = lengthDelimitedField(command, OFFLINE_WATCH_ENDPOINT);
+            if (payload == null) return shape.toString();
+
+            shape.append(" endpoint=").append(fieldsOf(payload));
+            byte[] config = lengthDelimitedField(payload, OfflineWatchCommand.CONFIG_FIELD);
+            if (config != null) shape.append(" config=").append(fieldsOf(config));
+        } catch (IOException unreadable) {
+            shape.append(" unreadable");
+        }
+        return shape.toString();
+    }
+
+    private static String fieldsOf(byte[] message) {
+        StringBuilder fields = new StringBuilder("[");
+        try {
+            CodedInputStream input = CodedInputStream.newInstance(message);
+            while (!input.isAtEnd()) {
+                int tag = input.readTag();
+                if (fields.length() > 1) fields.append(',');
+                fields.append(WireFormat.getTagFieldNumber(tag));
+                if (WireFormat.getTagWireType(tag) == WireFormat.WIRETYPE_LENGTH_DELIMITED) {
+                    fields.append(":s").append(input.readBytes().size());
+                } else {
+                    fields.append(":v");
+                    if (!input.skipField(tag)) break;
+                }
+            }
+        } catch (IOException unreadable) {
+            fields.append(",unreadable");
+        }
+        return fields.append(']').toString();
+    }
+
+    private static long tokenIn(byte[] message) {
+        try {
+            CodedInputStream input = CodedInputStream.newInstance(message);
+            while (!input.isAtEnd()) {
+                int tag = input.readTag();
+                if (WireFormat.getTagFieldNumber(tag) == DISPATCH_TOKEN_FIELD
+                        && WireFormat.getTagWireType(tag) == WireFormat.WIRETYPE_VARINT) {
+                    return input.readInt64();
+                }
+                if (!input.skipField(tag)) return 0;
+            }
+        } catch (IOException ignored) {
+            // Bytes that cannot be read carry no token.
+        }
+        return 0;
+    }
+
+    /** A registered Shuffle Play plan as the lookup of a request sees it. */
+    interface PlannedStart {
+        /** The selection the plan belongs to. */
+        int generation();
+
+        /** The command that was dispatched for the plan, or null when nothing holds it any more. */
+        @Nullable
+        Object dispatched();
+
+        /** The bytes of the plan's own command, the dispatch token included. They outlive the dispatched object. */
+        byte[] commandBytes();
+    }
+
+    /** The plan whose dispatched command is this very object. */
+    @Nullable
+    static <T extends PlannedStart> T dispatchedPlanOf(@Nullable Object command, List<T> registered) {
+        if (command == null) return null;
+
+        for (int index = registered.size() - 1; index >= 0; index--) {
+            T candidate = registered.get(index);
+            if (candidate.dispatched() == command) return candidate;
+        }
+        return null;
+    }
+
+    /**
+     * The plan of the selection that is current whose shuffled start the request is, by the bytes of its command
+     * (see {@link #isPlannedShuffleStart}). A plan made for an earlier selection is never the answer, and neither is
+     * a request that carries the token of another dispatch or no token at all: nothing else tells two presses apart.
+     */
+    @Nullable
+    static <T extends PlannedStart> T plannedStartOf(byte[] request, int currentGeneration, List<T> registered) {
+        for (int index = registered.size() - 1; index >= 0; index--) {
+            T candidate = registered.get(index);
+            if (candidate.generation() == currentGeneration
+                    && isPlannedShuffleStart(request, candidate.commandBytes())) return candidate;
+        }
+        return null;
+    }
+
+    /**
      * The watch target with the id of the song instead of the id of its music video. A song that has a video copy
      * starts as its music video (the app's tap is retargeted before it is dispatched), which is not an id of the
      * downloaded list: the list, the copy and the place of the song in it are all known by the song's id.
@@ -448,7 +691,7 @@ final class OfflineReplayLogic {
         if (browseId != null) {
             String sourceId = sourceOfBrowseId(browseId);
             if (songsId.equals(sourceId)) return new Decision(Route.OPEN_SONGS, songsId, null);
-            if (online || (localDetail && isPlaylistDetailBrowse(browseId))) return Decision.STOCK;
+            if (online || (localDetail && localDetailBrowse(browseId))) return Decision.STOCK;
 
             boolean plays = isSource.test(sourceId) && !hasPage.test(sourceId);
             return plays ? new Decision(Route.PLAY_SOURCE, sourceId, null) : Decision.STOCK;
@@ -494,12 +737,14 @@ final class OfflineReplayLogic {
         if (tracksBySource.containsKey(playlistId)) return playlistId;
         if (!playlistId.startsWith(AUDIO_PLAYLIST_PREFIX)) return null;
 
+        String album = null;
         for (Map.Entry<String, List<String>> source : tracksBySource.entrySet()) {
             if (source.getKey().startsWith(ALBUM_BROWSE_PREFIX) && source.getValue().contains(videoId)) {
-                return source.getKey();
+                if (album != null) return null;
+                album = source.getKey();
             }
         }
-        return null;
+        return album;
     }
 
     /** The id of the downloaded list a browse id opens: a playlist page is {@code VL} and the playlist id. */
@@ -507,13 +752,19 @@ final class OfflineReplayLogic {
         return browseId.startsWith("VL") ? browseId.substring(2) : browseId;
     }
 
-    /** The canonical source for an initial playlist load, excluding edit and forced refresh commands. */
+    /** The canonical source for initial playlist or album detail, excluding edits and explicit refreshes. */
     @Nullable
     static String initialDetailId(@Nullable String browseId, @Nullable Map<?, ?> context) {
         if (context != null && (Boolean.TRUE.equals(context.get("playlist_edit_mode"))
                 || Boolean.TRUE.equals(context.get("force_refresh")))) return null;
 
-        return isPlaylistDetailBrowse(browseId) ? sourceOfBrowseId(browseId) : null;
+        return localDetailBrowse(browseId) ? sourceOfBrowseId(browseId) : null;
+    }
+
+    private static boolean localDetailBrowse(@Nullable String id) {
+        return isPlaylistDetailBrowse(id) || OfflineBrowsePagesLogic.isAlbumPage(id)
+                || id != null && id.startsWith("VL" + AUDIO_PLAYLIST_PREFIX)
+                && OfflineBrowsePagesLogic.isFileSafe(sourceOfBrowseId(id));
     }
 
     /** Native playlist detail uses VL; album browse IDs and album audio playlists retain their existing routing. */
@@ -553,6 +804,21 @@ final class OfflineReplayLogic {
     }
 
     /**
+     * The items of a Shuffle press with a random song first. The native shuffle bit shuffles everything after the
+     * start song, so the song picked here is the one playback begins on; the others keep their order. The press and
+     * the queue it builds must share this one list, or the start command would name a song the queue does not begin
+     * with.
+     */
+    static <T> List<T> withRandomStart(List<T> items, Random random) {
+        if (items.size() < 2) return items;
+
+        List<T> reordered = new ArrayList<>(items);
+        T start = reordered.remove(random.nextInt(reordered.size()));
+        reordered.add(0, start);
+        return reordered;
+    }
+
+    /**
      * The queue items of the songs list (No Playlist): the loose songs that have stored data, sorted by title
      * ignoring case, then by id. That is the order the list shows and the order it plays.
      */
@@ -583,8 +849,9 @@ final class OfflineReplayLogic {
 
         List<OfflineWatchNext.Item> shown = new ArrayList<>(items.size());
         for (OfflineWatchNext.Item item : items) {
-            String video = videoOfSong.get(item.videoId());
-            shown.add(video == null || video.equals(item.videoId()) ? item : item.showingVideo(video));
+            String videoId = item.videoId();
+            String video = videoToSong.containsKey(videoId) ? videoId : videoOfSong.get(videoId);
+            shown.add(video == null ? item : item.showingVideo(video));
         }
         return shown;
     }
@@ -603,7 +870,8 @@ final class OfflineReplayLogic {
      * answers in every mode, else the song (ATV).
      */
     static int startTypeOf(String songId, Map<String, String> videoToSong) {
-        return videoOf(songId, videoToSong) == null ? CommandRewrite.TYPE_ATV : CommandRewrite.TYPE_OMV;
+        boolean hasVideo = videoToSong.containsKey(songId) || videoOf(songId, videoToSong) != null;
+        return hasVideo ? CommandRewrite.TYPE_OMV : CommandRewrite.TYPE_ATV;
     }
 
     /**
@@ -611,8 +879,30 @@ final class OfflineReplayLogic {
      * of the songs that have one. A request for the song itself (a song without a video, or a start of another
      * client, as Android Auto) keeps the songs.
      */
-    static boolean showsVideos(String requestedId, Map<String, String> videoToSong) {
-        return !songOf(requestedId, videoToSong).equals(requestedId);
+    static boolean showsVideos(String requestedId, Map<String, String> videoToSong, @Nullable byte[] command) {
+        String song = songOf(requestedId, videoToSong);
+        if (!song.equals(requestedId)) return true;
+        if (command == null || !song.equals(videoToSong.get(requestedId))) return false;
+
+        try {
+            byte[] endpoint = lengthDelimitedField(command, OFFLINE_WATCH_ENDPOINT);
+            if (endpoint == null) return false;
+
+            byte[] config = lengthDelimitedField(endpoint, OfflineWatchCommand.CONFIG_FIELD);
+            if (config == null) return false;
+
+            CodedInputStream input = CodedInputStream.newInstance(config);
+            while (!input.isAtEnd()) {
+                int tag = input.readTag();
+                if (tag == (OfflineWatchCommand.MUSIC_VIDEO_TYPE_FIELD << 3)) {
+                    return input.readInt32() == CommandRewrite.TYPE_OMV;
+                }
+                if (!input.skipField(tag)) return false;
+            }
+        } catch (IOException ignored) {
+            // An unreadable type cannot turn an ATV request (including Android Auto) into OMV.
+        }
+        return false;
     }
 
     /**
@@ -642,6 +932,14 @@ final class OfflineReplayLogic {
             if (items.get(i).videoId().equals(videoId)) return i;
         }
         return -1;
+    }
+
+    static String queueIdOf(List<OfflineWatchNext.Item> items, String videoId, String songId, int requestedIndex) {
+        if (requestedIndex >= 0 && requestedIndex < items.size()) {
+            String requested = items.get(requestedIndex).videoId();
+            if (requested.equals(videoId) || requested.equals(songId)) return requested;
+        }
+        return currentIndex(items, videoId, -1) >= 0 ? videoId : songId;
     }
 
     /** The payload of the first length-delimited field with the number, or null when the message has none. */

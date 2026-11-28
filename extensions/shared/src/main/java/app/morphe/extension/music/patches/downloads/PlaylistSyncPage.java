@@ -18,6 +18,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.function.IntFunction;
+import java.util.function.Predicate;
 import java.util.regex.Pattern;
 
 /** Assembles the native first page and the track rows and Elements updates from its continuations. */
@@ -32,6 +33,25 @@ final class PlaylistSyncPage {
     private static final int SHELF_ROWS = 3;
     private static final int SHELF_CONTINUATIONS = 10;
     private static final int NEXT_CONTINUATION = 52_047_593;
+    private static final int[] ELEMENTS_HEADER = {
+        13, 361_650_780, 2, 153_515_154, 172_660_663, 1, 168_777_401, 5, 413_471_385, 1258
+    };
+    private static final int[] ALBUM_HEADER = {
+        13, 361_650_780, 2, 153_515_154, 172_660_663, 1, 168_777_401, 5
+    };
+    /** Where the primary Play button of the newer album header names the album's playlist. */
+    private static final int[] MODERN_PLAY_OWNER = {
+        413_471_385, 1258, 4, 1, 4, 169_495_254, 52_666_186, 1
+    };
+    /** The older album header lists its buttons as repeated entries; the Play owner is below one of them. */
+    private static final int[] LEGACY_BUTTONS = {373_186_255, 14};
+    private static final int LEGACY_BUTTON = 7;
+    private static final int[] LEGACY_PLAY_OWNER = {1, 6, 169_495_254, 52_666_186, 1};
+    private static final int RESPONSE_CONTEXT = 1;
+    private static final int TRACKING_SERVICE = 6;
+    private static final int TRACKING_PARAM = 2;
+    private static final String BROWSE_ID_PARAM = "browse_id";
+    private static final int MUSIC_DETAIL_HEADER = 173_602_558;
     private static final int WATCH = 48_687_757;
     private static final int SEARCH = 48_687_709;
     private static final int UPDATES = 777;
@@ -64,6 +84,123 @@ final class PlaylistSyncPage {
         return assemble(playlistId, first, browse);
     }
 
+    @Nullable
+    static SourceHeader headerOf(byte[] response) throws IOException {
+        Field root = Field.root(response);
+        Field elements = root.descendant(ELEMENTS_HEADER);
+        Field classic = elements == null ? root.descendant(13, MUSIC_DETAIL_HEADER) : null;
+        String title = elements != null ? textOf(elements.child(1))
+                : classic == null ? "" : textOf(classic.descendant(1, 1, 1));
+        if (title.isEmpty()) return null;
+
+        String description = elements != null ? textOf(elements.descendant(18, 1))
+                : textOf(classic.descendant(13, 1, 1));
+        String cover = PlaylistArtworkWire.headerCover(response);
+        return new SourceHeader(title, description, cover == null ? "" : cover);
+    }
+
+    /**
+     * The playlist the Play button of the primary album header owns, or null: the header of a related-album shelf is
+     * not read. The older header repeats its button entry, so every entry is read; the answer is the one owner they
+     * name, and a header that names two different ones (or a malformed id) has none.
+     */
+    @Nullable
+    static String albumPlaylistOf(byte[] response) throws IOException {
+        Field header = Field.root(response).descendant(ALBUM_HEADER);
+        if (header == null) return null;
+
+        Set<String> owners = new HashSet<>();
+        if (!addPlayOwner(owners, header.descendant(MODERN_PLAY_OWNER))) return null;
+
+        Field buttons = header.descendant(LEGACY_BUTTONS);
+        if (buttons != null) {
+            for (Field button : buttons.fields()) {
+                if (button.number == LEGACY_BUTTON && !addPlayOwner(owners, button.descendant(LEGACY_PLAY_OWNER))) {
+                    return null;
+                }
+            }
+        }
+        return owners.size() == 1 ? owners.iterator().next() : null;
+    }
+
+    /** False when the field names something that is not a playlist of an album. */
+    private static boolean addPlayOwner(Set<String> owners, @Nullable Field field) throws IOException {
+        if (field == null) return true;
+
+        String id = field.text();
+        if (!DownloadsPageLogic.isAlbum(id) || !OfflineBrowsePagesLogic.isFileSafe(id)) return false;
+
+        owners.add(id);
+        return true;
+    }
+
+    /**
+     * The browse id the server put in the response context of the page, or null when it has none. Every occurrence of
+     * the context is read: a response that repeats the context holds all of their ids.
+     *
+     * @throws IOException when the contexts name two different ones: such a page proves nothing about itself.
+     */
+    @Nullable
+    static String browseIdOf(byte[] response) throws IOException {
+        String found = null;
+        for (Field context : Field.root(response).fields()) {
+            if (context.number == RESPONSE_CONTEXT) found = browseIdOfContext(context, found);
+        }
+        return found;
+    }
+
+    /** The browse id so far, or the one of this context; the two must agree when both exist. */
+    @Nullable
+    private static String browseIdOfContext(Field context, @Nullable String found) throws IOException {
+        for (Field service : context.fields()) {
+            if (service.number != TRACKING_SERVICE) continue;
+
+            for (Field param : service.fields()) {
+                Field key = param.number == TRACKING_PARAM ? param.child(1) : null;
+                if (key == null || !BROWSE_ID_PARAM.equals(key.text())) continue;
+
+                Field value = param.child(2);
+                String id = value == null ? "" : value.text();
+                if (id.isEmpty()) continue;
+                if (found != null && !found.equals(id)) throw new IOException("Conflicting browse ids");
+
+                found = id;
+            }
+        }
+        return found;
+    }
+
+    /**
+     * Whether the native response is the first page of the album page {@code pageId}, whose primary Play button
+     * owns {@code playlistId}: the one relationship that makes an album page and an album playlist the same album.
+     * A continuation, a response that names another browse id or two different ones, and a page of any other album
+     * are not.
+     */
+    static boolean isAlbumPage(String pageId, String playlistId, byte[] response) {
+        try {
+            if (!OfflineBrowsePagesLogic.isAlbumPage(pageId) || OfflineBrowsePagesLogic.isContinuation(response)
+                    || Field.root(response).child(BROWSE_CONTENTS) == null) return false;
+
+            String served = browseIdOf(response);
+            return (served == null || served.equals(pageId)) && playlistId.equals(albumPlaylistOf(response));
+        } catch (IOException badPage) {
+            return false;
+        }
+    }
+
+    static boolean changedFirstPage(String sourceId, List<String> saved, byte[] response) throws IOException {
+        Parsed page = first(response);
+        if (!validFirstPage(sourceId, page)) return false;
+        List<String> prefix = new ArrayList<>();
+        appendRows(sourceId, page.shelf, prefix, new ArrayList<>());
+        return prefix.size() > saved.size() || !saved.subList(0, prefix.size()).equals(prefix)
+                || (token(page.shelf) == null && prefix.size() != saved.size());
+    }
+
+    private static String textOf(@Nullable Field field) throws IOException {
+        return field == null ? "" : field.text();
+    }
+
     private static Snapshot assemble(String playlistId, Parsed first, Browse browse) throws Exception {
         if (!playlistId.equals(required(first.shelf, 1).text())) throw invalid();
 
@@ -84,7 +221,6 @@ final class PlaylistSyncPage {
             if (tokens.size() >= MAX_PAGES || !tokens.add(token)) throw invalid();
             page = continued(browse.read(token));
         }
-        if (tracks.stream().noneMatch(PlaylistPage::isAvailable)) throw invalid();
         return new Snapshot(List.copyOf(tracks), render(first, rows, updates));
     }
 
@@ -157,6 +293,27 @@ final class PlaylistSyncPage {
         } catch (IOException ignored) {
             return null;
         }
+    }
+
+    /** Suppress only the Watch tap and show the native disabled state; positions and header remain intact. */
+    static byte[] maskUnavailable(byte[] response, Predicate<String> ready) throws IOException {
+        Parsed page = first(response);
+        List<Part> rows = new ArrayList<>();
+        boolean changed = false;
+        for (Field wrapper : page.shelf.fields()) {
+            if (wrapper.number != SHELF_ROWS) continue;
+            Field row = required(wrapper, SHELF_ROW);
+            Field id = row.descendant(5, WATCH, 1);
+            if (id != null && !ready.test(id.text())) {
+                byte[] disabled = new ProtoWriter().int32(2, OfflineBrowsePagesLogic.GREY_OUT).toByteArray();
+                rows.add(replace(wrapper, SHELF_ROW,
+                        rewrite(row, 2, 5, List.of(new Bytes(disabled, 0, disabled.length)))).field(SHELF_ROWS));
+                changed = true;
+            } else {
+                rows.add(wrapper);
+            }
+        }
+        return changed ? bytesOf(render(page, rows, null)) : response;
     }
 
     private record Parsed(Field root, Field contents, Field column, Field tabWrapper, Field tab, Field tabContents,
@@ -248,7 +405,7 @@ final class PlaylistSyncPage {
             }
             tracks.add(videoId);
         }
-        if (before == tracks.size()) throw invalid();
+        if (before == tracks.size() && id == null) throw invalid();
     }
 
     private static Message replaceSection(Parsed page, Message section) throws IOException {
@@ -377,6 +534,16 @@ final class PlaylistSyncPage {
                 if (field.number == wanted) return field;
             }
             return null;
+        }
+
+        @Nullable
+        Field descendant(int... path) throws IOException {
+            Field field = this;
+            for (int number : path) {
+                field = field.child(number);
+                if (field == null) return null;
+            }
+            return field;
         }
 
         private Field read(CodedInputStream input) throws IOException {

@@ -70,6 +70,17 @@ public class VideoCopyFilesTest {
         assertEquals(150, files.stats().bytes());
     }
 
+    @Test public void savingAVideoUnderItsOwnIdDoesNotDetachTheExistingCounterpart() throws Exception {
+        assertTrue(retain("omvOne00000", "atvOne00000", 100));
+        assertTrue(new File(temporary.getRoot(), "rvx_video/omvOne00000.resp").delete());
+        files = new VideoCopyFiles(new File(temporary.getRoot(), "rvx_video"));
+        assertTrue(retain("omvOne00000", "omvOne00000", 200));
+
+        assertEquals("atvOne00000", files.find("omvOne00000").songId());
+        assertEquals(200, files.find("omvOne00000").video().length());
+        assertEquals("omvOne00000", files.videoOf("atvOne00000"));
+    }
+
     @Test public void artworkReadsOnlyTheRequestedVideoCommitBeforeLoadingPairs() throws Exception {
         assertTrue(retain("omvOne00000", "atvOne00000", 100));
         assertTrue(retain("omvTwo00000", "atvTwo00000", 100));

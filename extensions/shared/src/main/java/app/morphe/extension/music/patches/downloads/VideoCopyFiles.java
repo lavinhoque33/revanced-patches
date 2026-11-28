@@ -36,7 +36,7 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 final class VideoCopyFiles {
     /** One stream file of a copy, as its commit records it. */
-    record Part(File file, int itag, String mime, long length, long modified, String digest) {}
+    record Part(File file, int itag, String mime, long length, long modified, String digest, long fileModified) {}
 
     /** A committed copy. {@code sourceId} is the playlist or album it was downloaded from, null when unknown. */
     record Entry(Part video, Part audio, File response, String videoId, String songId, @Nullable String sourceId,
@@ -91,9 +91,19 @@ final class VideoCopyFiles {
         loaded = true;
     }
 
+    boolean loaded() {
+        return loaded;
+    }
+
     /** Whether the video has a committed copy. False until loaded. No disk access. */
     boolean has(String videoId) {
         return songOf.containsKey(videoId);
+    }
+
+    /** The raw copy backing this committed video, or null. No disk access. */
+    @Nullable
+    String songOf(String videoId) {
+        return songOf.get(videoId);
     }
 
     /** The committed pairs, video id to song id. No disk access. */
@@ -169,10 +179,27 @@ final class VideoCopyFiles {
                 .put("responseBytes", response.length);
         if (sourceId != null) commit.put("sourceId", sourceId);
         synchronized (this) {
+            String owner = videoId.equals(songId) ? existingOwner(videoId) : null;
+            if (owner != null) commit.put("songId", owner);
+
             publish(videoId, videoTemporary, audioTemporary, response, commit);
-            songOf.put(videoId, songId);
+            songOf.put(videoId, owner == null ? songId : owner);
         }
         return true;
+    }
+
+    @Nullable
+    private String existingOwner(String videoId) {
+        String owner = songOf.get(videoId);
+        if (owner != null) return owner;
+
+        try {
+            JSONObject commit = readCommit(videoId);
+            owner = commit == null ? null : commit.optString("songId", null);
+            return owner != null && RawAudioFiles.validId(owner) ? owner : null;
+        } catch (Exception ignored) {
+            return null;
+        }
     }
 
     private static JSONObject streamJson(VideoCopyLogic.Stream stream, String digest) throws Exception {
@@ -294,8 +321,8 @@ final class VideoCopyFiles {
         Entry entry = committed(videoId);
         if (entry == null) return null;
 
-        return new Candidate(entry, entry.video().file().length(), entry.video().file().lastModified(),
-                entry.audio().file().length(), entry.audio().file().lastModified());
+        return new Candidate(entry, entry.video().length(), entry.video().fileModified(),
+                entry.audio().length(), entry.audio().fileModified());
     }
 
     /** The commit's claim, checked structurally: files of the recorded lengths exist. Never hashes. */
@@ -303,12 +330,8 @@ final class VideoCopyFiles {
     private Entry committed(String videoId) throws Exception {
         if (!RawAudioFiles.validId(videoId)) return null;
 
-        File commitFile = file(videoId, COMMIT);
-        if (!commitFile.isFile() || commitFile.length() > MAX_COMMIT_BYTES) return null;
-
-        JSONObject commit = new JSONObject(new String(Files.readAllBytes(commitFile.toPath()),
-                StandardCharsets.UTF_8));
-        if (!VideoCopyLogic.currentFormat(commit.optInt("format"))) return null;
+        JSONObject commit = readCommit(videoId);
+        if (commit == null) return null;
 
         String songId = commit.getString("songId");
         long responseBytes = commit.getLong("responseBytes");
@@ -327,9 +350,20 @@ final class VideoCopyFiles {
                 commit.optLong("durationMs"));
     }
 
+    @Nullable
+    private JSONObject readCommit(String videoId) throws Exception {
+        File commitFile = file(videoId, COMMIT);
+        if (!commitFile.isFile() || commitFile.length() > MAX_COMMIT_BYTES) return null;
+
+        JSONObject commit = new JSONObject(new String(Files.readAllBytes(commitFile.toPath()),
+                StandardCharsets.UTF_8));
+        return VideoCopyLogic.currentFormat(commit.optInt("format")) ? commit : null;
+    }
+
     private Part part(String videoId, String suffix, JSONObject json) throws Exception {
-        return new Part(file(videoId, suffix), json.getInt("itag"), json.getString("mime"), json.getLong("length"),
-                json.optLong("lmt"), json.getString("sha256"));
+        File file = file(videoId, suffix);
+        return new Part(file, json.getInt("itag"), json.getString("mime"), json.getLong("length"),
+                json.optLong("lmt"), json.getString("sha256"), file.lastModified());
     }
 
     /** The committed copies and the bytes of their two streams. */

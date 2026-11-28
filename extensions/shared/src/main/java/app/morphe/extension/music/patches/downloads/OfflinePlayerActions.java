@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-27
  * Written by lavinhoque33, 2026-11-26.
  */
 package app.morphe.extension.music.patches.downloads;
@@ -25,7 +26,7 @@ public final class OfflinePlayerActions {
         if (!OfflineReplay.enabled() || !RawAudioFiles.validId(videoId)) return null;
 
         String copyId = heldCopy(videoId);
-        return copyId != null && !Utils.isInternetReachable() ? copyId : null;
+        return copyId != null && !PlaybackConnectivity.reachable() ? copyId : null;
     }
 
     @Nullable

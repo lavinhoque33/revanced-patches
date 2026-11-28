@@ -1,0 +1,394 @@
+{
+ "contents": {
+  "singleColumnBrowseResultsRenderer": {
+   "tabs": [
+    {
+     "tabRenderer": {
+      "content": {
+       "sectionListRenderer": {
+        "contents": [
+         {
+          "musicPlaylistShelfRenderer": {
+           "contents": [
+            {
+             "musicTwoColumnItemRenderer": {
+              "menu": {
+               "menuRenderer": {
+                "items": [
+                 {
+                  "menuNavigationItemRenderer": {
+                   "navigationEndpoint": {
+                    "browseEndpoint": {
+                     "browseId": "MPREb_tIuZJn0Ec5n"
+                    }
+                   }
+                  }
+                 },
+                 {
+                  "menuNavigationItemRenderer": {
+                   "navigationEndpoint": {
+                    "browseEndpoint": {
+                     "browseId": "UC5Gcobi23ZUkjOfJ-4MQPCQ"
+                    }
+                   }
+                  }
+                 },
+                 {
+                  "menuNavigationItemRenderer": {
+                   "navigationEndpoint": {
+                    "browseEndpoint": {
+                     "browseId": "MPTCV1aeh3NbMDQ"
+                    }
+                   }
+                  }
+                 }
+                ]
+               }
+              }
+             }
+            },
+            {
+             "musicTwoColumnItemRenderer": {
+              "menu": {
+               "menuRenderer": {
+                "items": [
+                 {
+                  "menuNavigationItemRenderer": {
+                   "navigationEndpoint": {
+                    "browseEndpoint": {
+                     "browseId": "MPREb_tIuZJn0Ec5n"
+                    }
+                   }
+                  }
+                 },
+                 {
+                  "menuNavigationItemRenderer": {
+                   "navigationEndpoint": {
+                    "browseEndpoint": {
+                     "browseId": "UC5Gcobi23ZUkjOfJ-4MQPCQ"
+                    }
+                   }
+                  }
+                 },
+                 {
+                  "menuNavigationItemRenderer": {
+                   "navigationEndpoint": {
+                    "browseEndpoint": {
+                     "browseId": "MPTCuFcFeZJN70w"
+                    }
+                   }
+                  }
+                 }
+                ]
+               }
+              }
+             }
+            },
+            {
+             "musicTwoColumnItemRenderer": {
+              "menu": {
+               "menuRenderer": {
+                "items": [
+                 {
+                  "menuNavigationItemRenderer": {
+                   "navigationEndpoint": {
+                    "browseEndpoint": {
+                     "browseId": "MPREb_tIuZJn0Ec5n"
+                    }
+                   }
+                  }
+                 },
+                 {
+                  "menuNavigationItemRenderer": {
+                   "navigationEndpoint": {
+                    "browseEndpoint": {
+                     "browseId": "UC5Gcobi23ZUkjOfJ-4MQPCQ"
+                    }
+                   }
+                  }
+                 },
+                 {
+                  "menuNavigationItemRenderer": {
+                   "navigationEndpoint": {
+                    "browseEndpoint": {
+                     "browseId": "MPTC31fRP5GrNVs"
+                    }
+                   }
+                  }
+                 }
+                ]
+               }
+              }
+             }
+            },
+            {
+             "musicTwoColumnItemRenderer": {
+              "menu": {
+               "menuRenderer": {
+                "items": [
+                 {
+                  "menuNavigationItemRenderer": {
+                   "navigationEndpoint": {
+                    "browseEndpoint": {
+                     "browseId": "MPREb_tIuZJn0Ec5n"
+                    }
+                   }
+                  }
+                 },
+                 {
+                  "menuNavigationItemRenderer": {
+                   "navigationEndpoint": {
+                    "browseEndpoint": {
+                     "browseId": "UC5Gcobi23ZUkjOfJ-4MQPCQ"
+                    }
+                   }
+                  }
+                 },
+                 {
+                  "menuNavigationItemRenderer": {
+                   "navigationEndpoint": {
+                    "browseEndpoint": {
+                     "browseId": "MPTCaZ_djVNez3k"
+                    }
+                   }
+                  }
+                 }
+                ]
+               }
+              }
+             }
+            },
+            {
+             "musicTwoColumnItemRenderer": {
+              "menu": {
+               "menuRenderer": {
+                "items": [
+                 {
+                  "menuNavigationItemRenderer": {
+                   "navigationEndpoint": {
+                    "browseEndpoint": {
+                     "browseId": "MPREb_tIuZJn0Ec5n"
+                    }
+                   }
+                  }
+                 },
+                 {
+                  "menuNavigationItemRenderer": {
+                   "navigationEndpoint": {
+                    "browseEndpoint": {
+                     "browseId": "UC5Gcobi23ZUkjOfJ-4MQPCQ"
+                    }
+                   }
+                  }
+                 },
+                 {
+                  "menuNavigationItemRenderer": {
+                   "navigationEndpoint": {
+                    "browseEndpoint": {
+                     "browseId": "MPTCw44dlsnJ1no"
+                    }
+                   }
+                  }
+                 }
+                ]
+               }
+              }
+             }
+            },
+            {
+             "musicTwoColumnItemRenderer": {
+              "menu": {
+               "menuRenderer": {
+                "items": [
+                 {
+                  "menuNavigationItemRenderer": {
+                   "navigationEndpoint": {
+                    "browseEndpoint": {
+                     "browseId": "MPREb_tIuZJn0Ec5n"
+                    }
+                   }
+                  }
+                 },
+                 {
+                  "menuNavigationItemRenderer": {
+                   "navigationEndpoint": {
+                    "browseEndpoint": {
+                     "browseId": "UC5Gcobi23ZUkjOfJ-4MQPCQ"
+                    }
+                   }
+                  }
+                 },
+                 {
+                  "menuNavigationItemRenderer": {
+                   "navigationEndpoint": {
+                    "browseEndpoint": {
+                     "browseId": "MPTCanzFiFhX7rA"
+                    }
+                   }
+                  }
+                 }
+                ]
+               }
+              }
+             }
+            },
+            {
+             "musicTwoColumnItemRenderer": {
+              "menu": {
+               "menuRenderer": {
+                "items": [
+                 {
+                  "menuNavigationItemRenderer": {
+                   "navigationEndpoint": {
+                    "browseEndpoint": {
+                     "browseId": "MPREb_tIuZJn0Ec5n"
+                    }
+                   }
+                  }
+                 },
+                 {
+                  "menuNavigationItemRenderer": {
+                   "navigationEndpoint": {
+                    "browseEndpoint": {
+                     "browseId": "UC5Gcobi23ZUkjOfJ-4MQPCQ"
+                    }
+                   }
+                  }
+                 },
+                 {
+                  "menuNavigationItemRenderer": {
+                   "navigationEndpoint": {
+                    "browseEndpoint": {
+                     "browseId": "MPTCqAGYs2k86Rg"
+                    }
+                   }
+                  }
+                 }
+                ]
+               }
+              }
+             }
+            },
+            {
+             "musicTwoColumnItemRenderer": {
+              "menu": {
+               "menuRenderer": {
+                "items": [
+                 {
+                  "menuNavigationItemRenderer": {
+                   "navigationEndpoint": {
+                    "browseEndpoint": {
+                     "browseId": "MPREb_tIuZJn0Ec5n"
+                    }
+                   }
+                  }
+                 },
+                 {
+                  "menuNavigationItemRenderer": {
+                   "navigationEndpoint": {
+                    "browseEndpoint": {
+                     "browseId": "UC5Gcobi23ZUkjOfJ-4MQPCQ"
+                    }
+                   }
+                  }
+                 },
+                 {
+                  "menuNavigationItemRenderer": {
+                   "navigationEndpoint": {
+                    "browseEndpoint": {
+                     "browseId": "MPTCmPPy1yEduCM"
+                    }
+                   }
+                  }
+                 }
+                ]
+               }
+              }
+             }
+            },
+            {
+             "musicTwoColumnItemRenderer": {
+              "menu": {
+               "menuRenderer": {
+                "items": [
+                 {
+                  "menuNavigationItemRenderer": {
+                   "navigationEndpoint": {
+                    "browseEndpoint": {
+                     "browseId": "MPREb_tIuZJn0Ec5n"
+                    }
+                   }
+                  }
+                 },
+                 {
+                  "menuNavigationItemRenderer": {
+                   "navigationEndpoint": {
+                    "browseEndpoint": {
+                     "browseId": "UC5Gcobi23ZUkjOfJ-4MQPCQ"
+                    }
+                   }
+                  }
+                 },
+                 {
+                  "menuNavigationItemRenderer": {
+                   "navigationEndpoint": {
+                    "browseEndpoint": {
+                     "browseId": "MPTCNUl_rGOEy7U"
+                    }
+                   }
+                  }
+                 }
+                ]
+               }
+              }
+             }
+            },
+            {
+             "musicTwoColumnItemRenderer": {
+              "menu": {
+               "menuRenderer": {
+                "items": [
+                 {
+                  "menuNavigationItemRenderer": {
+                   "navigationEndpoint": {
+                    "browseEndpoint": {
+                     "browseId": "MPREb_tIuZJn0Ec5n"
+                    }
+                   }
+                  }
+                 },
+                 {
+                  "menuNavigationItemRenderer": {
+                   "navigationEndpoint": {
+                    "browseEndpoint": {
+                     "browseId": "UC5Gcobi23ZUkjOfJ-4MQPCQ"
+                    }
+                   }
+                  }
+                 },
+                 {
+                  "menuNavigationItemRenderer": {
+                   "navigationEndpoint": {
+                    "browseEndpoint": {
+                     "browseId": "MPTCqV-PDqMLL3U"
+                    }
+                   }
+                  }
+                 }
+                ]
+               }
+              }
+             }
+            }
+           ]
+          }
+         }
+        ]
+       }
+      }
+     }
+    }
+   ]
+  }
+ }
+}

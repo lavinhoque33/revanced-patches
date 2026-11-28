@@ -1,6 +1,8 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-27
+ * Modified by lavinhoque33, 2026-11-26.
  * Modified by lavinhoque33, 2026-11-14.
  * Written by lavinhoque33, 2026-11-14.
  */
@@ -8,8 +10,12 @@ package app.morphe.extension.music.patches.downloads;
 
 import com.google.common.util.concurrent.ListenableFuture;
 
+import java.util.ArrayDeque;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
+import java.util.function.Supplier;
+
+import app.morphe.extension.shared.utils.Utils;
 
 /** Patched into a native Observable subclass; construction never subscribes or starts a request. */
 @SuppressWarnings("unused")
@@ -48,6 +54,7 @@ public final class PlayerStreamRace {
         private final Object observer;
         private volatile Object upstream;
         private volatile ListenableFuture<?> local;
+        private ArrayDeque<Runnable> delivery;
 
         Subscription(Object request, Object ownership, boolean next, NativeCalls calls, Object observer) {
             this.request = request;
@@ -65,24 +72,68 @@ public final class PlayerStreamRace {
             }
             calls.rvxSubscribed(observer, this);
             if (!disposed() && ownership != null) PlaybackConnectivity.watch(this);
+            // Race playlist-only Watch Next only at its producer, where the player transform consumes the same reply.
+            if (!next) PlayerFallback.scheduleDeadline(request, false, this::pending, this::tryFallback);
         }
 
         public void stockNext(Object value) {
             if (!stockValue()) return;
             finished();
-            calls.rvxNext(observer, value);
+            UpstreamProbe.noteStockAnswer();
+            emit(() -> {
+                calls.rvxNext(observer, next ? value : StreamSwap.prepareOnline(value));
+                notePublished(value);
+            }, !next && StreamSwap.needsWorker(value));
+        }
+
+        /** A player answer was handed to the app: the start it belongs to works. */
+        private void notePublished(Object value) {
+            if (!next && value != null) PlayerFallback.notePublished(request);
         }
 
         public void stockError(Throwable failure) {
             if (!stockTerminal()) return;
             finished();
-            calls.rvxError(observer, failure);
+            emit(() -> calls.rvxError(observer, failure), false);
         }
 
         public void stockComplete() {
             if (!stockTerminal()) return;
             finished();
-            calls.rvxComplete(observer);
+            emit(() -> calls.rvxComplete(observer), false);
+        }
+
+        /** Once preparation moves off main, keep subsequent values and terminal signals in native order. */
+        private void emit(Runnable event, boolean needsWorker) {
+            synchronized (this) {
+                if (disposed()) return;
+                if (delivery != null) {
+                    delivery.addLast(event);
+                    return;
+                }
+
+                if (needsWorker) {
+                    delivery = new ArrayDeque<>();
+                    delivery.addLast(event);
+                    Utils.runOnBackgroundThread(this::drain);
+                    return;
+                }
+            }
+            if (!disposed()) event.run();
+        }
+
+        private void drain() {
+            for (;;) {
+                Runnable task;
+                synchronized (this) {
+                    task = disposed() ? null : delivery.pollFirst();
+                    if (task == null) {
+                        delivery = null;
+                        return;
+                    }
+                }
+                if (!disposed()) task.run();
+            }
         }
 
         private void finished() {
@@ -144,15 +195,17 @@ public final class PlayerStreamRace {
             return true;
         }
 
+        private void tryFallback(Supplier<Object> candidate) {
+            if (!pending()) return;
+            Object value = candidate.get();
+            if (value != null && selectLocal()) deliverLocal(value, true);
+        }
+
         private void localCompleted(ListenableFuture<?> result) {
             if (disposed()) return;
             try {
                 Object value = result.get();
-                if (!localTerminal()) return;
-                finished();
-                calls.rvxNext(observer, value);
-                if (!disposed()) calls.rvxComplete(observer);
-                dispose();
+                deliverLocal(value, false);
             } catch (CancellationException cancelled) {
                 dispose();
             } catch (InterruptedException interrupted) {
@@ -161,6 +214,19 @@ public final class PlayerStreamRace {
             } catch (ExecutionException failure) {
                 localError(failure.getCause());
             }
+        }
+
+        private void deliverLocal(Object value, boolean prepared) {
+            if (!localTerminal()) return;
+            if (prepared && value instanceof StreamSwap.Response media) {
+                StreamSwap.publishStored(value);
+                NoConnectionSheet.onCopyReplayed(media.rvxVideoId());
+            }
+            finished();
+            calls.rvxNext(observer, value);
+            notePublished(value);
+            if (!disposed()) calls.rvxComplete(observer);
+            dispose();
         }
 
         private void localError(Throwable failure) {

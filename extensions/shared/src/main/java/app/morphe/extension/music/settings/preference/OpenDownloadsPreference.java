@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-26.
  * Written by lavinhoque33, 2026-11-08.
  */
 
@@ -22,6 +23,9 @@ import app.morphe.extension.shared.utils.Utils;
  */
 @SuppressWarnings({"unused", "deprecation"})
 public class OpenDownloadsPreference extends Preference {
+    private final Runnable copyListener = this::refreshSummary;
+    private CharSequence emptySummary;
+    private int summaryRevision;
 
     public OpenDownloadsPreference(Context context, AttributeSet attrs, int defStyleAttr, int defStyleRes) {
         super(context, attrs, defStyleAttr, defStyleRes);
@@ -47,24 +51,27 @@ public class OpenDownloadsPreference extends Preference {
         // Nothing is stored here, and the tap is the whole feature.
         setPersistent(false);
         setSelectable(true);
+        emptySummary = getSummary();
         refreshSummary();
-        StreamDownloads.setReadinessListener(this::refreshSummary);
+        StreamDownloads.addCopyListener(copyListener);
     }
 
-    /** How many copies can play offline is counted off the main thread; with no copies the summary stays as is. */
+    /** How many copies can play offline is counted off the main thread. */
     private void refreshSummary() {
+        int revision = ++summaryRevision;
         Utils.runOnBackgroundThread(() -> {
             final StreamDownloads.Readiness readiness = StreamDownloads.readiness();
-            if (readiness.total() == 0) return;
-
-            final String summary = str("morphe_music_open_downloads_ready", readiness.ready(), readiness.total());
-            Utils.runOnMainThread(() -> setSummary(summary));
+            CharSequence summary = readiness.total() == 0 ? emptySummary
+                    : str("morphe_music_open_downloads_ready", readiness.ready(), readiness.total());
+            Utils.runOnMainThread(() -> {
+                if (revision == summaryRevision) setSummary(summary);
+            });
         });
     }
 
     @Override
     protected void onPrepareForRemoval() {
-        StreamDownloads.setReadinessListener(null);
+        StreamDownloads.removeCopyListener(copyListener);
         super.onPrepareForRemoval();
     }
 

@@ -48,17 +48,47 @@ public class PlaylistSyncTest {
         assertEquals(4, OfflineBrowsePagesLogic.frameworkUpdatesSize(renderer));
     }
 
-    @Test public void rejectsEmptyForeignTruncatedAndRepeatedPages() {
+    @Test public void rejectsForeignTruncatedAndRepeatedPages() {
         byte[] initial = firstPage(PLAYLIST, "next", row(FIRST));
         byte[] later = continuation(null, row(SECOND));
         assertThrows(IOException.class, () -> PlaylistSyncPage.fetch(PLAYLIST, token -> firstPage("PLother", null)));
-        assertThrows(IOException.class, () -> PlaylistSyncPage.fetch(PLAYLIST, token -> firstPage(PLAYLIST, null)));
         assertThrows(IOException.class, () -> PlaylistSyncPage.fetch(PLAYLIST, token ->
                 token == null ? initial : Arrays.copyOf(later, later.length - 1)));
         assertThrows(IOException.class, () -> PlaylistSyncPage.fetch(PLAYLIST, token ->
                 token == null ? initial : continuation("next", row(SECOND))));
         assertThrows(IOException.class, () -> PlaylistSyncPage.fetch(PLAYLIST, token ->
                 token == null ? initial : firstPage(PLAYLIST, null, row(SECOND))));
+    }
+
+    @Test public void anIdentifiedEmptyShelfCanRemoveTheLastTrackWithoutLosingItsSavedRevision() throws Exception {
+        var snapshot = PlaylistSyncPage.fetch(PLAYLIST, token -> firstPage(PLAYLIST, null));
+        assertTrue(snapshot.tracks().isEmpty());
+
+        File manifest = temporary.newFile("sources.json");
+        OfflineSourceStore store = new OfflineSourceStore(manifest);
+        store.remember(PLAYLIST, new SourceHeader("Original", "", ""), List.of(FIRST), 1, true);
+        File page = store.stageBrowsePage(snapshot.browseBytes());
+        assertTrue(store.replacePlaylist(store.get(PLAYLIST), snapshot.tracks(), new SourceHeader("Renamed", "", ""),
+                page, 1, () -> true));
+        store.retainWithCopies(Set.of(), Set.of());
+
+        OfflineSourceStore restarted = new OfflineSourceStore(manifest);
+        restarted.ensureLoaded();
+        assertEquals("Renamed", restarted.get(PLAYLIST).title());
+        assertTrue(restarted.get(PLAYLIST).videoIds().isEmpty());
+        assertArrayEquals(snapshot.browseBytes(), restarted.readBrowsePage(PLAYLIST));
+    }
+
+    @Test public void maskingOneTrackPreservesTheOtherOccurrencesAndElementsUpdates() throws Exception {
+        byte[] first = firstPage(PLAYLIST, null, row(FIRST), row(SECOND), row(FIRST));
+        byte[] page = PlaylistSyncPage.fetch(PLAYLIST, token -> first).browseBytes();
+
+        byte[] masked = PlaylistSyncPage.maskUnavailable(page, FIRST::equals);
+
+        assertEquals(2, OfflineBrowsePagesLogic.occurrences(masked, FIRST.getBytes(StandardCharsets.UTF_8)));
+        assertEquals(0, OfflineBrowsePagesLogic.occurrences(masked, SECOND.getBytes(StandardCharsets.UTF_8)));
+        assertEquals(OfflineBrowsePagesLogic.frameworkUpdatesSize(page),
+                OfflineBrowsePagesLogic.frameworkUpdatesSize(masked));
     }
 
     @Test public void onlyAnExactCompleteLegacyPageCanBeCommittedAsGenuine() throws Exception {
@@ -85,7 +115,10 @@ public class PlaylistSyncTest {
 
         byte[] repaired = PlaylistSyncPage.repairLegacy(PLAYLIST, partial, saved, position -> {
             missing.add(position);
-            return OfflineBrowsePagesLogic.fallbackRow(PLAYLIST, position, saved.get(position), null, "Unavailable");
+            String track = saved.get(position);
+            var metadata = PlaylistPage.isAvailable(track)
+                    ? new OfflineBrowsePagesLogic.TrackMetadata(track, "Artist", 0, null) : null;
+            return OfflineBrowsePagesLogic.fallbackRow(PLAYLIST, position, track, metadata, "Unavailable");
         });
 
         assertEquals(List.of(1, 2, 3), missing);

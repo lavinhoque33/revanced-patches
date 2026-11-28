@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-27.
  * Modified by lavinhoque33, 2026-11-26.
  * Modified by lavinhoque33, 2026-11-14.
  * Written by lavinhoque33, 2026-11-08.
@@ -9,7 +10,9 @@ package app.morphe.extension.music.patches.downloads;
 
 import static app.morphe.extension.shared.utils.StringRef.str;
 
+import android.app.Activity;
 import android.content.Context;
+import android.net.Uri;
 
 import androidx.annotation.Nullable;
 
@@ -34,6 +37,19 @@ public final class OfflineReplayHooks {
     /** Enabled by the patch only after every hook of the version is in place. */
     public static boolean supported() {
         return false;
+    }
+
+    /** Schedule index loading before a tap or automatic resume can reach the playback gate. */
+    public static void warmPlayback(Activity activity) {
+        try {
+            if (!OfflineReplay.enabled()) return;
+            OfflineCopyStore.warmUp();
+            VideoCopyStore.warmUp();
+            DownloadedMarkers.warmUp();
+            PlaybackConnectivity.start();
+        } catch (Exception | LinkageError failure) {
+            Logger.printException(() -> "OfflineReplay: playback warm-up failed", failure);
+        }
     }
 
     /** Enabled only on versions where the initial native detail dispatch is bridged. */
@@ -69,7 +85,7 @@ public final class OfflineReplayHooks {
     public static int retainQueueRows(Object queue, @Nullable Object continuation, int nativeCursor) {
         if (continuation instanceof OfflineQueueActions.Continuation edited) {
             try {
-                return edited.cursor() == nativeCursor && OfflineQueueActions.retains(queue, edited) ? 1 : -1;
+                return OfflineQueueActions.retains(queue, edited) ? 1 : -1;
             } catch (Exception | LinkageError failure) {
                 Logger.printException(() -> "OfflineReplay: could not verify the edited queue continuation", failure);
                 return -1;
@@ -110,7 +126,7 @@ public final class OfflineReplayHooks {
         }
     }
 
-    /** Claims just the first native playlist detail load. False leaves the app's original invocation untouched. */
+    /** Starts the guarded initial local and/or live native detail load. */
     public static boolean openInitialBrowse(Object fragment, Object request) {
         if (!usable()) return false;
 
@@ -122,45 +138,41 @@ public final class OfflineReplayHooks {
         }
     }
 
-    /** Canonical ID for an initial playlist request, excluding explicit edit and refresh commands. */
+    /** Canonical page ID for a playlist or album's initial request. */
     @Nullable
     public static String initialDetailId(String browseId, @Nullable Map<?, ?> context) {
         return OfflineReplayLogic.initialDetailId(browseId, context);
     }
 
     /** Injection point: the success of a page the page fragment shows: a page the user opened. */
-    public static void onBrowseResponse(String browseId, Object result, boolean captureLegacyDetails) {
+    public static void onBrowseResponse(Object fragment, Object request, String browseId, Object result) {
         if (!usable()) return;
 
         try {
-            OfflineReplay.onBrowseResponse(browseId, result, captureLegacyDetails);
+            OfflineReplay.detailSucceeded(fragment, request, result);
+            OfflineReplay.onBrowseResponse(browseId, result);
         } catch (Throwable failure) {
             disable("browse capture", failure);
         }
     }
 
-    /** Injection point: a page failed to load. The recorded page of a downloaded list, or null to let it fail. */
-    @Nullable
-    public static byte[] answerBrowse(String browseId, Throwable error) {
-        if (!usable()) return null;
-
-        try {
-            return OfflineReplay.answerBrowse(browseId, error);
-        } catch (Throwable failure) {
-            disable("browse replay", failure);
-            return null;
-        }
+    public static boolean keepSavedDetail(Object fragment, Object request, Throwable failure) {
+        return usable() && OfflineReplay.keepSavedDetail(fragment, request, failure);
     }
 
-    /** Injection point: the player's shared progress-bar and MediaSession seek snap, in milliseconds. */
-    public static long seekSnap(long snappedMillis) {
-        if (!usable()) return snappedMillis;
+    public static boolean refreshSavedDetail(Object fragment, Object request) {
+        return usable() && OfflineReplay.refreshSavedDetail(fragment, request);
+    }
+
+    /** Injection point: the selected formats at the shared progress-bar and MediaSession seek. */
+    public static boolean seeksFile(@Nullable Uri first, @Nullable Uri second, boolean hasFirst, boolean hasSecond) {
+        if (!usable()) return false;
 
         try {
-            return OfflineReplay.seekSnap(snappedMillis);
+            return OfflineReplay.seeksFile(first, second, hasFirst, hasSecond);
         } catch (Throwable failure) {
             disable("seek", failure);
-            return snappedMillis;
+            return false;
         }
     }
 
@@ -204,15 +216,26 @@ public final class OfflineReplayHooks {
         }
     }
 
-    /** Injection point: true when the gate must let the offline watch command of this song through. */
-    public static boolean holdsForGate(String videoId) {
+    /** Injection point: true when the exact native Watch command may skip stock download recovery. */
+    public static boolean holdsForGate(Object command, String videoId) {
         if (!usable()) return false;
 
         try {
-            return OfflineReplay.holdsForGate(videoId);
+            return OfflineReplay.holdsForGate(command, videoId);
         } catch (Throwable failure) {
             disable("gate", failure);
             return false;
+        }
+    }
+
+    /** Injection point: the watch request the watch controller has just built from the command it was handed. */
+    public static void bindShuffleRequest(Object request) {
+        if (!usable()) return;
+
+        try {
+            OfflineReplay.bindShuffleRequest(request);
+        } catch (Throwable failure) {
+            disable("shuffle request", failure);
         }
     }
 

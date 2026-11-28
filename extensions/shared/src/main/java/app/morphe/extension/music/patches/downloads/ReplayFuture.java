@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-26.
  * Modified by lavinhoque33, 2026-11-14.
  * Written by lavinhoque33, 2026-11-08.
  */
@@ -34,19 +35,24 @@ class ReplayFuture implements ListenableFuture<Object> {
 
     /** Completes the future with the value; false when it was completed before. */
     boolean set(Object result) {
-        return complete(result, null, false);
+        return set(result, null);
+    }
+
+    boolean set(Object result, Runnable beforeDelivery) {
+        return complete(result, null, false, beforeDelivery);
     }
 
     /** Completes the future with the failure; false when it was completed before. */
     boolean setException(Throwable throwable) {
-        return complete(null, throwable, false);
+        return complete(null, throwable, false, null);
     }
 
-    private boolean complete(Object result, Throwable error, boolean cancel) {
+    private boolean complete(Object result, Throwable error, boolean cancel, Runnable beforeDelivery) {
         List<Listener> pending;
         synchronized (lock) {
             if (done) return false;
 
+            if (beforeDelivery != null) beforeDelivery.run();
             done = true;
             value = result;
             failure = error;
@@ -83,7 +89,7 @@ class ReplayFuture implements ListenableFuture<Object> {
 
     @Override
     public boolean cancel(boolean mayInterruptIfRunning) {
-        return complete(null, null, true);
+        return complete(null, null, true, null);
     }
 
     @Override

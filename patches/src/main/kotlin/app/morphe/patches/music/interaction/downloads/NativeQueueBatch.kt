@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-26.
  * Written by lavinhoque33, 2026-11-11.
  */
 package app.morphe.patches.music.interaction.downloads
@@ -74,6 +75,20 @@ internal fun BytecodePatchContext.resolveNativeQueueBatch(lookup: Method, reques
         addInstructions(start, replacement)
     }
 }
+
+/**
+ * The native Play-next lookup for a batch of IDs that reads no live queue context and registers no reply observer.
+ * It takes the repeated-ID list, then the queue context to send, as its last two parameters. The caller supplies
+ * the context, so the lookup cannot refresh the shared queue-context slot or run reply commands, and returns
+ * only the natively mapped rows.
+ */
+internal fun BytecodePatchContext.resolveIsolatedQueueBatch(
+    lookup: Method,
+    requestType: String,
+    requesterType: String,
+    name: String,
+): PureSongMenuLookup = resolvePureSongMenuLookup(resolveNativeQueueBatch(lookup, requestType),
+    requestType, requesterType, name)
 
 private fun Instruction.isObjectMove(): Boolean = opcode == Opcode.MOVE_OBJECT ||
         opcode == Opcode.MOVE_OBJECT_FROM16 || opcode == Opcode.MOVE_OBJECT_16

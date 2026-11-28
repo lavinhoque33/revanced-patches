@@ -33,17 +33,57 @@
 * **YouTube Music – Light theme:** Fixed contrast on expanded and collapsed playlist and album headers,
   the offline Library chips, message and category icons, offline Now Playing rating buttons, and **Up Next**
   track titles. The Up Next sheet retains its dark background and current-track highlight.
-* **YouTube Music – Downloads:** Opening a stream-downloaded playlist from **Library → Downloads** now
-  shows the saved playlist in Music's native detail view without waiting for the network or starting
-  playback. Tracks keep their saved order and show available local artwork. Refresh and connected
-  actions still use Music's normal online path. Offline **Shuffle → Play** shuffles Up Next and keeps
-  Shuffle on when you skip to the next track.
+* **YouTube Music – Downloads:** With Stream downloads, the regular **Library** shows downloaded albums and
+  playlists offline alongside any cached recent activity, without selecting **Downloads**. After a restart,
+  including when Android closed the app in the background, **Library** opens unfiltered instead of on
+  **Downloads**. Known limitation: clearing the **Downloads** chip offline hides the downloaded albums and
+  playlists, or leaves Library empty on 9.40, until you reopen the app.
+* **YouTube Music – Downloads:** Opening a stream-downloaded playlist from **Library → Downloads** shows
+  the current playlist when you are connected. Offline, the saved playlist opens at once in Music's native
+  detail view, without starting playback. Tracks keep their saved order and show available local artwork.
+  Offline **Shuffle → Play** shuffles Up Next and keeps Shuffle on when you skip to the next track.
+* **YouTube Music – Downloads:** A stream-downloaded album opened from **Library → Downloads** now shows the
+  album's own page, with its header, **Play** and download state, instead of a bare list of songs. This works on
+  every supported Music version. If the page cannot be found within a few seconds, the saved album opens instead.
+  Offline, the saved album page opens at once and **Play** plays the local copies.
+* **YouTube Music – Downloads:** When a song plays from saved audio and its online response has no compatible
+  video stream, the **Video** pill stays dim. Tapping it does not interrupt playback or change the playback position.
 * **YouTube Music – Downloads:** A stream-downloaded playlist now shows the green check on its own row
   in **Library → Downloads**, not only on its songs. Offline, **Add to queue** and **Play next** work
   from a downloaded song's menu, and the Now Playing menu also lists **Play next**, **Add to queue**,
   **Share** and **Remove download** for a downloaded song. Selecting a song in Up Next keeps the queue
   you built, including a song added more than once. **Start mix**, **Go to artist**,
   **Save to playlist**, liking and **Pin to Speed dial** still need a connection.
+* **YouTube Music – Downloads:** Downloaded playlists and albums open faster. Their saved details, track
+  order and download checks stay up to date with the online playlist. An unfinished playlist download is
+  removed instead of resumed, **Delete all** also cancels pending downloads, and the **Downloads** chip
+  follows the download mode without removing any downloads.
+  Removing a device-file download leaves a separately saved audio stream of the same song playable.
+* **YouTube Music – Downloads:** A downloaded playlist starts from the playlist you tapped, even after
+  another online queue played. Up Next edits and Shuffle are kept when playback switches to the downloaded
+  copies. Even when Android reports a connection, **Play** and album **Shuffle** can start from saved
+  copies if YouTube Music stops responding. Unsaved tracks still show the normal network error, and
+  playback already using a saved copy keeps playing when the connection returns. Lyrics for the playing song
+  then load once, also if you open the player later. Downloaded albums and playlists also show in **Library**
+  while YouTube Music cannot be reached. Offline, **Added to queue** and **Play next** messages appear only
+  after the queue has changed.
+* **YouTube Music – Downloads:** A downloaded music video stays linked to its song when the same video is
+  saved in another playlist, and the downloaded audio plays if the video copy is damaged. Switching between
+  Song and Video and seeking stay on the local copy when a late network response arrives. **Video** now shows
+  the saved music video instead of a black screen, also when playback started from an album's **Play** button
+  or with the player minimized. Saved artwork shows offline without replacing online covers.
+* **YouTube Music – Android Auto:** Fully downloaded playlists open their song lists without waiting for the
+  network, and playlists saved as device files have **Play all**.
+* **YouTube Music – Smart Shuffle:** With Smart Shuffle on, a suggested song no longer shows up a second time,
+  without its sparkle, near the end of Up Next after you add a song or more of Up Next loads.
+  A network handover no longer cancels pending suggestions just because the previous network disconnects.
+  Reconnecting also preserves suggestions whose offline removal has not run yet.
+  Available on Music 9.15.51, 9.40.51 and 9.45.51.
+* **YouTube Music – Add to queue:** A song you add to the queue while a playlist is playing now appears in
+  Up Next at once, instead of after the rest of the playlist has loaded, or not at all when the playlist
+  does not contain it. While connected, it moves once behind the next batch of songs that loads and then
+  keeps its place as more loads and when you turn Shuffle on or off, until you move, remove or play it.
+  Available on Music 8.12.54, 8.28.54, 8.30.54, 9.15.51, 9.40.51 and 9.45.51.
 
 ## [1.52.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.51.0...v1.52.0) (2026-11-25)
 

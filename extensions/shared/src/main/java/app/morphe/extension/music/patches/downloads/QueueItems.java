@@ -1,6 +1,8 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-27
+ * Modified by lavinhoque33, 2026-11-26.
  * Modified by lavinhoque33, 2026-11-14.
  * Written by lavinhoque33, 2026-11-07.
  */
@@ -168,8 +170,8 @@ public final class QueueItems {
     /**
      * Injection point: the start of the click listener of the pill, before its own gate. When the item being played
      * is tracked, the click is this class's: the mode goes to the other kind (the items show its renderer) and the
-     * toggle's owner navigates to the item's own watch endpoint, which the app plays in that mode. Any other click is
-     * the app's.
+     * toggle's owner navigates to the item's own watch endpoint, which the app plays in that mode. A track that plays
+     * from saved audio alone is {@link PillVideoSwitch}'s. Any other click is the app's.
      *
      * @param view The toggle's view, which the patch gave the {@link PillView} methods.
      * @return True if the click was taken, so the app's must not run.
@@ -181,9 +183,19 @@ public final class QueueItems {
             // A dim pill of a video with a copy is lit first, so the app's check that follows lets the press through.
             boolean lit = PillAvailability.lightForClick(view);
             if (!(view instanceof PillView pill) || !AudioFirst.supported()) return false;
+            // A saved adaptive pair already supplies both modes to the current native clip.
+            if (PillAvailability.keepsNativeSwitch()) return false;
+            boolean online = PlaybackConnectivity.reachable();
+            // A clip that holds its online video beside the saved audio is flipped in place by the app's own switch.
+            if (PillAvailability.keepsHybridSwitch(online)) return false;
+            if (!online) {
+                // Offline a saved copy answers the press, never an unavailable watch endpoint.
+                return PillVideoSwitch.declinesOffline();
+            }
+
             if (!tracksItems()) {
                 releaseTrackedItems();
-                return false;
+                return PillVideoSwitch.onOnlineClick();
             }
 
             Object current = pill.rvxCurrentItem();
@@ -202,8 +214,10 @@ public final class QueueItems {
             Object owner = pill.rvxOwner();
             String was = AudioFirst.liveMode();
             if (item == null || !(owner instanceof PillOwner)) {
-                logClick(entry, via, current, was, lit ? "stock:copy-lit" : "stock");
-                return false;
+                // A track the extension does not track can still play from saved audio alone: its Video press.
+                boolean taken = item == null && PillVideoSwitch.onOnlineClick();
+                logClick(entry, via, current, was, taken ? "pill-video" : lit ? "stock:copy-lit" : "stock");
+                return taken;
             }
 
             synchronized (tracked) {
@@ -457,6 +471,12 @@ public final class QueueItems {
         return null;
     }
 
+    /** Whether the item being played is tracked here: a press of the pill is then this class's, not the app's. */
+    static boolean tracksPlaying() {
+        return tracksItems() && findPlaying(VideoInformation.getVideoId(),
+                VideoInformation.getPlayerResponseVideoId()) != null;
+    }
+
     /**
      * The row the user chose starts a new queue, whose items are not built yet: it starts at the item known by one of
      * these ids, see {@link #startIndex}.
@@ -477,7 +497,6 @@ public final class QueueItems {
      */
     public static int startIndex(@Nullable List<?> items, int index) {
         try {
-            PlayerFallback.captureQueue(items);
             if (items == null || !AudioFirst.supported()) return index;
             if (!tracksItems()) {
                 releaseTrackedItems();

@@ -152,10 +152,17 @@ final class OfflineSourceStore {
     /** One rename publishes membership and the renderer of exactly that revision. */
     synchronized boolean replacePlaylist(Source expected, List<String> tracks, File staged, long now,
                                          BooleanSupplier allowed) throws IOException, JSONException {
+        return replacePlaylist(expected, tracks, null, staged, now, allowed);
+    }
+
+    synchronized boolean replacePlaylist(Source expected, List<String> tracks, @Nullable SourceHeader header,
+                                         File staged, long now, BooleanSupplier allowed)
+            throws IOException, JSONException {
         if (sources.get(expected.id()) != expected) return false;
         Map<String, Source> next = new HashMap<>(sources);
-        next.put(expected.id(), new Source(expected.id(), expected.title(), expected.subtitle(), expected.thumbnailUrl(),
-                List.copyOf(tracks), now, staged.getName(), true));
+        SourceHeader description = header == null ? headerOf(expected) : header;
+        next.put(expected.id(), new Source(expected.id(), description.title(), description.subtitle(),
+                description.thumbnailUrl(), List.copyOf(tracks), now, staged.getName(), true));
         return publish(next, allowed);
     }
 
@@ -276,11 +283,12 @@ final class OfflineSourceStore {
         publish(next);
     }
 
-    /** Drops empty completed lists but keeps the ordered membership of interrupted downloads. */
+    /** Drops orphaned lists but keeps interrupted downloads and authoritative empty saved revisions. */
     synchronized void retainWithCopies(Set<String> copyIds, Set<String> pending) throws IOException, JSONException {
         ensureLoaded();
         Map<String, Source> next = new HashMap<>(sources);
         boolean changed = next.values().removeIf(source -> !pending.contains(source.id())
+                && !(source.browsePage() != null && source.videoIds().stream().noneMatch(PlaylistPage::isAvailable))
                 && Collections.disjoint(source.videoIds(), copyIds));
         if (changed) publish(next);
     }

@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-27.
  * Modified by lavinhoque33, 2026-11-15.
  * Written by lavinhoque33, 2026-11-15.
  */
@@ -78,6 +79,11 @@ public final class SmartShuffleNative {
 
     public static void captureDispatcher(CommandAccess access) {
         dispatcher = new WeakReference<>(access);
+    }
+
+    /** Called by the patched resolver just before the metadata-only lookup runs, so a trace proves that path. */
+    public static void isolatedResolve(List<String> videoIds) {
+        Logger.printDebug(() -> "SmartShuffle: isolated resolve v=" + String.join(",", videoIds));
     }
 
     /** Installed only at committed native replaceQueueContents/model replacement operations. */
@@ -330,6 +336,11 @@ public final class SmartShuffleNative {
     }
 
     public static void remove(long generation, long occurrenceId, boolean preserveCurrent, Consumer<Boolean> removed) {
+        removeIf(generation, occurrenceId, preserveCurrent, null, removed);
+    }
+
+    static void removeIf(long generation, long occurrenceId, boolean preserveCurrent,
+                         BooleanSupplier activeWindow, Consumer<Boolean> removed) {
         Access access = owner.get();
         if (access == null) {
             removed.accept(false);
@@ -352,6 +363,7 @@ public final class SmartShuffleNative {
                 Logger.printDebug(() -> "Smart Shuffle native removal occurrence=" + occurrenceId
                         + " video=" + snapshot.items()[index].videoId() + " generation=" + generation
                         + " targetIndex=" + index + " preserveCurrent=" + preserveCurrent);
+                if (activeWindow != null && !activeWindow.getAsBoolean()) return;
                 current.patch_jamRemove(index);
                 didRemove = indexOf(read(current).items(), occurrenceId) < 0;
                 changed();

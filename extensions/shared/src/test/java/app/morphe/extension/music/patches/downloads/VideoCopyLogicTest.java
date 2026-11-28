@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-26.
  * Written by lavinhoque33, 2026-11-09.
  * Modified by lavinhoque33, 2026-11-09.
  */
@@ -14,10 +15,13 @@ import static org.junit.Assert.assertTrue;
 
 import org.junit.Test;
 
+import java.io.File;
+
 import app.morphe.extension.shared.innertube.PlayerResponseOuterClass.ByteRange;
 import app.morphe.extension.shared.innertube.PlayerResponseOuterClass.Format;
 import app.morphe.extension.shared.innertube.PlayerResponseOuterClass.PlayerResponse;
 import app.morphe.extension.shared.innertube.PlayerResponseOuterClass.StreamingData;
+import app.morphe.extension.shared.innertube.PlayerResponseOuterClass.VideoDetails;
 
 public class VideoCopyLogicTest {
     private static final String MP4 = "video/mp4; codecs=\"avc1.42001E, mp4a.40.2\"";
@@ -42,6 +46,24 @@ public class VideoCopyLogicTest {
         StreamingData.Builder streaming = StreamingData.newBuilder().addFormats(muxed());
         for (Format format : adaptive) streaming.addAdaptiveFormats(format);
         return PlayerResponse.newBuilder().setStreamingData(streaming).build();
+    }
+
+    @Test public void exactItagsAreInsufficientWhenASavedDescriptorDoesNotMatchTheFiles() {
+        String id = "aaaaaaaaaaa";
+        Format video = adaptive(134, AVC, 120).clearUrl().build();
+        Format audio = adaptive(251, OPUS, 100).clearUrl().build();
+        long modified = video.getLastModified();
+        var copy = new VideoCopyFiles.Entry(
+                new VideoCopyFiles.Part(new File(id + ".video"), 134, AVC, 120, modified, "video-digest", 1),
+                new VideoCopyFiles.Part(new File(id + ".audio"), 251, OPUS, 100, modified, "audio-digest", 1),
+                new File(id + ".resp"), id, id, null, 210_000);
+        var details = VideoDetails.newBuilder().setVideoId(id);
+        assertNotNull(VideoCopyLogic.stored(response(video, audio).toBuilder().setVideoDetails(details).build(),
+                copy));
+
+        Format badAudio = audio.toBuilder().setContentLength(99).build();
+        assertNull(VideoCopyLogic.stored(response(video, badAudio).toBuilder().setVideoDetails(details).build(),
+                copy));
     }
 
     @Test public void theSupportedVideoStreamsAreTheThree360pOnesOfTheirContainer() {

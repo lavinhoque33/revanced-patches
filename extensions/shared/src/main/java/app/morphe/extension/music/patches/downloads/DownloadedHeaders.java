@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-26.
  * Modified by lavinhoque33, 2026-11-18.
  * Written by lavinhoque33, 2026-11-07.
  * Modified by lavinhoque33, 2026-11-10.
@@ -75,6 +76,16 @@ final class DownloadedHeaders {
         String downloadedSource = downloadedSource(state);
         if (downloadedSource == null) {
             if (badge != null) badge.setShown(false);
+            if (LocalDownloadManager.downloadMode().streamCopy()) {
+                for (String sourceId : state.sourceIds) {
+                    if (!DownloadedMarkers.isStreamSourceRetained(sourceId)) continue;
+                    View button = downloadButton(container, state, badge);
+                    if (button != null) {
+                        placeRemoveTap(container, button, null, state, sourceId);
+                        return;
+                    }
+                }
+            }
             hideRemoveTap(state);
             logOnChange(state, () -> "not downloaded");
             return;
@@ -126,8 +137,8 @@ final class DownloadedHeaders {
     }
 
     /** Lays the tap view over the button, below the check, and points it at the list the header names. */
-    private static void placeRemoveTap(ViewGroup container, View button, DownloadedCheck badge, State state,
-                                       String sourceId) {
+    private static void placeRemoveTap(ViewGroup container, View button, @Nullable DownloadedCheck badge,
+                                       State state, String sourceId) {
         View tap = state.removeTap.get();
         if (tap == null || tap.getParent() != container) {
             tap = new View(container.getContext());
@@ -158,7 +169,7 @@ final class DownloadedHeaders {
 
         // The tap view sits under the check, which stays on top of the row.
         tap.bringToFront();
-        badge.bringToFront();
+        if (badge != null) badge.bringToFront();
     }
 
     /** One line per change of what the header shows, never one per bind or layout. */

@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-27.
  * Modified by lavinhoque33, 2026-11-26.
  * Written by lavinhoque33, 2026-11-08.
  * Modified by lavinhoque33, 2026-11-14.
@@ -12,6 +13,7 @@ import static org.junit.Assert.*;
 import org.junit.Test;
 
 import java.util.List;
+import java.util.Random;
 
 import app.morphe.extension.music.patches.downloads.OfflineWatchNext.Item;
 
@@ -30,8 +32,8 @@ public class OfflineWatchNextTest {
                 item("ccccccccccc", "Third", "", "", 0, ""));
     }
 
-    /** Walks the response down to the playlist panel, asserting each wrapper field on the way. */
-    private static byte[] panel(byte[] response) throws Exception {
+    /** Walks the response to the tab content holder, asserting each wrapper field on the way. */
+    private static byte[] panelHolder(byte[] response) throws Exception {
         byte[] contents = ProtoFields.one(response, 7);
         byte[] queue = ProtoFields.one(contents, 125_354_411);
         byte[] tabsHolder = ProtoFields.one(queue, 7);
@@ -40,8 +42,11 @@ public class OfflineWatchNextTest {
         byte[] tab = ProtoFields.one(tabEntry, 58_174_010);
         assertEquals("Up next", ProtoFields.string(tab, 2));
         byte[] tabContent = ProtoFields.one(tab, 4);
-        byte[] panelHolder = ProtoFields.one(tabContent, 278_751_218);
-        byte[] panelRenderer = ProtoFields.one(panelHolder, 1);
+        return ProtoFields.one(tabContent, 278_751_218);
+    }
+
+    private static byte[] panel(byte[] response) throws Exception {
+        byte[] panelRenderer = ProtoFields.one(panelHolder(response), 1);
         return ProtoFields.one(panelRenderer, 50_631_000);
     }
 
@@ -63,7 +68,7 @@ public class OfflineWatchNextTest {
                 .string(99, "unknown native metadata").toByteArray();
         byte[] second = new ProtoWriter().string(10, "bbbbbbbbbbb").int32(6, 0)
                 .message(7, endpoint).toByteArray();
-        byte[] response = OfflineWatchNext.buildCaptured("PL-native", List.of(first, second, first), 1, endpoint);
+        byte[] response = OfflineWatchNext.buildCaptured("PL-native", List.of(first, second, first), 1, endpoint, null);
         byte[] captured = panel(response);
 
         assertEquals(3, ProtoFields.all(captured, 2).size());
@@ -82,20 +87,25 @@ public class OfflineWatchNextTest {
     public void capturedSavedContinuationSelectsTheLiveOccurrenceWithoutAddingShuffleMetadata() throws Exception {
         String playlist = "PPSVrvx:PLsaved_header";
         List<Item> saved = items();
-        byte[] original = panel(OfflineWatchNext.build(playlist,
-                List.of(saved.get(0), saved.get(1), saved.get(0), saved.get(2)), 0, true));
+        byte[] original = panel(OfflineWatchNext.buildSavedShuffle(playlist,
+                List.of(saved.get(0), saved.get(1), saved.get(0), saved.get(2)), "Saved source"));
         byte[] first = track(original, 0);
         byte[] otherOccurrence = track(original, 2);
         byte[] endpoint = ProtoFields.one(otherOccurrence, 7);
+        String artwork = "file:///saved/song.thumb";
         byte[] response = OfflineWatchNext.buildCaptured(playlist,
-                List.of(first, track(original, 3), track(original, 1), otherOccurrence), 3, endpoint);
+                List.of(first, track(original, 3), track(original, 1), otherOccurrence), 3, endpoint, artwork);
         byte[] captured = panel(response);
 
         assertFalse(ProtoFields.has(captured, 34));
+        assertFalse(ProtoFields.has(panelHolder(response), 4));
         assertEquals(playlist, ProtoFields.string(captured, 5));
         assertEquals(3, ProtoFields.varint(captured, 3));
         assertEquals(0, ProtoFields.varint(track(captured, 0), 6));
         assertEquals(1, ProtoFields.varint(track(captured, 3), 6));
+        assertArrayEquals(ProtoFields.one(first, 3), ProtoFields.one(track(captured, 0), 3));
+        byte[] selectedImage = ProtoFields.one(ProtoFields.one(track(captured, 3), 3), 1);
+        assertEquals(artwork, ProtoFields.string(selectedImage, 1));
         assertArrayEquals(endpoint, ProtoFields.one(track(captured, 3), 7));
         assertArrayEquals(endpoint, ProtoFields.one(response, 9));
         assertEquals(2, OfflineReplayLogic.offlineWatchOf(endpoint).index());
@@ -121,11 +131,14 @@ public class OfflineWatchNextTest {
         List<Item> saved = itemsShowingTheVideoOfTheSecond();
         List<Item> withDuplicate = List.of(saved.get(0), saved.get(1), saved.get(0), saved.get(2));
         byte[] plain = OfflineWatchNext.build(playlist, withDuplicate, 0);
-        byte[] shuffled = OfflineWatchNext.build(playlist, withDuplicate, 0, true);
+        byte[] shuffled = OfflineWatchNext.buildSavedShuffle(playlist, withDuplicate, "The Black Keys");
         byte[] plainPanel = panel(plain);
         byte[] shuffledPanel = panel(shuffled);
 
         assertFalse(ProtoFields.has(plainPanel, 34));
+        assertFalse(ProtoFields.has(panelHolder(plain), 4));
+        byte[] header = ProtoFields.one(ProtoFields.one(panelHolder(shuffled), 4), 278_751_219);
+        assertEquals("The Black Keys", ProtoFields.string(ProtoFields.one(header, 2), 4));
         byte[] state = ProtoFields.one(ProtoFields.one(shuffledPanel, 34), 79_971_800);
         assertEquals(1, ProtoFields.varint(state, 3));
         assertEquals(0, ProtoFields.varint(shuffledPanel, 3));
@@ -147,6 +160,24 @@ public class OfflineWatchNextTest {
         for (byte[] item : ProtoFields.all(panel, 2)) {
             assertEquals(List.of(51_779_701), ProtoFields.numbers(item));
         }
+    }
+
+    @Test public void continuationCarriesOnlyCurrentRendererAndOrderedMissingRows() throws Exception {
+        List<Item> items = items();
+        byte[] selectedCommand = OfflineWatchCommand.build(items.get(1).videoId(), PLAYLIST, 7);
+        byte[] selected = OfflineWatchNext.queueRow(items.get(1), selectedCommand, null);
+        byte[] duplicate = OfflineWatchNext.queueRow(items.get(1),
+                OfflineWatchCommand.build(items.get(1).videoId(), PLAYLIST, 27), null);
+        byte[] last = OfflineWatchNext.queueRow(items.get(2),
+                OfflineWatchCommand.build(items.get(2).videoId(), PLAYLIST, 28), null);
+
+        byte[] response = OfflineWatchNext.buildContinuation(PLAYLIST, selected, List.of(duplicate, last), 7,
+                selectedCommand, null);
+        byte[] panel = panel(response);
+        assertEquals(3, ProtoFields.all(panel, 2).size());
+        assertArrayEquals(selectedCommand, ProtoFields.one(track(panel, 0), 7));
+        assertArrayEquals(duplicate, track(panel, 1));
+        assertArrayEquals(last, track(panel, 2));
     }
 
     @Test public void aTrackHasTitleBylineThumbnailLengthPositionSelectionEndpointIdAndShortByline()
@@ -288,6 +319,21 @@ public class OfflineWatchNextTest {
     @Test(expected = IllegalArgumentException.class)
     public void anItemWithoutAVideoIdIsRejected() {
         OfflineWatchNext.build(PLAYLIST, List.of(item("", "T", "A", "B", 1, null)), 0);
+    }
+
+    @Test
+    public void aShuffleQueueBeginsOnTheRandomSongAndKeepsTheOthersInOrder() throws Exception {
+        List<Item> shuffled = OfflineReplayLogic.withRandomStart(items(), new Random() {
+            @Override public int nextInt(int bound) {
+                return 2;
+            }
+        });
+
+        byte[] panel = panel(OfflineWatchNext.buildSavedShuffle(PLAYLIST, shuffled, "Saved mix"));
+
+        assertEquals("ccccccccccc", ProtoFields.string(track(panel, 0), 10));
+        assertEquals("aaaaaaaaaaa", ProtoFields.string(track(panel, 1), 10));
+        assertEquals("bbbbbbbbbbb", ProtoFields.string(track(panel, 2), 10));
     }
 
     private static long typeOf(byte[] track) throws Exception {

@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-26
  * Written by lavinhoque33, 2026-11-14.
  */
 package app.morphe.extension.music.patches.androidauto;
@@ -28,8 +29,15 @@ final class AndroidAutoPlaylistChildren {
     }
     record Page(String playlistId, List<Track> tracks, String continuation) {}
     record Selection(String sourceId, String videoId, int index) {}
+    record PlaybackSelection(Selection row, boolean playAll, String albumPlaylistId) {}
     record Row(Track track, int index, boolean playAll, boolean unavailable) {}
     enum Route { ONLINE_PLAYLIST, ONLINE_TRACK, LOCAL_QUEUE, UNAVAILABLE }
+    record LooseQueue(String song, List<String> following) {}
+    record Playback(String onlineId, String offlineId, LooseQueue loose) {
+        String atDelivery(boolean online) {
+            return online && onlineId != null ? onlineId : offlineId;
+        }
+    }
 
     private AndroidAutoPlaylistChildren() {}
 
@@ -61,9 +69,65 @@ final class AndroidAutoPlaylistChildren {
         return new Selection(parts[0], parts[1].equals("-") ? "" : parts[1], Integer.parseInt(parts[2]));
     }
 
+    /** Keep the native album route on the delivered row, even when its track cache could not be written. */
+    static String withAlbumPlaylist(String mediaId, String sourceId, String playlistId) {
+        return hasAlbumPlaylist(sourceId, playlistId) ? mediaId + "#" + playlistId : mediaId;
+    }
+
+    static PlaybackSelection parsePlayback(String mediaId, String account) {
+        int separator = mediaId.indexOf('#');
+        String albumPlaylistId = separator < 0 ? "" : mediaId.substring(separator + 1);
+        String rowId = separator < 0 ? mediaId : mediaId.substring(0, separator);
+        boolean playAll = rowId.startsWith(AndroidAutoPlaylists.PREFIX);
+        Selection row;
+        if (playAll) {
+            String sourceId = AndroidAutoPlaylists.parseId(rowId, account);
+            row = sourceId == null ? null : new Selection(sourceId, "", 0);
+        } else {
+            row = parseTrack(rowId, account);
+        }
+
+        if (row == null || (separator >= 0 && !hasAlbumPlaylist(row.sourceId(), albumPlaylistId))) return null;
+        return new PlaybackSelection(row, playAll, albumPlaylistId);
+    }
+
+    private static boolean hasAlbumPlaylist(String sourceId, String playlistId) {
+        return sourceId.startsWith("MPREb_") && ID.matcher(playlistId).matches();
+    }
+
+    static boolean unavailableId(String videoId) {
+        return videoId.isEmpty() || "-".equals(videoId);
+    }
+
     /** A failed/partial online load never substitutes its truncated prefix for the local fallback. */
     static Page choose(Page fetched, boolean complete, Page local) {
         return complete ? fetched : local;
+    }
+
+    static boolean fullyDownloaded(List<Track> tracks, Set<String> ready, Map<String, String> aliases) {
+        if (ready.isEmpty()) return false;
+
+        boolean hasPlayableTrack = false;
+
+        for (Track track : tracks) {
+            String videoId = track.videoId();
+            if (unavailableId(videoId)) continue;
+            if (!ready.contains(aliases.getOrDefault(videoId, videoId))) return false;
+            hasPlayableTrack = true;
+        }
+        return hasPlayableTrack;
+    }
+
+    static LooseQueue looseQueue(List<String> ready, int start) {
+        if (start < 0 || start >= ready.size()) return null;
+
+        List<String> following = List.of();
+        if (ready.size() > 1) {
+            following = new ArrayList<>(ready.size() - 1);
+            following.addAll(ready.subList(start + 1, ready.size()));
+            following.addAll(ready.subList(0, start));
+        }
+        return new LooseQueue(ready.get(start), following);
     }
 
     static List<Row> rows(Page page, boolean online, Set<String> ready, Map<String, String> aliases) {
@@ -72,7 +136,7 @@ final class AndroidAutoPlaylistChildren {
         for (int index = 0; index < page.tracks().size(); index++) {
             Track track = page.tracks().get(index);
             String song = aliases.getOrDefault(track.videoId(), track.videoId());
-            boolean unavailable = track.videoId().isEmpty() || (!online && !ready.contains(song));
+            boolean unavailable = unavailableId(track.videoId()) || (!online && !ready.contains(song));
             rows.add(new Row(track, index, false, unavailable));
         }
         if (page.tracks().isEmpty()) rows.add(new Row(null, 0, false, true));
@@ -80,7 +144,7 @@ final class AndroidAutoPlaylistChildren {
     }
 
     static Route route(boolean online, boolean playAll, String videoId, int readyIndex) {
-        if (!playAll && videoId.isEmpty()) return Route.UNAVAILABLE;
+        if (!playAll && unavailableId(videoId)) return Route.UNAVAILABLE;
         if (online) return playAll ? Route.ONLINE_PLAYLIST : Route.ONLINE_TRACK;
         return readyIndex >= 0 ? Route.LOCAL_QUEUE : Route.UNAVAILABLE;
     }

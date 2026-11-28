@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-26.
  * Modified by lavinhoque33, 2026-11-11.
  * Written by lavinhoque33, 2026-11-10.
  */
@@ -107,18 +108,18 @@ public final class SongMenus {
         Utils.runOnBackgroundThread(() -> {
             Item item = null;
             try {
-                if (Utils.isInternetReachable()) {
-                    try {
-                        item = fetch(songId);
-                    } catch (Exception ex) {
-                        Logger.printException(() -> "SongMenus: could not refresh the stock menu of " + songId, ex);
-                    }
-                }
-                if (item == null && file(songId).isFile()) {
+                if (file(songId).isFile()) {
                     Client available = client.get();
                     if (available != null && available.rvxRestoreSong(Files.readAllBytes(file(songId).toPath()))
-                            instanceof Item restored) item = restored;
+                            instanceof Item restored && songId.equals(restored.rvxSongId())
+                            && restored.rvxSongMenu() instanceof MessageLite) item = restored;
                 }
+            } catch (Exception ex) {
+                Logger.printDebug(() -> "SongMenus: could not restore the cached menu of " + songId, ex);
+            }
+
+            try {
+                if (item == null && Utils.isInternetReachable()) item = fetch(songId);
             } catch (Exception ex) {
                 Logger.printException(() -> "SongMenus: could not load the stock menu of " + songId, ex);
             }

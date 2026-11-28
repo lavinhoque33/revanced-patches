@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-26.
  * Modified by lavinhoque33, 2026-11-19.
  * Modified by lavinhoque33, 2026-11-17.
  * Modified by lavinhoque33, 2026-11-12.
@@ -9,10 +10,14 @@
  */
 package app.morphe.extension.music.patches.downloads;
 
+import java.lang.ref.WeakReference;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.CopyOnWriteArrayList;
 
+import app.morphe.extension.shared.utils.Logger;
 import app.morphe.extension.shared.utils.Utils;
 
 /**
@@ -69,17 +74,26 @@ public final class StreamDownloads {
         return OfflineCopyStore.readiness();
     }
 
-    private static volatile Runnable readinessListener;
+    private static final List<WeakReference<Runnable>> copyListeners = new CopyOnWriteArrayList<>();
+    private static final CoalescedRunner copyChanges = new CoalescedRunner(Utils::runOnMainThread, () -> {
+        for (WeakReference<Runnable> reference : copyListeners) {
+            Runnable listener = reference.get();
+            if (listener == null) copyListeners.remove(reference);
+            else listener.run();
+        }
+    });
 
-    /** The settings row that shows {@link #readiness()} asks to be told when it changes; null stops the calls. */
-    public static void setReadinessListener(Runnable listener) {
-        readinessListener = listener;
+    public static void addCopyListener(Runnable listener) {
+        copyListeners.add(new WeakReference<>(listener));
     }
 
-    /** Tells the listener, on the main thread, that a copy got its stored data. */
+    public static void removeCopyListener(Runnable listener) {
+        copyListeners.removeIf(reference -> reference.get() == listener);
+    }
+
+    /** Tells visible settings rows about committed copy changes, on the main thread. */
     static void readinessChanged() {
-        Runnable listener = readinessListener;
-        if (listener != null) Utils.runOnMainThread(listener);
+        if (!copyListeners.isEmpty()) copyChanges.request();
     }
 
     /**
@@ -88,10 +102,26 @@ public final class StreamDownloads {
      * Off the main thread.
      */
     public static void remove(String videoId) {
+        List<String> affected = new ArrayList<>();
         synchronized (PlaylistSync.MUTATION) {
             PlaylistSync.cancel();
+            for (var source : OfflineCopyStore.copyTrackLists().entrySet()) {
+                if (!source.getValue().contains(videoId)) continue;
+                String sourceId = source.getKey();
+                affected.add(sourceId);
+                PlaylistDownloads.onSourceRemoved(sourceId);
+                if (DownloadedMarkers.hasPendingDownload(sourceId)) {
+                    try {
+                        DownloadedMarkers.onPlaylistCompleted(sourceId);
+                    } catch (java.io.IOException failure) {
+                        Logger.printException(() -> "Could not cancel the pending download of " + sourceId, failure);
+                    }
+                }
+            }
             RawAudioStore.delete(videoId);
+            readinessChanged();
         }
+        affected.forEach(OfflineReplay::refreshSavedSource);
     }
 
     /**
@@ -111,23 +141,27 @@ public final class StreamDownloads {
             for (String videoId : removal.deleteVideos()) VideoCopyStore.deleteForSong(videoId);
             for (String videoId : removal.deleteCopies()) RawAudioStore.delete(videoId);
 
-            DownloadedMarkers.onSourceRemoved(sourceId);
             OfflineCopyStore.removeSource(sourceId);
+            DownloadedMarkers.onSourceRemoved(sourceId);
+            readinessChanged();
             return removal.deleteCopies().size();
         }
     }
 
     /**
-     * Deletes every stream copy, including the copy kept beside a local file. Local files, Device files and
-     * downloads in flight are untouched; the checks of the deleted copies disappear.
+     * Deletes every stream copy and cancels its active or pending transfers. Device files are untouched.
      *
      * @return How many copies were deleted.
      */
     public static int deleteAll() {
         synchronized (PlaylistSync.MUTATION) {
             PlaylistSync.cancel();
-            DownloadedMarkers.forgetCompletedSources();
-            return RawAudioStore.clearAll();
+            PlaylistDownloads.cancelStreamRuns();
+            LocalDownloadManager.cancelStreamDownloads();
+            DownloadedMarkers.forgetStreamSources();
+            int removed = RawAudioStore.clearAll();
+            readinessChanged();
+            return removed;
         }
     }
 }

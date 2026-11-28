@@ -3,6 +3,7 @@
  * Licensed under the GNU General Public License v3.0.
  * Modified by lavinhoque33, 2026-11-07.
  * Modified by lavinhoque33, 2026-11-10
+ * Modified by lavinhoque33, 2026-11-27.
  */
 package app.morphe.extension.music.patches.downloads;
 
@@ -70,6 +71,7 @@ public final class PlaylistDownloads {
             return;
         }
         Utils.showToastShort(str("morphe_music_playlist_download_started"));
+        NativeMirror.Store mirrorStore = mode.streamCopy() ? NativeMirror.captureStore() : null;
         Utils.submitOnBackgroundThread(() -> {
             String title = playlistId;
             SourceHeader header = SourceHeader.EMPTY;
@@ -125,6 +127,7 @@ public final class PlaylistDownloads {
                         : VideoCopyDownloader.Outcome.NONE;
                 // Every copy and video is in: the header may show the check and offer Remove.
                 if (mode.streamCopy()) DownloadedMarkers.onPlaylistCompleted(playlistId);
+                if (mode.streamCopy()) NativeMirror.onPlaylistDownloaded(mirrorStore, playlistId);
                 String done = completionText(mode, downloaded, available.size(), skipped, videos);
                 LocalDownloadManager.awaitNotificationSlot();
                 LocalDownloadManager.showDownloadNotification("playlist:" + playlistId, title, 100, false, done);

@@ -9,6 +9,8 @@ package app.morphe.extension.music.patches.downloads;
 
 import static app.morphe.extension.shared.utils.StringRef.str;
 
+import androidx.annotation.Nullable;
+
 import org.json.JSONObject;
 
 import java.io.File;
@@ -187,10 +189,10 @@ final class VideoCopyDownloader {
         return outcome;
     }
 
-    private record Candidate(PlayerResponse response, VideoCopyLogic.Selection selection, ClientType client) {}
+    private record Candidate(PlayerResponse response, @Nullable Format video, Format audio, ClientType client) {}
 
     private static boolean saveOne(VideoPairingLogic.Pair pair, String sourceId, String title, DownloadQuality quality) {
-        DownloadCandidates<Candidate> candidates = videoCandidates(pair.videoId(), quality);
+        DownloadCandidates<Candidate> candidates = videoCandidates(pair.videoId(), quality, false);
         while (true) {
             Candidate candidate = candidates.next();
             if (candidate == null) break;
@@ -208,7 +210,8 @@ final class VideoCopyDownloader {
         return false;
     }
 
-    private static DownloadCandidates<Candidate> videoCandidates(String videoId, DownloadQuality quality) {
+    private static DownloadCandidates<Candidate> videoCandidates(String videoId, DownloadQuality quality,
+                                                                boolean nativeImport) {
         Iterator<ClientType> clients = clients().iterator();
         return new DownloadCandidates<>(new Iterator<>() {
             @Override
@@ -220,13 +223,13 @@ final class VideoCopyDownloader {
             public List<Candidate> next() {
                 ClientType client = clients.next();
                 try {
-                    return resolve(videoId, client, quality);
+                    return resolve(videoId, client, quality, nativeImport);
                 } catch (Exception ex) {
                     Logger.printWarn(() -> "VideoCopy: v=" + videoId + " client=" + client + " failed: " + ex);
                     return List.of();
                 }
             }
-        }, candidate -> candidate.selection().audio(), quality);
+        }, Candidate::audio, quality);
     }
 
     private static List<ClientType> clients() {
@@ -234,7 +237,8 @@ final class VideoCopyDownloader {
                 SpoofVideoStreamsPatch.getAvailableClients(), Settings.SPOOF_VIDEO_STREAMS_CLIENT_TYPE.get());
     }
 
-    private static List<Candidate> resolve(String videoId, ClientType client, DownloadQuality quality) throws Exception {
+    private static List<Candidate> resolve(String videoId, ClientType client, DownloadQuality quality,
+                                           boolean nativeImport) throws Exception {
         StreamOrDetailsDataRequest.StreamData stream = StreamOrDetailsDataRequest
                 .fetchRequestForDownload(videoId, List.of(client), client).getStream();
         if (stream == null) {
@@ -244,28 +248,65 @@ final class VideoCopyDownloader {
         }
 
         PlayerResponse response = PlayerResponse.parseFrom(stream.streamingData());
-        VideoCopyLogic.Selection selection = VideoCopyLogic.select(response, quality);
-        if (selection == null) {
-            Logger.printDebug(() -> "VideoCopy: v=" + videoId + " client=" + client
-                    + " has no 360p video-only stream with playable audio");
-            return List.of();
-        }
         if (!videoId.equals(response.getVideoDetails().getVideoId())) {
             Logger.printDebug(() -> "VideoCopy: v=" + videoId + " client=" + client + " details name another video");
             return List.of();
         }
+        if (nativeImport && !NativeOfflineDirect.hasPilotVideoType(response)) return List.of();
+        boolean needsVideo = !nativeImport || NativeOfflineDirect.needsVideo(response);
+        VideoCopyLogic.Selection selection = needsVideo ? VideoCopyLogic.select(response, quality) : null;
+        if (needsVideo && selection == null) {
+            Logger.printDebug(() -> "VideoCopy: v=" + videoId + " client=" + client
+                    + " has no 360p video-only stream with playable audio");
+            return List.of();
+        }
+        Format video = selection == null ? null : selection.video();
+        if (nativeImport && video != null && !NativeOfflineDirect.hasIdentity(video)) return List.of();
         List<Candidate> candidates = new ArrayList<>();
         for (Format audio : DownloadFormats.audioFormats(response, true)) {
-            candidates.add(new Candidate(response, new VideoCopyLogic.Selection(selection.video(), audio), client));
+            if (!nativeImport || NativeOfflineDirect.hasIdentity(audio)) {
+                candidates.add(new Candidate(response, video, audio, client));
+            }
         }
         return candidates;
+    }
+
+    /** Use the same range downloader and candidate selection, but keep no fork replay copy for pilot IDs. */
+    static NativeOfflineDirect.Policy importNative(String videoId, @Nullable String title, DownloadQuality quality)
+            throws Exception {
+        NativeOfflineDirect.Session session = NativeOfflineDirect.begin(videoId);
+        DownloadCandidates<Candidate> candidates = videoCandidates(videoId, quality, true);
+        Exception transferError = null;
+        for (Candidate candidate; (candidate = candidates.next()) != null; ) {
+            String label = title == null ? candidate.response().getVideoDetails().getTitle() : title;
+            File audio = File.createTempFile("rvx-import-audio-", ".part", Utils.getContext().getCacheDir());
+            File video = null;
+            try {
+                try {
+                    download(videoId, label, candidate.audio(), audio);
+                    if (candidate.video() != null) {
+                        video = File.createTempFile("rvx-import-video-", ".part", Utils.getContext().getCacheDir());
+                        download(videoId, label, candidate.video(), video);
+                    }
+                } catch (Exception ex) {
+                    transferError = ex;
+                    continue;
+                }
+                return session.publish(candidate.response(), new NativeOfflineDirect.Representation(candidate.audio(), audio),
+                        video == null ? null : new NativeOfflineDirect.Representation(candidate.video(), video));
+            } finally {
+                audio.delete();
+                if (video != null) video.delete();
+            }
+        }
+        throw new IOException("No complete native pilot representation was downloaded", transferError);
     }
 
     private static boolean save(VideoPairingLogic.Pair pair, String sourceId, String title, Candidate candidate)
             throws Exception {
         String videoId = pair.videoId();
         PlayerResponse response = candidate.response();
-        VideoCopyLogic.Selection selection = candidate.selection();
+        VideoCopyLogic.Selection selection = new VideoCopyLogic.Selection(candidate.video(), candidate.audio());
 
         long length = selection.bytes();
         long free = Utils.getContext().getFilesDir().getUsableSpace();

@@ -1,0 +1,187 @@
+/*
+ * Copyright (C) 2026 lavinhoque33
+ * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-27.
+ */
+package app.morphe.extension.music.patches.downloads;
+
+import android.content.SharedPreferences;
+import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
+import android.net.Uri;
+
+import androidx.annotation.Nullable;
+
+import java.io.File;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
+import java.util.concurrent.ConcurrentLinkedQueue;
+
+import app.morphe.extension.music.settings.Settings;
+import app.morphe.extension.shared.settings.Setting;
+import app.morphe.extension.shared.utils.Logger;
+import app.morphe.extension.shared.utils.Utils;
+
+/** Optional index of fork stream copies. Stock download and offline playback eligibility are not changed. */
+public final class NativeMirror {
+    /** Implemented by the active stock store on 9.45.51 only. The app owns the DB connection. */
+    public interface Store {
+        @Nullable SQLiteDatabase rvxOfflineIndexDatabase();
+        void rvxOfflineIndexChanged(String id, boolean playlist);
+    }
+
+    private record Pending(Store store, NativeMirrorDatabase.Item item) {}
+    private record Published(@Nullable Store store, NativeMirrorDatabase.Result result) {}
+
+    private static final String FIRST_STORE = "first_store";
+    private static final ConcurrentLinkedQueue<Pending> pending = new ConcurrentLinkedQueue<>();
+    private static final CoalescedRunner sync = new CoalescedRunner(
+            Utils::runOnBackgroundThread, NativeMirror::synchronize);
+    private static final SharedPreferences.OnSharedPreferenceChangeListener settingsListener = (prefs, key) -> {
+        if (key == null || Settings.NATIVE_OFFLINE_INDEX.key.equals(key) || Settings.DOWNLOAD_METHOD.key.equals(key)) {
+            sync.request();
+        }
+    };
+    @Nullable private static volatile Store activeStore;
+    @Nullable private static volatile Thread notifyingThread;
+    private static volatile Published published = new Published(null, NativeMirrorDatabase.Result.EMPTY);
+    private static boolean listening;
+
+    private NativeMirror() {}
+
+    /** Emitted only when the 9.45.51 stock selector replaces or clears its active offline store. */
+    public static synchronized void onStoreChanged(@Nullable Object selected) {
+        Store next = selected instanceof Store store ? store : null;
+        if (next == activeStore) return;
+        activeStore = next;
+        published = new Published(null, NativeMirrorDatabase.Result.EMPTY);
+        if (next == null || !Utils.isContextSet()) return;
+
+        if (!listening) {
+            Setting.preferences.preferences.registerOnSharedPreferenceChangeListener(settingsListener);
+            listening = true;
+        }
+        sync.request();
+    }
+
+    private static boolean enabled() {
+        return Settings.DOWNLOAD_METHOD.get() == DownloadMethod.STREAM && Settings.NATIVE_OFFLINE_INDEX.get();
+    }
+
+    /** Capture at enqueue, not completion: a transfer cannot publish into an account selected mid-download. */
+    @Nullable
+    static Store captureStore() {
+        Store store = activeStore;
+        return store != null && enabled() ? store : null;
+    }
+
+    /** Read-only check that the active stock store already holds a complete row for this video. */
+    static boolean hasCompleteCopy(String videoId) {
+        Store store = activeStore;
+        SQLiteDatabase db = store == null ? null : store.rvxOfflineIndexDatabase();
+        if (db == null) return false;
+        try (Cursor cursor = db.rawQuery("SELECT 1 FROM videosV2 v JOIN streams s ON s.video_id = v.id"
+                + " WHERE v.id = ? AND v.offline_video_data_proto IS NOT NULL"
+                + " AND s.bytes_transferred = s.bytes_total LIMIT 1", new String[]{videoId})) {
+            return cursor.moveToFirst();
+        } catch (Exception ex) {
+            Logger.printInfo(() -> "Native offline availability: native copy check failed: " + ex);
+            return false;
+        }
+    }
+
+    static void onSingleDownloaded(@Nullable Store store, String videoId) {
+        claim(store, new NativeMirrorDatabase.Item(videoId, false));
+    }
+
+    static void onPlaylistDownloaded(@Nullable Store store, String playlistId) {
+        claim(store, new NativeMirrorDatabase.Item(playlistId, true));
+    }
+
+    private static void claim(@Nullable Store store, NativeMirrorDatabase.Item item) {
+        if (store == null || store != activeStore || !enabled()) return;
+        pending.add(new Pending(store, item));
+        sync.request();
+    }
+
+    /** Called on stable source mutations. Unsupported versions and inactive indexing do no I/O. */
+    static void requestSync() {
+        if (activeStore != null && enabled()) sync.request();
+    }
+
+    /** Observe stock invalidation without re-queuing the notifications generated by our own commit. */
+    public static void onStockIndexChanged() {
+        if (Thread.currentThread() != notifyingThread && !published.result().videos().isEmpty()) requestSync();
+    }
+
+    private static void synchronize() {
+        Store store = activeStore;
+        if (store == null) return;
+        try {
+            boolean enabled = enabled();
+            SharedPreferences state = Utils.getContext().getSharedPreferences("rvx_native_offline_index", 0);
+            String firstStore = state.getString(FIRST_STORE, null);
+            if (!enabled && firstStore == null) return;
+
+            SQLiteDatabase db = store.rvxOfflineIndexDatabase();
+            if (db == null || store != activeStore || !NativeMirrorDatabase.supports(db)) return;
+            String identity = new File(db.getPath()).getName();
+            if (enabled && firstStore == null) {
+                // The fork's older catalogue is not account-scoped. Only the first opted-in account can adopt it.
+                if (!state.edit().putString(FIRST_STORE, identity).commit()) return;
+                firstStore = identity;
+            }
+
+            List<NativeMirrorDatabase.Item> added = new ArrayList<>();
+            List<Pending> consumed = new ArrayList<>();
+            for (Pending claim : pending) {
+                if (claim.store() == store) added.add(claim.item());
+                consumed.add(claim);
+            }
+            boolean adopt = enabled && identity.equals(firstStore) && !NativeMirrorDatabase.initialized(db);
+            if (adopt) added.addAll(NativeMirrorMedia.initialCatalogue());
+            Set<NativeMirrorDatabase.Item> claims = enabled ? NativeMirrorDatabase.claims(db, added) : Set.of();
+            NativeMirrorMedia.Plan plan = enabled ? NativeMirrorMedia.plan(claims) : NativeMirrorMedia.Plan.EMPTY;
+            if (store != activeStore || enabled != enabled()) return;
+
+            NativeMirrorDatabase.Result result = NativeMirrorDatabase.sync(db, plan, added, enabled, adopt,
+                    () -> store == activeStore && enabled == enabled());
+            if (result == null) return;
+
+            pending.removeAll(consumed);
+            synchronized (NativeMirror.class) {
+                if (store != activeStore) return;
+                published = new Published(store, result);
+            }
+            notifyingThread = Thread.currentThread();
+            try {
+                for (NativeMirrorDatabase.Item item : result.changed()) {
+                    if (store != activeStore) break;
+                    store.rvxOfflineIndexChanged(item.id(), item.playlist());
+                }
+            } finally {
+                notifyingThread = null;
+            }
+            if (!result.changed().isEmpty()) {
+                Logger.printDebug(() -> "Native offline index: reconciled " + result.videos().size() + " tracks, "
+                        + result.playlists().size() + " playlists; " + result.changed().size() + " native rows changed");
+            }
+        } catch (Exception ex) {
+            Logger.printException(() -> "Native offline index: could not reconcile active store", ex);
+        }
+    }
+
+    /** Invoked by the stock cache reader, only for the exact native cache representation and bounded range. */
+    @Nullable
+    public static Uri route(@Nullable String cacheKey, long position, long length) {
+        Published snapshot = published;
+        if (cacheKey == null || snapshot.store() == null || snapshot.store() != activeStore || !enabled()) return null;
+
+        NativeMirrorDatabase.Route route = snapshot.result().streams().get(cacheKey);
+        if (route == null) return null;
+        NativeMirrorStreams.Stream stream = route.stream();
+        if (!stream.containsRange(position, length) || stream.file().length() != stream.length()) return null;
+        return route.uri();
+    }
+}

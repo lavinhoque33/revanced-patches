@@ -2,6 +2,7 @@
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
  * Modified by lavinhoque33, 2026-11-12.
+ * Modified by lavinhoque33, 2026-11-27.
  * Written by lavinhoque33, 2026-11-07.
  */
 package app.morphe.extension.music.patches.downloads;
@@ -10,11 +11,7 @@ import android.net.Uri;
 
 import java.io.File;
 import java.io.FileNotFoundException;
-import java.util.ArrayDeque;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
@@ -22,7 +19,8 @@ import java.util.concurrent.atomic.AtomicLong;
 /**
  * Loopback URLs are opaque engine-routing tokens, never HTTP endpoints; no listener or socket is needed. The raw
  * audio copy of a song and the two streams of a video copy (its video-only stream and its own audio) are announced
- * alike, one token each.
+ * alike, one token each. A token names one file generation for the whole process: every later response of the same
+ * file announces the same token, so a Song/Video flip, a seek or a late answer never hands the player a new stream.
  */
 final class StreamSwapSources {
     static final String KIND_RAW = "raw";
@@ -31,26 +29,33 @@ final class StreamSwapSources {
     /** The audio stream of a video copy, the music video's own. */
     static final String KIND_VIDEO_AUDIO = "vaudio";
 
-    /** What a token serves: a file of a kind (the raw audio copy or a stream of a video copy), itag and length. */
-    record Served(String kind, File file, int itag, long length) {
+    /**
+     * What a token serves: a file of a kind (the raw audio copy or a stream of a video copy), itag and length, and the
+     * file's modification time when it was announced. A replaced file is another generation and gets a new token.
+     */
+    record Served(String kind, File file, int itag, long length, long fileModified) {
         static Served of(RawAudioFiles.Entry raw) {
-            return new Served(KIND_RAW, raw.file(), raw.itag(), raw.length());
+            return new Served(KIND_RAW, raw.file(), raw.itag(), raw.length(), raw.file().lastModified());
         }
 
         static Served video(VideoCopyFiles.Entry copy) {
-            return new Served(KIND_VIDEO, copy.video().file(), copy.video().itag(), copy.video().length());
+            return of(KIND_VIDEO, copy.video());
         }
 
         static Served audio(VideoCopyFiles.Entry copy) {
-            return new Served(KIND_VIDEO_AUDIO, copy.audio().file(), copy.audio().itag(), copy.audio().length());
+            return of(KIND_VIDEO_AUDIO, copy.audio());
+        }
+
+        private static Served of(String kind, VideoCopyFiles.Part part) {
+            return new Served(kind, part.file(), part.itag(), part.length(), part.file().lastModified());
         }
     }
 
     static final class Source {
         final String videoId;
         final Served served;
-        /** Original https URL of the swapped format, null for SABR formats that have none. */
-        final String online;
+        /** Latest https URL announced for this file, null while no answer had one (SABR formats have none). */
+        volatile String online;
         final String key;
         final String token;
         final long fileModified;
@@ -62,27 +67,26 @@ final class StreamSwapSources {
             this.online = online;
             this.key = key;
             this.token = token;
-            fileModified = served.file().lastModified();
+            fileModified = served.fileModified();
         }
 
         String fallback() throws FileNotFoundException {
-            if (online == null) {
+            String url = online;
+            if (url == null) {
                 throw new FileNotFoundException("Local audio unavailable; reload player response: " + videoId);
             }
-            return online;
+            return url;
         }
     }
 
     private static final String SESSION = UUID.randomUUID().toString();
     private static final AtomicLong sequence = new AtomicLong();
+    /** Every token issued in this process; an older generation stays resolvable and serves its fallback. */
     private static final ConcurrentHashMap<String, Source> sources = new ConcurrentHashMap<>();
+    /** The latest generation of each stream (id and kind). */
     private static final ConcurrentHashMap<String, Source> latest = new ConcurrentHashMap<>();
     /** Latest accepted response decision per id, not the last response (which may be a prefetched next item). */
     private static final ConcurrentHashMap<String, List<Source>> selected = new ConcurrentHashMap<>();
-    /** Tokens of one stream of a track stay valid for in-flight responses; older ones are dropped beyond this many. */
-    static final int TOKENS_PER_VIDEO = 4;
-    /** Issue order per stream (id and kind), guarded by the class monitor; the maps above stay readable without it. */
-    private static final Map<String, ArrayDeque<Source>> issued = new HashMap<>();
 
     private StreamSwapSources() {}
 
@@ -124,25 +128,29 @@ final class StreamSwapSources {
         return videoId + "/" + kind;
     }
 
+    /**
+     * The token of this file generation, issued once: a later answer only refreshes its online fallback, which it never
+     * clears. A different generation of the same stream retires the previous token.
+     */
     private static synchronized Source issue(String videoId, Served served, String formatUrl) {
         String onlineUrl = StreamSwapLogic.onlineUrl(formatUrl);
         String streamKey = streamKey(videoId, served.kind());
         Source previous = latest.get(streamKey);
-        if (previous != null && previous.available && previous.served.equals(served)
-                && Objects.equals(previous.online, onlineUrl)) return previous;
+        if (previous != null && previous.available && previous.served.equals(served)) {
+            if (onlineUrl != null) previous.online = onlineUrl;
+            return previous;
+        }
+        if (previous != null) previous.available = false;
 
         String key = SESSION + "-" + sequence.incrementAndGet();
         String uri = StreamSwapLogic.tokenUrl(videoId, served.itag(), served.kind(), key);
         Source source = new Source(videoId, served, onlineUrl, key, uri);
         sources.put(key, source);
         latest.put(streamKey, source);
-        ArrayDeque<Source> history = issued.computeIfAbsent(streamKey, id -> new ArrayDeque<>());
-        history.addLast(source);
-        while (history.size() > TOKENS_PER_VIDEO) sources.remove(history.removeFirst().key);
         return source;
     }
 
-    /** The issued source for a token key, or null once it was replaced by newer ones for the same track. */
+    /** The issued source for a token key; a token stays known for the process lifetime. */
     static Source lookup(String key) {
         return sources.get(key);
     }

@@ -1,5 +1,21 @@
 ## Unreleased
 
+### Features
+
+* **Music 9.45.51 - Stream download:** Optionally index stream downloads in Music’s offline library without
+  requesting a stock download or changing account eligibility. The index follows the active offline store and
+  includes the audio and video streams of playlist music videos. Stream playback remains available without it.
+
+* **Music 9.45.51 - Native offline import:** Add a private, debug-only two-item pilot. Stream mode sends completed
+  fork downloads to the active native encrypted cache (one representation for a song; separate video and audio
+  representations for a music video). Delegated mode keeps the authorized stock Download command. Pilot playback
+  uses the native player and still requires valid stock offline policy and cache verification.
+
+### Bug Fixes
+
+* **Music - Stream download:** With "Spoof video streams" on, a music video whose saved video copy should play
+  online no longer has the copy replaced by the spoofed streams, which left video mode buffering.
+
 ## [1.40.0](https://github.com/lavinhoque33/revanced-patches/compare/v1.39.0...v1.40.0) (2026-11-18)
 
 ### Features

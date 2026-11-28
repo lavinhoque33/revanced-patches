@@ -80,7 +80,8 @@ public final class PlayerFallback {
 
     /** Selector-scoped predicate: the descriptor's original getter/hash/equality never change. */
     public static boolean routeOffline(Object request) {
-        return request instanceof Request && OfflineReplay.enabled() && !Utils.isInternetReachable();
+        return request instanceof Request player && !NativeOfflineImport.includes(player.rvxVideoId())
+                && OfflineReplay.enabled() && !Utils.isInternetReachable();
     }
 
     /** Native preparation can start a separate Onesie load before the ordinary response callback arrives. */
@@ -272,11 +273,15 @@ public final class PlayerFallback {
         int remaining = recovery == null ? items.size() - target : recovery.remaining();
 
         String videoId = nativeOwner.rvxVideoId(items.get(target));
+        if (NativeOfflineImport.includes(videoId)) {
+            selection = null;
+            return target;
+        }
         if (OfflineReplay.enabled() && !Utils.isInternetReachable()) {
             List<String> ids = new ArrayList<>(items.size());
             for (Object item : items) ids.add(nativeOwner.rvxVideoId(item));
             PlayerFallbackLogic.Decision decision = PlayerFallbackLogic.decide(true, false, videoId, !advance,
-                    ids, target, OfflineReplay::holds);
+                    ids, target, id -> NativeOfflineImport.includes(id) || OfflineReplay.holds(id));
             if (decision.route() == PlayerFallbackLogic.Route.UNAVAILABLE) {
                 if (advance) {
                     logStop(nativeOwner, items, target, remaining, true, "preflight-exhausted");
@@ -519,6 +524,7 @@ public final class PlayerFallback {
 
     static void unavailable() {
         Utils.showToastShort(str("morphe_music_player_unavailable_offline"));
-        Logger.printDebug(() -> "PlayerFallback: unavailable offline; native queue retained");
+        Logger.printDebug(() -> "PlayerFallback: unavailable offline; native queue retained; from="
+                + new Exception().getStackTrace()[1]);
     }
 }

@@ -2,6 +2,7 @@
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
  * Modified by lavinhoque33, 2026-11-14.
+ * Modified by lavinhoque33, 2026-11-27.
  * Written by lavinhoque33, 2026-11-07.
  */
 package app.morphe.patches.music.interaction.downloads
@@ -29,6 +30,7 @@ import com.android.tools.smali.dexlib2.iface.reference.MethodReference
 private const val LOCAL_SWAP = "Lapp/morphe/extension/music/patches/downloads/StreamSwapDataSource;"
 private const val LOCAL_URI = "Landroid/net/Uri;"
 private const val LOCAL_STRING = "Ljava/lang/String;"
+private const val NATIVE_MIRROR = "Lapp/morphe/extension/music/patches/downloads/NativeMirror;"
 
 /** The constant the cache data source adds to the read position before it limits an upstream read (media3). */
 private const val UPSTREAM_READ_WINDOW = 0x19000L
@@ -45,6 +47,8 @@ private const val FILE_SOURCE_MARKER = "c.FileNotFound;src."
  * and length, and execution continues at the code that follows the stock source selection. No socket, no cache lookup,
  * no guard, no decryption. The hook skips `i(true)` (`read()` reopening mid-stream), so it is only correct while the
  * public `open(DataSpec)` calls `i(false)`; [checkInitialOpenIsNotMidStream] verifies that on every version.
+ * On 9.45.51 only, a request not issued by StreamSwap may read an indexed file by its complete native cache key.
+ * The existing StreamSwap request always keeps its original source selection.
  */
 internal fun BytecodePatchContext.prepareStreamSwapLocalSource(): () -> Unit {
         val dataSpec = streamSwapDataSpec()
@@ -145,15 +149,24 @@ internal fun BytecodePatchContext.prepareStreamSwapLocalSource(): () -> Unit {
         check(wideNext + 1 <= 15 && builder <= 15 && specRegister <= 15 && sourceRegister <= 15) { "register range" }
 
         val localFile = "$LOCAL_SWAP->route(${LOCAL_URI}JJ)$LOCAL_URI"
+        val mirrorFile = "$NATIVE_MIRROR->route(${LOCAL_STRING}JJ)$LOCAL_URI"
+        val mirrorRoute = if (packageMetadata.versionName == NATIVE_MIRROR_VERSION) """
+            if-nez v$sourceRegister, :stream_swap_selected_file
+            iget-object v$sourceRegister, v$specRegister, ${dataSpec.type}->${keyField.name}:$LOCAL_STRING
+            invoke-static {v$sourceRegister, v$wide, v${wide + 1}, v$wideNext, v${wideNext + 1}}, $mirrorFile
+            move-result-object v$sourceRegister
+            :stream_swap_selected_file
+        """ else ""
         return {
         method.addInstructionsWithLabels(1, """
             if-nez p1, :stream_swap_stock_request
             iget-object v$specRegister, v$thisRegister, ${specField.definingClass}->${specField.name}:${specField.type}
-            iget-object v$sourceRegister, v$specRegister, ${dataSpec.type}->${uriField.name}:$LOCAL_URI
             iget-wide v$wide, v$thisRegister, ${positionRead.definingClass}->${positionRead.name}:J
             iget-wide v$wideNext, v$thisRegister, ${lengthRead.definingClass}->${lengthRead.name}:J
+            iget-object v$sourceRegister, v$specRegister, ${dataSpec.type}->${uriField.name}:$LOCAL_URI
             invoke-static {v$sourceRegister, v$wide, v${wide + 1}, v$wideNext, v${wideNext + 1}}, $localFile
             move-result-object v$sourceRegister
+            $mirrorRoute
             if-eqz v$sourceRegister, :stream_swap_stock_request
             new-instance v$builder, $builderType
             invoke-direct {v$builder, v$specRegister}, $builderType-><init>(${dataSpec.type})V

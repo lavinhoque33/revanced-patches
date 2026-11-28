@@ -124,6 +124,8 @@ message Format {
   optional int32 height = 8;
   optional int32 fps = 25;
   optional string qualityLabel = 26;
+  // The stock 9.45.51 offline format descriptor exposes this flat field to its cache-key builder.
+  optional string nativeAudioTrackId = 23;
   // Same AudioTrack wire fields as innertube/utils/player_response.proto; retain the default recording.
   optional DownloadAudioTrack audioTrack = 28;
 }

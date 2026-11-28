@@ -18,6 +18,7 @@ import java.util.List;
 import java.util.StringJoiner;
 
 import app.morphe.extension.music.settings.Settings;
+import app.morphe.extension.music.shared.VideoInformation;
 import app.morphe.extension.shared.utils.Logger;
 import app.morphe.extension.shared.utils.Utils;
 
@@ -264,6 +265,7 @@ public final class AudioFirst {
             // Only a watch command starts a playback. A like, an add to the queue or a menu item that merely names a
             // downloaded song is no tap on a row: it must not arm a start, nor change the mode the user chose.
             if (!tap.isWatch()) return null;
+            if (NativeOfflineImport.includes(tap.videoId)) return null;
 
             String mode = liveMode();
             logCommand(tap, registry, bytes, mode);
@@ -275,6 +277,7 @@ public final class AudioFirst {
             // A music video that was saved as its song names the song: the copy is stored under the song's id.
             AudioFirstLogic.Arm arm = chosen == null ? null
                     : new AudioFirstLogic.Arm(chosen.rule(), registry.canonicalId(chosen.videoId()));
+            if (arm != null && NativeOfflineImport.includes(arm.videoId())) return null;
 
             boolean namesVideoCopy = tap.videoId != null && VideoCopyStore.has(tap.videoId);
             synchronized (lock) {
@@ -301,6 +304,7 @@ public final class AudioFirst {
             // The song of a video copy starts as its music video, which the copy answers: the app's own switch then
             // flips Song and Video on the one stream. The car keeps the song ids.
             String video = AudioFirstLogic.startItemFor(tap.videoId, VideoCopyStore.pairsIfLoaded());
+            if (NativeOfflineImport.includes(video)) return null;
             if (video != null && !AudioFirstLogic.duringAndroidAutoStart(SystemClock.elapsedRealtime(),
                     androidAutoAt)) {
                 return retargetAtVideoCopy(rebuildable, bytes, tap.videoId, video, AudioFirstLogic.hintsIn(mode));
@@ -360,6 +364,8 @@ public final class AudioFirst {
     public static Enum<?> overrideMode(Enum<?> mode) {
         try {
             if (mode == null) return null;
+            if (NativeOfflineImport.includes(VideoInformation.getVideoId())
+                    || NativeOfflineImport.includes(VideoInformation.getPlayerResponseVideoId())) return mode;
 
             String name = mode.name();
             synchronized (lock) {

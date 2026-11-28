@@ -20,6 +20,7 @@ import java.util.Base64;
 import java.util.List;
 
 import app.morphe.extension.music.patches.downloads.LocalDownloadManager;
+import app.morphe.extension.music.patches.downloads.NativeOfflineImport;
 import app.morphe.extension.music.patches.downloads.SongDownloadRoute;
 import app.morphe.extension.shared.utils.Logger;
 
@@ -54,6 +55,7 @@ final class FlyoutDownloadEntry {
 
             FlyoutMenuScan.Result scan = scan(items);
             String songId = SongMenus.targetOfMenu(scan.songId());
+            if (NativeOfflineImport.usesStockCommand(songId)) return items;
             if (route == SongDownloadRoute.STOCK && !SongMenus.isOpenFor(songId)) return items;
 
             FlyoutPatch.ItemFactory factory = firstFactory(items);

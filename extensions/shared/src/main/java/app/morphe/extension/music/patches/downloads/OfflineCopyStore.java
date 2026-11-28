@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-27.
  * Modified by lavinhoque33, 2026-11-17.
  * Modified by lavinhoque33, 2026-11-13
  * Written by lavinhoque33, 2026-11-07.
@@ -38,6 +39,8 @@ import app.morphe.extension.shared.utils.Utils;
  * What an offline replay needs of a stream copy besides its audio: a trimmed player response, the song's metadata,
  * an optional cover, and the playlists and albums the copies were downloaded from. It is stored beside the raw copy
  * and deleted with it ({@link RawAudioStore} calls {@link #delete}, {@link #clearAll} and {@link #retainOnly}).
+ * Every change of the stored copies or sources asks {@link NativeMirror#requestSync} to bring the app's offline
+ * database in line.
  *
  * <p>Stored data exists only for stream copies, so nothing is ever written in the file-only mode of Download in
  * app: the callers are the stream copy path of the downloader ({@link #storeDownloaded}) and the stream swap, which
@@ -241,6 +244,7 @@ final class OfflineCopyStore {
 
         Storage.sources.updateHeader(sourceId, header, System.currentTimeMillis());
         AndroidAutoPatch.onPlaylistsChanged();
+        NativeMirror.requestSync();
         return header.title();
     }
 
@@ -372,6 +376,7 @@ final class OfflineCopyStore {
                 + written.responseBytes() + "B thumb=" + written.thumbnailBytes() + "B source="
                 + metadata.responseSource());
         AndroidAutoPatch.onPlaylistsChanged();
+        NativeMirror.requestSync();
         return written;
     }
 
@@ -386,6 +391,7 @@ final class OfflineCopyStore {
             Utils.verifyOffMainThread();
             Storage.sources.remember(sourceId, header, videoIds, System.currentTimeMillis(), explicitStream);
             AndroidAutoPatch.onPlaylistsChanged();
+            NativeMirror.requestSync();
         } catch (Exception ex) {
             Logger.printException(() -> "OfflineCopyStore: could not remember the source " + sourceId, ex);
         }
@@ -416,6 +422,7 @@ final class OfflineCopyStore {
         try {
             Storage.sources.remove(sourceId);
             OfflineBrowsePages.retainOnly(Storage.sources.ids());
+            NativeMirror.requestSync();
         } catch (Exception ex) {
             Logger.printException(() -> "OfflineCopyStore: could not forget the source " + sourceId, ex);
         }
@@ -424,6 +431,7 @@ final class OfflineCopyStore {
     /** The stream copy is deleted: its stored data goes with it. */
     static void delete(String videoId) {
         Storage.copies.delete(videoId);
+        NativeMirror.requestSync();
     }
 
     /** Every stream copy is deleted: so is every stored response and source. */
@@ -432,6 +440,7 @@ final class OfflineCopyStore {
             Storage.copies.clear();
             Storage.sources.clear();
             OfflineBrowsePages.retainOnly(Collections.emptySet());
+            NativeMirror.requestSync();
         } catch (Exception ex) {
             Logger.printException(() -> "OfflineCopyStore: could not clear the stored data", ex);
         }
@@ -449,6 +458,7 @@ final class OfflineCopyStore {
             retained.addAll(RawAudioStore.aliases().keySet());
             Storage.sources.retainWithCopies(retained);
             OfflineBrowsePages.retainOnly(Storage.sources.ids());
+            NativeMirror.requestSync();
         } catch (Exception ex) {
             Logger.printException(() -> "OfflineCopyStore: could not clean up the stored data", ex);
         }

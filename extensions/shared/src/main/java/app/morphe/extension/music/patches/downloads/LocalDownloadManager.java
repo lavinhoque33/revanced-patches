@@ -7,6 +7,7 @@
  * Modified by lavinhoque33, 2026-11-07.
  * Modified by lavinhoque33, 2026-11-10
  * Modified by lavinhoque33, 2026-11-17.
+ * Modified by lavinhoque33, 2026-11-27.
  */
 
 package app.morphe.extension.music.patches.downloads;
@@ -22,10 +23,13 @@ import android.net.Uri;
 
 import androidx.annotation.Nullable;
 
+import java.io.Closeable;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InterruptedIOException;
+import java.io.RandomAccessFile;
 import java.net.HttpURLConnection;
 import java.nio.channels.FileChannel;
 import java.util.ArrayList;
@@ -120,6 +124,7 @@ public final class LocalDownloadManager {
 
     /** Who handles the Download of the player button; it has its own external downloader switch. */
     public static SongDownloadRoute playerButtonRoute() {
+        if (NativeOfflineImport.usesStockCommand(VideoInformation.getVideoId())) return SongDownloadRoute.STOCK;
         return SongDownloadRoute.of(Settings.DOWNLOAD_METHOD.get(), StreamSwap.supported(),
                 Settings.EXTERNAL_DOWNLOADER_ACTION_BUTTON.get());
     }
@@ -155,6 +160,7 @@ public final class LocalDownloadManager {
     /** The id the stream copy of the song or video is stored under, or null when it has none. */
     @Nullable
     private static String savedCopyOf(String videoId) {
+        if (downloadMode().streamCopy() && NativeOfflineImport.includes(videoId)) return null;
         if (app.morphe.extension.music.patches.flyout.SongMenus.isOpenFor(videoId)) return videoId;
         if (!downloadMode().streamCopy()) return null;
 
@@ -181,20 +187,26 @@ public final class LocalDownloadManager {
             Utils.showToastShort(str("morphe_music_downloads_already_running"));
             return;
         }
+        boolean direct = mode.streamCopy() && NativeOfflineImport.includes(videoId);
+        NativeMirror.Store index = mode.streamCopy() && !direct ? NativeMirror.captureStore() : null;
         Utils.submitOnBackgroundThread(() -> {
             try {
                 if (mode.localFiles()) NativeDownloads.migrateLegacy();
                 // A music video saved before as its song names that song: there is nothing left to save.
-                String known = mode.streamCopy() ? RawAudioStore.aliases().get(videoId) : null;
-                if (known != null || plan(videoId, mode) == DownloadMode.Work.SKIP) {
-                    if (mode.streamCopy()) RawAudioStore.markIndividual(known != null ? known : videoId);
+                String known = !direct && mode.streamCopy() ? RawAudioStore.aliases().get(videoId) : null;
+                if (!direct && (known != null || plan(videoId, mode) == DownloadMode.Work.SKIP)) {
+                    if (mode.streamCopy()) {
+                        String savedId = known != null ? known : videoId;
+                        RawAudioStore.markIndividual(savedId);
+                        NativeMirror.onSingleDownloaded(index, savedId);
+                    }
                     Utils.showToastShort(str(mode.localFiles()
                             ? "morphe_music_downloads_already_saved" : "morphe_music_downloads_stream_already_saved"));
                     return null;
                 }
                 Utils.showToastShort(str("morphe_music_downloads_started"));
-                downloadSingle(videoId, mode, quality);
-                Utils.showToastShort(str(mode.localFiles()
+                downloadSingle(videoId, mode, quality, index);
+                if (!direct) Utils.showToastShort(str(mode.localFiles()
                         ? "morphe_music_downloads_complete" : "morphe_music_downloads_stream_complete"));
                 if (mode.localFiles()) NativePlaylistStore.refreshUnsortedLater(); // list the new single.
             } catch (Exception ex) {
@@ -210,7 +222,7 @@ public final class LocalDownloadManager {
      * or the song found for a music video the user downloaded.
      */
     private enum Request {
-        LIST_TRACK, SINGLE, SONG_OF_VIDEO;
+        LIST_TRACK, SINGLE, SONG_OF_VIDEO, NATIVE_PILOT;
 
         /** The user asked for this song itself, so a playlist removal keeps its copy. */
         boolean individual() {
@@ -238,7 +250,12 @@ public final class LocalDownloadManager {
      * id, and the video's id is recorded as the same song, so a tap on either finds it. A video that has no song
      * found is saved as it is, under its own id, and that is logged.
      */
-    private static void downloadSingle(String videoId, DownloadMode mode, DownloadQuality quality) throws Exception {
+    private static void downloadSingle(String videoId, DownloadMode mode, DownloadQuality quality,
+                                       @Nullable NativeMirror.Store index) throws Exception {
+        if (mode.streamCopy() && NativeOfflineImport.includes(videoId)) {
+            download(videoId, mode, quality, Request.NATIVE_PILOT);
+            return;
+        }
         String savedId = videoId;
         Saved saved;
         try {
@@ -252,6 +269,7 @@ public final class LocalDownloadManager {
         // A copy that was there already (kept by a playlist before) is now also one the user asked for.
         if (mode.streamCopy() && !saved.downloaded()) RawAudioStore.markIndividual(savedId);
         if (mode.streamCopy()) app.morphe.extension.music.patches.flyout.SongMenus.remember(savedId);
+        if (mode.streamCopy()) NativeMirror.onSingleDownloaded(index, savedId);
     }
 
     /** What the track still needs in this mode. Asks only the stores the mode cares about. */
@@ -282,7 +300,9 @@ public final class LocalDownloadManager {
         String artist = playing ? currentArtist : null;
 
         while (true) {
-            if (plan(videoId, mode) == DownloadMode.Work.SKIP) return saved(videoId, mode, false);
+            if (request != Request.NATIVE_PILOT && plan(videoId, mode) == DownloadMode.Work.SKIP) {
+                return saved(videoId, mode, false);
+            }
 
             FutureTask<Saved> task = new FutureTask<>(
                     () -> downloadBlocking(videoId, mode, quality, request, title, artist));
@@ -324,6 +344,15 @@ public final class LocalDownloadManager {
         NativeAudioStore.Destination destination = null;
         File temporary = null;
         try {
+            if (request == Request.NATIVE_PILOT) {
+                NativeOfflineDirect.Policy policy = VideoCopyDownloader.importNative(videoId, title, quality);
+                String status = policy == NativeOfflineDirect.Policy.ACCEPTED
+                        ? "Native cache imported; stock policy accepted" : "Native cache imported; " + policy.reason;
+                awaitNotificationSlot();
+                showDownloadNotification(videoId, title == null ? videoId : title, 100, false, status);
+                Utils.showToastShort(status);
+                return new Saved(null, true);
+            }
             // A competing request may have finished the track between the lookup and single-flight ownership.
             DownloadMode.Work work = plan(videoId, mode);
             if (work == DownloadMode.Work.SKIP) return saved(videoId, mode, false);
@@ -482,6 +511,36 @@ public final class LocalDownloadManager {
             } catch (InterruptedException ex) {
                 Thread.currentThread().interrupt();
                 return;
+            }
+        }
+    }
+
+    /**
+     * Stage the range selected by the authorized stock download request. The native transport owns headers,
+     * identity and its data-spec semantics; the fork verifies full coverage before handing it to the cache writer.
+     */
+    static void stageNativeRange(NativeOfflineImport.Transfer transfer, NativeOfflineImport.Source source,
+                                 NativeOfflineImport.Cancellation cancellation, Object spec,
+                                 RandomAccessFile destination, long length, boolean unbounded) throws IOException {
+        try (Closeable connection = source::rvxImportClose) {
+            long reportedLength = source.rvxImportOpen(spec);
+            if (reportedLength >= 0 && reportedLength != length) {
+                throw new IOException("NativeOfflineImport: transport reported " + reportedLength + "/" + length);
+            }
+            transfer.received(source.rvxImportUri(), source.rvxImportHeaders());
+
+            byte[] buffer = new byte[BUFFER_SIZE];
+            for (long remaining = length; remaining > 0; ) {
+                if (cancellation.rvxImportCancelled() || Thread.currentThread().isInterrupted()) {
+                    throw new InterruptedIOException("NativeOfflineImport: download cancelled");
+                }
+                int read = source.rvxImportRead(buffer, 0, (int) Math.min(buffer.length, remaining));
+                if (read <= 0) throw new IOException("NativeOfflineImport: truncated range");
+                destination.write(buffer, 0, read);
+                remaining -= read;
+            }
+            if (unbounded && reportedLength < 0 && source.rvxImportRead(buffer, 0, 1) != -1) {
+                throw new IOException("NativeOfflineImport: transport exceeded format length");
             }
         }
     }

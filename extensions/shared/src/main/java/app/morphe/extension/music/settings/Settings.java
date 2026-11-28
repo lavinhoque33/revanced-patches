@@ -533,6 +533,8 @@ public class Settings extends SharedYouTubeSettings {
             "morphe_music_start_downloaded_in_audio", TRUE, false, downloadMethodIs(DownloadMethod.STREAM));
     public static final BooleanSetting ANDROID_AUTO_DOWNLOADED_PLAYLISTS = new BooleanSetting(
             "morphe_music_android_auto_downloaded_playlists", TRUE, false, downloadsKept());
+    public static final BooleanSetting NATIVE_OFFLINE_INDEX = new BooleanSetting(
+            "morphe_music_native_offline_index", FALSE, false, downloadMethodIs(DownloadMethod.STREAM));
     private static final BooleanSetting DOWNLOAD_METHOD_MIGRATED =
             new BooleanSetting("morphe_music_download_method_migrated", FALSE, false, false);
     public static final StringSetting DOWNLOADS_SORT = new StringSetting("morphe_music_downloads_sort", "ARTIST", false, false);

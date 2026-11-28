@@ -433,12 +433,15 @@ public final class OfflineReplay {
     }
 
     private static boolean takeOffline(byte[] command, @Nullable String browseId) {
-        OfflineReplayLogic.WatchTarget watch = browseId == null ? OfflineReplayLogic.songTargetOf(
-                OfflineReplayLogic.onlineWatchOf(command), VideoCopyStore.pairsIfLoaded()) : null;
+        OfflineReplayLogic.WatchTarget watch = browseId == null ? OfflineReplayLogic.onlineWatchOf(command) : null;
+        watch = OfflineReplayLogic.songTargetOf(watch, VideoCopyStore.pairsIfLoaded());
         DownloadedRegistry registry = DownloadedMarkers.loadedRegistry();
         if (registry != null) watch = OfflineReplayLogic.canonicalTargetOf(watch, registry::canonicalId);
         if (browseId == null && watch == null) return false;
         if (watch != null && !Utils.isInternetReachable() && !holds(watch.videoId())) {
+            // The stock player reads its own offline mirror; never block a song that store can serve.
+            if (NativeMirror.hasCompleteCopy(watch.videoId())) return false;
+
             PlayerFallback.unavailable();
             return true;
         }
@@ -738,8 +741,9 @@ public final class OfflineReplay {
         if (!(request instanceof NextRequest next) || !(next.rvxCommand() instanceof Command command)) return null;
 
         byte[] bytes = command.toByteArray();
-        OfflineReplayLogic.WatchTarget offline = OfflineReplayLogic.offlineWatchOf(bytes);
-        return offline == null ? OfflineReplayLogic.onlineWatchOf(bytes) : offline;
+        OfflineReplayLogic.WatchTarget target = OfflineReplayLogic.offlineWatchOf(bytes);
+        if (target == null) target = OfflineReplayLogic.onlineWatchOf(bytes);
+        return target;
     }
 
     /** Disconnected next requests complete from the committed queue before stock can schedule network work. */

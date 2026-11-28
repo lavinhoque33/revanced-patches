@@ -137,8 +137,11 @@ public final class PillAvailability {
     private static String copyVideo() {
         if (!StreamSwap.supported()) return null;
 
-        return PillAvailabilityLogic.videoWithCopy(VideoInformation.getVideoId(),
-                VideoInformation.getPlayerResponseVideoId(), VideoCopyStore::hasNow);
+        String playing = VideoInformation.getVideoId();
+        String response = VideoInformation.getPlayerResponseVideoId();
+        if (NativeOfflineImport.includes(playing) || NativeOfflineImport.includes(response)) return null;
+
+        return PillAvailabilityLogic.videoWithCopy(playing, response, VideoCopyStore::hasNow);
     }
 
     /** Logs a line unless the previous one of its kind said the same: states change rarely, calls come in bursts. */

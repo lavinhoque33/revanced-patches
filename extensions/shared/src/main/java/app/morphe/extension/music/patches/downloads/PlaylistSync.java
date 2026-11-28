@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
+ * Modified by lavinhoque33, 2026-11-27.
  * Written by lavinhoque33, 2026-11-17.
  */
 package app.morphe.extension.music.patches.downloads;
@@ -292,7 +293,10 @@ public final class PlaylistSync {
         } finally {
             if (!committed) staged.delete();
         }
-        if (committed) Logger.printInfo(() -> "PlaylistSync: committed " + id + " tracks=" + fresh.tracks().size()
+        if (!committed) return;
+
+        NativeMirror.requestSync();
+        Logger.printInfo(() -> "PlaylistSync: committed " + id + " tracks=" + fresh.tracks().size()
                 + " additions=" + additions.size());
     }
 

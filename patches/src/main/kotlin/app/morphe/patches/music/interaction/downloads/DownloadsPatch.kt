@@ -5,6 +5,7 @@
  * See the included NOTICE file for GPLv3 Section 7 terms that apply to Morphe contributions.
  *
  * Modified by lavinhoque33, 2026-11-11.
+ * Modified by lavinhoque33, 2026-11-27.
  */
 
 package app.morphe.patches.music.interaction.downloads
@@ -109,6 +110,7 @@ private val DOWNLOAD_PREFERENCE_KEYS = listOf(
     "morphe_music_start_downloaded_in_audio",
     "morphe_music_open_downloads",
     "morphe_music_stream_downloads",
+    NATIVE_OFFLINE_INDEX_KEY,
 )
 
 /**
@@ -178,6 +180,9 @@ val downloadsPatch = bytecodePatch(
     compatibleWith(COMPATIBILITY_YOUTUBE_MUSIC)
 
     execute {
+        if (packageMetadata.versionName == NATIVE_MIRROR_VERSION) {
+            addSwitchPreference(CategoryType.MISC, NATIVE_OFFLINE_INDEX_KEY, "false")
+        }
         // After the patches this one depends on added their rows, so the external downloader rows are grouped too.
         groupDownloadPreferences()
 
@@ -195,6 +200,9 @@ val downloadsPatch = bytecodePatch(
         val command = mutableClassDefBy(resolver.parameters[1].type)
 
         installStreamSwap()
+        installNativeOfflineImport()
+        installNativeMirror()
+        installNativeOfflinePolicy()
         installDownloadedMarkers()
         installAudioFirst()
         installLibraryRestore()

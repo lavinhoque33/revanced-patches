@@ -51,21 +51,65 @@ public class StreamSwapSourcesTest {
         assertEquals(online, source.fallback());
     }
 
-    @Test public void onlyTheLatestTokensOfATrackStayIssuedAndTheLatestStillResolves() throws Exception {
+    @Test public void aNewOnlineFallbackKeepsTheTokenOfTheSameFile() throws Exception {
         RawAudioFiles.Entry raw = raw();
-        StreamSwapSources.Source other = StreamSwapSources.issue("other_track", raw, null);
-        StreamSwapSources.Source[] issued = new StreamSwapSources.Source[StreamSwapSources.TOKENS_PER_VIDEO + 2];
-        for (int index = 0; index < issued.length; index++) {
-            issued[index] = StreamSwapSources.issue("busy", raw, "https://example.invalid/" + index);
+        StreamSwapSources.Source first = StreamSwapSources.issue("new_url", raw, "https://example.invalid/0");
+
+        // Every online answer carries a new signed URL; the stream the player holds must keep its identity.
+        StreamSwapSources.Source second = StreamSwapSources.issue("new_url", raw, "https://example.invalid/1");
+
+        assertSame(first, second);
+        assertEquals("https://example.invalid/1", second.fallback());
+        assertSame(first, StreamSwapSources.lookup(first.key));
+    }
+
+    @Test public void aStoredAnswerWithoutUrlKeepsTheOnlineFallbackOfTheSameFile() throws Exception {
+        RawAudioFiles.Entry raw = raw();
+        StreamSwapSources.Source online = StreamSwapSources.issue("stored_late", raw, "https://example.invalid/a");
+
+        assertSame(online, StreamSwapSources.issue("stored_late", raw, null));
+        assertEquals("https://example.invalid/a", online.fallback());
+    }
+
+    @Test public void everyTokenOfAVideoCopyStaysResolvableAcrossManyAnswers() throws Exception {
+        VideoCopyFiles.Entry copy = copy();
+        StreamSwapSources.Source video = StreamSwapSources.issueVideo("switch00000", copy,
+                "https://example.invalid/v0");
+        StreamSwapSources.Source audio = StreamSwapSources.issueVideoAudio("switch00000", copy,
+                "https://example.invalid/a0");
+
+        // Song and Video flips, seeks and late answers re-swap the same response many times.
+        for (int answer = 1; answer <= 10; answer++) {
+            assertSame(video, StreamSwapSources.issueVideo("switch00000", copy, "https://example.invalid/v" + answer));
+            assertSame(audio, StreamSwapSources.issueVideoAudio("switch00000", copy,
+                    "https://example.invalid/a" + answer));
         }
 
-        for (int index = 0; index < issued.length; index++) {
-            boolean kept = index >= issued.length - StreamSwapSources.TOKENS_PER_VIDEO;
-            assertEquals("token " + index, kept, StreamSwapSources.lookup(issued[index].key) == issued[index]);
-        }
+        assertSame(video, StreamSwapSources.lookup(video.key));
+        assertSame(audio, StreamSwapSources.lookup(audio.key));
+        assertTrue(video.available);
+        assertTrue(audio.available);
+    }
+
+    @Test public void aReplacedFileGetsANewTokenAndRetiresTheOldOne() throws Exception {
+        RawAudioFiles.Entry raw = raw();
+        StreamSwapSources.Source old = StreamSwapSources.issue("replaced", raw, null);
+        assertTrue(raw.file().setLastModified(old.served.fileModified() + 10_000));
+
+        StreamSwapSources.Source fresh = StreamSwapSources.issue("replaced", raw, null);
+
+        assertNotSame(old, fresh);
+        assertFalse(old.available);
+        assertTrue(fresh.available);
+    }
+
+    @Test public void otherTracksKeepTheirTokens() throws Exception {
+        RawAudioFiles.Entry raw = raw();
+        StreamSwapSources.Source other = StreamSwapSources.issue("other_track", raw, null);
+        StreamSwapSources.issue("busy_track", raw, "https://example.invalid/0");
+        StreamSwapSources.issue("busy_track", raw, "https://example.invalid/1");
+
         assertSame(other, StreamSwapSources.lookup(other.key));
-        assertSame(issued[issued.length - 1], StreamSwapSources.issue("busy", raw,
-                "https://example.invalid/" + (issued.length - 1)));
     }
 
     private VideoCopyFiles.Entry copy() throws Exception {

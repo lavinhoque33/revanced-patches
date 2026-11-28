@@ -2,6 +2,7 @@
  * Copyright (C) 2026 lavinhoque33
  * Licensed under the GNU General Public License v3.0.
  * Modified by lavinhoque33, 2026-11-12
+ * Modified by lavinhoque33, 2026-11-27.
  * Written by lavinhoque33, 2026-11-07.
  */
 package app.morphe.extension.music.patches.downloads;
@@ -55,6 +56,9 @@ public final class StreamSwap {
 
     private static volatile OnlineDecision lastOnline;
 
+    /** Set on the thread that builds a response whose streams are a copy's files, while it builds it. */
+    private static final ThreadLocal<Boolean> buildingLocalStreams = new ThreadLocal<>();
+
     private StreamSwap() {}
 
     /** The last online answer, null when none is held or the last request was answered from a copy. */
@@ -63,8 +67,19 @@ public final class StreamSwap {
         return lastOnline;
     }
 
-    static boolean playsLocal(String videoId) {
-        return supported() && StreamSwapSources.playsLocal(videoId);
+    /**
+     * Called by the stream spoof when the app builds the streams of a response: true while the swap builds a response
+     * whose streams are a copy's files. The spoof then keeps those streams instead of replacing them with the spoofed
+     * client's, which would put the online formats back: the player would leave the files unplayed, and the Song/Video
+     * switch would need a stream the response does not hold, so it would reload instead of flipping in place.
+     */
+    public static boolean buildsLocalStreams() {
+        return Boolean.TRUE.equals(buildingLocalStreams.get());
+    }
+
+    /** Whether the accepted response of the video plays a copy's files now; no storage access, any thread. */
+    public static boolean playsLocal(@Nullable String videoId) {
+        return videoId != null && supported() && StreamSwapSources.playsLocal(videoId);
     }
 
     /** Enabled by the patch only after every required hook resolves. */
@@ -105,6 +120,7 @@ public final class StreamSwap {
         String videoId = "?";
         try {
             videoId = adapter.rvxVideoId();
+            if (NativeOfflineImport.includes(videoId)) return original;
             String gate = StreamSwapLogic.gate(onMainThread());
             if (gate != null) return unchanged(original, videoId, gate, stored);
             VideoCopyFiles.Entry video = VideoCopyStore.find(videoId);
@@ -132,7 +148,7 @@ public final class StreamSwap {
                     videoId, raw, VideoCopyLogic.fallbackUrl(selected, live));
             Format local = selected.toBuilder().setUrl(source.token).clearSignatureCipher().build();
             PlayerResponse replacement = StreamSwapLogic.replaceAudio(online, local);
-            Object result = adapter.rvxWithBytes(replacement.toByteArray(), true);
+            Object result = withLocalStreams(adapter, replacement);
             if (result == null || result == original) {
                 return unchanged(original, videoId, "stock adapter declined", stored);
             }
@@ -184,7 +200,7 @@ public final class StreamSwap {
         Format localAudio = VideoCopyLogic.local(formats.audio(), audio.token, copy.audio().length(),
                 copy.durationMs());
         PlayerResponse replacement = StreamSwapLogic.replacePair(online, localVideo, localAudio);
-        Object result = adapter.rvxWithBytes(replacement.toByteArray(), true);
+        Object result = withLocalStreams(adapter, replacement);
         if (result == null || result == original) return unchanged(original, videoId, "stock adapter declined", stored);
 
         Replacement accepted = new Replacement(original, video, audio);
@@ -210,6 +226,17 @@ public final class StreamSwap {
             LiveTemplate.rememberFrom(videoId, liveBytes, online);
         }
         return result;
+    }
+
+    /** The response the stock wrapper builds from the replacement, with its streams kept as they are. */
+    @Nullable
+    private static Object withLocalStreams(Response adapter, PlayerResponse replacement) {
+        buildingLocalStreams.set(true);
+        try {
+            return adapter.rvxWithBytes(replacement.toByteArray(), true);
+        } finally {
+            buildingLocalStreams.remove();
+        }
     }
 
     /** Whether the player shows the video of the file for the mode it holds: the Song display plays it unseen. */

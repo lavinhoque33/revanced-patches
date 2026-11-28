@@ -1734,6 +1734,7 @@ private val rvxPreferenceKey = mapOf(
     // Stream downloads: the trash icon of Delete playlist, as for Clear stored lyrics.
     "morphe_music_stream_downloads" to "revanced_hide_flyout_menu_delete_playlist",
     "morphe_music_android_auto_downloaded_playlists" to "morphe_music_jam_download",
+    "morphe_music_native_offline_index" to "morphe_music_jam_download",
     // Material Symbols: notifications.
     "morphe_notification_dot_color" to 
         "M 200 750.77 V 720 h 64.62 v -327.85 q 0 -78.48 49.11 -139.28 49.12 -60.79 126.27 -74.33 V 160 q 0 " +

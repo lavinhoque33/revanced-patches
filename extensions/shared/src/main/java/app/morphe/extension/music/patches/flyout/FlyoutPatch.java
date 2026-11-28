@@ -77,6 +77,7 @@ import java.util.Map;
 
 import app.morphe.extension.music.patches.actionbar.ActionBarPatch;
 import app.morphe.extension.music.patches.downloads.LocalDownloadManager;
+import app.morphe.extension.music.patches.downloads.NativeOfflineImport;
 import app.morphe.extension.music.patches.downloads.SongDownloadRoute;
 import app.morphe.extension.music.settings.Settings;
 import app.morphe.extension.music.shared.VideoInformation;
@@ -168,6 +169,7 @@ public class FlyoutPatch {
      * the app is from a menu, unless the player button was just left to the app.
      */
     private static boolean onMenuDownload(String videoId) {
+        if (NativeOfflineImport.usesStockCommand(videoId)) return false;
         if (SongMenus.isOpenFor(videoId)) {
             LocalDownloadManager.onDownloadTap(videoId);
             SongMenus.clear();

@@ -11,7 +11,7 @@
  *
  * See the included NOTICE file for GPLv3 Section 7 terms that apply to Morphe contributions.
  *
- * Modified by lavinhoque33, 2026-11-13
+ * Modified by lavinhoque33, 2026-11-27
  */
 
 package app.morphe.extension.shared.spoof;
@@ -38,6 +38,8 @@ import app.morphe.extension.shared.spoof.requests.StreamOrDetailsDataRequest;
 import app.morphe.extension.shared.spoof.requests.VisitorIdRequester;
 import app.morphe.extension.shared.utils.Logger;
 import app.morphe.extension.shared.utils.Utils;
+import app.morphe.extension.music.patches.downloads.NativeOfflineImport;
+import app.morphe.extension.music.patches.downloads.StreamSwap;
 import app.morphe.extension.youtube.patches.general.offline.OfflineStreamSource;
 
 @SuppressWarnings("unused")
@@ -285,8 +287,14 @@ public class SpoofVideoStreamsPatch {
      * Fix audio stuttering in YouTube Music.
      */
     public static boolean disableSABR(@Nullable String videoId) {
+        if (NativeOfflineImport.includes(videoId)) return false;
         if (!SPOOF_VIDEO_STREAMS) {
             return false;
+        }
+        // A response that plays a copy's files has no SABR route: the spoofed client's choice does not apply to it.
+        if (StreamSwap.playsLocal(videoId)) {
+            Logger.printDebug(() -> "Player uses SABR: false for: " + videoId + " (local copy)");
+            return true;
         }
         final boolean useSABR = StreamOrDetailsDataRequest.playerClientUsesSABR(videoId);
         Logger.printDebug(() -> "Player uses SABR: " + useSABR + " for: " + videoId);
@@ -402,12 +410,15 @@ public class SpoofVideoStreamsPatch {
 
     @Nullable
     public static byte[] getStreamingData(String videoId) {
-        // modified by lavinhoque33, 2026-10-20: a download opened from the offline library replaces the streams, spoofing or not.
+        if (NativeOfflineImport.includes(videoId)) return null;
+        // A download opened from the offline library replaces the streams, spoofing or not.
         byte[] offline = OfflineStreamSource.streamingData(videoId);
         if (offline != null) return offline;
+        // The stream swap is building a response that plays a copy's files: its streams are kept.
+        if (StreamSwap.buildsLocalStreams()) return null;
         if (SPOOF_VIDEO_STREAMS) {
             try {
-                // modified by lavinhoque33, 2026-11-10: with no internet the app's own response, which can be
+                // With no internet the app's own response, which can be
                 // a stored copy, is kept. A fetch could not succeed, and the player would wait for it.
                 if (!Utils.isInternetReachable()) {
                     Logger.printDebug(() -> "SpoofVideoStreams: No internet, keeping the streams of: " + videoId);
@@ -443,11 +454,14 @@ public class SpoofVideoStreamsPatch {
      */
     @Nullable
     public static byte[] getPlayerConfig(String videoId, @Nullable byte[] appPlayerConfig) {
-        // modified by lavinhoque33, 2026-10-20: the player config of the spoofed client does not fit a downloaded file.
+        if (NativeOfflineImport.includes(videoId)) return null;
+        // The player config of the spoofed client does not fit a downloaded file.
         if (OfflineStreamSource.isServing(videoId)) return null;
+        // The config of the swap's response fits its files; the spoofed client's would bring its SABR hints back.
+        if (StreamSwap.buildsLocalStreams()) return null;
         if (SPOOF_VIDEO_STREAMS) {
             try {
-                // modified by lavinhoque33, 2026-11-10: the streams were not replaced with no internet, so
+                // The streams were not replaced with no internet, so
                 // neither is the config that goes with them (a stored copy has its own).
                 if (!Utils.isInternetReachable()) return null;
 
@@ -481,6 +495,8 @@ public class SpoofVideoStreamsPatch {
      * Called after {@link #getPlayerConfig(String, byte[])}.
      */
     public static boolean hasAndroidMedia(String videoId) {
+        if (NativeOfflineImport.includes(videoId)) return false;
+        if (StreamSwap.buildsLocalStreams()) return false;
         if (SPOOF_VIDEO_STREAMS) {
             try {
                 StreamOrDetailsDataRequest request = StreamOrDetailsDataRequest.getStreamRequestForVideoId(videoId);

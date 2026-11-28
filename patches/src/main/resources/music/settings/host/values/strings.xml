@@ -231,6 +231,8 @@ YouTube Music older than 9.00"</string>
     <string name="morphe_music_stream_downloads_delete_message">Delete the %1$s stream downloads (%2$s MB)? Songs saved as device files in Music/RVX and Device files are not affected</string>
     <string name="morphe_music_stream_downloads_delete_message_videos">Delete the %1$s stream downloads and %3$s videos (%2$s MB)? Songs saved as device files in Music/RVX and Device files are not affected</string>
     <string name="morphe_music_stream_downloads_deleted">Deleted %s stream downloads</string>
+    <string name="morphe_music_native_offline_index_title">Index stream downloads in Music</string>
+    <string name="morphe_music_native_offline_index_summary">Adds local stream downloads to Music’s offline index where supported. Does not enable Premium downloads or change how stream downloads play</string>
     <string name="morphe_music_download_item">Download</string>
     <string name="morphe_music_remove_download">Remove download</string>
     <string name="morphe_music_song_menu_needs_connection">Song options have not been saved yet. Open this page with internet to load the regular song menu</string>
